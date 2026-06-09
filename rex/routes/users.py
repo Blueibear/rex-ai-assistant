@@ -25,10 +25,15 @@ def create_blueprint(avatar_dir: Path) -> Blueprint:
         avatar_dir: Directory where user avatar images are stored.
     """
     bp = Blueprint("users", __name__)
+    _register_permission_routes(bp)
+    _register_personality_routes(bp)
+    _register_preference_routes(bp)
+    _register_avatar_routes(bp, avatar_dir)
+    return bp
 
-    # ------------------------------------------------------------------
-    # Permissions API (US-052)
-    # ------------------------------------------------------------------
+
+def _register_permission_routes(bp: Blueprint) -> None:
+    """Register permissions API routes (US-052)."""
 
     @bp.route("/api/user/permissions", methods=["GET"])
     def _get_my_permissions() -> Any:
@@ -104,9 +109,9 @@ def create_blueprint(avatar_dir: Path) -> Blueprint:
 
         return jsonify({"ok": True}), 200
 
-    # ------------------------------------------------------------------
-    # Personality API (US-051)
-    # ------------------------------------------------------------------
+
+def _register_personality_routes(bp: Blueprint) -> None:
+    """Register personality API routes (US-051)."""
 
     @bp.route("/api/personalities", methods=["GET"])
     def _list_personalities() -> Any:
@@ -129,9 +134,9 @@ def create_blueprint(avatar_dir: Path) -> Blueprint:
             200,
         )
 
-    # ------------------------------------------------------------------
-    # User preferences API (US-048)
-    # ------------------------------------------------------------------
+
+def _register_preference_routes(bp: Blueprint) -> None:
+    """Register user preferences API routes (US-048)."""
 
     @bp.route("/api/user/preferences", methods=["GET"])
     def _get_preferences() -> Any:
@@ -155,7 +160,7 @@ def create_blueprint(avatar_dir: Path) -> Blueprint:
         from flask import jsonify, request
 
         from rex.identity import create_user_profile, get_user_profile, update_user_preferences
-        from rex.routes._helpers import _require_auth
+        from rex.routes._helpers import _log_nonfatal_exception, _require_auth
 
         user, err = _require_auth()
         if err:
@@ -167,13 +172,13 @@ def create_blueprint(avatar_dir: Path) -> Blueprint:
             try:
                 create_user_profile(user["id"], name=user["username"])
             except Exception:
-                pass
+                _log_nonfatal_exception("Failed to create user profile before preference update")
         update_user_preferences(user["id"], updates)
         return jsonify({"ok": True}), 200
 
-    # ------------------------------------------------------------------
-    # Avatar API (US-049)
-    # ------------------------------------------------------------------
+
+def _register_avatar_routes(bp: Blueprint, avatar_dir: Path) -> None:
+    """Register avatar API routes (US-049)."""
 
     @bp.route("/api/user/avatar", methods=["POST"])
     def _upload_avatar() -> Any:
@@ -235,5 +240,3 @@ def create_blueprint(avatar_dir: Path) -> Blueprint:
                 return send_file(str(avatar_path), mimetype="image/jpeg")
 
         return Response(_DEFAULT_AVATAR_SVG, mimetype="image/svg+xml")
-
-    return bp

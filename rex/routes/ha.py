@@ -2,19 +2,87 @@
 
 from __future__ import annotations
 
+import http.client
 import json
-from typing import Any
+import ssl
+import urllib.error
+import urllib.parse
+from typing import Any, NamedTuple
 
 from flask import Blueprint
+
+_ALLOWED_HTTP_SCHEMES = {"http", "https"}
+
+
+class _HttpResponse(NamedTuple):
+    status: int
+    body: bytes
+
+
+def _validate_http_url(url: str, *, field_name: str = "url") -> urllib.parse.ParseResult:
+    parsed = urllib.parse.urlparse(url)
+    if parsed.scheme.lower() not in _ALLOWED_HTTP_SCHEMES:
+        raise ValueError(f"{field_name} must use http or https scheme")
+    if not parsed.hostname:
+        raise ValueError(f"{field_name} must include a host")
+    try:
+        _ = parsed.port
+    except ValueError as exc:
+        raise ValueError(f"{field_name} must include a valid port") from exc
+    return parsed
+
+
+def _request_home_assistant(
+    url: str,
+    *,
+    method: str = "GET",
+    headers: dict[str, str] | None = None,
+    body: bytes | None = None,
+    timeout: float = 5,
+    ssl_context: ssl.SSLContext | None = None,
+) -> _HttpResponse:
+    parsed = _validate_http_url(url, field_name="Home Assistant URL")
+    target = urllib.parse.urlunparse(("", "", parsed.path or "/", parsed.params, parsed.query, ""))
+    port = parsed.port
+    request_headers = headers or {}
+
+    if parsed.scheme.lower() == "https":
+        conn: http.client.HTTPConnection = http.client.HTTPSConnection(
+            parsed.hostname,
+            port=port,
+            timeout=timeout,
+            context=ssl_context,
+        )
+    else:
+        conn = http.client.HTTPConnection(parsed.hostname, port=port, timeout=timeout)
+
+    try:
+        conn.request(method, target, body=body, headers=request_headers)
+        resp = conn.getresponse()
+        response_body = resp.read()
+        if resp.status >= 400:
+            raise urllib.error.HTTPError(
+                url,
+                resp.status,
+                resp.reason,
+                dict(resp.getheaders()),
+                None,
+            )
+        return _HttpResponse(status=resp.status, body=response_body)
+    finally:
+        conn.close()
 
 
 def create_blueprint() -> Blueprint:
     """Return the HA and devices Blueprint."""
     bp = Blueprint("ha", __name__)
+    _register_device_routes(bp)
+    _register_ha_routes(bp)
+    return bp
 
-    # ------------------------------------------------------------------
-    # Device control API (US-060)
-    # ------------------------------------------------------------------
+
+def _register_device_routes(bp: Blueprint) -> None:
+    """Register device control API routes (US-060)."""
 
     @bp.route("/api/devices", methods=["GET"])
     def _list_devices() -> Any:
@@ -43,8 +111,6 @@ def create_blueprint() -> Blueprint:
 
         Requires auth.  Body: ``{command: str, value?: any}``
         """
-        import urllib.request
-
         from flask import jsonify, request
 
         from rex.routes._helpers import _require_auth
@@ -95,22 +161,27 @@ def create_blueprint() -> Blueprint:
             payload["volume_level"] = float(value)
 
         body = json.dumps(payload).encode()
-        req = urllib.request.Request(service_url, data=body, method="POST")
-        req.add_header("Content-Type", "application/json")
+        headers = {"Content-Type": "application/json"}
         if ha_token:
-            req.add_header("Authorization", f"Bearer {ha_token}")
+            headers["Authorization"] = f"Bearer {ha_token}"
 
         try:
-            with urllib.request.urlopen(req, timeout=5) as resp:  # noqa: S310
-                ok = resp.status in (200, 201)
+            resp = _request_home_assistant(
+                service_url,
+                method="POST",
+                headers=headers,
+                body=body,
+                timeout=5,
+            )
+            ok = resp.status in (200, 201)
         except Exception as exc:
             return jsonify({"ok": False, "error": str(exc)}), 200
 
         return jsonify({"ok": ok}), 200
 
-    # ------------------------------------------------------------------
-    # Home Assistant setup API (US-059)
-    # ------------------------------------------------------------------
+
+def _register_ha_routes(bp: Blueprint) -> None:
+    """Register Home Assistant setup and state API routes (US-059)."""
 
     @bp.route("/api/ha/test", methods=["POST"])
     def _ha_test_connection() -> Any:
@@ -118,9 +189,6 @@ def create_blueprint() -> Blueprint:
 
         Requires a valid authenticated session.  Body: ``{ha_base_url, ha_token}``
         """
-        import urllib.parse
-        import urllib.request
-
         from flask import jsonify, request
 
         from rex.routes._helpers import _require_auth
@@ -136,21 +204,19 @@ def create_blueprint() -> Blueprint:
         if not base_url:
             return jsonify({"ok": False, "error": "ha_base_url is required"}), 400
 
-        parsed = urllib.parse.urlparse(base_url)
-        if parsed.scheme not in ("http", "https"):
-            return (
-                jsonify({"ok": False, "error": "ha_base_url must use http or https scheme"}),
-                400,
-            )
+        try:
+            _validate_http_url(base_url, field_name="ha_base_url")
+        except ValueError as exc:
+            return jsonify({"ok": False, "error": str(exc)}), 400
 
         api_url = f"{base_url}/api/"
-        req = urllib.request.Request(api_url)
+        headers = {}
         if token:
-            req.add_header("Authorization", f"Bearer {token}")
+            headers["Authorization"] = f"Bearer {token}"
 
         try:
-            with urllib.request.urlopen(req, timeout=5) as resp:  # noqa: S310
-                ok = resp.status == 200
+            resp = _request_home_assistant(api_url, headers=headers, timeout=5)
+            ok = resp.status == 200
         except Exception:
             from flask import current_app
 
@@ -212,7 +278,9 @@ def create_blueprint() -> Blueprint:
 
             _reload_app_config(reload=True)
         except Exception:
-            pass
+            from rex.routes._helpers import _log_nonfatal_exception
+
+            _log_nonfatal_exception("Failed to reload app config after saving HA settings")
 
         return jsonify({"ok": True}), 200
 
@@ -220,9 +288,6 @@ def create_blueprint() -> Blueprint:
     def _ha_get_states() -> Any:
         """Return all entity states from Home Assistant."""
         import json as _json
-        import ssl
-        import urllib.error
-        import urllib.request
 
         from flask import jsonify
 
@@ -249,7 +314,6 @@ def create_blueprint() -> Blueprint:
             "Authorization": f"Bearer {token}",
             "Content-Type": "application/json",
         }
-        req = urllib.request.Request(url, headers=headers, method="GET")
 
         ssl_ctx: ssl.SSLContext | None = None
         if not cfg.ha_verify_ssl:
@@ -258,8 +322,14 @@ def create_blueprint() -> Blueprint:
             ssl_ctx.verify_mode = ssl.CERT_NONE
 
         try:
-            with urllib.request.urlopen(req, timeout=cfg.ha_timeout, context=ssl_ctx) as resp:
-                raw_states: list[dict[str, Any]] = _json.loads(resp.read().decode())
+            resp = _request_home_assistant(
+                url,
+                method="GET",
+                headers=headers,
+                timeout=cfg.ha_timeout,
+                ssl_context=ssl_ctx,
+            )
+            raw_states: list[dict[str, Any]] = _json.loads(resp.body.decode())
         except urllib.error.HTTPError as exc:
             return jsonify({"ok": False, "error": f"HA returned HTTP {exc.code}"}), 200
         except Exception as exc:
@@ -278,5 +348,3 @@ def create_blueprint() -> Blueprint:
             if isinstance(s, dict)
         ]
         return jsonify({"ok": True, "states": states}), 200
-
-    return bp

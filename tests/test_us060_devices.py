@@ -158,7 +158,7 @@ class TestDeviceCommand:
 
         with (
             patch("rex.config.load_config", return_value=mock_cfg),
-            patch("urllib.request.urlopen", return_value=mock_resp) as mock_url,
+            patch("rex.routes.ha._request_home_assistant", return_value=mock_resp) as mock_request,
         ):
             resp = flask_client.post(
                 "/api/devices/light.living_room/command",
@@ -168,7 +168,7 @@ class TestDeviceCommand:
 
         assert resp.status_code == 200
         assert resp.get_json()["ok"] is True
-        mock_url.assert_called_once()
+        mock_request.assert_called_once()
 
     def test_set_brightness_includes_value(self, flask_client) -> None:  # type: ignore[override]
         token = _register_and_login(flask_client)
@@ -184,13 +184,21 @@ class TestDeviceCommand:
 
         sent_body: list[bytes] = []
 
-        def capture_urlopen(req, timeout=None):  # type: ignore[override]
-            sent_body.append(req.data)
+        def capture_request(
+            url: str,
+            *,
+            method: str = "GET",
+            headers: dict[str, str] | None = None,
+            body: bytes | None = None,
+            timeout: float = 5,
+            ssl_context=None,
+        ):  # type: ignore[no-untyped-def]
+            sent_body.append(body or b"")
             return mock_resp
 
         with (
             patch("rex.config.load_config", return_value=mock_cfg),
-            patch("urllib.request.urlopen", side_effect=capture_urlopen),
+            patch("rex.routes.ha._request_home_assistant", side_effect=capture_request),
         ):
             flask_client.post(
                 "/api/devices/light.living_room/command",
@@ -211,7 +219,10 @@ class TestDeviceCommand:
 
         with (
             patch("rex.config.load_config", return_value=mock_cfg),
-            patch("urllib.request.urlopen", side_effect=OSError("connection refused")),
+            patch(
+                "rex.routes.ha._request_home_assistant",
+                side_effect=OSError("connection refused"),
+            ),
         ):
             resp = flask_client.post(
                 "/api/devices/switch.fan/command",

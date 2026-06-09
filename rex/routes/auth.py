@@ -22,7 +22,7 @@ def create_blueprint() -> Blueprint:
         from flask import jsonify, request
 
         from rex.auth import _open_db, create_user  # noqa: PLC2701
-        from rex.routes._helpers import _require_setup_token
+        from rex.routes._helpers import _log_nonfatal_exception, _require_setup_token
 
         try:
             with _open_db() as conn:
@@ -53,14 +53,14 @@ def create_blueprint() -> Blueprint:
 
             create_user_profile(user["id"], name=username)
         except Exception:
-            pass
+            _log_nonfatal_exception("Failed to create user profile during registration")
 
         try:
             from rex.permissions import bootstrap_admin_if_first_user
 
             bootstrap_admin_if_first_user(user["id"])
         except Exception:
-            pass
+            _log_nonfatal_exception("Failed to bootstrap first-user admin permissions")
 
         return jsonify({"id": user["id"], "username": user["username"]}), 201
 

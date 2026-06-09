@@ -98,7 +98,7 @@ class TestHaTestSchemeValidation:
     def test_http_scheme_accepted(self, flask_client) -> None:
         """http:// is a valid scheme."""
         token = _register_and_login(flask_client)
-        with patch("urllib.request.urlopen", side_effect=OSError("no host")):
+        with patch("rex.routes.ha._request_home_assistant", side_effect=OSError("no host")):
             resp = flask_client.post(
                 "/api/ha/test",
                 json={"ha_base_url": "http://ha.local:8123"},
@@ -111,7 +111,7 @@ class TestHaTestSchemeValidation:
     def test_https_scheme_accepted(self, flask_client) -> None:
         """https:// is a valid scheme."""
         token = _register_and_login(flask_client)
-        with patch("urllib.request.urlopen", side_effect=OSError("no host")):
+        with patch("rex.routes.ha._request_home_assistant", side_effect=OSError("no host")):
             resp = flask_client.post(
                 "/api/ha/test",
                 json={"ha_base_url": "https://ha.example.com:8123"},
@@ -126,7 +126,10 @@ class TestHaTestErrorRedaction:
         """Connection errors must not leak internal exception details."""
         token = _register_and_login(flask_client)
         internal_message = "INTERNAL_STACK_TRACE_DETAIL_xyz123"
-        with patch("urllib.request.urlopen", side_effect=OSError(internal_message)):
+        with patch(
+            "rex.routes.ha._request_home_assistant",
+            side_effect=OSError(internal_message),
+        ):
             resp = flask_client.post(
                 "/api/ha/test",
                 json={"ha_base_url": "http://ha.local:8123"},

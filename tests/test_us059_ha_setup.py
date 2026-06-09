@@ -68,7 +68,7 @@ class TestHaTest:
 
     def test_unauthenticated_returns_401(self, flask_client) -> None:  # type: ignore[override]
         """Route now requires auth — unauthenticated request must be rejected."""
-        with patch("urllib.request.urlopen", side_effect=OSError("no host")):
+        with patch("rex.routes.ha._request_home_assistant", side_effect=OSError("no host")):
             resp = flask_client.post("/api/ha/test", json={"ha_base_url": "http://ha.local:8123"})
         assert resp.status_code == 401
 
@@ -79,7 +79,7 @@ class TestHaTest:
         mock_resp.__enter__ = lambda s: s
         mock_resp.__exit__ = MagicMock(return_value=False)
 
-        with patch("urllib.request.urlopen", return_value=mock_resp):
+        with patch("rex.routes.ha._request_home_assistant", return_value=mock_resp):
             resp = flask_client.post(
                 "/api/ha/test",
                 json={"ha_base_url": "http://ha.local:8123", "ha_token": "good-token"},
@@ -90,7 +90,10 @@ class TestHaTest:
 
     def test_failed_connection_returns_ok_false(self, flask_client) -> None:  # type: ignore[override]
         token = _register_and_login(flask_client)
-        with patch("urllib.request.urlopen", side_effect=OSError("connection refused")):
+        with patch(
+            "rex.routes.ha._request_home_assistant",
+            side_effect=OSError("connection refused"),
+        ):
             resp = flask_client.post(
                 "/api/ha/test",
                 json={"ha_base_url": "http://ha.local:8123"},
@@ -108,7 +111,7 @@ class TestHaTest:
         mock_resp.__enter__ = lambda s: s
         mock_resp.__exit__ = MagicMock(return_value=False)
 
-        with patch("urllib.request.urlopen", return_value=mock_resp):
+        with patch("rex.routes.ha._request_home_assistant", return_value=mock_resp):
             resp = flask_client.post(
                 "/api/ha/test",
                 json={"ha_base_url": "http://ha.local:8123"},

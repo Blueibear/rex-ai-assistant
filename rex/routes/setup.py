@@ -38,7 +38,7 @@ def create_blueprint() -> Blueprint:
         from flask import current_app, jsonify, request
 
         from rex.auth import create_user
-        from rex.routes._helpers import _require_setup_token
+        from rex.routes._helpers import _log_nonfatal_exception, _require_setup_token
 
         _, token_err = _require_setup_token()
         if token_err is not None:
@@ -66,7 +66,7 @@ def create_blueprint() -> Blueprint:
 
             bootstrap_admin_if_first_user(user["id"])
         except Exception:
-            pass
+            _log_nonfatal_exception("Failed to bootstrap first-user admin permissions")
 
         try:
             from rex.config_manager import load_config as _load_json_cfg
@@ -81,7 +81,7 @@ def create_blueprint() -> Blueprint:
                 json_cfg.setdefault("home_assistant", {})["base_url"] = ha_base_url
             _save_json_cfg(json_cfg)
         except Exception:
-            pass
+            _log_nonfatal_exception("Failed to persist setup wizard configuration")
 
         try:
             from rex.bridge_utils import repo_root

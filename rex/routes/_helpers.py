@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import re
 from pathlib import Path
 from typing import Any
@@ -52,6 +53,14 @@ def _require_setup_token() -> tuple[None, None] | tuple[None, Any]:
     if not provided or provided != expected:
         return None, (jsonify({"error": "forbidden"}), 403)
     return None, None
+
+
+def _log_nonfatal_exception(message: str) -> None:
+    """Log a best-effort route side effect failure without changing the response."""
+    from flask import current_app, has_app_context
+
+    logger = current_app.logger if has_app_context() else logging.getLogger(__name__)
+    logger.debug(message, exc_info=True)
 
 
 def _generate_reply(user_text: str) -> str:
