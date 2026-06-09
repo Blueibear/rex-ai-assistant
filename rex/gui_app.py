@@ -74,12 +74,16 @@ def _write_env_secrets(
 
 def _register_core_routes(app: Any, *, ui_enabled: bool) -> None:
     from flask import jsonify, redirect, send_from_directory
+
     if ui_enabled and _UI_DIST.is_dir():
+
         @app.route("/ui/", defaults={"filename": "index.html"})
         @app.route("/ui/<path:filename>")
         def _serve_ui(filename: str) -> Any:
             return send_from_directory(str(_UI_DIST), filename)
+
     else:
+
         @app.route("/ui/")
         def _ui_disabled() -> Any:
             return "<h1>Rex UI</h1><p>UI is disabled or not built.</p>", 200
@@ -96,6 +100,7 @@ def _register_core_routes(app: Any, *, ui_enabled: bool) -> None:
 def _register_api_blueprints(app: Any, *, data_dir: Path, history_store: Any) -> None:
     from rex.log_paths import active_runtime_log_path
     from rex.routes import auth, chat, ha, integrations, logs, setup, status, users
+
     app.register_blueprint(chat.create_blueprint(history_store))
     app.register_blueprint(logs.create_blueprint(active_runtime_log_path()))
     app.register_blueprint(status.create_blueprint())
@@ -143,6 +148,7 @@ def _generate_reply(user_text: str) -> str:
     try:
         from rex.config import load_config
         from rex.llm_client import LanguageModel
+
         cfg = load_config()
         llm = LanguageModel(config=cfg)
         messages = [{"role": "user", "content": user_text}]
@@ -153,12 +159,14 @@ def _generate_reply(user_text: str) -> str:
 
 def _open_browser(host: str, port: int) -> None:
     import time
+
     time.sleep(0.8)
     webbrowser.open(f"http://{host}:{port}/ui/")
 
 
 def main() -> None:
     import logging
+
     logging.basicConfig(level=logging.WARNING)
     if not os.getenv("ELECTRON_RUN_AS_NODE"):
         logging.warning(
@@ -170,6 +178,7 @@ def main() -> None:
     port = _resolve_server_port()
     try:
         from rex.config import load_config
+
         cfg = load_config()
         ui_enabled = cfg.ui_enabled
     except Exception:
@@ -180,9 +189,11 @@ def main() -> None:
 
     browser_thread = threading.Thread(target=_open_browser, args=(host, port), daemon=True)
     browser_thread.start()
+
     def _handle_sigint(sig: int, frame: Any) -> None:  # pragma: no cover
         print("\nShutting down Rex GUI...", file=sys.stderr)
         sys.exit(0)
+
     signal.signal(signal.SIGINT, _handle_sigint)
     print(f"Rex GUI starting at http://{host}:{port}/ui/", file=sys.stderr)
 

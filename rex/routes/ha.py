@@ -1,4 +1,5 @@
 """Home Assistant and device routes — /api/ha/*, /api/devices/*."""
+
 from __future__ import annotations
 
 import json

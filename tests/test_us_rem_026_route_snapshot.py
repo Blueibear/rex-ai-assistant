@@ -47,7 +47,9 @@ EXPECTED_ROUTE_SNAPSHOT = [
 ]
 
 
-def _route_snapshot(app: Any) -> list[tuple[str, str, tuple[str, ...], tuple[tuple[str, Any], ...]]]:
+def _route_snapshot(
+    app: Any,
+) -> list[tuple[str, str, tuple[str, ...], tuple[tuple[str, Any], ...]]]:
     return [
         (
             rule.rule,

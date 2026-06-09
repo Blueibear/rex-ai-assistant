@@ -1,4 +1,5 @@
 """User, permissions, personality, preferences, and avatar routes."""
+
 from __future__ import annotations
 
 from pathlib import Path

@@ -1,4 +1,5 @@
 """Shared helpers shared across Rex route blueprints."""
+
 from __future__ import annotations
 
 import re
@@ -28,7 +29,7 @@ def _require_auth() -> tuple[dict[str, Any], None] | tuple[None, Any]:
     auth_header = request.headers.get("Authorization", "")
     if not auth_header.startswith("Bearer "):
         return None, (jsonify({"error": "authentication required"}), 401)
-    token = auth_header[len("Bearer "):]
+    token = auth_header[len("Bearer ") :]
     try:
         return get_current_user(token), None
     except ValueError as exc:

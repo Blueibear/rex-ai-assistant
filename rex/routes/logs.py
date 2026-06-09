@@ -1,4 +1,5 @@
 """Log streaming/download routes — /api/logs/*."""
+
 from __future__ import annotations
 
 import json

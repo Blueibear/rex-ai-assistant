@@ -1,4 +1,5 @@
 """Setup wizard routes — /api/setup/*."""
+
 from __future__ import annotations
 
 from pathlib import Path

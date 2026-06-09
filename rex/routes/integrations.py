@@ -1,4 +1,5 @@
 """Integrations, calendar, email, SMS, capabilities, and tools routes."""
+
 from __future__ import annotations
 
 import os
@@ -28,9 +29,7 @@ def create_blueprint() -> Blueprint:
             return jsonify({"integrations": []}), 200
 
         search_configured = bool(
-            os.getenv("SERPAPI_API_KEY")
-            or os.getenv("BRAVE_API_KEY")
-            or os.getenv("GOOGLE_CSE_ID")
+            os.getenv("SERPAPI_API_KEY") or os.getenv("BRAVE_API_KEY") or os.getenv("GOOGLE_CSE_ID")
         )
 
         integrations = [
