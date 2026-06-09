@@ -839,11 +839,11 @@ cat SURFACE-CLASSIFICATION.md
 - New `rex/routes/` package
 
 **Acceptance Criteria:**
-- [ ] `rex/gui_app.py` is under 200 lines after extraction (app factory, middleware registration, blueprint registration only).
-- [ ] Each route domain has its own Blueprint module in `rex/routes/`.
-- [ ] All existing tests pass without modification.
-- [ ] `ruff check rex/gui_app.py rex/routes/` passes.
-- [ ] No behavior change: the route table before and after decomposition is identical (verify with a route snapshot before and after).
+- [x] `rex/gui_app.py` is under 200 lines after extraction (app factory, middleware registration, blueprint registration only).
+- [x] Each route domain has its own Blueprint module in `rex/routes/`.
+- [x] All existing tests pass without modification.
+- [x] `ruff check rex/gui_app.py rex/routes/` passes.
+- [x] No behavior change: the route table before and after decomposition is identical (verify with a route snapshot before and after).
 
 **Validation commands:**
 ```bash
