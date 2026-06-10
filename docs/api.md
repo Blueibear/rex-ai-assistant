@@ -1,6 +1,6 @@
 # AskRex Assistant HTTP API Reference
 
-AskRex exposes several local HTTP surfaces. The current primary GUI is the Electron app under `gui/`. `rex-gui` starts a Flask process that serves local API routes and an incomplete, experimental `/ui/` browser dashboard. `flask_proxy.py` remains as a legacy proxy surface for compatibility.
+AskRex exposes several local HTTP surfaces. The current primary GUI is the Electron app under `gui/`. `rex-gui` starts a Flask process that serves local API routes and an incomplete, experimental `/ui/` browser dashboard. `flask_proxy.py` is a **deprecated** legacy proxy surface — use `rex-gui` for all new work.
 
 ## Service Summary
 
@@ -9,7 +9,7 @@ AskRex exposes several local HTTP surfaces. The current primary GUI is the Elect
 | Python/Flask API and experimental web dashboard | `rex-gui` | `http://127.0.0.1:8765` | Serves local dashboard/API routes; `/ui/` exists but is not the primary GUI |
 | TTS API | `rex-speak-api` | `http://127.0.0.1:5005` | Converts text to WAV audio |
 | OpenClaw tool server | `rex-tool-server` | `http://127.0.0.1:18790` | Exposes Rex tools over HTTP |
-| Legacy Flask proxy | `python flask_proxy.py` | `http://0.0.0.0:5000` | Legacy proxy/search/contracts API |
+| Legacy Flask proxy *(deprecated)* | `python flask_proxy.py` | `http://0.0.0.0:5000` | **Deprecated** — legacy proxy/search/contracts API; use `rex-gui` |
 
 ## Common Health Endpoints
 
@@ -209,9 +209,11 @@ Tool server environment:
 
 Tool calls are rate-limited and guarded by the policy adapter. Denied or approval-required actions return 403.
 
-## Legacy Flask Proxy (`flask_proxy.py`)
+## Legacy Flask Proxy (`flask_proxy.py`) — Deprecated
 
-`flask_proxy.py` is not the normal GUI runtime. It remains for compatibility with older proxy workflows.
+> **Deprecated.** `flask_proxy.py` is scheduled for removal. Use `rex-gui` (`rex.gui_app:main`) for all new work. See [SURFACE-CLASSIFICATION.md](../SURFACE-CLASSIFICATION.md).
+
+`flask_proxy.py` is not the normal GUI runtime. It remains only for compatibility with older proxy workflows and will be removed in a future release.
 
 Routes defined directly in the file:
 

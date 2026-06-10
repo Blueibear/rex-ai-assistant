@@ -5,9 +5,9 @@ AskRex currently has one primary GUI and one Python/Flask service surface:
 - Electron desktop app under `gui/` - current primary GUI.
 - `rex-gui` - local Flask API/runtime surface with an incomplete, experimental browser dashboard at `/ui/`.
 
-The old Tkinter entry points (`gui.py`, `run_gui.py`) are deprecated. The legacy
-`flask_proxy.py` surface is kept for compatibility and should not be treated as
-the primary dashboard.
+The old Tkinter entry points (`gui.py`, `run_gui.py`) are **archived** (moved to
+`archived/tkinter_gui/`) and are no longer maintained. The root-level
+`flask_proxy.py` is **deprecated** — use `rex-gui` instead.
 
 ## Electron Desktop App
 

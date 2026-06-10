@@ -19,11 +19,7 @@ from __future__ import annotations
 
 import json
 import sys
-
-from rex.bridge_utils import bridge_error_response, repo_root, resolve_python
-
-_PYTHON_EXE = resolve_python()  # venv-aware interpreter path for subprocess calls
-_REPO_ROOT = repo_root()  # absolute repo root for resolving scripts and config
+from contextlib import redirect_stdout
 
 
 def main() -> None:
@@ -43,15 +39,16 @@ def main() -> None:
         sys.exit(1)
 
     try:
-        from rex.custom_voices import save_custom_voice
+        with redirect_stdout(sys.stderr):
+            from rex.custom_voices import save_custom_voice
 
-        result = save_custom_voice(file_path, voice_name)
+            result = save_custom_voice(file_path, voice_name)
         print(json.dumps(result), flush=True)
         if not result.get("ok"):
             sys.exit(1)
     except Exception as exc:
         print(
-            json.dumps({**bridge_error_response(exc), "duration": 0.0}),
+            json.dumps({"ok": False, "error": str(exc), "duration": 0.0}),
             flush=True,
         )
         sys.exit(1)

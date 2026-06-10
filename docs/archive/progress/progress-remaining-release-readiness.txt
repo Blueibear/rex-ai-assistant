@@ -570,3 +570,11 @@ Use this format for each Ralph iteration:
 - Commit:
 - Learnings:
 ```
+
+## 2026-06-09 03:57 UTC - US-REM-026 complete
+- Decomposed rex/gui_app.py into rex/routes Blueprint modules.
+- Added route snapshot coverage to verify route table behavior remains stable.
+- Confirmed rex/gui_app.py is under 200 lines.
+- Validation passed: ruff check rex/gui_app.py rex/routes/ bridge/rex_voice_upload_bridge.py.
+- Validation passed: pytest -q with 7178 passed, 84 skipped.
+- Also fixed bridge/rex_voice_upload_bridge.py stdout JSON contract discovered during full-suite validation.

@@ -68,7 +68,7 @@ The current primary GUI is the Electron + React app in `gui/`, built with
 Vite and packaged from `gui/dist-electron/`. The Python/Flask local API and
 the experimental browser dashboard at `/ui/` live in `rex/gui_app.py`
 (launched via the `rex-gui` console script); the legacy Tkinter
-`gui.py` / `run_gui.py` entry points are deprecated.
+`gui.py` / `run_gui.py` entry points are **archived** (moved to `archived/tkinter_gui/`).
 
 ### Plugin / tool system
 
@@ -97,11 +97,11 @@ in `profiles/<name>.json`.
 | Config | `rex/config.py`, `rex/config_manager.py`, `config/rex_config.json` | Runtime JSON config plus `.env` secrets |
 | Memory and history | `rex/memory.py`, `rex/memory_utils.py`, `rex/history_store.py`, `Memory/`, `data/` | Per-user memory plus command/chat history |
 | Tools | `rex/openclaw/tool_registry.py`, `rex/openclaw/tool_executor.py`, `rex/openclaw/tools/` | Local tool registry and executor |
-| Tool server | `rex/openclaw/tool_server.py` | `rex-tool-server` on `127.0.0.1:18790` |
-| Electron UI | `gui/` | Current primary React/Electron GUI, built to `gui/dist-electron/` |
-| Python/Flask API and experimental web UI | `rex/gui_app.py` | `rex-gui` on `127.0.0.1:8765`; local APIs plus incomplete `/ui/` browser dashboard |
-| TTS API | `rex_speak_api.py` | `rex-speak-api` on `127.0.0.1:5005` |
-| Computer agent | `rex/computers/agent_server.py` | `rex-agent`, local agent API for controlled OS automation |
+| Tool server | `rex/openclaw/tool_server.py` | `rex-tool-server` on `127.0.0.1:18790` — **developer-only** |
+| Electron UI | `gui/` | Current primary React/Electron GUI, built to `gui/dist-electron/` — **shippable** |
+| Python/Flask API and experimental web UI | `rex/gui_app.py` | `rex-gui` on `127.0.0.1:8765`; local APIs plus incomplete `/ui/` browser dashboard — **developer-only** |
+| TTS API | `rex_speak_api.py` | `rex-speak-api` on `127.0.0.1:5005` — **developer-only** |
+| Computer agent | `rex/computers/agent_server.py` | `rex-agent`, local agent API for controlled OS automation — **developer-only** |
 
 ## Repository Layout
 
@@ -130,7 +130,7 @@ in `profiles/<name>.json`.
 |-- docs/                    # Current docs plus archived planning/history
 |-- rex_loop.py              # Voice loop runner
 |-- rex_speak_api.py         # TTS Flask API
-|-- flask_proxy.py           # Legacy compatibility proxy
+|-- flask_proxy.py           # Deprecated legacy compatibility proxy (see SURFACE-CLASSIFICATION.md)
 `-- pyproject.toml           # Package metadata and console scripts
 ```
 
@@ -142,14 +142,14 @@ remain compatibility shims for older imports. New code should import from
 
 Defined in `pyproject.toml`:
 
-| Console script | Target |
-|---|---|
-| `rex` | `rex.cli:main` |
-| `rex-config` | `rex.config:cli` |
-| `rex-speak-api` | `rex_speak_api:main` |
-| `rex-agent` | `rex.computers.agent_server:main` |
-| `rex-gui` | `rex.gui_app:main` |
-| `rex-tool-server` | `rex.openclaw.tool_server:main` |
+| Console script | Target | Classification |
+|---|---|---|
+| `rex` | `rex.cli:main` | shippable |
+| `rex-config` | `rex.config:cli` | developer-only |
+| `rex-speak-api` | `rex_speak_api:main` | developer-only |
+| `rex-agent` | `rex.computers.agent_server:main` | developer-only |
+| `rex-gui` | `rex.gui_app:main` | developer-only |
+| `rex-tool-server` | `rex.openclaw.tool_server:main` | developer-only |
 
 Module/script entry points:
 
@@ -159,7 +159,7 @@ Module/script entry points:
 | `python -m rex doctor` | Environment diagnostics |
 | `python rex_loop.py` | Full local voice loop |
 | `python rex_speak_api.py` | Equivalent TTS API script form |
-| `python flask_proxy.py` | Legacy compatibility proxy/API |
+| `python flask_proxy.py` | **Deprecated** legacy compatibility proxy/API — use `rex-gui` instead |
 
 `python -m rex-speak-api` is not a valid module invocation; use
 `rex-speak-api` or `python rex_speak_api.py`.
@@ -255,8 +255,8 @@ Representative endpoints include:
 
 ### Legacy UI Surfaces
 
-`gui.py` and `run_gui.py` are deprecated Tkinter-era entry points. `flask_proxy.py`
-is a compatibility API/proxy surface, not the primary GUI.
+`gui.py` and `run_gui.py` are **archived** Tkinter-era entry points (moved to `archived/tkinter_gui/`). `flask_proxy.py`
+is a **deprecated** compatibility API/proxy surface — use `rex-gui` instead.
 
 ## TTS API
 

@@ -158,7 +158,7 @@ This README reflects the current milestone after recent live testing and repair 
 | Windows computer agent | `rex-agent` | Optional remote PC control agent (developer / advanced) |
 | Runtime config CLI | `rex-config` | Config inspection and legacy env migration (developer / advanced) |
 
-The Electron app under `gui/` is the current primary GUI. `rex-gui` remains useful as a local Flask/API service and for compatibility testing, but its browser dashboard at `/ui/` is incomplete and should not be treated as the main user interface. The legacy Tkinter launchers (`gui.py` and its entry point) are deprecated.
+The Electron app under `gui/` is the current primary GUI. `rex-gui` remains useful as a local Flask/API service and for compatibility testing, but its browser dashboard at `/ui/` is incomplete and should not be treated as the main user interface. The legacy Tkinter launchers (`gui.py` and its entry point) are archived — moved to `archived/tkinter_gui/` and no longer maintained. See [SURFACE-CLASSIFICATION.md](SURFACE-CLASSIFICATION.md).
 
 ## Features
 

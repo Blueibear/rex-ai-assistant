@@ -41,14 +41,14 @@ pip install -e ".[ml,audio]"
 
 ## Console Scripts
 
-| Script | Target | Purpose |
-|---|---|---|
-| `rex` | `rex.cli:main` | Main CLI |
-| `rex-config` | `rex.config:cli` | Config inspection and legacy env migration |
-| `rex-speak-api` | `rex_speak_api:main` | TTS HTTP API on `127.0.0.1:5005` |
-| `rex-agent` | `rex.computers.agent_server:main` | Computer agent API |
-| `rex-gui` | `rex.gui_app:main` | Flask local API plus incomplete experimental `/ui/` browser dashboard on `127.0.0.1:8765` |
-| `rex-tool-server` | `rex.openclaw.tool_server:main` | Tool server on `127.0.0.1:18790` |
+| Script | Target | Purpose | Classification |
+|---|---|---|---|
+| `rex` | `rex.cli:main` | Main CLI | shippable |
+| `rex-config` | `rex.config:cli` | Config inspection and legacy env migration | developer-only |
+| `rex-speak-api` | `rex_speak_api:main` | TTS HTTP API on `127.0.0.1:5005` | developer-only |
+| `rex-agent` | `rex.computers.agent_server:main` | Computer agent API | developer-only |
+| `rex-gui` | `rex.gui_app:main` | Flask local API plus incomplete experimental `/ui/` browser dashboard on `127.0.0.1:8765` | developer-only |
+| `rex-tool-server` | `rex.openclaw.tool_server:main` | Tool server on `127.0.0.1:18790` | developer-only |
 
 `python -m rex-speak-api` is invalid. Use `rex-speak-api` or
 `python rex_speak_api.py`.

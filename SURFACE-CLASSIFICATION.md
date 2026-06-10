@@ -55,6 +55,7 @@ here first, then propagated to docs, packaging config, and CI.
 | `voice_loop.py` | `deprecated` | Root-level re-export shim for `AsyncRexAssistant` backward compatibility. Emits `DeprecationWarning` on import. Canonical implementation: `rex.voice_loop`. Scheduled for removal — see US-REM-020. |
 | `llm_client.py` | `deprecated` | Root-level re-export shim for `rex.llm_client`. Emits `DeprecationWarning` on import. Canonical implementation: `rex.llm_client`. Scheduled for removal — see US-REM-020. |
 | `config.py` | `deprecated` | Root-level re-export shim for `rex.config`. Emits `DeprecationWarning` on import. Canonical implementation: `rex.config`. Scheduled for removal — see US-REM-020. |
+| `flask_proxy.py` | `deprecated` | Legacy Flask API and proxy application. Still present at repo root but not an entry point in `pyproject.toml`. Canonical replacement: `rex-gui` (`rex.gui_app:main`). An archived copy lives at `archived/compat_shims/flask_proxy.py`. Scheduled for removal in a future release. |
 
 ---
 
@@ -89,10 +90,10 @@ any entry point, import, or startup path in the active codebase.
 |----------------|-------|
 | `shippable` | 3 |
 | `developer-only` | 10 |
-| `deprecated` | 4 |
+| `deprecated` | 5 |
 | `archived` | 15 |
 | `removed` | 0 |
-| **Total** | **32** |
+| **Total** | **33** |
 
 ---
 
@@ -102,3 +103,4 @@ any entry point, import, or startup path in the active codebase.
 |------|-------|--------|
 | 2026-06-01 | US-REM-018 | Initial classification of all surfaces |
 | 2026-06-01 | US-REM-019 | rex-gui reclassified shippable → developer-only. Audit confirmed: packaged Electron app does not spawn rex-gui; IPC uses bridge scripts only; renderer /api/... calls are dead in packaged mode (file:// protocol). |
+| 2026-06-07 | US-REM-025 | Added root-level flask_proxy.py as deprecated (count: deprecated 4→5, total 32→33). Updated docs to use archived (not deprecated) for gui.py/run_gui.py. Added developer-only labels across INSTRUCTION_MANUAL.md, ARCHITECTURE.md, COMMANDS_AND_ENTRYPOINTS.md, and API/deployment docs. |

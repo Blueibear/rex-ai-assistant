@@ -181,3 +181,6 @@ gui/data/
 PRD-ci-fix-*.md
 
 data/shopping_list.json
+
+# Local bridge runtime state
+bridge/data/

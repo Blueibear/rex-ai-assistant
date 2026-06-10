@@ -103,21 +103,21 @@ python -m rex
 
 ## 6. Main Runtime Surfaces
 
-| Surface | Command | Default |
-|---|---|---:|
-| CLI chat | `python -m rex` | none |
-| Voice loop | `python rex_loop.py` | none |
-| Electron desktop | `npm.cmd run dev` in `gui/` | app window |
-| Python/Flask API and experimental web dashboard | `rex-gui` | `http://127.0.0.1:8765/ui/` |
-| TTS API | `rex-speak-api` | `http://127.0.0.1:5005` |
-| Tool server | `rex-tool-server` | `http://127.0.0.1:18790` |
-| Computer agent | `rex-agent` | localhost agent API |
-| Legacy proxy | `python flask_proxy.py` | `http://127.0.0.1:5000` |
+| Surface | Command | Default | Classification |
+|---|---|---:|---|
+| CLI chat | `python -m rex` | none | shippable |
+| Voice loop | `python rex_loop.py` | none | shippable |
+| Electron desktop | `npm.cmd run dev` in `gui/` | app window | **shippable — primary GUI** |
+| Python/Flask API and experimental web dashboard | `rex-gui` | `http://127.0.0.1:8765/ui/` | **developer-only** |
+| TTS API | `rex-speak-api` | `http://127.0.0.1:5005` | **developer-only** |
+| Tool server | `rex-tool-server` | `http://127.0.0.1:18790` | **developer-only** |
+| Computer agent | `rex-agent` | localhost agent API | **developer-only** |
+| Legacy proxy | `python flask_proxy.py` | `http://127.0.0.1:5000` | **deprecated** — use `rex-gui` |
 
 Use Electron for normal GUI work. Use `rex-gui` when you need local Flask API
-routes or the incomplete experimental browser dashboard. `gui.py` and
-`run_gui.py` are deprecated. Treat `flask_proxy.py` as a compatibility surface,
-not the primary dashboard.
+routes or the incomplete experimental browser dashboard (developer-only). `gui.py` and
+`run_gui.py` are **archived** (moved to `archived/tkinter_gui/`). `flask_proxy.py` is
+**deprecated** — use `rex-gui` instead.
 
 ## 7. Voice Setup
 
@@ -178,7 +178,7 @@ place the harness under `gui/tmp_verify_*.cjs`. The harness should require
 `gui/dist-electron/main/index.js`, wait for the main `BrowserWindow`, and drive
 the renderer with `webContents.executeJavaScript()`.
 
-## 9. Python/Flask API and Experimental Web Dashboard
+## 9. Python/Flask API and Experimental Web Dashboard (Developer-only)
 
 ```bash
 rex-gui
@@ -202,7 +202,7 @@ Override the port with `REX_GUI_PORT`.
 The `/ui/` browser dashboard is incomplete in current testing. Use it for API
 smoke checks or compatibility work, not as the primary GUI.
 
-## 10. TTS API
+## 10. TTS API (Developer-only)
 
 Set a secret and start:
 
@@ -229,7 +229,7 @@ curl http://127.0.0.1:5005/health/live
 curl http://127.0.0.1:5005/health/ready
 ```
 
-## 11. Tool Server
+## 11. Tool Server (Developer-only)
 
 Set a secret and start:
 
