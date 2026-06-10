@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import email.message
 import http.client
 import json
 import ssl
@@ -42,30 +43,37 @@ def _request_home_assistant(
     ssl_context: ssl.SSLContext | None = None,
 ) -> _HttpResponse:
     parsed = _validate_http_url(url, field_name="Home Assistant URL")
+    host = parsed.hostname
+    if host is None:
+        raise ValueError("Home Assistant URL must include a host")
+
     target = urllib.parse.urlunparse(("", "", parsed.path or "/", parsed.params, parsed.query, ""))
     port = parsed.port
     request_headers = headers or {}
 
     if parsed.scheme.lower() == "https":
         conn: http.client.HTTPConnection = http.client.HTTPSConnection(
-            parsed.hostname,
+            host,
             port=port,
             timeout=timeout,
             context=ssl_context,
         )
     else:
-        conn = http.client.HTTPConnection(parsed.hostname, port=port, timeout=timeout)
+        conn = http.client.HTTPConnection(host, port=port, timeout=timeout)
 
     try:
         conn.request(method, target, body=body, headers=request_headers)
         resp = conn.getresponse()
         response_body = resp.read()
         if resp.status >= 400:
+            response_headers = email.message.Message()
+            for header_name, header_value in resp.getheaders():
+                response_headers[header_name] = header_value
             raise urllib.error.HTTPError(
                 url,
                 resp.status,
                 resp.reason,
-                dict(resp.getheaders()),
+                response_headers,
                 None,
             )
         return _HttpResponse(status=resp.status, body=response_body)
