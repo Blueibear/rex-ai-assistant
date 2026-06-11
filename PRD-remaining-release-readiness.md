@@ -913,10 +913,10 @@ python -c "from rex.voice_loop import build_voice_loop; print('ok')"
 - New `gui/src/main/` submodules
 
 **Acceptance Criteria:**
-- [ ] `gui/src/main/index.ts` is under 200 lines after extraction.
-- [ ] `npm run typecheck` in `gui/` passes.
-- [ ] `npm run build` in `gui/` produces a valid build.
-- [ ] The smoke test from US-REM-009 passes.
+- [x] `gui/src/main/index.ts` is under 200 lines after extraction. *(39 lines; app lifecycle wiring only. Code moved verbatim into `gui/src/main/` concern modules: `configStore.ts`, `homeAssistant.ts`, `aiSettings.ts`, `voiceSettings.ts`, `settingsDefaults.ts`, `settingsMirror.ts`, `integrationStatus.ts`, `integrationInventory.ts`, `window.ts`, `ipc.ts`, plus `handlers/settings.ts`, `handlers/integrations.ts`, `handlers/system.ts` following the existing `handlers/` register-function convention. All IPC channel names and payload shapes unchanged.)*
+- [x] `npm run typecheck` in `gui/` passes. *(Both tsconfig.node.json and tsconfig.web.json projects clean.)*
+- [x] `npm run build` in `gui/` produces a valid build. *(electron-vite build: main 30 modules, preload, renderer all built.)*
+- [x] The smoke test from US-REM-009 passes. *(Repackaged with `electron-builder --dir`, then `SKIP_BUILD=1 bash tests/smoke/test_electron_package.sh` → PASSED: 20 bridge scripts present, bridge health check OK, no gui_app spawn indicator; packaged app launch printed "[bridgeResolver] All bridge scripts validated successfully.")*
 
 **Validation commands:**
 ```bash

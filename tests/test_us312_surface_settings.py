@@ -4,7 +4,7 @@ from pathlib import Path
 
 SETTINGS_PAGE = Path(__file__).parent.parent / "gui" / "src" / "pages" / "SettingsPage.tsx"
 IPC_TYPES = Path(__file__).parent.parent / "gui" / "src" / "types" / "ipc.ts"
-MAIN_INDEX = Path(__file__).parent.parent / "gui" / "src" / "main" / "index.ts"
+SETTINGS_MIRROR = Path(__file__).parent.parent / "gui" / "src" / "main" / "settingsMirror.ts"
 REX_CONFIG_SCHEMA = Path(__file__).parent.parent / "config" / "rex_config.schema.json"
 
 
@@ -50,12 +50,12 @@ def test_settings_page_telegram_inputs_wired_to_form():
     assert "telegramChatId:" in content
 
 
-# --- main/index.ts mirrors telegram.chat_id to rex_config.json ---
+# --- main/settingsMirror.ts mirrors telegram.chat_id to rex_config.json ---
 
 
 def test_main_index_mirrors_telegram_chat_id():
-    content = read(MAIN_INDEX)
-    assert "telegram" in content.lower(), "telegram mirroring not found in main/index.ts"
+    content = read(SETTINGS_MIRROR)
+    assert "telegram" in content.lower(), "telegram mirroring not found in main/settingsMirror.ts"
     assert "chat_id" in content or "chatId" in content or "telegramChatId" in content
 
 

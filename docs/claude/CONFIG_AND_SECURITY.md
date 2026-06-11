@@ -26,10 +26,10 @@ network exposure, service auth, packaging, or security controls.
   contain credential *reference names* (e.g. `"token_ref": "ha:tts_token"`)
   that the credential lookup layer resolves against the environment.
 
-### Electron GUI (`gui/src/main/index.ts`)
-- HA token save path: `saveHomeAssistantCredentials` → `writeEnvKey('HA_TOKEN', token)`
-- HA token read path: `readSavedHomeAssistantCredentials` → `readEnvFile().HA_TOKEN`
-- Integration settings save path: `rex:setSettings('integrations', ...)` strips
+### Electron GUI (`gui/src/main/`)
+- HA token save path: `saveHomeAssistantCredentials` (`homeAssistant.ts`) → `writeEnvKey('HA_TOKEN', token)` (`configStore.ts`)
+- HA token read path: `readSavedHomeAssistantCredentials` (`homeAssistant.ts`) → `readEnvFile().HA_TOKEN`
+- Integration settings save path: `rex:setSettings('integrations', ...)` (`handlers/settings.ts`) strips
   `haToken` before writing to `gui_settings.json`; if non-empty, writes to `.env`.
 - `config/gui_settings.json` stores non-secret UI state only (URLs, providers,
   display preferences). It must not contain credential values.

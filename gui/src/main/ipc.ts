@@ -1,0 +1,38 @@
+import type { BrowserWindow } from 'electron'
+import { registerChatHandlers } from './handlers/chat'
+import { registerVoiceHandlers } from './handlers/voice'
+import { registerTaskHandlers } from './handlers/tasks'
+import { registerCalendarHandlers } from './handlers/calendar'
+import { registerRemindersHandlers } from './handlers/reminders'
+import { registerMemoriesHandlers } from './handlers/memories'
+import { registerEmailHandlers } from './handlers/email'
+import { registerSMSHandlers } from './handlers/sms'
+import { registerNotificationHandlers } from './handlers/notifications'
+import { registerSpeakerHandlers } from './handlers/speakers'
+import { registerFileHandlers } from './handlers/files'
+import { registerShoppingHandlers } from './handlers/shopping'
+import { registerLogsHandlers } from './handlers/logs'
+import { registerUsageHandlers } from './handlers/usage'
+import { registerSettingsHandlers } from './handlers/settings'
+import { registerIntegrationsHandlers } from './handlers/integrations'
+import { registerSystemHandlers } from './handlers/system'
+
+export function registerIpcHandlers(mainWindow: BrowserWindow | null = null): void {
+  registerChatHandlers()
+  registerVoiceHandlers()
+  registerTaskHandlers()
+  registerCalendarHandlers()
+  registerRemindersHandlers()
+  registerMemoriesHandlers()
+  registerEmailHandlers()
+  registerSMSHandlers()
+  registerNotificationHandlers(mainWindow)
+  registerSpeakerHandlers()
+  registerFileHandlers()
+  registerShoppingHandlers()
+  registerLogsHandlers()
+  registerUsageHandlers()
+  registerSettingsHandlers()
+  registerIntegrationsHandlers()
+  registerSystemHandlers()
+}
