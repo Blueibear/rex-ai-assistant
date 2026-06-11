@@ -608,3 +608,12 @@ Use this format for each Ralph iteration:
 - Updated tests/test_outlook_integration_honesty.py and tests/test_us312_surface_settings.py to read the moved module sources (integrationStatus.ts, settingsMirror.ts); assertions unchanged. tests/test_us328_gui_launch_verification.py passes unmodified (index.ts retains validateBridges()/createWindow/app.whenReady/bridgeResolver).
 - Validation passed: npm run typecheck (both tsconfig projects), npm run build (electron-vite), electron-builder --dir repackage, SKIP_BUILD=1 bash tests/smoke/test_electron_package.sh (PASSED; packaged app logged "All bridge scripts validated successfully"), pytest on affected test files (47 passed), ruff check . clean, git diff --check clean.
 - Environment note: the smoke test initially failed because the local (gitignored) config/rex_config.json had models.llm_temperature stored as the string "0.7", making rex.config emit a stdout WARNING that broke the bridge JSON parse; fixed the local runtime value to a float per the warning text. Pre-existing condition unrelated to this story.
+
+## 2026-06-11 16:16 UTC - Final readiness documentation gaps closed
+- Updated README.md so the primary user-facing onboarding section is `## Getting Started`, with the table of contents and Advanced / Developer cross-reference pointing to that section. The alpha warning, known limitations, Electron-focused setup steps, and advanced/developer runtime paths were preserved.
+- Added explicit deprecated / legacy-compatibility-only wording to every final-audit `flask_proxy.py` reference in docs/claude/CONFIG_AND_SECURITY.md, docs/claude/COMMANDS_AND_ENTRYPOINTS.md, and docs/deployment.md. The notices point readers to SURFACE-CLASSIFICATION.md where appropriate and state that `flask_proxy.py` is not an active recommended runtime surface.
+- Updated only the two directly satisfied PRD final Surface Consolidation checklist boxes: README Getting Started / Electron app, and deprecated surface deprecation notices.
+- Validation passed: git diff --check.
+- Validation passed: Select-String README check for `Getting Started|Quick Start` shows the README ToC, section heading, and Advanced / Developer reference now use `Getting Started`.
+- Validation passed: Select-String context check and PowerShell assertion confirmed every `flask_proxy.py` reference in the three requested docs has nearby deprecated or legacy-compatibility wording.
+- Validation passed: py -3.11 -m pytest -q tests/test_us123_deployment_guide.py tests/test_us244_ui_surfaces.py (23 passed).

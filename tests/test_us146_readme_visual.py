@@ -69,7 +69,7 @@ def test_badges_appear_near_top():
 # ---------------------------------------------------------------------------
 
 EXPECTED_SECTIONS = [
-    "Quick Start",
+    "Getting Started",
     "Features",
     "Requirements",
     "Development",

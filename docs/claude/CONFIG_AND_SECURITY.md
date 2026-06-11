@@ -130,7 +130,7 @@ If you have secrets stored in `rex_config.json` or `gui_settings.json`:
 | `rex-speak-api` | `127.0.0.1:5005` | `REX_SPEAK_API_KEY` |
 | `rex-tool-server` | `127.0.0.1:18790` | `REX_TOOL_API_KEY` |
 | `rex-agent` | `127.0.0.1` by default | token env configured by `REX_AGENT_TOKEN_ENV` |
-| legacy `flask_proxy.py` | `0.0.0.0:5000` | proxy token/local settings |
+| deprecated legacy compatibility only: `flask_proxy.py` (see `SURFACE-CLASSIFICATION.md`) | `0.0.0.0:5000` | proxy token/local settings; not an active recommended runtime surface |
 
 Do not present public exposure as the default.
 

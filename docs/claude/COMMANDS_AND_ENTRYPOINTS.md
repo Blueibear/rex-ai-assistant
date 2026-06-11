@@ -104,7 +104,7 @@ Electron-only verification harnesses should build first, then require
 | `rex-gui` | `127.0.0.1:8765` |
 | `rex-speak-api` | `127.0.0.1:5005` |
 | `rex-tool-server` | `127.0.0.1:18790` |
-| legacy `flask_proxy.py` | `0.0.0.0:5000` |
+| deprecated legacy compatibility only: `flask_proxy.py` (see `SURFACE-CLASSIFICATION.md`) | `0.0.0.0:5000` |
 
 Prefer localhost binding in docs unless a deployment explicitly configures
 remote access and authentication.

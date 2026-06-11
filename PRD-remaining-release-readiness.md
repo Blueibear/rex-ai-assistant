@@ -992,8 +992,8 @@ The following checklist must be fully satisfied before any public release is cut
 ### Surface Consolidation
 - [ ] `SURFACE-CLASSIFICATION.md` exists and classifies every entry point and UI surface.
 - [ ] The packaged Electron app does not start the Flask GUI dashboard unless it is classified as `shippable`.
-- [ ] README has one primary Getting Started section pointing to the Electron app.
-- [ ] All deprecated surfaces have deprecation notices in their docs.
+- [x] README has one primary Getting Started section pointing to the Electron app. *(Verified: `git diff --check`; `Select-String -Path README.md -Pattern "Getting Started|Quick Start"` shows the primary section and ToC use `Getting Started`; focused docs tests passed.)*
+- [x] All deprecated surfaces have deprecation notices in their docs. *(Verified for the final-audit `flask_proxy.py` gap: `Select-String` context checks plus a PowerShell assertion confirmed every `flask_proxy.py` reference in `docs/claude/CONFIG_AND_SECURITY.md`, `docs/claude/COMMANDS_AND_ENTRYPOINTS.md`, and `docs/deployment.md` has deprecated or legacy-compatibility wording.)*
 
 ---
 
