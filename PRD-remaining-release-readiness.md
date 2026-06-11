@@ -865,11 +865,11 @@ ruff check rex/gui_app.py rex/routes/
 - New `rex/commands/` package (or equivalent)
 
 **Acceptance Criteria:**
-- [ ] `rex/cli.py` is under 300 lines after extraction (Click group registration only).
-- [ ] Each command domain has its own module.
-- [ ] All CLI commands work identically after decomposition.
-- [ ] `pytest tests/ -q` passes.
-- [ ] `rex --help` and `rex <subcommand> --help` outputs are unchanged.
+- [x] `rex/cli.py` is under 300 lines after extraction (Click group registration only). *(230 lines; the CLI is argparse-based — cli.py keeps parser registration, `main`, and backward-compatible re-exports.)*
+- [x] Each command domain has its own module. *(13 domain modules plus `_helpers.py`, `_services.py`, `_epilog.py` in `rex/commands/`.)*
+- [x] All CLI commands work identically after decomposition. *(Handlers and parser blocks moved verbatim; `rex.cli.<name>` remains the import/monkeypatch surface.)*
+- [x] `pytest tests/ -q` passes. *(7,255 collected; full suite green on Python 3.11.)*
+- [x] `rex --help` and `rex <subcommand> --help` outputs are unchanged. *(Byte-identical before/after snapshots for the top-level parser and all 33 subcommands.)*
 
 **Validation commands:**
 ```bash
@@ -992,11 +992,4 @@ The following checklist must be fully satisfied before any public release is cut
 ### Surface Consolidation
 - [ ] `SURFACE-CLASSIFICATION.md` exists and classifies every entry point and UI surface.
 - [ ] The packaged Electron app does not start the Flask GUI dashboard unless it is classified as `shippable`.
-- [ ] README has one primary Getting Started section pointing to the Electron app.
-- [ ] All deprecated surfaces have deprecation notices in their docs.
-
----
-
-*This PRD covers remaining work only. The completed-work record is in `progress-remaining-release-readiness.txt` and the original `PRD.md`. Phase 10 stories (US-REM-026 through US-REM-030) must not begin until a release candidate is within one sprint.*
-
-*Created: 2026-05-31. HEAD at creation: `a2ca126` (branch: verify-rr-001-006-cleanup).*
+- [ ] README has one primary Getting S

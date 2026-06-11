@@ -578,3 +578,11 @@ Use this format for each Ralph iteration:
 - Validation passed: ruff check rex/gui_app.py rex/routes/ bridge/rex_voice_upload_bridge.py.
 - Validation passed: pytest -q with 7178 passed, 84 skipped.
 - Also fixed bridge/rex_voice_upload_bridge.py stdout JSON contract discovered during full-suite validation.
+
+## 2026-06-11 05:00 UTC - US-REM-027 complete
+- Decomposed rex/cli.py (5,326 lines) into rex/commands/ domain modules: core, workflows, memory, scheduler, email_calendar, identity, reminders, messaging, devtools, pc, commerce, ha, dashboard, plus _helpers.py, _services.py, _epilog.py.
+- rex/cli.py is 230 lines: parser registration, main(), and backward-compatible re-exports. rex.cli.<name> remains the canonical import and monkeypatch surface (handlers resolve getters/handlers through rex.cli at call time).
+- Handlers and parser blocks moved verbatim; registration order preserved so help output is unchanged.
+- Validation passed: rex --help and all 33 subcommand --help outputs byte-identical to pre-change snapshots.
+- Validation passed: ruff check, black, and mypy rex --ignore-missing-imports (0 issues, 324 files).
+- Validation passed: full pytest suite green on Python 3.11 (7,255 collected; same pass/skip set as pre-change baseline).
