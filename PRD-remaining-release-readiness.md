@@ -865,11 +865,11 @@ ruff check rex/gui_app.py rex/routes/
 - New `rex/commands/` package (or equivalent)
 
 **Acceptance Criteria:**
-- [ ] `rex/cli.py` is under 300 lines after extraction (Click group registration only).
-- [ ] Each command domain has its own module.
-- [ ] All CLI commands work identically after decomposition.
-- [ ] `pytest tests/ -q` passes.
-- [ ] `rex --help` and `rex <subcommand> --help` outputs are unchanged.
+- [x] `rex/cli.py` is under 300 lines after extraction (Click group registration only). *(230 lines; the CLI is argparse-based — cli.py keeps parser registration, `main`, and backward-compatible re-exports.)*
+- [x] Each command domain has its own module. *(13 domain modules plus `_helpers.py`, `_services.py`, `_epilog.py` in `rex/commands/`.)*
+- [x] All CLI commands work identically after decomposition. *(Handlers and parser blocks moved verbatim; `rex.cli.<name>` remains the import/monkeypatch surface.)*
+- [x] `pytest tests/ -q` passes. *(7,255 collected; full suite green on Python 3.11.)*
+- [x] `rex --help` and `rex <subcommand> --help` outputs are unchanged. *(Byte-identical before/after snapshots for the top-level parser and all 33 subcommands.)*
 
 **Validation commands:**
 ```bash
@@ -889,9 +889,9 @@ pytest tests/ -q
 - `rex/wakeword/` (already exists — integrate)
 
 **Acceptance Criteria:**
-- [ ] `rex/voice_loop.py` is under 200 lines after extraction.
-- [ ] `pytest tests/ -q` passes.
-- [ ] `python -c "from rex.voice_loop import build_voice_loop; print('ok')"` succeeds.
+- [x] `rex/voice_loop.py` is under 200 lines after extraction. *(127 lines; implementation moved to `rex/voice/` — optional_imports, audio_utils, _types, transcripts, microphone, acknowledgement, stt, tts, loop, builder. `rex.voice_loop.<name>` remains the import/monkeypatch surface.)*
+- [x] `pytest tests/ -q` passes. *(Full suite green on Python 3.11; six source-inspection test files updated to read the decomposed module sources in original concern order.)*
+- [x] `python -c "from rex.voice_loop import build_voice_loop; print('ok')"` succeeds.
 
 **Validation commands:**
 ```bash
@@ -940,10 +940,10 @@ bash tests/smoke/test_electron_package.sh
 - Core modules: `rex/cli.py`, `rex/voice_loop.py`, `rex/gui_app.py`, and the other 9 listed modules
 
 **Acceptance Criteria:**
-- [ ] Each excluded core module is re-enabled in mypy one at a time.
-- [ ] All type errors surfaced by re-enabling each module are fixed (not suppressed with `type: ignore` unless a third-party library requires it).
-- [ ] `mypy rex/ --ignore-missing-imports` returns 0 errors after all core modules are re-enabled.
-- [ ] CI mypy step (from US-REM-014) passes with the expanded scope.
+- [x] Each excluded core module is re-enabled in mypy one at a time. *(Already done by US-REM-014, commit `2a9facb`: the `ignore_errors = true` block was removed from `pyproject.toml` — see the marker comment at the former location. No exclusions remain.)*
+- [x] All type errors surfaced by re-enabling each module are fixed (not suppressed with `type: ignore` unless a third-party library requires it). *(Verified: `mypy rex --ignore-missing-imports` reports 0 errors across 335 files, including the decomposed `rex/cli.py`, `rex/voice_loop.py`, and `rex/gui_app.py` surfaces.)*
+- [x] `mypy rex/ --ignore-missing-imports` returns 0 errors after all core modules are re-enabled. *(`grep "error:" | wc -l` → 0.)*
+- [x] CI mypy step (from US-REM-014) passes with the expanded scope. *(CI runs `mypy rex --ignore-missing-imports`; identical command passes locally on Python 3.11.)*
 
 **Validation commands:**
 ```bash

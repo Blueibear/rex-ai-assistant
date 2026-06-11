@@ -13,7 +13,22 @@ def _latency_src() -> str:
 
 
 def _voice_loop_src() -> str:
-    return VOICE_LOOP.read_text(encoding="utf-8")
+    parts = [VOICE_LOOP.read_text(encoding="utf-8")]
+    # Original rex/voice_loop.py concern order (US-REM-028 decomposition).
+    for _name in (
+        "optional_imports.py",
+        "audio_utils.py",
+        "_types.py",
+        "transcripts.py",
+        "microphone.py",
+        "acknowledgement.py",
+        "stt.py",
+        "tts.py",
+        "loop.py",
+        "builder.py",
+    ):
+        parts.append((REPO_ROOT / "rex" / "voice" / _name).read_text(encoding="utf-8"))
+    return "\n".join(parts)
 
 
 def _baseline_doc() -> str:

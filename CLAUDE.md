@@ -155,6 +155,8 @@ Top-level directories:
 
 ### Important subpackages
 
+- rex/commands/ — CLI command modules, one per domain (US-REM-027); `rex/cli.py` keeps parser registration, `main()`, and re-exports, and `rex.cli.<name>` remains the import/monkeypatch surface for handlers and service getters
+- rex/voice/ — voice pipeline modules, one per concern (US-REM-028); `rex/voice_loop.py` is the facade and `rex.voice_loop.<name>` remains the import/monkeypatch surface (settings, lazy importers, sa/sd, pipeline classes)
 - rex/email_backends/
 - rex/calendar_backends/
 - rex/messaging_backends/
