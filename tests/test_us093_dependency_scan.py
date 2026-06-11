@@ -89,6 +89,22 @@ def _run_pip_audit(*args: str, timeout: int | None = None) -> subprocess.Complet
     )
 
 
+def _pip_audit_service_unavailable(stderr: str) -> bool:
+    """Return True when pip-audit failed before JSON due to network/service instability."""
+    service_markers = (
+        "NameResolutionError",
+        "getaddrinfo failed",
+        "ServiceError",
+        "HTTPError",
+        "503 Server Error",
+        "Backend is unhealthy",
+        "ConnectionError",
+        "ReadTimeout",
+        "ConnectTimeout",
+    )
+    return any(marker in stderr for marker in service_markers)
+
+
 # ---------------------------------------------------------------------------
 # Acceptance criterion: scan tool can run
 # ---------------------------------------------------------------------------
@@ -103,10 +119,8 @@ def test_pip_audit_importable() -> None:
 
 def test_pip_audit_produces_json_output() -> None:
     """pip-audit can scan installed packages and return JSON output."""
-    result = _run_pip_audit("--format=json", timeout=120)
-    if not result.stdout.strip() and (
-        "NameResolutionError" in result.stderr or "getaddrinfo failed" in result.stderr
-    ):
+    result = _run_pip_audit("--format=json", "--progress-spinner=off", timeout=120)
+    if not result.stdout.strip() and _pip_audit_service_unavailable(result.stderr):
         result = _run_pip_audit(
             "--format=json",
             "--dry-run",
