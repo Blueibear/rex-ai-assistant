@@ -73,7 +73,7 @@ def test_calendar_bridge_reports_outlook_create_as_unsupported(monkeypatch) -> N
 
 
 def test_electron_outlook_status_is_not_marked_connected_by_credentials_only() -> None:
-    src = (REPO / "gui" / "src" / "main" / "index.ts").read_text(encoding="utf-8")
+    src = (REPO / "gui" / "src" / "main" / "integrationStatus.ts").read_text(encoding="utf-8")
 
     assert "OUTLOOK_EMAIL_UNSUPPORTED" in src
     assert "OUTLOOK_CALENDAR_UNSUPPORTED" in src

@@ -1,0 +1,146 @@
+import type { Settings } from '../types/ipc'
+import { readRexConfig, writeRexConfig } from './configStore'
+import { normalizeAiModelRouting, normalizeGuiAiProvider, toRuntimeAiProvider } from './aiSettings'
+import { buildVoiceSettings, defaultCustomWakeWordAssetPath, wakeWordIdToPhrase } from './voiceSettings'
+
+/** Mirror GUI settings into rex_config.json for sections that overlap. */
+export function mirrorToRexConfig(section: string, values: Settings): void {
+  try {
+    const rexConfig = readRexConfig()
+
+    if (section === 'ai') {
+      const models = ((rexConfig.models ?? {}) as Record<string, unknown>)
+      if (typeof values.temperature === 'number') models.llm_temperature = String(values.temperature)
+      if (typeof values.maxTokens === 'number') models.llm_max_tokens = values.maxTokens
+      const provider = normalizeGuiAiProvider(values.provider)
+      models.llm_provider = toRuntimeAiProvider(provider)
+      const llm = ((rexConfig.llm ?? {}) as Record<string, unknown>)
+      llm.provider = provider
+      rexConfig.llm = llm
+      if (typeof values.customModelId === 'string' && values.customModelId.trim()) {
+        models.llm_model = values.customModelId.trim()
+      }
+      if (provider === 'openai' && typeof values.model === 'string') {
+        const openai = ((rexConfig.openai ?? {}) as Record<string, unknown>)
+        openai.model = values.model
+        rexConfig.openai = openai
+      }
+      if (typeof values.ollamaBaseUrl === 'string' && values.ollamaBaseUrl.trim()) {
+        const ollama = ((rexConfig.ollama ?? {}) as Record<string, unknown>)
+        ollama.base_url = values.ollamaBaseUrl.trim()
+        rexConfig.ollama = ollama
+      }
+      rexConfig.models = models
+      rexConfig.model_routing = normalizeAiModelRouting(values.modelRouting)
+      if (typeof values.personality === 'string' && values.personality) {
+        rexConfig.personality = values.personality
+      }
+      writeRexConfig(rexConfig)
+    }
+
+    if (section === 'voice') {
+      const voice = buildVoiceSettings(values)
+      const models = ((rexConfig.models ?? {}) as Record<string, unknown>)
+      if (typeof voice.ttsEngine === 'string') models.tts_provider = voice.ttsEngine
+      if (typeof voice.ttsVoice === 'string') models.tts_voice = voice.ttsVoice
+      if (typeof voice.speechRate === 'number') models.tts_speed = voice.speechRate
+      if (typeof voice.sttModel === 'string') models.whisper_model = voice.sttModel
+      if (typeof voice.sttDevice === 'string') models.whisper_device = voice.sttDevice
+      if (typeof voice.sttLanguage === 'string') models.stt_language = voice.sttLanguage
+      rexConfig.models = models
+      const wakeword = ((rexConfig.wakeword ?? {}) as Record<string, unknown>)
+      delete wakeword.model
+      wakeword.backend = voice.wakeWordBackend
+      wakeword.fallback_to_builtin = true
+      wakeword.fallback_keyword = wakeWordIdToPhrase(voice.wakeWord) || 'hey jarvis'
+      if (voice.wakeWordBackend === 'openwakeword') {
+        const builtInPhrase = wakeWordIdToPhrase(voice.wakeWord)
+        wakeword.wakeword = builtInPhrase
+        wakeword.keyword = builtInPhrase || null
+        wakeword.model_path = null
+        wakeword.embedding_path = null
+      } else if (voice.wakeWordBackend === 'custom_onnx') {
+        const customPhrase = voice.wakeWordPhrase.trim() || 'hey rex'
+        wakeword.wakeword = customPhrase
+        wakeword.keyword = customPhrase
+        wakeword.model_path =
+          voice.wakeWordModelPath.trim() || defaultCustomWakeWordAssetPath('custom_onnx', customPhrase)
+        wakeword.embedding_path = null
+      } else {
+        const customPhrase = voice.wakeWordPhrase.trim() || 'hey rex'
+        const embeddingId = voice.customWakeWordId.trim() || customPhrase
+        wakeword.wakeword = customPhrase
+        wakeword.keyword = customPhrase
+        wakeword.model_path = null
+        wakeword.embedding_path =
+          voice.wakeWordEmbeddingPath.trim()
+          || defaultCustomWakeWordAssetPath('custom_embedding', embeddingId)
+      }
+      rexConfig.wakeword = wakeword
+      writeRexConfig(rexConfig)
+    }
+
+    if (section === 'general') {
+      const ui = ((rexConfig.ui ?? {}) as Record<string, unknown>)
+      if (typeof values.startMinimized === 'boolean') ui.start_minimized = values.startMinimized
+      rexConfig.ui = ui
+      if (typeof values.timezone === 'string' && values.timezone.trim()) {
+        const location = ((rexConfig.location ?? {}) as Record<string, unknown>)
+        location.default_timezone = values.timezone.trim()
+        rexConfig.location = location
+      }
+      writeRexConfig(rexConfig)
+    }
+
+    if (section === 'integrations') {
+      if (typeof values.emailProvider === 'string') {
+        const email = ((rexConfig.email ?? {}) as Record<string, unknown>)
+        email.provider = values.emailProvider
+        rexConfig.email = email
+      }
+      if (typeof values.calendarProvider === 'string') {
+        const calendar = ((rexConfig.calendar ?? {}) as Record<string, unknown>)
+        calendar.provider = values.calendarProvider === 'gmail' ? 'google' : values.calendarProvider
+        rexConfig.calendar = calendar
+      }
+      if (typeof values.haUrl === 'string' && values.haUrl.trim()) {
+        const ha = ((rexConfig.home_assistant ?? {}) as Record<string, unknown>)
+        ha.base_url = values.haUrl.trim()
+        rexConfig.home_assistant = ha
+      }
+      if (typeof values.telegramChatId === 'string' && values.telegramChatId.trim()) {
+        const telegram = ((rexConfig.telegram ?? {}) as Record<string, unknown>)
+        telegram.chat_id = values.telegramChatId.trim()
+        rexConfig.telegram = telegram
+      }
+      writeRexConfig(rexConfig)
+    }
+
+    if (section === 'system') {
+      if (typeof values.toolTimeoutSeconds === 'number') {
+        rexConfig.tool_timeout_seconds = values.toolTimeoutSeconds
+      }
+      if (typeof values.requireConfirmSystemChanges === 'boolean') {
+        const windows = ((rexConfig.windows ?? {}) as Record<string, unknown>)
+        windows.require_confirm_system_changes = values.requireConfirmSystemChanges
+        rexConfig.windows = windows
+      }
+      if (typeof values.allowedFileRoots === 'string' && values.allowedFileRoots.trim()) {
+        rexConfig.allowed_file_roots = values.allowedFileRoots.split(',').map((s: string) => s.trim()).filter(Boolean)
+      }
+      if (typeof values.debugLogging === 'boolean') {
+        const runtime = ((rexConfig.runtime ?? {}) as Record<string, unknown>)
+        runtime.log_level = values.debugLogging ? 'DEBUG' : 'INFO'
+        rexConfig.runtime = runtime
+      }
+      if (typeof values.autonomyMode === 'string') {
+        const models = ((rexConfig.models ?? {}) as Record<string, unknown>)
+        models.autonomy_mode = values.autonomyMode
+        rexConfig.models = models
+      }
+      writeRexConfig(rexConfig)
+    }
+  } catch {
+    // Non-fatal: GUI settings were already persisted; rex_config mirror is best-effort
+  }
+}
