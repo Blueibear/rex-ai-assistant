@@ -889,9 +889,9 @@ pytest tests/ -q
 - `rex/wakeword/` (already exists — integrate)
 
 **Acceptance Criteria:**
-- [ ] `rex/voice_loop.py` is under 200 lines after extraction.
-- [ ] `pytest tests/ -q` passes.
-- [ ] `python -c "from rex.voice_loop import build_voice_loop; print('ok')"` succeeds.
+- [x] `rex/voice_loop.py` is under 200 lines after extraction. *(127 lines; implementation moved to `rex/voice/` — optional_imports, audio_utils, _types, transcripts, microphone, acknowledgement, stt, tts, loop, builder. `rex.voice_loop.<name>` remains the import/monkeypatch surface.)*
+- [x] `pytest tests/ -q` passes. *(Full suite green on Python 3.11; six source-inspection test files updated to read the decomposed module sources in original concern order.)*
+- [x] `python -c "from rex.voice_loop import build_voice_loop; print('ok')"` succeeds.
 
 **Validation commands:**
 ```bash
@@ -992,4 +992,11 @@ The following checklist must be fully satisfied before any public release is cut
 ### Surface Consolidation
 - [ ] `SURFACE-CLASSIFICATION.md` exists and classifies every entry point and UI surface.
 - [ ] The packaged Electron app does not start the Flask GUI dashboard unless it is classified as `shippable`.
-- [ ] README has one primary Getting S
+- [ ] README has one primary Getting Started section pointing to the Electron app.
+- [ ] All deprecated surfaces have deprecation notices in their docs.
+
+---
+
+*This PRD covers remaining work only. The completed-work record is in `progress-remaining-release-readiness.txt` and the original `PRD.md`. Phase 10 stories (US-REM-026 through US-REM-030) must not begin until a release candidate is within one sprint.*
+
+*Created: 2026-05-31. HEAD at creation: `a2ca126` (branch: verify-rr-001-006-cleanup).*

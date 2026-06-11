@@ -586,3 +586,12 @@ Use this format for each Ralph iteration:
 - Validation passed: rex --help and all 33 subcommand --help outputs byte-identical to pre-change snapshots.
 - Validation passed: ruff check, black, and mypy rex --ignore-missing-imports (0 issues, 324 files).
 - Validation passed: full pytest suite green on Python 3.11 (7,255 collected; same pass/skip set as pre-change baseline).
+
+## 2026-06-11 06:10 UTC - US-REM-028 complete
+- Decomposed rex/voice_loop.py (3,232 lines) into rex/voice/ concern modules: optional_imports, audio_utils, _types, transcripts, microphone, acknowledgement, stt, tts, loop, builder.
+- rex/voice_loop.py is 127 lines: stable facade with re-exports; rex.voice_loop.<name> remains the canonical import and monkeypatch surface (voice modules resolve settings, lazy importers, sa/sd cache, and pipeline classes through the facade at call time via importlib.import_module to stay consistent with mock.patch resolution).
+- The sounddevice cache (sd) lives on the facade, preserving the original module-global stubbing behavior; _import_optional resolves importlib.util.find_spec at call time so optional-import simulation tests keep working.
+- Updated six source-inspection test files (us167, us168, us169, us170, us171, us174) to aggregate the decomposed sources in original concern order; assertions unchanged.
+- Validation passed: ruff check, black, mypy rex --ignore-missing-imports (0 issues, 335 files).
+- Validation passed: full pytest suite green on Python 3.11 (same pass/skip set as pre-change baseline).
+- python -c "from rex.voice_loop import build_voice_loop" succeeds.

@@ -156,6 +156,7 @@ Top-level directories:
 ### Important subpackages
 
 - rex/commands/ — CLI command modules, one per domain (US-REM-027); `rex/cli.py` keeps parser registration, `main()`, and re-exports, and `rex.cli.<name>` remains the import/monkeypatch surface for handlers and service getters
+- rex/voice/ — voice pipeline modules, one per concern (US-REM-028); `rex/voice_loop.py` is the facade and `rex.voice_loop.<name>` remains the import/monkeypatch surface (settings, lazy importers, sa/sd, pipeline classes)
 - rex/email_backends/
 - rex/calendar_backends/
 - rex/messaging_backends/
@@ -407,4 +408,14 @@ Do not update this file for formatting only changes.
 
 Before pushing code:
 
-BASE_REF="m
+BASE_REF="master"
+git fetch origin "$BASE_REF"
+
+files=$(git diff --name-only "origin/$BASE_REF...HEAD" -- '*.py')
+
+ruff check --fix $files
+ruff check $files
+black $files
+black --check --diff $files
+
+Both Ruff and Black must pass.
