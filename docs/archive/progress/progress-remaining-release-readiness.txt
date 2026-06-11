@@ -595,3 +595,8 @@ Use this format for each Ralph iteration:
 - Validation passed: ruff check, black, mypy rex --ignore-missing-imports (0 issues, 335 files).
 - Validation passed: full pytest suite green on Python 3.11 (same pass/skip set as pre-change baseline).
 - python -c "from rex.voice_loop import build_voice_loop" succeeds.
+
+## 2026-06-11 06:40 UTC - US-REM-030 complete (verification)
+- The mypy ignore_errors exclusion block was already removed by US-REM-014 (commit 2a9facb); no core-module exclusions remain in pyproject.toml.
+- Verified after the US-REM-026/027/028 decompositions: mypy rex --ignore-missing-imports returns 0 errors (335 source files), including rex/cli.py, rex/voice_loop.py, rex/gui_app.py and the new rex/commands/ and rex/voice/ packages.
+- No code changes required; this entry records the validation evidence and closes the story checkboxes.

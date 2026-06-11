@@ -940,10 +940,10 @@ bash tests/smoke/test_electron_package.sh
 - Core modules: `rex/cli.py`, `rex/voice_loop.py`, `rex/gui_app.py`, and the other 9 listed modules
 
 **Acceptance Criteria:**
-- [ ] Each excluded core module is re-enabled in mypy one at a time.
-- [ ] All type errors surfaced by re-enabling each module are fixed (not suppressed with `type: ignore` unless a third-party library requires it).
-- [ ] `mypy rex/ --ignore-missing-imports` returns 0 errors after all core modules are re-enabled.
-- [ ] CI mypy step (from US-REM-014) passes with the expanded scope.
+- [x] Each excluded core module is re-enabled in mypy one at a time. *(Already done by US-REM-014, commit `2a9facb`: the `ignore_errors = true` block was removed from `pyproject.toml` — see the marker comment at the former location. No exclusions remain.)*
+- [x] All type errors surfaced by re-enabling each module are fixed (not suppressed with `type: ignore` unless a third-party library requires it). *(Verified: `mypy rex --ignore-missing-imports` reports 0 errors across 335 files, including the decomposed `rex/cli.py`, `rex/voice_loop.py`, and `rex/gui_app.py` surfaces.)*
+- [x] `mypy rex/ --ignore-missing-imports` returns 0 errors after all core modules are re-enabled. *(`grep "error:" | wc -l` → 0.)*
+- [x] CI mypy step (from US-REM-014) passes with the expanded scope. *(CI runs `mypy rex --ignore-missing-imports`; identical command passes locally on Python 3.11.)*
 
 **Validation commands:**
 ```bash
