@@ -146,10 +146,11 @@ Computer agent:
 REX_AGENT_API_KEY=replace-with-random-secret rex-agent
 ```
 
-Legacy proxy (**deprecated** — use `rex-gui` for new work):
+Deprecated legacy compatibility proxy (`flask_proxy.py`; see `SURFACE-CLASSIFICATION.md`).
+This is not an active recommended runtime surface; use `rex-gui` for new work.
 
 ```bash
-python flask_proxy.py
+python flask_proxy.py  # deprecated legacy compatibility only
 ```
 
 Default:
@@ -188,7 +189,7 @@ curl http://127.0.0.1:18790/health/live
 curl http://127.0.0.1:18790/health/ready
 ```
 
-Legacy proxy:
+Deprecated legacy proxy health checks:
 
 ```bash
 curl http://127.0.0.1:5000/health/live
@@ -201,13 +202,13 @@ The repo includes systemd examples under `deploy/systemd/`:
 
 | Unit | Current entry point |
 |---|---|
-| `rex-api.service` | `python flask_proxy.py` (legacy proxy) |
+| `rex-api.service` | `python flask_proxy.py` (deprecated legacy compatibility only; see `SURFACE-CLASSIFICATION.md`) |
 | `rex-tts.service` | `rex-speak-api` |
 | `rex-voice.service` | `python rex_loop.py` |
 | `rex-agent.service` | `rex-agent` |
 
 Treat these as templates. Review paths, environment files, user/group,
-ports, auth, and whether you actually want the legacy proxy before installing.
+ports, auth, and whether you actually want the deprecated legacy compatibility proxy before installing.
 
 Example install shape:
 

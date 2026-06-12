@@ -1,4 +1,4 @@
-"""Tests for US-143: Restructure README with quick start first and a table of contents."""
+"""Tests for US-143: Restructure README with Getting Started first and a table of contents."""
 
 import pathlib
 import re
@@ -45,7 +45,7 @@ class TestDescriptionParagraph:
         assert README.exists(), "README.md must exist"
 
     def test_description_present_before_first_section(self):
-        """There must be at least one non-empty, non-badge prose paragraph before ## Quick Start."""
+        """There must be at least one non-empty, non-badge prose paragraph before the first section."""
         text = _readme_text()
         # Find position of first ## heading
         first_section_match = re.search(r"^## ", text, re.MULTILINE)
@@ -106,12 +106,12 @@ class TestTableOfContents:
             r"\[.+\]\(#.+\)", toc_section
         ), "Table of Contents must contain markdown anchor links"
 
-    def test_toc_links_to_quick_start(self):
+    def test_toc_links_to_getting_started(self):
         text = _readme_text()
         toc_section = _extract_section(text, "## Table of Contents")
         assert (
-            "quick" in toc_section.lower()
-        ), "Table of Contents must include a link to Quick Start"
+            "[Getting Started](#getting-started)" in toc_section
+        ), "Table of Contents must include a link to Getting Started"
 
     def test_toc_line_number_within_30(self):
         """The first TOC link line must appear within line 30."""
@@ -123,19 +123,19 @@ class TestTableOfContents:
 
 
 # ---------------------------------------------------------------------------
-# AC3: "Quick Start" is the first major section after description and TOC
+# AC3: "Getting Started" is the first major section after description and TOC
 # ---------------------------------------------------------------------------
 
 
-class TestQuickStartIsFirst:
-    def test_quick_start_section_exists(self):
+class TestGettingStartedIsFirst:
+    def test_getting_started_section_exists(self):
         text = _readme_text()
         assert re.search(
-            r"^## Quick Start", text, re.MULTILINE | re.IGNORECASE
-        ), "README must have a '## Quick Start' section"
+            r"^## Getting Started", text, re.MULTILINE | re.IGNORECASE
+        ), "README must have a '## Getting Started' section"
 
-    def test_quick_start_is_first_content_section(self):
-        """Quick Start must be the first ## section that is not TOC or a meta section."""
+    def test_getting_started_is_first_content_section(self):
+        """Getting Started must be the first ## section that is not TOC or a meta section."""
         lines = _readme_lines()
         h2_sections = []
         for line in lines:
@@ -150,64 +150,64 @@ class TestQuickStartIsFirst:
 
         first_content = content_sections[0].lower()
         assert (
-            "quick start" in first_content or "quickstart" in first_content
-        ), f"The first content section must be Quick Start, but found: {content_sections[0]!r}"
+            "getting started" in first_content
+        ), f"The first content section must be Getting Started, but found: {content_sections[0]!r}"
 
-    def test_quick_start_before_features(self):
-        """Quick Start heading must appear before Features heading in the file."""
+    def test_getting_started_before_features(self):
+        """Getting Started heading must appear before Features heading in the file."""
         text = _readme_text()
-        qs_match = re.search(r"^## Quick Start", text, re.MULTILINE | re.IGNORECASE)
+        gs_match = re.search(r"^## Getting Started", text, re.MULTILINE | re.IGNORECASE)
         features_match = re.search(r"^## Features", text, re.MULTILINE | re.IGNORECASE)
-        assert qs_match, "README must have ## Quick Start"
+        assert gs_match, "README must have ## Getting Started"
         assert features_match, "README must have ## Features"
         assert (
-            qs_match.start() < features_match.start()
-        ), "Quick Start must appear before Features in the README"
+            gs_match.start() < features_match.start()
+        ), "Getting Started must appear before Features in the README"
 
-    def test_quick_start_before_requirements(self):
+    def test_getting_started_before_requirements(self):
         text = _readme_text()
-        qs_match = re.search(r"^## Quick Start", text, re.MULTILINE | re.IGNORECASE)
+        gs_match = re.search(r"^## Getting Started", text, re.MULTILINE | re.IGNORECASE)
         req_match = re.search(r"^## Requirements", text, re.MULTILINE | re.IGNORECASE)
-        assert qs_match
+        assert gs_match
         if req_match:
             assert (
-                qs_match.start() < req_match.start()
-            ), "Quick Start must appear before Requirements in the README"
+                gs_match.start() < req_match.start()
+            ), "Getting Started must appear before Requirements in the README"
 
 
 # ---------------------------------------------------------------------------
-# AC4: Quick Start contains no more than 5 steps
+# AC4: Getting Started contains no more than 5 steps
 # ---------------------------------------------------------------------------
 
 
-class TestQuickStartStepCount:
-    def _get_quick_start_section(self) -> str:
+class TestGettingStartedStepCount:
+    def _get_getting_started_section(self) -> str:
         text = _readme_text()
-        return _extract_section(text, "## Quick Start")
+        return _extract_section(text, "## Getting Started")
 
-    def test_quick_start_has_numbered_steps(self):
-        section = self._get_quick_start_section()
-        assert section.strip(), "Quick Start section must not be empty"
+    def test_getting_started_has_numbered_steps(self):
+        section = self._get_getting_started_section()
+        assert section.strip(), "Getting Started section must not be empty"
         numbered = re.findall(r"^\s*\d+\.", section, re.MULTILINE)
-        assert numbered, "Quick Start must contain numbered steps (1. 2. 3. ...)"
+        assert numbered, "Getting Started must contain numbered steps (1. 2. 3. ...)"
 
-    def test_quick_start_has_no_more_than_5_steps(self):
-        section = self._get_quick_start_section()
+    def test_getting_started_has_no_more_than_5_steps(self):
+        section = self._get_getting_started_section()
         numbered = re.findall(r"^\s*\d+\.", section, re.MULTILINE)
         assert (
             len(numbered) <= 5
-        ), f"Quick Start must have no more than 5 numbered steps, found {len(numbered)}: {numbered}"
+        ), f"Getting Started must have no more than 5 numbered steps, found {len(numbered)}: {numbered}"
 
-    def test_quick_start_has_at_least_one_step(self):
-        section = self._get_quick_start_section()
+    def test_getting_started_has_at_least_one_step(self):
+        section = self._get_getting_started_section()
         numbered = re.findall(r"^\s*\d+\.", section, re.MULTILINE)
-        assert len(numbered) >= 1, "Quick Start must have at least 1 numbered step"
+        assert len(numbered) >= 1, "Getting Started must have at least 1 numbered step"
 
-    def test_quick_start_mentions_install_script(self):
-        section = self._get_quick_start_section()
+    def test_getting_started_mentions_install_script(self):
+        section = self._get_getting_started_section()
         assert (
             "install.sh" in section or "install.ps1" in section
-        ), "Quick Start must reference install.sh or install.ps1"
+        ), "Getting Started must reference install.sh or install.ps1"
 
 
 # ---------------------------------------------------------------------------

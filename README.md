@@ -19,7 +19,7 @@ AskRex is alpha software. It is useful for local testing and development, but it
 
 ## Table of Contents
 
-- [Quick Start](#quick-start)
+- [Getting Started](#getting-started)
 - [Current Status](#current-status)
 - [Working Now](#working-now)
 - [Known Limitations / In Progress](#known-limitations--in-progress)
@@ -34,7 +34,7 @@ AskRex is alpha software. It is useful for local testing and development, but it
 - [Documentation](#documentation)
 - [Security](#security)
 
-## Quick Start
+## Getting Started
 
 The supported user-facing interface is the **Electron desktop app**. Python 3.11 and Node.js/npm are required.
 
@@ -279,7 +279,7 @@ The following runtime paths are for developers, advanced users, and contributors
 
 ### CLI Text Mode
 
-After setting up the Python environment (see [Quick Start](#quick-start) step 2), run:
+After setting up the Python environment (see [Getting Started](#getting-started) step 2), run:
 
 ```bash
 rex doctor
