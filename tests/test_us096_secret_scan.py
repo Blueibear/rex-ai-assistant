@@ -11,6 +11,7 @@ Acceptance criteria:
 from __future__ import annotations
 
 import json
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -68,8 +69,16 @@ class TestSecretScan:
         assert result.returncode == 0, "detect-secrets not installed"
         assert result.stdout.strip(), "detect-secrets version not reported"
 
-    def test_scan_against_baseline_passes(self):
-        """Scanning the repo against the committed baseline returns no new findings."""
+    def test_scan_against_baseline_passes(self, tmp_path):
+        """Scanning against a baseline copy returns no new findings.
+
+        detect-secrets rewrites the file passed to --baseline in place.
+        Scan against a throwaway copy so the tracked baseline is never mutated.
+        """
+        tracked_baseline_bytes = BASELINE_FILE.read_bytes()
+        baseline_copy = tmp_path / ".secrets.baseline"
+        shutil.copyfile(BASELINE_FILE, baseline_copy)
+
         result = subprocess.run(
             [
                 sys.executable,
@@ -79,16 +88,18 @@ class TestSecretScan:
                 "--exclude-files",
                 r"\.venv|__pycache__|\.git|\.egg-info",
                 "--baseline",
-                str(BASELINE_FILE),
+                str(baseline_copy),
             ],
             capture_output=True,
             text=True,
-            cwd=str(REPO_ROOT),
         )
-        # detect-secrets scan --baseline exits 0 when no new secrets found
         assert result.returncode == 0, (
             f"detect-secrets found new secrets not in baseline.\n"
             f"stdout: {result.stdout}\nstderr: {result.stderr}"
+        )
+        assert BASELINE_FILE.read_bytes() == tracked_baseline_bytes, (
+            "Tracked .secrets.baseline was modified by the scan; "
+            "the test must only ever write to its tmp_path copy"
         )
 
     def test_no_confirmed_real_secrets_in_baseline(self):
