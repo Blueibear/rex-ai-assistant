@@ -1,0 +1,67 @@
+# Production Readiness Progress Log
+
+## 2026-06-12 01:39:36 -05:00 - PRD reconciliation against current repo
+
+Branch: `ralph/reconcile-production-readiness-prd`
+HEAD: `548bf32`
+
+### Stale facts corrected
+
+- Corrected console script count from seven to six: `rex`, `rex-config`, `rex-speak-api`, `rex-agent`, `rex-gui`, `rex-tool-server`.
+- Corrected giant-file baseline: `rex/cli.py` is 230 lines, `rex/voice_loop.py` is 127 lines, `rex/gui_app.py` is 207 lines, `gui/src/main/index.ts` is 39 lines, and `gui/src/pages/SettingsPage.tsx` remains 5,360 lines.
+- Corrected CI baseline: full-repo Ruff is present; Black still omits `scripts/`; GUI typecheck/build, npm audits, entrypoint smoke, pytest marker expression, integration tests, working-tree-clean, pip-audit, pre-commit, and detect-secrets are present; wheel smoke, blocking `scripts/security_audit.py`, skip-budget, deprecated-API, generated-artifact, and raw-API-fetch guards remain missing.
+- Corrected skipped-test baseline to 98 current `@pytest.mark.skip` hits from `rg`.
+- Corrected tracked data/privacy baseline: `Memory/james/` and `Memory/cole/` are no longer tracked; `profiles/james.json` and `users.json` remain tracked.
+- Added a current-state note for the user-observed Electron GUI/product gaps from live testing.
+
+### Duplicate stories marked satisfied or superseded
+
+- Marked US-059 satisfied by remaining-release-readiness US-REM-027: `rex/cli.py` decomposition into `rex/commands/`.
+- Marked US-060 satisfied by remaining-release-readiness US-REM-028: `rex/voice_loop.py` decomposition into `rex/voice/`.
+- Marked US-061 satisfied by remaining-release-readiness US-REM-026: `rex/gui_app.py` route decomposition into `rex/routes/`.
+- Marked US-062 satisfied by remaining-release-readiness US-REM-029: `gui/src/main/index.ts` decomposition into `gui/src/main/` concern modules.
+
+### Partial or still-valid existing stories
+
+- US-023 remains open with partial evidence: logs routes now require auth and have `tests/test_rr008_log_auth.py` coverage, but docs/current validation criteria remain open.
+- US-024 remains open with partial evidence: HA test/save/device command routes require auth and have route tests, but IPC/docs/current validation remain open.
+- US-026 remains open with partial evidence: Twilio missing dependency/config tests exist, but the exact `IntegrationUnavailable` and docs criteria are not proven.
+- US-030 remains open with partial evidence: CI runs full-repo Ruff, but exclude review and required-check evidence remain open.
+- US-031 remains valid: CI Black still does not include `scripts/`.
+- US-032 remains open with partial evidence: CI runs the documented pytest marker expression, but docs/required-check evidence remain open.
+- US-036 remains open with partial evidence: the tests job has a working-tree-clean check, but the all-test-jobs scope remains open.
+- US-052 remains valid and now explicitly covers OpenClaw GUI visibility or developer-only hiding.
+- US-053, US-054, and US-055 remain valid docs truth-pass work.
+
+### User-observed gaps added
+
+- Added US-064 through US-088 for GUI capability parity, integration configuration truth, profile/avatar/navigation cleanup, timezone override, voice enrollment, custom wake assets, TTS testing, AI provider persistence, model discovery, autonomy source of truth, wake diagnostics, latency instrumentation, incoherent-output fail-safe, news/current-info routing, missing-capability recovery, typed-chat speech playback, Home Assistant dashboard usability, Outlook end-to-end status, Email/SMS beta-label policy, chat history, shopping-list command routing, per-user/shared memory, scoped vector uploads, shared identity model, and authenticated `askrex.app` mobile/API access.
+- Added OpenClaw GUI visibility acceptance criteria to existing US-052 instead of duplicating it as a new story.
+
+### Stories still valid next work
+
+- The first unchecked story remains US-001 unless the owner explicitly reprioritizes the production-readiness workstream.
+- `gui/src/pages/SettingsPage.tsx` remains the only current giant-file decomposition target in this PRD.
+- Raw renderer `/api` fetch migration remains open in US-003 through US-011.
+- Packaging, CI, Docker, skipped-test, Home Assistant verification, OpenClaw boundary, docs truth, deprecated API, and new GUI/product parity stories remain open.
+
+### Validation commands run during reconciliation
+
+- `git status --short`
+- `git branch --show-current`
+- `git log --oneline --decorate -8`
+- `py -3.11 -` line-count probes for decomposition targets, root `.py` files, audit script, and Dockerfile
+- `rg` search for raw renderer `/api` fetch calls under `gui/src`
+- `git ls-files Memory/james/ Memory/cole/ profiles/james.json users.json`
+- `git ls-files Memory/ profiles/ users.json`
+- `git grep -n -E 'ruff check|black --check|pytest -m|npm run typecheck|npm run build|npm audit|electron-smoke|security_audit|check_wheel_contents|check_no_renderer_api_fetch' -- .github/workflows pyproject.toml scripts tests`
+- `rg -n "datetime\.utcnow\(\)|asyncio\.get_event_loop\(\)" rex`
+- Targeted `rg`/`Get-Content` inspections of PRD stories, CI workflow files, route auth code, route/auth tests, Twilio tests, README status tables, and remaining-release-readiness decomposition evidence.
+
+### Final validation before staging
+
+- `git diff --check` passed. Git warned that `PRD-production-readiness.md` LF line endings will be converted to CRLF the next time Git touches it.
+- `git diff --stat` showed `PRD-production-readiness.md | 1115 +++++++++++++++++++++++++++++++++++++++++--` before staging the ignored progress file.
+- `git diff -- PRD-production-readiness.md` was reviewed.
+- `git diff -- progress-production-readiness.txt` produced no output because `.gitignore` ignores `progress*.txt`; `git status --short --ignored progress-production-readiness.txt` showed `!! progress-production-readiness.txt`.
+- `git status --short` showed only `M PRD-production-readiness.md` before force-adding the requested progress file.
