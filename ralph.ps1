@@ -20,7 +20,11 @@ param(
 
     # Safety override: allow starting with a dirty working tree.
     # Default behavior requires a clean repo before each PRD starts.
-    [switch]$AllowDirtyStart
+    [switch]$AllowDirtyStart,
+
+    # Optional Claude model override, e.g. claude-fable-5.
+    # Only used when -Agent claude is selected.
+    [string]$ClaudeModel = ""
 )
 
 Set-StrictMode -Version Latest
@@ -39,13 +43,13 @@ function Get-ProgressFile {
     $base = [System.IO.Path]::GetFileNameWithoutExtension($PrdPath)
 
     if ($base -eq "PRD") {
-        return "progress.txt"
+        return "docs/archive/progress/progress.txt"
     }
 
-    # PRD-repo-quality -> progress-repo-quality.txt
-    # PRD-production-readiness -> progress-production-readiness.txt
+    # PRD-repo-quality -> docs/archive/progress/progress-repo-quality.txt
+    # PRD-production-readiness -> docs/archive/progress/progress-production-readiness.txt
     $suffix = $base -replace '^PRD', ''
-    return "progress$suffix.txt"
+    return "docs/archive/progress/progress$suffix.txt"
 }
 
 function Test-GitAvailable {
@@ -125,7 +129,9 @@ function Invoke-Agent {
         [string]$AgentName,
 
         [Parameter(Mandatory = $true)]
-        [string]$Prompt
+        [string]$Prompt,
+
+        [string]$ClaudeModel = ""
     )
 
     $output = ""
@@ -133,7 +139,12 @@ function Invoke-Agent {
 
     switch ($AgentName) {
         'claude' {
-            $output = (& claude --dangerously-skip-permissions -p $Prompt 2>&1 | Out-String)
+            if ([string]::IsNullOrWhiteSpace($ClaudeModel)) {
+                $output = (& claude --dangerously-skip-permissions -p $Prompt 2>&1 | Out-String)
+            }
+            else {
+                $output = (& claude --model $ClaudeModel --dangerously-skip-permissions -p $Prompt 2>&1 | Out-String)
+            }
             $exitCode = $LASTEXITCODE
         }
 
@@ -162,7 +173,9 @@ function Invoke-RalphOnPrd {
         [int]$MaxIter,
 
         [Parameter(Mandatory = $true)]
-        [int]$Sleep
+        [int]$Sleep,
+
+        [string]$ClaudeModel = ""
     )
 
     if (-not (Test-Path $PrdPath)) {
@@ -171,6 +184,11 @@ function Invoke-RalphOnPrd {
     }
 
     $progressFile = Get-ProgressFile -PrdPath $PrdPath
+    $progressDir = Split-Path -Parent $progressFile
+
+    if (-not [string]::IsNullOrWhiteSpace($progressDir) -and -not (Test-Path $progressDir)) {
+        New-Item -ItemType Directory -Path $progressDir -Force | Out-Null
+    }
 
     if (-not (Test-Path $progressFile)) {
         New-Item -ItemType File -Path $progressFile | Out-Null
@@ -180,6 +198,9 @@ function Invoke-RalphOnPrd {
     Write-Host "==========================================="
     Write-Host "  Ralph starting on: $PrdPath"
     Write-Host "  Agent:             $AgentName"
+    if ($AgentName -eq "claude" -and -not [string]::IsNullOrWhiteSpace($ClaudeModel)) {
+        Write-Host "  Claude model:      $ClaudeModel"
+    }
     Write-Host "  Progress log:      $progressFile"
     Write-Host "  Max iterations:    $MaxIter"
     Write-Host "==========================================="
@@ -340,7 +361,7 @@ After completing your User Story, check ${PrdPath}:
 - If User Stories remain unfinished, just end your response normally.
 "@
 
-        $agentResult = Invoke-Agent -AgentName $AgentName -Prompt $prompt
+        $agentResult = Invoke-Agent -AgentName $AgentName -Prompt $prompt -ClaudeModel $ClaudeModel
         $result = $agentResult.Output
         $exitCode = $agentResult.ExitCode
 
@@ -387,6 +408,9 @@ $targets = @(
 )
 
 Write-Host "Starting Ralph - Agent: $Agent | $($targets.Count) PRD(s) | $MaxIterations iterations each"
+if ($Agent -eq "claude" -and -not [string]::IsNullOrWhiteSpace($ClaudeModel)) {
+    Write-Host "Starting Ralph - Claude model: $ClaudeModel"
+}
 
 Assert-SafeGitState -AllowMain:$AllowMainBranch.IsPresent -AllowDirty:$AllowDirtyStart.IsPresent
 
@@ -398,7 +422,7 @@ foreach ($target in $targets) {
         exit 1
     }
 
-    $ok = Invoke-RalphOnPrd -PrdPath $target -AgentName $Agent -MaxIter $MaxIterations -Sleep $SleepSeconds
+    $ok = Invoke-RalphOnPrd -PrdPath $target -AgentName $Agent -MaxIter $MaxIterations -Sleep $SleepSeconds -ClaudeModel $ClaudeModel
 
     if (-not $ok) {
         $allComplete = $false
