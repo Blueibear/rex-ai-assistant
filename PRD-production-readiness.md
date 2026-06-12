@@ -5,16 +5,19 @@
 > Choose the first User Story whose acceptance criteria contain any unchecked `[ ]` box.
 > Complete exactly one User Story per iteration.
 > A User Story is only complete when current code, tests, and acceptance criteria prove it.
-> When a story is complete, update `PRD-production-readiness.md` and `progress-production-readiness.txt` in the same commit as the implementation.
+> When a story is complete, update `PRD-production-readiness.md` and `docs/archive/progress/progress-production-readiness.txt` in the same commit as the implementation.
 > Do not commit completed implementation work while leaving that story unchecked in this PRD.
-> This PRD is the authoritative task tracker for the production-readiness workstream. `progress-production-readiness.txt` is supporting history only.
+> This PRD is the authoritative task tracker for the production-readiness workstream. `docs/archive/progress/progress-production-readiness.txt` is supporting history only.
 > A story is not done until all relevant local validations pass AND all required GitHub checks pass on the PR for that story.
+
+> **Reconciliation note — 2026-06-12**
+> This PRD was reconciled against HEAD `548bf32` on branch `ralph/reconcile-production-readiness-prd` after the remaining-release-readiness workstream and final validation PRs. Completed decompositions from that workstream are marked as satisfied baseline evidence so Ralph does not repeat them. User-observed Electron GUI and product gaps from live testing have been added as explicit unchecked stories or acceptance criteria. This reconciliation did not implement runtime behavior.
 
 ---
 
 ## 1. Executive Summary
 
-AskRex Assistant is a local-first, voice-activated AI companion targeting Windows 10/11, macOS, and Linux. The repository contains a Python package (`rex/`), root-level bridge scripts and compatibility shims, a Flask backend (`rex.gui_app`), and an Electron + React desktop GUI under `gui/`. Today the codebase is functional enough for development but it is NOT a release candidate. Production blockers exist across packaged runtime correctness, packaging truth, security audit triage, CI coverage, voice reliability, Home Assistant verification, OpenClaw boundary, and documentation honesty.
+AskRex Assistant is a local-first, voice-activated AI companion targeting Windows 10/11, macOS, and Linux. The repository contains a Python package (`rex/`), root-level bridge scripts and compatibility shims, a Flask backend (`rex.gui_app`), and an Electron + React desktop GUI under `gui/`. Today the codebase is functional enough for development but it is NOT a release candidate. Production blockers exist across packaged runtime correctness, packaging truth, security audit triage, CI coverage, voice reliability, Home Assistant verification, OpenClaw boundary, documentation honesty, Electron GUI capability parity, mobile/API access safety, per-user memory/privacy, and response quality.
 
 This PRD turns AskRex Assistant into a production-ready release candidate by closing every issue listed in the Blocker Inventory (Section 6) through small, dependency-ordered User Stories. Each story is sized for a single Ralph iteration, includes concrete validation commands, requires documentation updates whenever user-facing behavior changes, and requires all relevant GitHub checks to pass before it is marked complete.
 
@@ -38,12 +41,14 @@ The following facts were verified directly from the repository at the time this 
 `SURFACE-CLASSIFICATION.md` already states: *"All core Electron GUI functionality uses IPC bridge scripts. Renderer fetch('/api/...') calls are dead in packaged mode (file:// protocol)."* This contradicts the renderer's actual behavior, so either the renderer must be migrated to typed IPC or the packaged app must explicitly own a backend lifecycle. This PRD chooses migration to typed IPC as the production direction.
 
 ### 2.2 Packaging metadata
-- `pyproject.toml` declares `name = "askrex-assistant"`, `version = "0.1.0"`, `requires-python = ">=3.11,<3.12"`, and seven console scripts: `rex`, `rex-config`, `rex-speak-api`, `rex-agent`, `rex-gui`, `rex-tool-server`.
+- `pyproject.toml` declares `name = "askrex-assistant"`, `version = "0.1.0"`, `requires-python = ">=3.11,<3.12"`, and six console scripts: `rex`, `rex-config`, `rex-speak-api`, `rex-agent`, `rex-gui`, `rex-tool-server`.
 - `setup.py` still declares `py_modules = ["rex_assistant", "rex_speak_api", "llm_client", "memory_utils", "config", "audio_config", "conversation_memory"]`. Several of these names (`rex_assistant`, `memory_utils`, `audio_config`, `conversation_memory`) no longer exist at the repository root, so the wheel currently declares modules it cannot install. This is an active packaging defect.
 - `[tool.setuptools]` uses `packages = {find = {include = ["rex*"]}}`. The `bridge/` directory, root bridge wrappers, `config/` examples, and built UI assets are NOT included by default. A `pip install .` produces a Python package that is missing major runtime resources required by both the Electron packaged app and several documented surfaces.
 
 ### 2.3 Root-level Python files
-27 `.py` files live at the repository root, including 17 `rex_*_bridge.py` wrappers that mirror canonical implementations under `bridge/`. `CLAUDE.md` previously stated "9 active root-level `.py` files" — this is no longer accurate.
+27 `.py` files live at the repository root:
+`config.py`, `conftest.py`, `flask_proxy.py`, `llm_client.py`, `rex_chat_bridge.py`, `rex_chat_stream_bridge.py`, `rex_file_extract_bridge.py`, `rex_loop.py`, `rex_memories_bridge.py`, `rex_reminders_bridge.py`, `rex_shopping_list_bridge.py`, `rex_speak_api.py`, `rex_speaker_bridge.py`, `rex_stt_bridge.py`, `rex_tasks_bridge.py`, `rex_voice_bridge.py`, `rex_voice_enrollment_bridge.py`, `rex_voice_sample_bridge.py`, `rex_voice_upload_bridge.py`, `rex_voices_bridge.py`, `rex_wakeword_list_bridge.py`, `rex_wakeword_sample_bridge.py`, `rex_wakeword_train_bridge.py`, `setup.py`, `sitecustomize.py`, `voice_loop.py`, `wsgi.py`.
+`CLAUDE.md` currently documents 9 active root-level `.py` files, which is a narrower active-surface classification and does not equal the current root file count.
 
 ### 2.4 Bridge layout
 Canonical bridge implementations live under `bridge/` (`bridge/rex_chat_bridge.py`, `bridge/rex_voice_bridge.py`, etc.). The repository root contains thin wrappers with the same filenames. Electron `bridgeResolver.ts` is the single source of truth for which path is resolved in dev vs packaged mode, but the relationship between root wrappers and `bridge/` canonicals is not codified by tests.
@@ -63,20 +68,30 @@ Verified call sites:
 - `rex/tts_voices.py` lines 192, 244: `asyncio.get_event_loop()`
 
 ### 2.7 Large files
-- `rex/cli.py` — 5,326 lines.
-- `rex/voice_loop.py` — 3,232 lines.
-- `rex/gui_app.py` — 1,536 lines.
-- `gui/src/main/index.ts` — 1,614 lines.
-- `gui/src/pages/SettingsPage.tsx` — 5,360 lines.
+The remaining giant file is `gui/src/pages/SettingsPage.tsx` at 5,360 lines.
+
+Previously large decomposition targets are now small facades or entrypoints:
+- `rex/cli.py` — 230 lines.
+- `rex/voice_loop.py` — 127 lines.
+- `rex/gui_app.py` — 207 lines.
+- `gui/src/main/index.ts` — 39 lines.
 
 ### 2.8 CI coverage
-`.github/workflows/ci.yml` runs `ruff check`, `black --check --diff rex/ tests/ bridge/ *.py`, `mypy rex --ignore-missing-imports`, pytest with coverage and integration markers, `pip-audit`, pre-commit, and `detect-secrets`. `electron-smoke.yml` runs an Electron package smoke test on tag pushes and PRs touching `gui/` or `bridge/`. There is no wheel contents smoke test, no security_audit.py CI check, no entry-point import/help smoke test, no `scripts/` black coverage, no skip-budget enforcement, and no raw-`/api/` fetch guard.
+`.github/workflows/ci.yml` currently runs full-repo Ruff (`ruff check --output-format=github .`), Black over `rex/ tests/ bridge/ *.py` but not `scripts/`, `python -m compileall -q rex scripts`, `mypy rex --ignore-missing-imports`, GUI typecheck, GUI build, high-severity npm audits for `gui/` and `rex/ui/`, console entrypoint smoke checks, pytest with coverage using `pytest -m "not slow and not audio and not gpu"`, integration tests, a working-tree-clean check after tests, `pip-audit` with documented ignores, pre-commit, and `detect-secrets`.
+
+`.github/workflows/electron-smoke.yml` runs an Electron package smoke test on `v*` tag pushes and PRs touching `gui/**` or `bridge/**`. There is still no wheel contents smoke test, no blocking `scripts/security_audit.py` CI check, no `scripts/` Black coverage, no skip-budget enforcement, no deprecated-API guard, no generated-artifact guard, and no raw-`/api/` fetch guard.
 
 ### 2.9 Docker
 `Dockerfile` HEALTHCHECK is `python -c "import sys; sys.exit(0)"` — a placeholder that always succeeds.
 
 ### 2.10 Skipped tests
-`grep -rn "@pytest.mark.skip" tests/` yields 125 hits. Many are legitimate `skipif(<env or dep missing>)` guards, but the set is not classified, tracked, or budgeted.
+`rg -n "@pytest.mark.skip" tests` currently yields 98 hits. Many are legitimate `skipif(<env or dep missing>)` guards, but the set is not classified, tracked, or budgeted.
+
+### 2.11 Tracked data and privacy files
+`git ls-files Memory/james/ Memory/cole/ profiles/james.json users.json` currently returns `profiles/james.json` and `users.json`. `Memory/james/` and `Memory/cole/` are no longer tracked. A broader `git ls-files Memory/ profiles/ users.json` also returns `Memory/README.md`, `profiles/default.example.json`, `profiles/default.json`, `profiles/james.example.json`, `profiles/james.json`, `profiles/profile.schema.json`, and `users.json`.
+
+### 2.12 User-observed Electron GUI and product gaps
+Live Electron testing found product-readiness gaps not fully covered by the original PRD: integration settings parity, hidden capability configuration, voice enrollment clarity, profile/avatar behavior, duplicate Settings navigation, timezone override behavior, custom wake asset/sample handling, TTS voice testing, AI provider persistence, Ollama/LM Studio model discovery, autonomy-setting duplication, wake-word runtime diagnostics, incoherent model output recovery, current-info/news routing, missing-capability recovery UX, response latency, typed-chat voice playback, Home Assistant dashboard usability, Outlook status, Email/SMS beta-label policy, OpenClaw GUI visibility, authenticated mobile/API access via `askrex.app`, selectable chat history, shopping-list voice/chat integration, per-user/shared memory, scoped vector upload, and a shared identity model across those surfaces.
 
 ---
 
@@ -137,16 +152,20 @@ These principles bind every story in this PRD. They are enforced by review and b
 | B | Wheel/package install truth | `pip install .` does not produce a runnable app; declared `py_modules` reference files that no longer exist. | Packaging | P0 |
 | C | `setup.py` and metadata cleanup | Stale `py_modules`, undocumented root shims, unclear console-script contract. | Packaging | P0 |
 | D | Bridge layout and root file truth | Root wrappers vs `bridge/` canonicals not codified; docs claim wrong root file count. | Packaging | P0 |
-| E | Security audit triage | `security_audit.py` reports actionable findings; auth gates and confirmation gates missing on several routes/tools. | Security | P0 |
-| F | CI must match the shipped product | CI omits wheel smoke, security_audit, entry-point import/help smoke, scripts/ formatting, skip budget, and `/api/` guard. | CI | P0 |
-| G | Skipped tests and retired surfaces | 125 skips not classified; no skip budget; tests for retired surfaces still present. | Tests | P1 |
+| E | Security audit triage | `security_audit.py` reports actionable findings; some auth gates are now fixed, but confirmation gates and audit closeout still need explicit proof. | Security | P0 |
+| F | CI must match the shipped product | CI omits wheel smoke, security_audit, scripts/ formatting, skip budget, deprecated-API guard, generated-artifact guard, and `/api/` guard. | CI | P0 |
+| G | Skipped tests and retired surfaces | 98 current `@pytest.mark.skip` hits are not classified; no skip budget; tests for retired surfaces still present. | Tests | P1 |
 | H | Docker healthcheck truth | Healthcheck is a no-op; Docker's support tier is undocumented. | Packaging | P1 |
 | I | Runtime truth and docs consistency | README, INSTALL, RUNNING, `docs/UI_SURFACES.md`, `SURFACE-CLASSIFICATION.md`, `INTEGRATIONS_STATUS.md`, and `CLAUDE.md` disagree about what is shippable. | Docs | P0 |
 | J | Voice reliability and production voice path | Wake word reliability not measured; Hold-to-Talk not defined as production path; voice pipeline lacks structured logs and latency budgets. | Voice | P0 |
 | K | Home Assistant control and verification | Risky domains have no confirmation gate; post-control verification not enforced; response language mixes attempted/completed. | Home Assistant | P0 |
 | L | OpenClaw production boundary | OpenClaw is on the production path despite incomplete dynamic plugin, permission, and verification work. | OpenClaw | P0 |
 | M | Deprecated APIs and technical debt | `datetime.utcnow()` and `asyncio.get_event_loop()` calls remain; no regression tests. | Tech Debt | P2 |
-| N | Giant file decomposition | `rex/cli.py` (5,326), `rex/voice_loop.py` (3,232), `rex/gui_app.py` (1,536), `gui/src/main/index.ts` (1,614), `gui/src/pages/SettingsPage.tsx` (5,360). Refactor only after P0 blockers are closed. | Tech Debt | P2 |
+| N | Remaining giant file decomposition | `gui/src/pages/SettingsPage.tsx` (5,360). Earlier giant-file decompositions were completed by the remaining-release-readiness workstream. | Tech Debt | P2 |
+| O | GUI capability parity | The Electron GUI does not expose, configure, or truthfully disable every backend/docs capability. | Electron / Product | P0 |
+| P | Voice and model UX gaps | Voice enrollment, custom wake assets, TTS testing, wake runtime diagnostics, LLM persistence, model discovery, incoherent-output recovery, and latency need production-grade UX and tests. | Voice / AI | P0 |
+| Q | User data and memory model | Profiles, voice identity, memory, chat history, shopping lists, and uploaded vector content need one privacy-aware user/household identity model. | Identity / Memory | P0 |
+| R | Mobile/API exposure | Access from an iOS app or `askrex.app` requires an authenticated, rate-limited, HTTPS API gateway and explicit mobile capability boundaries. | Security / Mobile | P0 |
 
 ---
 
@@ -166,7 +185,12 @@ Stories execute in this phase order. Within a phase, stories execute in numeric 
 - **Phase 9 — OpenClaw Production Boundary** (US-050 to US-052)
 - **Phase 10 — Documentation Truth Pass** (US-053 to US-055)
 - **Phase 11 — Deprecated APIs** (US-056 to US-058)
-- **Phase 12 — Giant File Decomposition (P2)** (US-059 to US-063)
+- **Phase 12 — Giant File Decomposition (P2)** (US-059 to US-063; US-059 through US-062 satisfied by remaining-release-readiness, US-063 remains open)
+- **Phase 13 — GUI Capability Inventory and Settings Truth** (US-064 to US-067)
+- **Phase 14 — Voice, Wake, and AI Provider Reliability** (US-068 to US-079)
+- **Phase 15 — Home Assistant and Integration Production UX** (US-080 to US-082)
+- **Phase 16 — Identity, Memory, History, Shopping, and Uploads** (US-083 to US-087)
+- **Phase 17 — Mobile/API Gateway and Release Boundary** (US-088)
 
 ---
 
@@ -855,6 +879,8 @@ python scripts/security_audit.py
 **Workstream:** Security
 **Description:** As an operator, I want `/api/logs/*` endpoints to reject unauthenticated requests.
 
+**Reconciliation status (2026-06-12):** Partially satisfied by current code. `rex/routes/logs.py` calls `_require_auth()` for both `/api/logs/stream` and `/api/logs/download`, and `tests/test_rr008_log_auth.py` covers unauthenticated, invalid-token, authenticated, missing-file, existing-file, and home-path-redaction cases. This story remains open because the acceptance criteria still require matching documentation updates and current validation in this workstream before the story can be checked off.
+
 **Files/areas likely involved:**
 - `rex/gui_app.py` (or the route file)
 - `tests/test_logs_auth.py` (new or updated)
@@ -881,6 +907,8 @@ pytest tests/test_logs_auth.py -q
 **Priority:** P0
 **Workstream:** Security / Home Assistant
 **Description:** As an operator, I want HA admin endpoints to require authentication.
+
+**Reconciliation status (2026-06-12):** Partially satisfied by current code. `rex/routes/ha.py` requires auth for `/api/ha/test`, `/api/ha/save`, and `/api/devices/<entity_id>/command`; `tests/test_rr009_ha_test_auth.py`, `tests/test_us059_ha_setup.py`, and `tests/test_us060_devices.py` include 401 coverage for these paths. This story remains open until IPC parity, docs, and validation are proven in this workstream.
 
 **Files/areas likely involved:**
 - `rex/gui_app.py` route handlers for HA
@@ -937,6 +965,8 @@ pytest tests/test_destructive_tool_confirmation.py -q
 **Priority:** P0
 **Workstream:** Security / Integrations
 **Description:** As an operator, I want SMS to refuse cleanly when Twilio is not configured rather than appear to succeed.
+
+**Reconciliation status (2026-06-12):** Partially satisfied by current tests. `tests/test_twilio_sms_backend.py` covers missing Twilio import and missing credentials, and `tests/test_ph001_twilio_handler.py` covers fail-closed signature validation when Twilio is absent. This story remains open because the acceptance criteria name a specific `IntegrationUnavailable` behavior and user-facing docs that are not yet proven by the current evidence.
 
 **Files/areas likely involved:**
 - `rex/messaging_backends/twilio*.py`
@@ -1040,6 +1070,8 @@ python scripts/security_audit.py
 **Workstream:** CI
 **Description:** As a maintainer, I want CI to lint the full repository, not just `rex/`, `tests/`, `bridge/`, and `*.py` at the root.
 
+**Reconciliation status (2026-06-12):** Partially satisfied. `.github/workflows/ci.yml` currently runs `ruff check --output-format=github .`; the story remains open until excludes and required-check evidence are recorded in this workstream.
+
 **Files/areas likely involved:**
 - `.github/workflows/ci.yml`
 - `pyproject.toml` `[tool.ruff]`
@@ -1062,6 +1094,8 @@ ruff check .
 **Workstream:** CI
 **Description:** As a maintainer, I want CI Black coverage to include `scripts/` too.
 
+**Reconciliation status (2026-06-12):** Still valid. `.github/workflows/ci.yml` currently runs `black --check --diff rex/ tests/ bridge/ *.py`; `scripts/` is still missing from the Black CI command.
+
 **Files/areas likely involved:**
 - `.github/workflows/ci.yml`
 
@@ -1082,6 +1116,8 @@ black --check --diff rex/ tests/ bridge/ scripts/ *.py
 **Priority:** P0
 **Workstream:** CI
 **Description:** As a maintainer, I want CI test scope to match the documented marker policy.
+
+**Reconciliation status (2026-06-12):** Partially satisfied. `.github/workflows/ci.yml` currently runs `pytest -m "not slow and not audio and not gpu"` with coverage, but marker docs and required-check evidence still need to be proven in this workstream.
 
 **Files/areas likely involved:**
 - `.github/workflows/ci.yml`
@@ -1171,6 +1207,8 @@ python scripts/check_no_generated_artifacts.py
 **Priority:** P0
 **Workstream:** CI
 **Description:** As a maintainer, I want CI to fail if a test modified a tracked file.
+
+**Reconciliation status (2026-06-12):** Partially satisfied. The `tests` job currently has a "Verify tests did not modify tracked files" step using `git status --porcelain -- ':!.coverage' ':!coverage.xml' ':!htmlcov/'`; this story remains open until the "every job that runs tests" scope and required-check evidence are verified.
 
 **Files/areas likely involved:**
 - `.github/workflows/ci.yml` (the existing "Verify tests did not modify tracked files" step — promote to all relevant jobs)
@@ -1597,6 +1635,8 @@ pytest tests/test_openclaw_health.py -q
 **Workstream:** OpenClaw / Electron
 **Description:** As an operator, I want a settings page that shows OpenClaw status, lets me enable/disable it, and warns it is experimental.
 
+**Reconciliation status (2026-06-12):** Still valid and now also covers the user-observed gap that OpenClaw exists in code/docs but has no clear Electron GUI visibility. If OpenClaw remains developer-only, this story may be completed by explicitly hiding it in production UI and documenting that decision; if Rex can use it in normal operation, the GUI must expose enable/disable/status controls.
+
 **Files/areas likely involved:**
 - `gui/src/pages/SettingsPage.tsx` (or new `pages/OpenClawSettingsPage.tsx`)
 - `gui/src/main/handlers/openclaw.ts` (new)
@@ -1606,6 +1646,8 @@ pytest tests/test_openclaw_health.py -q
 - [ ] A page shows gateway URL, connection health, enabled flags, last error.
 - [ ] Toggling either flag persists via IPC.
 - [ ] Page renders an experimental warning.
+- [ ] If OpenClaw is intentionally developer-only, production Electron UI hides normal-user controls and docs say how a developer enables it.
+- [ ] If OpenClaw is user-configurable, Integrations and Settings both expose honest status, configuration, disable, and health-check controls.
 - [ ] `cd gui && npm run typecheck && npm run build` passes.
 - [ ] Manual: page renders in packaged app.
 - [ ] All relevant GitHub checks pass.
@@ -1622,6 +1664,8 @@ cd gui && npm run typecheck && npm run build
 **Priority:** P0
 **Workstream:** Docs
 **Description:** As a reader, I want a single table that shows which surfaces are working, partial, experimental, developer-only, or removed.
+
+**Reconciliation status (2026-06-12):** Still valid. README currently has "Current Status", "Main Entry Points", and "Features" tables, but not a single "Capabilities & Status" table that mirrors `SURFACE-CLASSIFICATION.md`.
 
 **Files/areas likely involved:**
 - `README.md`
@@ -1648,6 +1692,8 @@ grep -n "Capabilities" README.md
 **Workstream:** Docs
 **Description:** As a reader, I want README, INSTALL, RUNNING, `docs/UI_SURFACES.md`, `SURFACE-CLASSIFICATION.md`, `docs/claude/INTEGRATIONS_STATUS.md`, and `CLAUDE.md` to agree.
 
+**Reconciliation status (2026-06-12):** Still valid. No `docs/AUDIT-CROSS-DOC.md` exists, and there are still known current-state tensions around `rex-gui`, root-file counts, GUI capability status, and integration readiness wording.
+
 **Files/areas likely involved:**
 - All of the above
 
@@ -1669,6 +1715,8 @@ grep -n "rex-gui\|rex_loop\|wake word\|OpenClaw\|Docker" README.md INSTALL.md RU
 **Priority:** P0
 **Workstream:** Docs
 **Description:** As a maintainer using Claude Code, I want `CLAUDE.md` to reflect the post-refactor reality.
+
+**Reconciliation status (2026-06-12):** Still valid. `CLAUDE.md` correctly lists the six console scripts and the completed decompositions, but its "9 active root-level `.py` files" section is an active-surface list rather than the current root file count of 27, and this PRD now requires the distinction to be documented explicitly.
 
 **Files/areas likely involved:**
 - `CLAUDE.md`
@@ -1764,28 +1812,29 @@ python scripts/check_deprecated_apis.py
 
 **Priority:** P2
 **Workstream:** Tech Debt
-**Description:** As a maintainer, I want `rex/cli.py` split into per-domain modules under `rex/cli/` for readability.
+**Description:** As a maintainer, I want `rex/cli.py` split into per-domain modules for readability.
+
+**Reconciliation status (2026-06-12):** Already completed before this PRD execution by the remaining-release-readiness workstream (`PRD-remaining-release-readiness.md` US-REM-027). Retained as satisfied baseline evidence to avoid duplicate Ralph execution. Current evidence: `rex/cli.py` is 230 lines and command-domain modules live under `rex/commands/`; the largest `rex/commands/*.py` file is under 1,000 lines.
 
 **Files/areas likely involved:**
-- `rex/cli.py` → `rex/cli/__init__.py`, `rex/cli/voice.py`, `rex/cli/chat.py`, `rex/cli/integrations.py`, etc.
+- `rex/cli.py`
+- `rex/commands/`
 
-**Implementation notes:** Behavior-preserving split only. `python -m rex` continues to work. All console-script entry points keep their import paths via re-export from `rex/cli/__init__.py`.
+**Implementation notes:** Historical record only. Do not execute this story again unless a new regression is found.
 
 **Acceptance Criteria:**
-- [ ] Each new module is < 1,000 lines.
-- [ ] All CLI subcommands continue to work (covered by `tests/test_cli_smoke.py`).
-- [ ] No behavior change observable to a caller.
-- [ ] Coverage holds.
-- [ ] All relevant GitHub checks pass.
+- [x] `rex/cli.py` is a small parser/entrypoint facade. *(Verified 2026-06-12: 230 lines.)*
+- [x] Command-domain modules exist under `rex/commands/`.
+- [x] Each command-domain module is under 1,000 lines. *(Verified 2026-06-12: largest `rex/commands/commerce.py` was below 1,000 lines.)*
+- [x] Remaining-release-readiness validation recorded the completed decomposition and preserved backward-compatible `rex.cli.<name>` import/monkeypatch surfaces.
 
 **Validation commands:**
 ```bash
+wc -l rex/cli.py
 python -m rex --help
-pytest tests/test_cli_smoke.py -q
-pytest -q --cov=rex --cov-fail-under=75
 ```
 
-**Risk notes:** Big-bang splits are dangerous. Land in a single story only if tests can prove parity; otherwise split into multiple stories.
+**Risk notes:** Future CLI changes should follow the existing `rex/commands/` pattern rather than expanding `rex/cli.py`.
 
 ---
 
@@ -1795,19 +1844,24 @@ pytest -q --cov=rex --cov-fail-under=75
 **Workstream:** Tech Debt
 **Description:** As a maintainer, I want `rex/voice_loop.py` split into capture, STT, LLM, TTS, and orchestration modules.
 
+**Reconciliation status (2026-06-12):** Already completed before this PRD execution by the remaining-release-readiness workstream (`PRD-remaining-release-readiness.md` US-REM-028). Retained as satisfied baseline evidence to avoid duplicate Ralph execution. Current evidence: `rex/voice_loop.py` is 127 lines and implementation modules live under `rex/voice/`; the largest `rex/voice/*.py` file is under 1,000 lines.
+
 **Files/areas likely involved:**
-- `rex/voice_loop.py` → `rex/voice/capture.py`, `rex/voice/stt.py`, `rex/voice/llm.py`, `rex/voice/tts.py`, `rex/voice/orchestrator.py`
+- `rex/voice_loop.py`
+- `rex/voice/`
+
+**Implementation notes:** Historical record only. Do not execute this story again unless a new regression is found.
 
 **Acceptance Criteria:**
-- [ ] Behavior-preserving split (covered by US-043 logs, US-044 budget).
-- [ ] `python rex_loop.py` continues to work.
-- [ ] All voice tests still pass.
-- [ ] All relevant GitHub checks pass.
+- [x] `rex/voice_loop.py` is a small stable facade. *(Verified 2026-06-12: 127 lines.)*
+- [x] Concern modules exist under `rex/voice/`.
+- [x] Each voice concern module is under 1,000 lines. *(Verified 2026-06-12: largest `rex/voice/loop.py` was below 1,000 lines.)*
+- [x] Remaining-release-readiness validation recorded the completed decomposition and preserved `rex.voice_loop.<name>` import/monkeypatch surfaces.
 
 **Validation commands:**
 ```bash
-pytest tests/test_voice_loop_smoke.py -q
-pytest tests/test_voice_pipeline_logs.py -q
+wc -l rex/voice_loop.py
+python -c "from rex.voice_loop import build_voice_loop; print('ok')"
 ```
 
 ---
@@ -1818,19 +1872,23 @@ pytest tests/test_voice_pipeline_logs.py -q
 **Workstream:** Tech Debt
 **Description:** As a maintainer, I want `rex/gui_app.py` split by route domain (status, devices, history, setup, quick actions) under `rex/web/routes/`.
 
+**Reconciliation status (2026-06-12):** Already completed before this PRD execution by the remaining-release-readiness workstream (`PRD-remaining-release-readiness.md` US-REM-026). Retained as satisfied baseline evidence to avoid duplicate Ralph execution. Current evidence: `rex/gui_app.py` is 207 lines and Flask route domains live under `rex/routes/`.
+
 **Files/areas likely involved:**
-- `rex/gui_app.py` → `rex/web/app.py`, `rex/web/routes/*.py`
+- `rex/gui_app.py`
+- `rex/routes/`
+
+**Implementation notes:** Historical record only. Do not execute this story again unless a new regression is found.
 
 **Acceptance Criteria:**
-- [ ] Behavior-preserving split.
-- [ ] `rex-gui` console script still works.
-- [ ] Route tests still pass.
-- [ ] All relevant GitHub checks pass.
+- [x] `rex/gui_app.py` is a small app factory/blueprint registration surface. *(Verified 2026-06-12: 207 lines.)*
+- [x] Route-domain modules exist under `rex/routes/`.
+- [x] Remaining-release-readiness validation recorded the completed decomposition and route snapshot coverage exists at `tests/test_us_rem_026_route_snapshot.py`.
 
 **Validation commands:**
 ```bash
-pytest tests/test_gui_app_routes.py -q
-rex-gui --help
+wc -l rex/gui_app.py
+pytest tests/test_us_rem_026_route_snapshot.py -q
 ```
 
 ---
@@ -1841,17 +1899,23 @@ rex-gui --help
 **Workstream:** Tech Debt
 **Description:** As a maintainer, I want the Electron main process split into IPC handlers, config helpers, bridge resolver, tray, and window lifecycle modules.
 
+**Reconciliation status (2026-06-12):** Already completed before this PRD execution by the remaining-release-readiness workstream (`PRD-remaining-release-readiness.md` US-REM-029). Retained as satisfied baseline evidence to avoid duplicate Ralph execution. Current evidence: `gui/src/main/index.ts` is 39 lines and main-process concern modules live under `gui/src/main/`.
+
 **Files/areas likely involved:**
-- `gui/src/main/index.ts` → smaller modules under `gui/src/main/`
+- `gui/src/main/index.ts`
+- `gui/src/main/`
+- `gui/src/main/handlers/`
+
+**Implementation notes:** Historical record only. Do not execute this story again unless a new regression is found.
 
 **Acceptance Criteria:**
-- [ ] Behavior-preserving split.
-- [ ] `cd gui && npm run typecheck && npm run build` passes.
-- [ ] Electron smoke test still passes.
-- [ ] All relevant GitHub checks pass.
+- [x] `gui/src/main/index.ts` is a small lifecycle entrypoint. *(Verified 2026-06-12: 39 lines.)*
+- [x] Main-process concern modules exist under `gui/src/main/` and IPC handlers under `gui/src/main/handlers/`.
+- [x] Remaining-release-readiness validation recorded `cd gui && npm run typecheck`, `cd gui && npm run build`, and Electron smoke evidence for the decomposition PR.
 
 **Validation commands:**
 ```bash
+wc -l gui/src/main/index.ts
 cd gui && npm run typecheck && npm run build
 bash tests/smoke/test_electron_package.sh
 ```
@@ -1877,6 +1941,963 @@ bash tests/smoke/test_electron_package.sh
 ```bash
 cd gui && npm run typecheck && npm run build
 ```
+
+---
+
+### US-064: Build the Electron capability parity inventory
+
+**Priority:** P0
+**Workstream:** Electron / Product / Docs
+**Description:** As a user, I want every Rex capability that exists in backend code or docs to be visible, configurable, or explicitly hidden as developer-only in the Electron GUI.
+
+**Why it matters:** Hidden features force users to edit files manually and create a false sense that Rex can do things the product UI does not actually support.
+
+**Files/areas likely involved:**
+- `gui/src/pages/IntegrationsPage.tsx`
+- `gui/src/pages/SettingsPage.tsx`
+- `gui/src/main/integrationInventory.ts`
+- `docs/claude/INTEGRATIONS_STATUS.md`
+- `SURFACE-CLASSIFICATION.md`
+- `README.md`
+
+**Implementation notes:** Create a capability matrix covering OpenClaw, web search, Outlook, email, SMS, Home Assistant, shopping list, memory, profiles, voice, LLM providers, mobile/API access, and other registered tools. This is an inventory/story-routing task, not the implementation of every missing UI.
+
+**Acceptance Criteria:**
+- [ ] A committed inventory maps each backend/docs capability to GUI status: visible, configurable, disabled with explanation, developer-only, or missing.
+- [ ] Each missing or misleading GUI surface is linked to a User Story in this PRD.
+- [ ] No capability is marked production-ready unless the GUI can configure/status-check it or docs explicitly classify it as developer-only.
+- [ ] README and integration docs link to the inventory or summarize its production-facing conclusions.
+- [ ] All relevant GitHub checks pass.
+
+**Validation commands:**
+```bash
+grep -n "Capability parity" docs/*.md README.md
+grep -n "OpenClaw\|web search\|Outlook\|Shopping List\|Memory" docs/claude/INTEGRATIONS_STATUS.md SURFACE-CLASSIFICATION.md
+```
+
+**Risk notes:** Do not promote a backend feature to user-facing status just because code exists. The GUI and docs must match the real readiness tier.
+
+---
+
+### US-065: Make Integrations configure links truthful
+
+**Priority:** P0
+**Workstream:** Electron / Integrations
+**Description:** As a user, I want every Configure link in the Integrations tab to land on an actual matching settings section, or be hidden/disabled when the integration is not configurable.
+
+**Why it matters:** A blue Configure link that navigates to an unrelated or missing section teaches users not to trust integration status.
+
+**Files/areas likely involved:**
+- `gui/src/pages/IntegrationsPage.tsx`
+- `gui/src/pages/SettingsPage.tsx`
+- `gui/src/main/integrationInventory.ts`
+- `gui/src/main/integrationStatus.ts`
+- `gui/src/types/ipc.ts`
+- `docs/claude/INTEGRATIONS_STATUS.md`
+
+**Implementation notes:** Start from the inventory produced by US-064. Web Search is a known example: if it is configurable, it needs a real settings section; if not, the Configure action must be disabled and the card must state what is missing.
+
+**Acceptance Criteria:**
+- [ ] Every configurable integration listed in Integrations has a matching Electron Settings section or route.
+- [ ] Non-configurable or unimplemented integrations do not render an enabled Configure button.
+- [ ] Integration cards distinguish `not implemented`, `not configured`, `configured`, `connected`, and `error`.
+- [ ] Web Search has either a real provider/key settings section or an honest disabled state explaining the missing setup path.
+- [ ] Tests cover integration inventory link targets and disabled Configure behavior.
+- [ ] `cd gui && npm run typecheck && npm run build` passes.
+- [ ] All relevant GitHub checks pass.
+
+**Validation commands:**
+```bash
+cd gui && npm run typecheck && npm run build
+pytest tests/test_us314_integrations_page.py -q
+```
+
+**Risk notes:** Do not write secrets into GUI settings JSON while adding integration configuration. Secrets must stay in `.env` or the documented credential store.
+
+---
+
+### US-066: Separate Settings navigation from profile/avatar controls
+
+**Priority:** P1
+**Workstream:** Electron / UX / Identity
+**Description:** As a user, I want Settings to appear once in navigation and the persistent user/profile area to show and open my editable profile.
+
+**Why it matters:** Duplicate Settings entries and dead profile affordances make the app feel unfinished and make user identity unclear.
+
+**Files/areas likely involved:**
+- `gui/src/App.tsx`
+- `gui/src/components/*`
+- `gui/src/pages/SettingsPage.tsx`
+- `gui/src/pages/UsersPage.tsx`
+- `rex/routes/users.py`
+- `gui/src/main/handlers/*`
+
+**Implementation notes:** Keep Settings as the persistent bottom navigation item. The profile/avatar area is separate: show uploaded image when available, otherwise initials from username/display name, and click through to editable profile settings.
+
+**Acceptance Criteria:**
+- [ ] Settings is removed from the scrolling left tab menu.
+- [ ] Persistent bottom Settings navigation still opens Settings.
+- [ ] The profile/avatar area renders the current user's image when present.
+- [ ] If no image exists, the profile/avatar area renders initials from username or display name.
+- [ ] Clicking the profile/avatar area opens editable profile settings.
+- [ ] Tests or a focused Electron harness cover navigation and avatar fallback behavior.
+- [ ] `cd gui && npm run typecheck && npm run build` passes.
+- [ ] Screenshots are captured or the reason they were not captured is documented.
+- [ ] All relevant GitHub checks pass.
+
+**Validation commands:**
+```bash
+cd gui && npm run typecheck && npm run build
+```
+
+**Risk notes:** Do not remove access to Settings while cleaning up duplication. Preserve keyboard and screen-reader access.
+
+---
+
+### US-067: Support detected and manual IANA time zones
+
+**Priority:** P1
+**Workstream:** Electron / Settings
+**Description:** As a user, I want Rex to detect my timezone automatically and let me override it from the full IANA timezone list.
+
+**Why it matters:** A timezone dropdown containing only the current timezone is not a real setting and can break reminders, schedules, calendar events, and local-context answers.
+
+**Files/areas likely involved:**
+- `gui/src/pages/SettingsPage.tsx`
+- `gui/src/main/settingsDefaults.ts`
+- `gui/src/main/settingsMirror.ts`
+- `gui/src/types/ipc.ts`
+- `rex/config.py`
+- `config/rex_config.json`
+
+**Implementation notes:** Prefer browser/system detection when available. Persist an explicit mode such as `auto` vs `manual`, the detected timezone, and the manual override. Do not scale this into location detection.
+
+**Acceptance Criteria:**
+- [ ] General settings default to automatic timezone detection where possible.
+- [ ] The UI shows the detected timezone clearly.
+- [ ] Manual override is available.
+- [ ] Manual dropdown includes all IANA time zones available from the runtime or a generated static list.
+- [ ] Saved timezone reloads from the same source of truth after tab switches and app restart.
+- [ ] Tests cover auto/default, manual save, reload, and invalid timezone rejection.
+- [ ] `cd gui && npm run typecheck && npm run build` passes.
+- [ ] All relevant GitHub checks pass.
+
+**Validation commands:**
+```bash
+cd gui && npm run typecheck && npm run build
+pytest -q tests/test_config*.py
+```
+
+**Risk notes:** Avoid guessing timezone from IP or external network services. OS/browser/local runtime data is enough.
+
+---
+
+### US-068: Rebuild voice enrollment around explicit user identity
+
+**Priority:** P0
+**Workstream:** Voice / Identity / Electron
+**Description:** As a household user, I want to choose which user is enrolling before recording a voice sample and see clear recording instructions and results.
+
+**Why it matters:** Voice identity is unsafe and confusing if enrollment silently attaches samples to `default` while the user profile list contains real users such as James.
+
+**Files/areas likely involved:**
+- `gui/src/pages/SettingsPage.tsx`
+- `gui/src/main/handlers/voice.ts`
+- `rex_voice_enrollment_bridge.py`
+- `rex/voice_identity/`
+- `rex/identity.py`
+- `profiles/`
+- `tests/test_us309_voice_enrollment_ux.py`
+
+**Implementation notes:** Use the same user identity source that profile, memory, shopping, and chat history will use. Show the phrase to speak, a visible 3-2-1 countdown, recording state, and actionable success/failure details.
+
+**Acceptance Criteria:**
+- [ ] User selection is required before enrollment starts.
+- [ ] Enrollment attaches the voice sample to the selected user.
+- [ ] Existing users are never displayed as `default` when a profile exists.
+- [ ] The UI shows clear instructions and exactly what to say.
+- [ ] The UI shows a visible 3-2-1 countdown before recording.
+- [ ] The UI shows recording, processing, success, and failure states.
+- [ ] Failure details are actionable without exposing sensitive paths or secrets.
+- [ ] Tests cover selected-user persistence and no-`default` labeling for real profiles.
+- [ ] `cd gui && npm run typecheck && npm run build` passes.
+- [ ] All relevant GitHub checks pass.
+
+**Validation commands:**
+```bash
+pytest tests/test_us309_voice_enrollment_ux.py -q
+cd gui && npm run typecheck && npm run build
+```
+
+**Risk notes:** Do not store biometric/voice identity data under the wrong user. Treat voice samples as sensitive user data.
+
+---
+
+### US-069: Make custom wake model and sample selection asset-backed
+
+**Priority:** P0
+**Workstream:** Voice / Wake Word / Electron
+**Description:** As a user configuring a custom wake word, I want the dropdown and Play Sample button to reflect actual trained assets and samples.
+
+**Why it matters:** Placeholder sample playback and missing trained-model entries make wake-word setup impossible to trust.
+
+**Files/areas likely involved:**
+- `gui/src/pages/SettingsPage.tsx`
+- `gui/src/main/handlers/voice.ts`
+- `gui/src/main/voiceSettings.ts`
+- `rex_wakeword_list_bridge.py`
+- `rex_wakeword_sample_bridge.py`
+- `rex/wakeword/`
+- `config/wake_words/`
+- `tests/test_us310_wakeword_sample.py`
+
+**Implementation notes:** The trained custom wake dropdown must be populated from actual available models/embeddings. The selected sample must match the selected asset. Remove placeholder phrase playback entirely.
+
+**Acceptance Criteria:**
+- [ ] Trained custom wake models/embeddings populate from actual available assets.
+- [ ] The selected wake model/sample matches an existing asset path.
+- [ ] Placeholder sample behavior is removed.
+- [ ] Play Sample is disabled when no valid sample/model exists.
+- [ ] If no sample exists, the app plays nothing and shows a clear no-sample message.
+- [ ] Missing-asset errors are visible and actionable.
+- [ ] Tests cover asset present, asset missing, sample present, sample missing, and disabled Play Sample behavior.
+- [ ] `cd gui && npm run typecheck && npm run build` passes.
+- [ ] All relevant GitHub checks pass.
+
+**Validation commands:**
+```bash
+pytest tests/test_us310_wakeword_sample.py -q
+cd gui && npm run typecheck && npm run build
+```
+
+**Risk notes:** Do not silently fall back to a different wake model when the user selected a custom one. Surface the fallback explicitly if fallback is allowed.
+
+---
+
+### US-070: Make Test Voice play the selected TTS engine and voice
+
+**Priority:** P0
+**Workstream:** Voice / TTS / Electron
+**Description:** As a user, I want the Test Voice button to play an audible sample using the currently selected TTS engine and voice.
+
+**Why it matters:** Voice settings are not production-ready if users cannot verify the selected voice before relying on it.
+
+**Files/areas likely involved:**
+- `gui/src/pages/SettingsPage.tsx`
+- `gui/src/main/handlers/voice.ts`
+- `gui/src/main/voiceSettings.ts`
+- `rex_voice_sample_bridge.py`
+- `rex_voices_bridge.py`
+- `rex/tts_voices.py`
+- `rex/tts/`
+
+**Implementation notes:** Preserve the text response if TTS fails. Show loading, playing, success, and failure states. Use the selected engine/voice; do not use a hardcoded placeholder voice.
+
+**Acceptance Criteria:**
+- [ ] Test Voice invokes the selected TTS engine.
+- [ ] Test Voice uses the selected voice.
+- [ ] The user hears an audible sample when the engine/voice are available.
+- [ ] The UI shows loading/playing/failure state.
+- [ ] Missing engine, missing voice, missing model, and playback errors are surfaced clearly.
+- [ ] Tests or an Electron harness cover the IPC request payload and failure UI.
+- [ ] `cd gui && npm run typecheck && npm run build` passes.
+- [ ] All relevant GitHub checks pass.
+
+**Validation commands:**
+```bash
+cd gui && npm run typecheck && npm run build
+```
+
+**Risk notes:** Do not block saving voice settings if sample playback fails. Do not leak local file paths in renderer errors.
+
+---
+
+### US-071: Persist AI provider selection across navigation
+
+**Priority:** P0
+**Workstream:** AI / Electron / Settings
+**Description:** As a user, I want changing the LLM provider in Settings > AI to save immediately and stay selected after switching tabs or restarting.
+
+**Why it matters:** A settings UI that says "saved" and immediately reverts is a production blocker for model configuration.
+
+**Files/areas likely involved:**
+- `gui/src/pages/SettingsPage.tsx`
+- `gui/src/main/aiSettings.ts`
+- `gui/src/main/settingsMirror.ts`
+- `gui/src/main/settingsDefaults.ts`
+- `gui/src/main/handlers/settings.ts`
+- `gui/src/types/ipc.ts`
+- `config/rex_config.json`
+
+**Implementation notes:** Establish one source of truth for GUI provider labels and runtime provider names. The UI should reload from saved state, not local defaults, after tab changes.
+
+**Acceptance Criteria:**
+- [ ] Changing from Local Transformers to Ollama Local persists immediately.
+- [ ] Switching tabs and returning does not reset the provider.
+- [ ] App restart reloads the saved provider from the source of truth.
+- [ ] Runtime config mirror uses the same provider mapping as the UI.
+- [ ] Tests cover save, reload, tab navigation, and invalid provider fallback.
+- [ ] `cd gui && npm run typecheck && npm run build` passes.
+- [ ] All relevant GitHub checks pass.
+
+**Validation commands:**
+```bash
+cd gui && npm run typecheck && npm run build
+```
+
+**Risk notes:** Do not add a second provider key. Migrate or normalize old keys rather than allowing split state.
+
+---
+
+### US-072: Discover Ollama and LM Studio models from configured endpoints
+
+**Priority:** P1
+**Workstream:** AI / Electron / Integrations
+**Description:** As a user using Ollama or LM Studio, I want Rex to list available models from the configured endpoint and persist my selected model.
+
+**Why it matters:** Fake or stale model names lead to broken chat setup and confusing failures.
+
+**Files/areas likely involved:**
+- `gui/src/pages/SettingsPage.tsx`
+- `gui/src/main/handlers/settings.ts`
+- `gui/src/main/aiSettings.ts`
+- `rex/llm_client.py`
+- `rex/model_router.py`
+- `config/rex_config.json`
+
+**Implementation notes:** Ollama and LM Studio have different APIs. Use configured endpoints, show loading/error/empty states, and avoid network calls unless the user requests discovery or opens the relevant provider section.
+
+**Acceptance Criteria:**
+- [ ] Ollama model discovery reads the configured Ollama endpoint.
+- [ ] LM Studio model discovery reads the configured OpenAI-compatible endpoint.
+- [ ] UI shows loading, error, and empty states.
+- [ ] Selected model persists and reloads.
+- [ ] Stale or hardcoded fake model names are not shown as available.
+- [ ] Tests mock provider endpoints for success, failure, and empty responses.
+- [ ] `cd gui && npm run typecheck && npm run build` passes.
+- [ ] All relevant GitHub checks pass.
+
+**Validation commands:**
+```bash
+cd gui && npm run typecheck && npm run build
+pytest -q tests/test_llm_client.py tests/test_model_router.py
+```
+
+**Risk notes:** Do not contact external cloud APIs while discovering local models unless the user configured that provider and initiated the action.
+
+---
+
+### US-073: Consolidate autonomy settings under AI
+
+**Priority:** P1
+**Workstream:** AI / Electron / Settings
+**Description:** As a user, I want one autonomy setting with one source of truth, located under Settings > AI.
+
+**Why it matters:** Duplicate autonomy controls in AI and System can diverge and make Rex's behavior unpredictable.
+
+**Files/areas likely involved:**
+- `gui/src/pages/SettingsPage.tsx`
+- `gui/src/main/aiSettings.ts`
+- `gui/src/main/settingsDefaults.ts`
+- `gui/src/main/settingsMirror.ts`
+- `gui/src/types/ipc.ts`
+- `rex/autonomy/`
+- `config/rex_config.json`
+
+**Implementation notes:** Keep autonomy under AI. Remove the duplicate System autonomy control and audit System for other AI-related settings that should move.
+
+**Acceptance Criteria:**
+- [ ] Only one autonomy UI control exists.
+- [ ] The remaining control lives under Settings > AI.
+- [ ] System no longer has a duplicate autonomy setting.
+- [ ] Saved autonomy value has one source of truth.
+- [ ] AI and runtime config read the same autonomy value.
+- [ ] Tests cover migration from old duplicate values and System tab absence.
+- [ ] `cd gui && npm run typecheck && npm run build` passes.
+- [ ] All relevant GitHub checks pass.
+
+**Validation commands:**
+```bash
+cd gui && npm run typecheck && npm run build
+```
+
+**Risk notes:** Preserve conservative defaults. Do not accidentally enable full-auto autonomy during migration.
+
+---
+
+### US-074: Add wake-word runtime diagnostics and visible listening state
+
+**Priority:** P0
+**Workstream:** Voice / Wake Word / Electron
+**Description:** As a user, I want wake-word/listening mode to show whether it is actually active and why it failed when the wake backend is unavailable.
+
+**Why it matters:** Silent wake-word failure makes Rex feel broken and can hide missing backend, model, microphone, or permissions problems.
+
+**Files/areas likely involved:**
+- `gui/src/components/voice/VoiceToggle.tsx`
+- `gui/src/main/handlers/voice.ts`
+- `gui/src/pages/SettingsPage.tsx`
+- `rex_voice_bridge.py`
+- `rex/voice/`
+- `rex/wakeword/`
+- `tests/test_wakeword_listener_runtime.py`
+
+**Implementation notes:** Add diagnostics around start, backend/model selection, listener readiness, wake detection, STT handoff, and failure. Preserve latency and avoid repeated heavy model loads.
+
+**Acceptance Criteria:**
+- [ ] Starting wake mode shows `starting`, `listening`, `detected`, `processing`, and `failed` states as applicable.
+- [ ] The UI shows backend and selected model/asset state.
+- [ ] Missing backend/model/microphone errors are actionable.
+- [ ] Logs include bounded structured events for wake start/listen/respond path.
+- [ ] Tests or a harness cover successful readiness and backend unavailable paths.
+- [ ] `pytest tests/test_wakeword_listener_runtime.py -q` passes or replacement targeted tests pass.
+- [ ] `cd gui && npm run typecheck && npm run build` passes.
+- [ ] All relevant GitHub checks pass.
+
+**Validation commands:**
+```bash
+pytest tests/test_wakeword_listener_runtime.py -q
+cd gui && npm run typecheck && npm run build
+```
+
+**Risk notes:** Diagnostics must not continuously log microphone audio data or sensitive transcripts.
+
+---
+
+### US-075: Instrument chat and voice response latency
+
+**Priority:** P0
+**Workstream:** Performance / Voice / AI
+**Description:** As a user, I want Rex responses to be fast enough for daily use, and as a maintainer I want stage timings that show where delays come from.
+
+**Why it matters:** Slow responses can come from STT, LLM, TTS, tool routing, IPC, model loading, wake loops, or playback. Without timings, optimization is guesswork.
+
+**Files/areas likely involved:**
+- `rex/voice_latency.py`
+- `rex/assistant.py`
+- `rex/voice/`
+- `rex/actions/dispatcher.py`
+- `gui/src/main/handlers/voice.ts`
+- `gui/src/main/handlers/chat.ts`
+- `docs/performance.md` (new or updated)
+
+**Implementation notes:** Add structured timings before optimization. Define target budgets for typed chat, hold-to-talk, wake-word response, STT, LLM token-to-first, TTS start, and playback.
+
+**Acceptance Criteria:**
+- [ ] Chat response path records IPC, routing, LLM, tool, and total timings.
+- [ ] Voice path records wake, capture, STT, LLM, TTS, playback, and total timings.
+- [ ] Logs include provider/model/settings identifiers needed for diagnosis without leaking secrets.
+- [ ] Target budgets are documented.
+- [ ] A profiling command or harness summarizes timings.
+- [ ] Optimization stories are opened or blockers documented for any stage over budget.
+- [ ] Tests cover timing event emission with mocked stages.
+- [ ] All relevant GitHub checks pass.
+
+**Validation commands:**
+```bash
+pytest -q tests/test_voice_latency.py tests/test_tool_pipeline.py
+```
+
+**Risk notes:** Do not add synchronous timing work that increases latency materially. Use monotonic clocks.
+
+---
+
+### US-076: Add incoherent model output validation and fail-safe handling
+
+**Priority:** P0
+**Workstream:** AI / Reliability / UX
+**Description:** As a user, I want Rex to detect obvious provider/model failure and surface a clear error instead of returning huge incoherent paragraphs.
+
+**Why it matters:** Gibberish responses are worse than honest failure because they destroy trust and can mask a misconfigured or broken model provider.
+
+**Files/areas likely involved:**
+- `rex/assistant.py`
+- `rex/response/builder.py`
+- `rex/model_router.py`
+- `rex/llm_client.py`
+- `rex/voice/`
+- `gui/src/pages/ChatPage.tsx`
+
+**Implementation notes:** Keep validation conservative and deterministic. Detect clear bad-output patterns such as extreme repetition, non-language token floods, impossible length spikes, or provider error text routed as answer text. Do not censor normal long answers.
+
+**Acceptance Criteria:**
+- [ ] Obvious incoherent output is converted into a clear provider/model failure response.
+- [ ] Logs include provider, model, route, output length, and failure reason without logging secrets.
+- [ ] Text and voice paths both use the fail-safe.
+- [ ] The UI distinguishes model failure from normal answer refusal.
+- [ ] Tests use mocked bad output and verify no gibberish is returned to the user.
+- [ ] All relevant GitHub checks pass.
+
+**Validation commands:**
+```bash
+pytest -q tests/test_llm_client.py tests/test_assistant.py
+```
+
+**Risk notes:** False positives can hide legitimate answers. Keep thresholds conservative and add diagnostics.
+
+---
+
+### US-077: Route current-info and news questions honestly
+
+**Priority:** P0
+**Workstream:** AI / Tools / Integrations
+**Description:** As a user asking "what is in the news today", I want Rex to use a configured current-info/news/web-search capability or clearly explain what needs to be enabled.
+
+**Why it matters:** Rex must not hallucinate current events or say it can fetch news unless a real configured capability exists.
+
+**Files/areas likely involved:**
+- `rex/intent/router.py`
+- `rex/actions/dispatcher.py`
+- `rex/tools/registry.py`
+- `plugins/web_search.py`
+- `gui/src/pages/SettingsPage.tsx`
+- `docs/claude/INTEGRATIONS_STATUS.md`
+
+**Implementation notes:** Detect current-info/news intent before a plain LLM answer. If search/news capability is configured, route to it. If not configured, explain the missing provider/key and point to the exact settings/docs path.
+
+**Acceptance Criteria:**
+- [ ] News/current-info questions route to a configured search/news capability when available.
+- [ ] If no capability is configured, Rex explains what is missing and how to enable it.
+- [ ] Rex does not claim live news access when the capability is unavailable.
+- [ ] Suggested setup paths are backed by actual code/config/docs.
+- [ ] Tests cover configured and unconfigured paths for "what is in the news today".
+- [ ] All relevant GitHub checks pass.
+
+**Validation commands:**
+```bash
+pytest -q tests/test_assistant.py tests/test_capabilities.py tests/test_tools_registry.py
+```
+
+**Risk notes:** This should not add broad web browsing by default. Respect explicit user permission and configured providers.
+
+---
+
+### US-078: Add capability-limit recovery UX
+
+**Priority:** P1
+**Workstream:** Product / UX / Integrations
+**Description:** As a user, I want Rex to recover gracefully when a tool, integration, permission, API key, or capability is missing.
+
+**Why it matters:** Dead-end errors make Rex feel broken. Honest recovery paths let users decide whether to enable, configure, or ignore a capability.
+
+**Files/areas likely involved:**
+- `rex/capabilities.py`
+- `rex/actions/dispatcher.py`
+- `rex/response/builder.py`
+- `rex/tools/registry.py`
+- `gui/src/pages/ChatPage.tsx`
+- `gui/src/pages/IntegrationsPage.tsx`
+- `gui/src/pages/SettingsPage.tsx`
+
+**Implementation notes:** Standardize missing-requirement responses. Where appropriate, ask permission to configure or guide the user to the exact settings section. Do not pretend setup or action succeeded.
+
+**Acceptance Criteria:**
+- [ ] Missing integration responses name the missing requirement.
+- [ ] Missing permission responses name the permission and owner/action required.
+- [ ] Missing API key responses name the config key location without revealing secret values.
+- [ ] Missing tool responses offer a concrete enable/configure/build path when one exists.
+- [ ] The GUI can render structured recovery actions where available.
+- [ ] Tests cover missing integration, missing key, missing permission, and missing tool responses.
+- [ ] All relevant GitHub checks pass.
+
+**Validation commands:**
+```bash
+pytest -q tests/test_capabilities.py tests/test_tools_registry.py tests/test_assistant.py
+```
+
+**Risk notes:** Do not auto-enable risky integrations or request broad permissions without explicit user consent.
+
+---
+
+### US-079: Add typed-chat speak-responses preference
+
+**Priority:** P1
+**Workstream:** Chat / Voice / Electron
+**Description:** As a user typing in Chat, I want to choose whether Rex speaks typed-chat responses aloud.
+
+**Why it matters:** Some users want spoken feedback from typed chat; others need silent chat. The preference should be explicit and per-user.
+
+**Files/areas likely involved:**
+- `gui/src/pages/ChatPage.tsx`
+- `gui/src/pages/SettingsPage.tsx`
+- `gui/src/main/handlers/chat.ts`
+- `gui/src/main/handlers/voice.ts`
+- `gui/src/main/voiceSettings.ts`
+- `rex/routes/users.py`
+- `data/history.db`
+
+**Implementation notes:** Use the selected TTS engine/voice. Persist preference per user. TTS failure must not block the text response.
+
+**Acceptance Criteria:**
+- [ ] Chat UI has a clear "speak responses" toggle/control.
+- [ ] Preference persists per user.
+- [ ] Spoken playback uses the selected TTS engine and voice.
+- [ ] Text response renders even if TTS fails.
+- [ ] TTS failure is surfaced non-blockingly.
+- [ ] Tests or harness cover preference persistence and TTS failure fallback.
+- [ ] `cd gui && npm run typecheck && npm run build` passes.
+- [ ] All relevant GitHub checks pass.
+
+**Validation commands:**
+```bash
+cd gui && npm run typecheck && npm run build
+```
+
+**Risk notes:** Avoid surprise audio. Default should preserve current behavior unless product explicitly decides otherwise.
+
+---
+
+### US-080: Replace flat Home Assistant entity list with a usable dashboard
+
+**Priority:** P0
+**Workstream:** Home Assistant / Electron / UX
+**Description:** As a Home Assistant user, I want a dashboard-style view grouped by useful structure with safe controls for supported entities.
+
+**Why it matters:** A flat non-interactive entity list is not a production-ready smart-home UI.
+
+**Files/areas likely involved:**
+- `gui/src/pages/HomeAssistantPage.tsx`
+- `gui/src/main/handlers/devices.ts`
+- `rex/routes/ha.py`
+- `rex/ha/`
+- `config/device_aliases.json`
+- `docs/home_assistant.md`
+
+**Implementation notes:** This story depends on the safety/verification model from US-047 through US-049. Group by HA areas, rooms, floors, devices, domains, or user-custom organization when metadata is insufficient.
+
+**Acceptance Criteria:**
+- [ ] HA entities are grouped by available HA metadata or documented user-custom organization.
+- [ ] Search/filter/grouping controls are available.
+- [ ] Supported entity types have safe interactive controls.
+- [ ] Dangerous domains retain confirmation gates.
+- [ ] Responses use attempted/completed/verified/failed vocabulary.
+- [ ] The dashboard shows loading, disconnected, not configured, error, and empty states.
+- [ ] Tests cover grouping, filtering, supported controls, and dangerous-domain confirmation.
+- [ ] `cd gui && npm run typecheck && npm run build` passes.
+- [ ] Manual or harness verification confirms the page is usable with representative HA fixture data.
+- [ ] All relevant GitHub checks pass.
+
+**Validation commands:**
+```bash
+pytest -q tests/test_us313_ha_device_status.py tests/test_us060_devices.py
+cd gui && npm run typecheck && npm run build
+```
+
+**Risk notes:** Never expose broad HA service execution from the dashboard without confirmation and post-control verification.
+
+---
+
+### US-081: Verify Outlook integration end to end
+
+**Priority:** P0
+**Workstream:** Integrations / Outlook / Electron
+**Description:** As a user, I want Outlook integration status, auth, configuration, and errors to reflect whether email/calendar sync actually works.
+
+**Why it matters:** Current code explicitly warns Outlook email/calendar sync is not implemented yet in parts of the integration status path, while the GUI can still suggest connected/configured states.
+
+**Files/areas likely involved:**
+- `gui/src/main/integrationStatus.ts`
+- `gui/src/pages/IntegrationsPage.tsx`
+- `gui/src/pages/SettingsPage.tsx`
+- `rex/integrations/email/`
+- `rex/calendar_backends/`
+- `docs/claude/INTEGRATIONS_STATUS.md`
+
+**Implementation notes:** Decide whether Outlook is production-ready, partial, or disabled. If OAuth/token support is incomplete, the GUI must say so and provide actionable setup or limitation text.
+
+**Acceptance Criteria:**
+- [ ] Outlook auth/config/status path is tested end to end or explicitly classified incomplete.
+- [ ] Integrations tab and Settings show the same Outlook status.
+- [ ] Missing OAuth token/client/permission errors are actionable.
+- [ ] Docs match GUI status.
+- [ ] Tests or smoke checks cover configured-without-live-sync and real-live-sync-ready cases as appropriate.
+- [ ] `cd gui && npm run typecheck && npm run build` passes.
+- [ ] All relevant GitHub checks pass.
+
+**Validation commands:**
+```bash
+pytest -q tests/test_outlook_integration_honesty.py
+cd gui && npm run typecheck && npm run build
+```
+
+**Risk notes:** Do not show Outlook as working until real mailbox/calendar operations succeed or are intentionally scoped and documented.
+
+---
+
+### US-082: Decide and enforce Email/SMS beta-label policy
+
+**Priority:** P1
+**Workstream:** Integrations / Product / Docs
+**Description:** As a user, I want Email and SMS labels to truthfully reflect whether those features are production-ready, experimental, or hidden.
+
+**Why it matters:** Removing beta labels without finishing the feature is dishonest; leaving beta labels in a finished app also blocks release polish.
+
+**Files/areas likely involved:**
+- `gui/src/pages/EmailPage.tsx`
+- `gui/src/pages/SmsPage.tsx`
+- `gui/src/pages/IntegrationsPage.tsx`
+- `gui/src/pages/SettingsPage.tsx`
+- `docs/claude/INTEGRATIONS_STATUS.md`
+- `README.md`
+- `SURFACE-CLASSIFICATION.md`
+
+**Implementation notes:** The story must decide one of three outcomes for Email and SMS separately: finish to production-ready, hide/disable from normal users, or explicitly classify as experimental/developer-only. Remove beta labels only after the feature is truly production-ready.
+
+**Acceptance Criteria:**
+- [ ] Email has a documented readiness decision: production-ready, experimental/developer-only, or hidden.
+- [ ] SMS has a documented readiness decision: production-ready, experimental/developer-only, or hidden.
+- [ ] GUI labels match the decision.
+- [ ] Beta labels are removed only for features that satisfy production-ready criteria.
+- [ ] Docs match GUI labels and capability status.
+- [ ] Tests cover the visible label/status for each outcome.
+- [ ] `cd gui && npm run typecheck && npm run build` passes.
+- [ ] All relevant GitHub checks pass.
+
+**Validation commands:**
+```bash
+cd gui && npm run typecheck && npm run build
+grep -n "Email\|SMS\|beta\|experimental" README.md docs/claude/INTEGRATIONS_STATUS.md SURFACE-CLASSIFICATION.md
+```
+
+**Risk notes:** Do not make UI look more complete than the live backend/auth path really is.
+
+---
+
+### US-083: Add selectable per-user chat history
+
+**Priority:** P1
+**Workstream:** Chat / Identity / Electron
+**Description:** As a user, I want to see prior conversations, select one, and resume it without mixing users unexpectedly.
+
+**Why it matters:** Chat history is core user experience, and household/private boundaries must be explicit before release.
+
+**Files/areas likely involved:**
+- `gui/src/pages/ChatPage.tsx`
+- `rex/routes/chat.py`
+- `rex/history_store.py` or current chat history storage
+- `data/history.db`
+- `rex/routes/users.py`
+- `docs/privacy.md` (new or updated)
+
+**Implementation notes:** Define per-user and shared/household history rules before adding UI. Include retention, delete, and export controls.
+
+**Acceptance Criteria:**
+- [ ] Chat UI lists prior conversations for the current user.
+- [ ] User can select and resume a prior chat.
+- [ ] Per-user separation is enforced.
+- [ ] Shared/household history behavior is defined and surfaced if supported.
+- [ ] User can delete a conversation.
+- [ ] User can export conversation history.
+- [ ] Retention policy is documented.
+- [ ] Tests cover list, resume, delete, export, and cross-user isolation.
+- [ ] `cd gui && npm run typecheck && npm run build` passes.
+- [ ] All relevant GitHub checks pass.
+
+**Validation commands:**
+```bash
+pytest -q tests/test_chat_api.py tests/test_us048_data_isolation.py
+cd gui && npm run typecheck && npm run build
+```
+
+**Risk notes:** Do not leak one user's chat history into another user's context or GUI.
+
+---
+
+### US-084: Route voice and typed shopping-list commands to the visible list
+
+**Priority:** P1
+**Workstream:** Shopping / Voice / Chat / Electron
+**Description:** As a user, I want commands like "add salt to the shopping list" to update the visible Shopping List tab from voice or typed chat.
+
+**Why it matters:** A visible Shopping List tab should be reachable from natural Rex commands, or users will assume the feature is broken.
+
+**Files/areas likely involved:**
+- `gui/src/pages/ShoppingListPage.tsx`
+- `rex_shopping_list_bridge.py`
+- `rex/commands/shopping.py`
+- `rex/actions/dispatcher.py`
+- `rex/tools/registry.py`
+- `rex/assistant.py`
+
+**Implementation notes:** Define whether the list is per-user or household. Confirm additions, handle duplicates, and update the GUI without requiring a manual refresh.
+
+**Acceptance Criteria:**
+- [ ] Typed chat command can add an item to the visible shopping list.
+- [ ] Voice command can add an item to the visible shopping list.
+- [ ] Rex confirms the item was added.
+- [ ] Duplicate item handling says it is already present and optionally asks about quantity.
+- [ ] Shopping List tab updates after command execution.
+- [ ] Per-user vs household list behavior is documented.
+- [ ] Tests cover typed route, voice route, duplicate handling, and GUI bridge update.
+- [ ] `cd gui && npm run typecheck && npm run build` passes.
+- [ ] All relevant GitHub checks pass.
+
+**Validation commands:**
+```bash
+pytest -q tests/test_assistant.py tests/test_tools_registry.py
+cd gui && npm run typecheck && npm run build
+```
+
+**Risk notes:** Avoid accidental cross-user list pollution if the final model is personal lists.
+
+---
+
+### US-085: Add GUI controls for per-user and household memory
+
+**Priority:** P0
+**Workstream:** Memory / Identity / Privacy / Electron
+**Description:** As a household user, I want Rex memory to distinguish personal facts from shared household facts and keep retrieval fast.
+
+**Why it matters:** Strong memory is valuable only if it respects privacy boundaries and does not make Rex too slow.
+
+**Files/areas likely involved:**
+- `gui/src/pages/SettingsPage.tsx`
+- `gui/src/pages/UsersPage.tsx`
+- `rex/memory*`
+- `rex/identity.py`
+- `Memory/`
+- `data/memory/`
+- `docs/memory.md`
+
+**Implementation notes:** Voice interactions should attach memory to the identified user or household context. Include import/export/delete controls and a retrieval latency budget.
+
+**Acceptance Criteria:**
+- [ ] Memory model distinguishes per-user private memory and shared household memory.
+- [ ] Voice interactions attach memory to identified user or household context.
+- [ ] GUI lets users view, add, edit, delete, import, and export memory where appropriate.
+- [ ] Privacy boundaries are documented in user-facing language.
+- [ ] Memory retrieval has a documented latency budget.
+- [ ] Tests cover private-vs-shared isolation and retrieval latency instrumentation.
+- [ ] `cd gui && npm run typecheck && npm run build` passes.
+- [ ] All relevant GitHub checks pass.
+
+**Validation commands:**
+```bash
+pytest -q tests/test_identity.py tests/test_voice_identity_fallback.py
+cd gui && npm run typecheck && npm run build
+```
+
+**Risk notes:** Do not send private user memory into household/shared prompts unless explicitly allowed.
+
+---
+
+### US-086: Add scoped document upload and vector indexing
+
+**Priority:** P1
+**Workstream:** Memory / Retrieval / Privacy / Electron
+**Description:** As a user, I want to upload documents into Rex memory with a chosen scope and labels so retrieval can use them safely.
+
+**Why it matters:** User uploads are powerful but high-risk if private content leaks into household context or cannot be deleted/audited.
+
+**Files/areas likely involved:**
+- `gui/src/pages/SettingsPage.tsx` or new memory/upload page
+- `rex_memories_bridge.py`
+- `rex/document_indexing*`
+- `rex/memory*`
+- `data/`
+- `docs/memory.md`
+
+**Implementation notes:** Distinguish per-user vector stores from a household/shared vector store. Let users tag/label uploaded content or tell Rex how to label it.
+
+**Acceptance Criteria:**
+- [ ] Upload UI accepts supported document/data types.
+- [ ] User chooses scope: private to selected user or shared household.
+- [ ] User can add tags/labels during upload.
+- [ ] Rex can infer labels only with user confirmation.
+- [ ] Uploaded content is indexed into the correct per-user or household vector store.
+- [ ] Private uploads are not retrieved for household context.
+- [ ] User can search, delete, and audit uploaded content.
+- [ ] Tests cover scope, tagging, retrieval, deletion, and cross-scope isolation.
+- [ ] `cd gui && npm run typecheck && npm run build` passes.
+- [ ] All relevant GitHub checks pass.
+
+**Validation commands:**
+```bash
+pytest -q tests/test_us074_document_indexing.py
+cd gui && npm run typecheck && npm run build
+```
+
+**Risk notes:** Treat uploaded documents as sensitive by default. Avoid indexing unsupported binary content without clear failure.
+
+---
+
+### US-087: Unify profile identity across voice, memory, shopping, and history
+
+**Priority:** P0
+**Workstream:** Identity / Privacy / Architecture
+**Description:** As a household user, I want voice enrollment, profile identity, memory, shopping list, chat history, and shared household behavior to use the same identity model.
+
+**Why it matters:** Separate identity assumptions across features create privacy leaks, wrong-user memory, and confusing UI labels.
+
+**Files/areas likely involved:**
+- `rex/identity.py`
+- `rex/auth.py`
+- `rex/permissions.py`
+- `rex/routes/users.py`
+- `rex/voice_identity/`
+- `rex/routes/chat.py`
+- `gui/src/pages/UsersPage.tsx`
+- `gui/src/pages/SettingsPage.tsx`
+
+**Implementation notes:** This is the connecting architecture story for US-068, US-083, US-084, US-085, and US-086. It should define canonical user ID, display name, avatar, voice enrollment ID, personal/shared scope, and household behavior.
+
+**Acceptance Criteria:**
+- [ ] One canonical user identity model is documented.
+- [ ] Voice enrollment stores and reads the canonical user ID.
+- [ ] Chat history stores and reads the canonical user ID.
+- [ ] Memory stores and retrieves by canonical user/shared scope.
+- [ ] Shopping list behavior uses the documented personal/shared scope.
+- [ ] Profile/avatar UI reads from the canonical identity model.
+- [ ] Tests cover cross-feature identity consistency.
+- [ ] All relevant GitHub checks pass.
+
+**Validation commands:**
+```bash
+pytest -q tests/test_identity.py tests/test_us048_data_isolation.py tests/test_voice_id_profile_switch.py
+```
+
+**Risk notes:** Migration must preserve existing local user data or provide a clear backup/migration path.
+
+---
+
+### US-088: Design and gate authenticated mobile/API access for `askrex.app`
+
+**Priority:** P0
+**Workstream:** Security / Mobile / API / Deployment
+**Description:** As a user, I want to access Rex from an iOS app or mobile client through `askrex.app` without exposing unsafe local admin routes.
+
+**Why it matters:** External/mobile access changes the threat model. The local Flask/API bridge is not automatically safe to expose publicly.
+
+**Files/areas likely involved:**
+- `rex/gui_app.py`
+- `rex/routes/`
+- `rex_speak_api.py`
+- `rex/computers/agent_server.py`
+- `docs/deployment.md`
+- `docs/api.md`
+- `SECURITY.md`
+- Cloudflare Tunnel or equivalent deployment docs/config
+
+**Implementation notes:** First document whether the existing Flask/API bridge is safe for external/mobile use. Define a secure gateway before any exposure. Use `askrex.app` as the target domain only in documentation/config examples, not as an implicit live deployment.
+
+**Acceptance Criteria:**
+- [ ] A mobile/API threat model is committed.
+- [ ] Existing local Flask/API bridge is classified as safe or unsafe for external/mobile use with evidence.
+- [ ] Secure gateway design requires HTTPS, authentication, rate limiting, CORS policy, token management, and token revocation.
+- [ ] Cloudflare Tunnel or equivalent deployment path is documented without committing credentials.
+- [ ] API scope defines what the iOS app can and cannot do.
+- [ ] Local admin routes are not exposed blindly.
+- [ ] Tests or smoke checks cover auth rejection, rate-limit behavior, and CORS policy for mobile/API routes.
+- [ ] Docs use `askrex.app` as the target domain.
+- [ ] All relevant GitHub checks pass.
+
+**Validation commands:**
+```bash
+pytest -q tests/test_windows_agent.py tests/test_openclaw_tool_server.py tests/test_chat_api.py
+grep -n "askrex.app\|Cloudflare\|CORS\|rate limit\|revocation" docs/deployment.md docs/api.md SECURITY.md
+```
+
+**Risk notes:** Do not expose local admin, HA control, file, computer-control, or secret-management routes over the public internet without explicit auth, least-privilege scope, and confirmation gates.
 
 ---
 
@@ -1946,8 +2967,8 @@ This policy is enforced by Section 9's global acceptance criteria. It is restate
 
 The release candidate is "Production Ready" when ALL of the following are true on a single commit on `master`:
 
-- [ ] Every User Story US-001 through US-058 is `[x]` (P0 and P1 work).
-- [ ] P2 stories US-059 through US-063 may remain open and tracked, but `master` does not contain any partial decomposition.
+- [ ] Every P0/P1 User Story US-001 through US-058 and US-064 through US-088 is `[x]`.
+- [ ] Satisfied P2 stories US-059 through US-062 remain documented as baseline evidence, and open P2 story US-063 is either completed or explicitly deferred without partial decomposition on `master`.
 - [ ] `python scripts/security_audit.py` exits 0 OR all findings are documented in `docs/security/AUDIT-INVENTORY.md` and accepted with an owner and expiry.
 - [ ] `python scripts/check_no_renderer_api_fetch.py` exits 0 with an empty allowlist.
 - [ ] `python scripts/check_wheel_contents.py` exits 0.
