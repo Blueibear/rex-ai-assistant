@@ -960,38 +960,38 @@ mypy rex/cli.py rex/voice_loop.py rex/gui_app.py --ignore-missing-imports 2>&1 |
 The following checklist must be fully satisfied before any public release is cut.
 
 ### Test Suite
-- [ ] All user stories US-REM-001 through US-REM-025 are checked `[x]`.
-- [ ] `pytest --collect-only -q` completes with 0 errors.
-- [ ] `pytest -q` passes with 0 failures on a clean checkout with only base dependencies installed.
-- [ ] First-run setup flow tests (US-REM-021) pass.
-- [ ] Config migration tests (US-REM-022) pass.
+- [x] All user stories US-REM-001 through US-REM-025 are checked `[x]`. *(Verified 2026-06-11: a `- [ ]` grep over this file finds unchecked boxes only in this Definition of Done section; every story checklist box for US-REM-001..030 is `[x]`.)*
+- [x] `pytest --collect-only -q` completes with 0 errors. *(Verified 2026-06-11: `.venv` Python 3.11.9 — "7262 tests collected in 10.31s", 0 errors. Note: a global non-project 3.11 interpreter reproduces a marker collection error; the project venv and CI do not.)*
+- [ ] `pytest -q` passes with 0 failures on a clean checkout with only base dependencies installed. *(Not marked 2026-06-11: the literal clean-checkout/base-deps condition was not reproduced in this session. Partial evidence: local full suite on the dev `.venv` (Python 3.11.9) passed — 7178 passed, 84 skipped, 0 failed in 10:40 — and CI "Python 3.11 Tests & Coverage" is green on `master@fcfd484` from a fresh checkout, but CI excludes `slow/audio/gpu` markers and the local venv is not a base-deps-only install.)*
+- [x] First-run setup flow tests (US-REM-021) pass. *(Verified: `pytest -q tests/test_first_run.py` → 8 passed on 2026-06-11.)*
+- [x] Config migration tests (US-REM-022) pass. *(Verified: `pytest -q tests/test_config_migration.py` → 24 passed on 2026-06-11.)*
 
 ### Dependency Audits
-- [ ] `python -m pip_audit` returns 0 runtime vulnerabilities, or all remaining findings have narrow suppression entries with owner, rationale, risk tier, and expiry date.
-- [ ] `npm audit --audit-level=high` in `gui/` returns 0 high-severity vulnerabilities.
-- [ ] `npm audit --audit-level=high` in `rex/ui/` returns 0 high-severity vulnerabilities.
+- [x] `python -m pip_audit` returns 0 runtime vulnerabilities, or all remaining findings have narrow suppression entries with owner, rationale, risk tier, and expiry date. *(Verified 2026-06-11: CI `security-scan` job passed on `master@fcfd484` (run 27388145483) — fresh dependency install audits clean with only the documented suppressions (owner/expiry/risk-tier in `.github/workflows/ci.yml` + `docs/security/VULNERABILITY-SCAN.md`). A local `.venv` run additionally flagged stale `aiohttp 3.13.5`/`pyjwt 2.12.1` (fixes 3.14.0/2.13.0 already within the project's open pins — local-env staleness, not project findings) plus `transformers` CVE-2026-1839/PYSEC-2025-217, which are covered by the documented suppression.)*
+- [x] `npm audit --audit-level=high` in `gui/` returns 0 high-severity vulnerabilities. *(Verified 2026-06-11: "found 0 vulnerabilities", exit 0.)*
+- [x] `npm audit --audit-level=high` in `rex/ui/` returns 0 high-severity vulnerabilities. *(Verified 2026-06-11: "found 0 vulnerabilities", exit 0.)*
 
 ### Electron Packaging
-- [ ] The smoke test from US-REM-009 passes on a clean machine (no source-tree `bridge/` on PATH).
-- [ ] `find gui/dist -name "*.py"` returns bridge scripts in the packaged output.
-- [ ] `bridgeResolver.ts` uses `process.resourcesPath` in packaged mode.
+- [x] The smoke test from US-REM-009 passes on a clean machine (no source-tree `bridge/` on PATH). *(Verified 2026-06-11 two ways: (1) CI `electron-smoke` workflow passed on a clean ubuntu runner for PR #266 (run 27353999860) — fresh checkout, `pip install -e .`, all 20 bridge scripts present, bridge health check passed; (2) local `bash tests/smoke/test_electron_package.sh` with full rebuild from HEAD — packaged bridge executed with `PYTHONPATH=""` so the source tree was not importable, health check returned valid JSON, and the launched packaged app logged `isPackaged=true` with all bridges validated from `process.resourcesPath`.)*
+- [x] `find gui/dist -name "*.py"` returns bridge scripts in the packaged output. *(Verified 2026-06-11 after a fresh `electron-builder --dir` rebuild: 20 `.py` files in `gui/dist/win-unpacked/resources/bridge/`, matching all 20 `BRIDGE_REGISTRY` entries.)*
+- [x] `bridgeResolver.ts` uses `process.resourcesPath` in packaged mode. *(Verified 2026-06-11: `resolveBridgePath()` returns `join(process.resourcesPath, 'bridge', ...)` when `app.isPackaged` — gui/src/main/bridgeResolver.ts lines 64–71.)*
 
 ### CI Gates
-- [ ] CI runs `ruff check .` on all Python files and fails on errors.
-- [ ] CI runs `npm run typecheck` in `gui/` and fails on errors.
-- [ ] CI runs `npm run build` in `gui/` and fails on errors.
-- [ ] CI runs `npm audit --audit-level=high` in `gui/` and `rex/ui/` and fails on high-severity findings.
+- [x] CI runs `ruff check .` on all Python files and fails on errors. *(Verified 2026-06-11: `.github/workflows/ci.yml` line 43 — `ruff check --output-format=github .` in the `lint` job, on push to master and PRs.)*
+- [x] CI runs `npm run typecheck` in `gui/` and fails on errors. *(Verified 2026-06-11: `gui-typecheck` job, ci.yml lines 84–104 — `cd gui && npm ci` then `npm run typecheck`.)*
+- [x] CI runs `npm run build` in `gui/` and fails on errors. *(Verified 2026-06-11: `gui-build` job, ci.yml lines 106–126 — `cd gui && npm ci` then `npm run build`.)*
+- [x] CI runs `npm audit --audit-level=high` in `gui/` and `rex/ui/` and fails on high-severity findings. *(Verified 2026-06-11: `node-audit` job, ci.yml lines 128–155 — both audits at `--audit-level=high`.)*
 - [x] CI runs the Electron package smoke test on PRs touching `gui/` or `bridge/`.
 
 ### Data and Secrets
-- [x] `git ls-files Memory/james/ Memory/cole/ profiles/james.json users.json` returns no results.
-- [x] `.gitignore` excludes `users.json`, `Memory/james/`, `Memory/cole/`, and non-example profiles.
-- [ ] `grep -rn "change-me\|CHANGE_ME\|changeme" README.md INSTALL.md .env.example docs/` returns no matches in user-facing install instructions.
-- [ ] `config/rex_config.json` contains no secrets or credentials.
+- [ ] `git ls-files Memory/james/ Memory/cole/ profiles/james.json users.json` returns no results. *(Unchecked 2026-06-11: the command currently returns `profiles/james.json` and `users.json` — they were re-added by commit `6921a4f` "fix(ci): restore compatibility surfaces for python tests" (#259) after the US-REM-015/016 removal. Contents are sanitized example data (`james@example.com`, no secrets), and `Memory/james/`/`Memory/cole/` remain removed, but the box as written fails. Needs a decision: re-remove the files and fix the tests that needed them, or amend this criterion to accept the sanitized fixtures.)*
+- [x] `.gitignore` excludes `users.json`, `Memory/james/`, `Memory/cole/`, and non-example profiles. *(Verified 2026-06-11: `.gitignore` lines 81–82 `profiles/*.json` with example/schema negations, 115–121 `Memory/` + per-user rules, 124 `users.json`. Note the two tracked files in the previous item bypass these ignore rules because they are already tracked.)*
+- [x] `grep -rn "change-me\|CHANGE_ME\|changeme" README.md INSTALL.md .env.example docs/` returns no matches in user-facing install instructions. *(Verified 2026-06-11: 0 hits in README.md, INSTALL.md, and .env.example. Remaining docs/ hits are only in `docs/archive/progress/progress-remaining-release-readiness.txt` (archived progress history) and `docs/security/SECRET-SCAN.md`, which opens with an explicit "Developer reference … not part of user-facing install instructions" scope warning.)*
+- [x] `config/rex_config.json` contains no secrets or credentials. *(Verified 2026-06-11: full-file inspection — all credential fields are indirection refs (`auth_token_ref`, `credential_ref`, `credentials_key`, `token_ref`, `consumer_key_ref`/`consumer_secret_ref`) naming env/keyring lookups, no secret values; `Select-String "ha_token|HA_TOKEN|jwt.*secret|twilio.*auth"` returns 0 matches.)*
 
 ### Surface Consolidation
-- [ ] `SURFACE-CLASSIFICATION.md` exists and classifies every entry point and UI surface.
-- [ ] The packaged Electron app does not start the Flask GUI dashboard unless it is classified as `shippable`.
+- [x] `SURFACE-CLASSIFICATION.md` exists and classifies every entry point and UI surface. *(Verified 2026-06-11: file exists at repo root; all 6 `[project.scripts]` entry points, both UI surfaces (`gui/`, `rex/ui/`), all 9 active root-level `.py` files plus `flask_proxy.py`, and 15 archived items each carry exactly one classification; 33 total surfaces.)*
+- [x] The packaged Electron app does not start the Flask GUI dashboard unless it is classified as `shippable`. *(Verified 2026-06-11: `rex-gui` is classified `developer-only` (US-REM-019); grep of `gui/src/main/` finds no spawn of `gui_app`/`rex-gui`/`flask` (only the AppUserModelId string); smoke-test step 3c on the freshly built bundle confirmed "no gui_app reference" in `dist-electron/main/index.js`.)*
 - [x] README has one primary Getting Started section pointing to the Electron app. *(Verified: `git diff --check`; `Select-String -Path README.md -Pattern "Getting Started|Quick Start"` shows the primary section and ToC use `Getting Started`; focused docs tests passed.)*
 - [x] All deprecated surfaces have deprecation notices in their docs. *(Verified for the final-audit `flask_proxy.py` gap: `Select-String` context checks plus a PowerShell assertion confirmed every `flask_proxy.py` reference in `docs/claude/CONFIG_AND_SECURITY.md`, `docs/claude/COMMANDS_AND_ENTRYPOINTS.md`, and `docs/deployment.md` has deprecated or legacy-compatibility wording.)*
 
