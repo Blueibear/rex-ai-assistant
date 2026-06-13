@@ -65,3 +65,31 @@ HEAD: `548bf32`
 - `git diff -- PRD-production-readiness.md` was reviewed.
 - `git diff -- progress-production-readiness.txt` produced no output because `.gitignore` ignores `progress*.txt`; `git status --short --ignored progress-production-readiness.txt` showed `!! progress-production-readiness.txt`.
 - `git status --short` showed only `M PRD-production-readiness.md` before force-adding the requested progress file.
+
+## 2026-06-13 - US-002 complete: skipped-test inventory
+
+Branch: `ralph/production-us002-skipped-test-inventory`
+
+### Files created / modified
+
+- `docs/testing/SKIPPED-TESTS-INVENTORY.md` (new) — classified inventory of all 140 skip markers
+- `README.md` — added link to inventory under Development section
+
+### Counts
+
+- Raw grep hits: 142 (2 false positives: line inside docstring, line inside assertion string)
+- Actionable skip markers: 140
+- `optional-dep-skip`: 111 (permanent guards for optional packages and build variants)
+- `platform-skip`: 11 (Windows-only, bash-only, Python 3.11-only)
+- `retired-surface-skip`: 14 (rex/dashboard retired in OpenClaw migration US-P7-014)
+- `temporary-bug-skip`: 4 (coverage.txt not yet generated, docs/performance-baseline.md not yet created)
+
+### Validation
+
+- `pytest --collect-only -q` exits 0, collecting 6635 tests
+
+### Learnings
+
+- The 14 `retired-surface-skip` entries (test_us149 through test_us174 dashboard files) are ready for full deletion — removing them would drop the skip budget to 125.
+- `test_us174.py` line 4 contains `@pytest.mark.skip` inside a docstring, producing a grep false positive. The file exists only as a stub and its single real skip at line 11 is the retired dashboard skip.
+- `conftest.py:160` defines a `skip_no_async` marker constant rather than applying a skip directly; it is included in the inventory as it generates skip events at runtime.

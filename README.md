@@ -419,6 +419,10 @@ npm run build
 
 The current coverage threshold in `pyproject.toml` is 75 percent. Test markers include `unit`, `integration`, `slow`, `audio`, `gpu`, `network`, `asyncio`, `anyio`, and `smoke`.
 
+Skipped-test inventory:
+
+- [docs/testing/SKIPPED-TESTS-INVENTORY.md](docs/testing/SKIPPED-TESTS-INVENTORY.md) — classified inventory of all 140 skip markers (`optional-dep-skip`, `platform-skip`, `retired-surface-skip`, `temporary-bug-skip`)
+
 ## Documentation
 
 Start with [docs/INDEX.md](docs/INDEX.md). High-value active docs:

@@ -242,10 +242,10 @@ git diff --quiet docs/security/AUDIT-INVENTORY.md || echo "inventory updated"
 **Implementation notes:** Use `pytest --collect-only -q` and a focused `grep` to enumerate every skip site. Classify each as `optional-dep-skip`, `platform-skip`, `retired-surface-skip`, or `temporary-bug-skip` and record the file, line, skip reason, and follow-up story ID if any.
 
 **Acceptance Criteria:**
-- [ ] `docs/testing/SKIPPED-TESTS-INVENTORY.md` lists every `@pytest.mark.skip`, `@pytest.mark.skipif`, and inline `pytest.skip(...)` call.
-- [ ] Each row records: file, line, skip reason text, classification, and follow-up story (or "permanent" with rationale).
-- [ ] Inventory is linked from `docs/TESTING_AND_QUALITY.md` if that file exists, otherwise from `README.md`'s testing section.
-- [ ] `pytest --collect-only -q` exits 0.
+- [x] `docs/testing/SKIPPED-TESTS-INVENTORY.md` lists every `@pytest.mark.skip`, `@pytest.mark.skipif`, and inline `pytest.skip(...)` call.
+- [x] Each row records: file, line, skip reason text, classification, and follow-up story (or "permanent" with rationale).
+- [x] Inventory is linked from `docs/TESTING_AND_QUALITY.md` if that file exists, otherwise from `README.md`'s testing section.
+- [x] `pytest --collect-only -q` exits 0.
 - [ ] All relevant GitHub checks pass.
 
 **Validation commands:**
