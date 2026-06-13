@@ -1,6 +1,7 @@
 import { app, dialog, ipcMain } from 'electron'
 import { join } from 'path'
 import { existsSync, readFileSync, writeFileSync } from 'fs'
+import { spawnSync } from 'child_process'
 import { getConfigDir, getRexConfigPath } from '../configStore'
 import { getCurrentVoiceState } from './voice'
 
@@ -33,6 +34,37 @@ export function registerSystemHandlers(): void {
       rex: rexVersion,
       electron: process.versions.electron ?? 'unknown',
       node: process.versions.node ?? 'unknown'
+    }
+  })
+
+  ipcMain.handle('rex:getAppStatus', () => {
+    let version = '1.0.0'
+    try {
+      const pkgPath = join(__dirname, '../../../../package.json')
+      const pkg = JSON.parse(readFileSync(pkgPath, 'utf8')) as { version?: string }
+      version = pkg.version ?? version
+    } catch {
+      // fallback to default
+    }
+
+    let pythonVersion = 'unknown'
+    for (const cmd of ['python', 'python3']) {
+      try {
+        const result = spawnSync(cmd, ['--version'], { encoding: 'utf8', timeout: 2000 })
+        const output = (result.stdout || result.stderr || '').trim()
+        if (result.status === 0 && output) {
+          pythonVersion = output.replace(/^Python\s+/i, '')
+          break
+        }
+      } catch {
+        // try next
+      }
+    }
+
+    return {
+      version,
+      python_version: pythonVersion,
+      platform: process.platform
     }
   })
 

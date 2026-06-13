@@ -1,26 +1,13 @@
 import React, { useEffect, useState } from 'react'
-
-interface VersionInfo {
-  version: string
-  python_version: string
-  platform: string
-}
+import type { AppStatus } from '../types/ipc'
 
 export function AboutPage(): React.ReactElement {
-  const [info, setInfo] = useState<VersionInfo | null>(null)
+  const [info, setInfo] = useState<AppStatus | null>(null)
 
   useEffect(() => {
-    fetch('/api/status')
-      .then((r) => r.json())
-      .then((data) => {
-        if (data && typeof data === 'object') {
-          setInfo({
-            version: (data as Record<string, string>).version ?? 'unknown',
-            python_version: (data as Record<string, string>).python_version ?? 'unknown',
-            platform: (data as Record<string, string>).platform ?? 'unknown'
-          })
-        }
-      })
+    window.rex
+      .getAppStatus()
+      .then((data) => setInfo(data))
       .catch(() => {/* ignore */})
   }, [])
 

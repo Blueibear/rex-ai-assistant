@@ -316,6 +316,12 @@ export interface VersionInfo {
   node: string
 }
 
+export interface AppStatus {
+  version: string
+  python_version: string
+  platform: string
+}
+
 export interface ShoppingItem {
   id: string
   name: string
@@ -497,6 +503,7 @@ export interface RexAPI {
   updateMemory: (id: string, data: MemoryUpdateInput) => Promise<Memory>
   deleteMemory: (id: string) => Promise<void>
   getVersionInfo: () => Promise<VersionInfo>
+  getAppStatus: () => Promise<AppStatus>
   testVoice: (settings: VoiceSettings) => Promise<{ ok: boolean; error?: string }>
   testIntegration: (type: 'email' | 'calendar' | 'sms' | 'homeassistant' | 'phone') => Promise<{ ok: boolean; error?: string }>
   getIntegrations: () => Promise<IntegrationInventoryResponse>
