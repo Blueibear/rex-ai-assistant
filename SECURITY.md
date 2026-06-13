@@ -52,3 +52,13 @@ Security reports are especially helpful for issues involving:
 Please allow reasonable time for investigation before publicly disclosing a vulnerability.
 
 If you are unsure whether something is a security issue, email first.
+
+## Security baseline
+
+The repository is periodically scanned with `scripts/security_audit.py` for merge conflict markers, placeholder/incomplete code, and exposed secrets.
+
+A triaged inventory of all current findings is maintained at:
+
+- [docs/security/AUDIT-INVENTORY.md](docs/security/AUDIT-INVENTORY.md)
+
+The inventory classifies every finding as `production-blocker`, `dev-only-documented`, or `false-positive` and links each production blocker to the User Story that resolves it.

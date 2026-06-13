@@ -65,3 +65,36 @@ HEAD: `548bf32`
 - `git diff -- PRD-production-readiness.md` was reviewed.
 - `git diff -- progress-production-readiness.txt` produced no output because `.gitignore` ignores `progress*.txt`; `git status --short --ignored progress-production-readiness.txt` showed `!! progress-production-readiness.txt`.
 - `git status --short` showed only `M PRD-production-readiness.md` before force-adding the requested progress file.
+
+## 2026-06-13 - US-001: Generate the security_audit triage inventory
+
+Branch: `ralph/production-us001-security-inventory`
+
+### Work done
+
+- Ran `python scripts/security_audit.py` on the current HEAD.
+- Audit scanned 1138 tracked files, excluded 155 (cache dirs, egg-info, self-excluded).
+- Results: 0 merge markers, 82 actionable placeholder findings (78 source-code, 4 configuration), 132 informational documentation findings, 0 exposed secrets. Exit code 0.
+- Created `docs/security/AUDIT-INVENTORY.md` with triaged inventory of all findings.
+- Added "Security baseline" section to `SECURITY.md` with link to inventory.
+- Added "Security baseline" sub-section to `README.md` security references with link to inventory.
+- Checked off acceptance criteria in `PRD-production-readiness.md`.
+
+### Classification summary
+
+- **3 production blockers** (in 3 files): `rex/openclaw/workflow_bridge.py:169` (US-021), `rex/replay.py:11,36,78,89,118,127` (US-020), `rex/skills/trainer.py:127` (US-022).
+- **5 dev-only-documented**: archived shopping PWA HTML attributes, archived audit JSON, developer agent scripts, legacy voice_loop.py comment.
+- **74 false positives**: HTML input placeholder= attributes, abbreviation sentinel chars (`_ABBREV_PLACEHOLDER = "\x00"`), test fixture strings, file-truncation detection, redaction docstrings.
+- **4 configuration false positives**: `cli-truncate` npm package in lock file, archived audit JSON.
+- **0 secrets**.
+
+### Learnings
+
+- The `_ABBREV_PLACEHOLDER = "\x00"` sentinel generates many false positives; future audits should add it to the filter.
+- Test fixture strings using `[test-…-placeholder]` bracket notation reliably generate false positives; acceptable pattern.
+- The audit script itself already excludes `tests/test_security_audit.py` from scanning.
+
+### Validation commands run
+
+- `python scripts/security_audit.py` → Exit 0.
+- `git diff --quiet docs/security/AUDIT-INVENTORY.md || echo "inventory updated"` → "inventory updated" (new file).
