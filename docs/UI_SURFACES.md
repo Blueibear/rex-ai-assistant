@@ -51,6 +51,14 @@ For Electron-only verification, run `npm.cmd run build` first, then use harnesse
 
 `rex-gui` starts `rex/gui_app.py`. It remains useful for local Flask API routes, smoke tests, and compatibility work. The browser UI at `/ui/` is incomplete in current testing and is not the primary user-facing GUI.
 
+## Renderer IPC Policy
+
+The Electron renderer communicates with the main process through typed IPC, not via raw `fetch('/api/...')` calls. Raw `/api/` fetches do not work in the packaged app (file:// protocol) and are guarded by CI.
+
+**Guard:** `scripts/check_no_renderer_api_fetch.py` scans `gui/src/**/*.{ts,tsx,js,jsx}` for `fetch('/api`, `fetch("/api`, and fetch(`` `/api `` patterns. The CI job `gui-no-raw-api` runs this check on every PR.
+
+**Allowlist:** `gui/src/ALLOWED_API_FETCHES.txt` lists the temporary baseline of call sites that have not yet been migrated (format: `rel/path:lineno  # justification`). Each migration story (US-004 through US-010) removes its entry when complete.
+
 ## Naming Notes
 
 - The canonical CLI remains `rex`; there is no `askrex` console script.

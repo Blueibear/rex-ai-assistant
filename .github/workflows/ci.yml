@@ -394,6 +394,23 @@ jobs:
       - name: 🔍 Run pre-commit on all files
         run: pre-commit run --all-files
 
+  gui-no-raw-api:
+    name: GUI Raw API Fetch Guard
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: 🧾 Checkout repository
+        uses: actions/checkout@v4
+
+      - name: 🐍 Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: 🔍 Check for unapproved raw /api/ fetches in gui/src/
+        run: python scripts/check_no_renderer_api_fetch.py
+
   secret-scan:
     name: Hardcoded Secret Scan
     runs-on: ubuntu-latest

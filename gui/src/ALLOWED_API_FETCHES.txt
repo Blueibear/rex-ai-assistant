@@ -1,0 +1,26 @@
+# Allowlist for raw fetch('/api/...') calls in gui/src/.
+#
+# Format (one entry per line):
+#   path/relative/to/repo/root:lineno  # justification
+#
+# Each entry exempts exactly one call site at the stated line number.
+# Remove the entry when that call is migrated to typed IPC.
+#
+# The CI job gui-no-raw-api runs scripts/check_no_renderer_api_fetch.py,
+# which exits non-zero if any fetch('/api/...') match in
+# gui/src/**/*.{ts,tsx,js,jsx} is not listed here.
+#
+# Policy: new renderer fetch('/api/...') calls must NEVER be added without
+# a corresponding allowlist entry AND an IPC migration story open on the
+# backlog. The allowlist is a temporary baseline — not a permanent escape.
+
+gui/src/pages/AboutPage.tsx:13  # fetch('/api/status') — pending US-004 migration to typed IPC
+gui/src/pages/CommandHistoryPage.tsx:26  # fetch('/api/history?limit=50') — pending US-005 migration
+gui/src/pages/DevicesPage.tsx:18  # fetch(`/api/devices/${entityId}/command`) — pending US-007 migration
+gui/src/pages/DevicesPage.tsx:231  # fetch('/api/devices') — pending US-006 migration
+gui/src/pages/QuickActionsPage.tsx:27  # fetch('/api/quick-actions') GET — pending US-008 migration
+gui/src/pages/QuickActionsPage.tsx:44  # fetch('/api/quick-actions') POST — pending US-008 migration
+gui/src/pages/QuickActionsPage.tsx:61  # fetch(`/api/quick-actions/${id}`) DELETE — pending US-009 migration
+gui/src/pages/QuickActionsPage.tsx:68  # fetch(`/api/quick-actions/${action.id}/run`) — pending US-009 migration
+gui/src/pages/SetupWizardPage.tsx:223  # fetch('/api/setup/complete') — pending US-010 migration
+gui/src/renderer/src/App.tsx:49  # fetch('/api/setup/status') — pending US-010 migration
