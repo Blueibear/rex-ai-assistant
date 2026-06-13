@@ -39,7 +39,8 @@
     "vite": "^6.2.0"
   },
   "overrides": {
-    "tmp": "^0.2.6"
+    "tmp": "^0.2.6",
+    "esbuild": "0.28.1"
   },
   "build": {
     "appId": "com.askrex.app",

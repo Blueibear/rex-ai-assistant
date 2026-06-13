@@ -176,6 +176,7 @@ addopts = [
     "--tb=short",
 ]
 markers = [
+    "asyncio_mode_not_required: mark tests that must run without pytest-asyncio strict-mode requirements",
     "unit: Unit tests that don't require external dependencies",
     "integration: Integration tests that may require external services",
     "slow: Tests that take significant time to run",
