@@ -18,6 +18,7 @@ import type {
   MemoryUpdateInput,
   VersionInfo,
   AppStatus,
+  CommandHistoryEntry,
   VoiceSettings,
   PreferenceSuggestion,
   EmailMessage,
@@ -209,6 +210,10 @@ const rexAPI = {
     ipcRenderer.invoke('rex:deleteMemory', id).then(() => undefined),
   getVersionInfo: (): Promise<VersionInfo> => ipcRenderer.invoke('rex:getVersionInfo'),
   getAppStatus: (): Promise<AppStatus> => ipcRenderer.invoke('rex:getAppStatus'),
+  getCommandHistory: (
+    limit = 50
+  ): Promise<{ ok: boolean; history: CommandHistoryEntry[]; error?: string }> =>
+    ipcRenderer.invoke('rex:getCommandHistory', limit),
   testVoice: (settings: VoiceSettings): Promise<{ ok: boolean; error?: string }> =>
     ipcRenderer.invoke('rex:testVoice', settings),
   testIntegration: (type: 'email' | 'calendar' | 'sms' | 'homeassistant' | 'phone'): Promise<{ ok: boolean; error?: string }> =>

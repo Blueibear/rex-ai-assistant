@@ -322,6 +322,14 @@ export interface AppStatus {
   platform: string
 }
 
+export interface CommandHistoryEntry {
+  id: number
+  timestamp: string
+  command: string
+  result: string
+  success: boolean
+}
+
 export interface ShoppingItem {
   id: string
   name: string
@@ -504,6 +512,9 @@ export interface RexAPI {
   deleteMemory: (id: string) => Promise<void>
   getVersionInfo: () => Promise<VersionInfo>
   getAppStatus: () => Promise<AppStatus>
+  getCommandHistory: (
+    limit?: number
+  ) => Promise<{ ok: boolean; history: CommandHistoryEntry[]; error?: string }>
   testVoice: (settings: VoiceSettings) => Promise<{ ok: boolean; error?: string }>
   testIntegration: (type: 'email' | 'calendar' | 'sms' | 'homeassistant' | 'phone') => Promise<{ ok: boolean; error?: string }>
   getIntegrations: () => Promise<IntegrationInventoryResponse>

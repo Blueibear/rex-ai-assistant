@@ -16,6 +16,7 @@ import { registerUsageHandlers } from './handlers/usage'
 import { registerSettingsHandlers } from './handlers/settings'
 import { registerIntegrationsHandlers } from './handlers/integrations'
 import { registerSystemHandlers } from './handlers/system'
+import { registerHistoryHandlers } from './handlers/history'
 
 export function registerIpcHandlers(mainWindow: BrowserWindow | null = null): void {
   registerChatHandlers()
@@ -35,4 +36,5 @@ export function registerIpcHandlers(mainWindow: BrowserWindow | null = null): vo
   registerSettingsHandlers()
   registerIntegrationsHandlers()
   registerSystemHandlers()
+  registerHistoryHandlers()
 }
