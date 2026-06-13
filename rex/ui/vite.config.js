@@ -6,5 +6,6 @@ export default defineConfig({
   base: '/ui/',
   build: {
     outDir: 'dist',
+    target: 'esnext',
   },
 })
