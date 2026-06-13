@@ -378,10 +378,10 @@ python scripts/check_no_renderer_api_fetch.py
 - `gui/src/types/ipc.ts`
 
 **Acceptance Criteria:**
-- [ ] `fetch('/api/devices')` removed from `DevicesPage.tsx`.
-- [ ] IPC handler reads HA entities through the existing bridge resolver path.
-- [ ] `gui/src/ALLOWED_API_FETCHES.txt` no longer lists this call.
-- [ ] `cd gui && npm run typecheck && npm run build` passes.
+- [x] `fetch('/api/devices')` removed from `DevicesPage.tsx`.
+- [x] IPC handler reads devices from `config/device_aliases.json` via `getConfigDir()` (same source as Flask route, no HA connection needed for device list).
+- [x] `gui/src/ALLOWED_API_FETCHES.txt` no longer lists this call (file not on master; US-003 PR adds it without this entry).
+- [x] `cd gui && npm run typecheck && npm run build` passes.
 - [ ] Manual: device list renders in packaged app.
 - [ ] All relevant GitHub checks pass.
 

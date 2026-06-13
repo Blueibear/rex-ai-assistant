@@ -310,6 +310,12 @@ export interface NotificationsSettings {
   soundAlertsEnabled: boolean
 }
 
+export interface Device {
+  entity_id: string
+  name: string
+  type: string
+}
+
 export interface VersionInfo {
   rex: string
   electron: string
@@ -497,6 +503,7 @@ export interface RexAPI {
   updateMemory: (id: string, data: MemoryUpdateInput) => Promise<Memory>
   deleteMemory: (id: string) => Promise<void>
   getVersionInfo: () => Promise<VersionInfo>
+  getDevices: () => Promise<{ ok: boolean; devices: Device[]; error?: string }>
   testVoice: (settings: VoiceSettings) => Promise<{ ok: boolean; error?: string }>
   testIntegration: (type: 'email' | 'calendar' | 'sms' | 'homeassistant' | 'phone') => Promise<{ ok: boolean; error?: string }>
   getIntegrations: () => Promise<IntegrationInventoryResponse>

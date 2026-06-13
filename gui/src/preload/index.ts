@@ -17,6 +17,7 @@ import type {
   Memory,
   MemoryUpdateInput,
   VersionInfo,
+  Device,
   VoiceSettings,
   PreferenceSuggestion,
   EmailMessage,
@@ -207,6 +208,8 @@ const rexAPI = {
   deleteMemory: (id: string): Promise<void> =>
     ipcRenderer.invoke('rex:deleteMemory', id).then(() => undefined),
   getVersionInfo: (): Promise<VersionInfo> => ipcRenderer.invoke('rex:getVersionInfo'),
+  getDevices: (): Promise<{ ok: boolean; devices: Device[]; error?: string }> =>
+    ipcRenderer.invoke('rex:getDevices'),
   testVoice: (settings: VoiceSettings): Promise<{ ok: boolean; error?: string }> =>
     ipcRenderer.invoke('rex:testVoice', settings),
   testIntegration: (type: 'email' | 'calendar' | 'sms' | 'homeassistant' | 'phone'): Promise<{ ok: boolean; error?: string }> =>

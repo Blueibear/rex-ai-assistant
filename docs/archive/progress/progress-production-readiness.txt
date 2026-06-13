@@ -65,3 +65,25 @@ HEAD: `548bf32`
 - `git diff -- PRD-production-readiness.md` was reviewed.
 - `git diff -- progress-production-readiness.txt` produced no output because `.gitignore` ignores `progress*.txt`; `git status --short --ignored progress-production-readiness.txt` showed `!! progress-production-readiness.txt`.
 - `git status --short` showed only `M PRD-production-readiness.md` before force-adding the requested progress file.
+
+## 2026-06-13 - US-006 Migrate DevicesPage /api/devices to typed IPC
+
+Branch: `ralph/production-us006-devices-list-ipc`
+
+### Implemented
+
+- `gui/src/main/handlers/devices.ts`: new handler — `registerDeviceHandlers()` registers `rex:getDevices`; reads `config/device_aliases.json` via `getConfigDir()`, returns `{ ok, devices, error? }`. Filters out malformed entries. No HA connection required for the device list.
+- `gui/src/main/ipc.ts`: imported and called `registerDeviceHandlers()`.
+- `gui/src/types/ipc.ts`: added `Device` interface `{ entity_id, name, type }` and `getDevices()` to `RexAPI`.
+- `gui/src/preload/index.ts`: imported `Device`, added `getDevices()` wrapper.
+- `gui/src/pages/DevicesPage.tsx`: removed local `Device` interface; replaced `fetch('/api/devices')` with `window.rex.getDevices()`; `sendCommand` (US-007) left untouched.
+
+### Validation
+
+- `cd gui && npm run typecheck` → 0 errors
+- `cd gui && npm run build` → all three bundles clean
+
+### Notes
+
+- Flask route read `config/device_aliases.json` via `bridge_utils.repo_root()`. The main process uses `getConfigDir()` which resolves the same `config/` directory via `app.getAppPath() + '../config'`. Same data, no behaviour change.
+- `sendCommand` function (`fetch(\`/api/devices/${entityId}/command\`...`) intentionally left in place — owned by US-007.

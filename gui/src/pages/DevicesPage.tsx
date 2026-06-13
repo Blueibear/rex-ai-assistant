@@ -1,10 +1,5 @@
 import React, { useEffect, useState } from 'react'
-
-interface Device {
-  entity_id: string
-  name: string
-  type: 'light' | 'switch' | 'media_player' | string
-}
+import type { Device } from '../types/ipc'
 
 async function sendCommand(
   entityId: string,
@@ -228,10 +223,10 @@ export function DevicesPage(): React.ReactElement {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    fetch('/api/devices')
-      .then((r) => r.json())
-      .then((d) => {
-        setDevices((d as { devices: Device[] }).devices ?? [])
+    window.rex
+      .getDevices()
+      .then((res) => {
+        setDevices(res.devices ?? [])
       })
       .catch(() => {/* ignore */})
       .finally(() => setLoading(false))
