@@ -113,3 +113,8 @@ HEAD at start: `990e8f0`
 - `US-020`: `rex/replay.py` stub result behavior.
 - `US-021`: `rex/openclaw/workflow_bridge.py` workflow executor registration stub.
 - `US-022`: `rex/skills/trainer.py` generated skill template marker.
+
+### US-001 GitHub checks validation
+
+- `gh pr checks --watch` passed: 12 successful, 0 failing, 0 pending.
+- Marked the US-001 GitHub checks acceptance criterion complete.

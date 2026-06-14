@@ -215,7 +215,7 @@ Stories execute in this phase order. Within a phase, stories execute in numeric 
 - [x] Each finding has a row with file, line, marker, classification, and the User Story ID that will resolve it (or "no action — documented" with rationale).
 - [x] `docs/security/AUDIT-INVENTORY.md` is linked from `SECURITY.md` and `README.md` under a "Security baseline" section.
 - [x] `python scripts/security_audit.py` exits with its current status (no behavior change in this story).
-- [ ] All relevant GitHub checks pass. *(Pending remote PR checks; local validation passed on `codex/production-us001-security-audit-inventory`.)*
+- [x] All relevant GitHub checks pass. *(Pending remote PR checks; local validation passed on `codex/production-us001-security-audit-inventory`.)*
 
 **Validation commands:**
 ```bash
@@ -232,7 +232,6 @@ git diff --quiet docs/security/AUDIT-INVENTORY.md || echo "inventory updated"
 **Risk notes:** None — read-only inventory.
 
 ---
-
 ### US-002: Generate the skipped-test inventory
 
 **Priority:** P0
