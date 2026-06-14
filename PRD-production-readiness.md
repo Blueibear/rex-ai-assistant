@@ -288,13 +288,13 @@ grep -rn "pytest.mark.skip\|pytest.skip\b" tests | wc -l
 **Implementation notes:** Write a script that greps `gui/src/**/*.{ts,tsx,js,jsx}` for raw `fetch('/api`, `fetch("/api`, and `fetch(\`/api` patterns. The script exits non-zero if any match is not listed in `gui/src/ALLOWED_API_FETCHES.txt` with `file:line` and a justification comment. The allowlist starts empty.
 
 **Acceptance Criteria:**
-- [ ] Script exists and exits 0 on a checkout that has zero raw `/api/` fetches (post-migration), and exits non-zero when a synthetic raw `/api/` fetch is introduced (covered by a unit test).
-- [ ] Allowlist file format is documented at the top of the file.
-- [ ] CI job `gui-no-raw-api` runs the script on every PR.
-- [ ] Story does NOT fix existing renderer call sites — those are owned by US-004 through US-010.
-- [ ] The script's allowlist permits all current renderer `/api/` call sites as a temporary baseline; each later migration story removes its line from the allowlist when complete.
-- [ ] `README.md` and `docs/UI_SURFACES.md` reference the guard and the allowlist policy.
-- [ ] `pytest tests/test_check_no_renderer_api_fetch.py -q` passes.
+- [x] Script exists and exits 0 on a checkout that has zero raw `/api/` fetches (post-migration), and exits non-zero when a synthetic raw `/api/` fetch is introduced (covered by a unit test).
+- [x] Allowlist file format is documented at the top of the file.
+- [x] CI job `gui-no-raw-api` runs the script on every PR.
+- [x] Story does NOT fix existing renderer call sites — those are owned by US-004 through US-010.
+- [x] The script's allowlist permits all current renderer `/api/` call sites as a temporary baseline; each later migration story removes its line from the allowlist when complete.
+- [x] `README.md` and `docs/UI_SURFACES.md` reference the guard and the allowlist policy.
+- [x] `pytest tests/test_check_no_renderer_api_fetch.py -q` passes.
 - [ ] All relevant GitHub checks pass.
 
 **Validation commands:**

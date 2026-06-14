@@ -178,3 +178,11 @@ Branch: `codex/production-us002-baseline-discovery`
 
 - `gh pr checks --watch` passed: 12 successful, 0 failing, 0 pending.
 - Marked the US-002 GitHub checks acceptance criterion complete.
+
+### US-003 rebase reconciliation
+
+- Rebased `ralph/production-us003-renderer-api-guard` onto current `origin/master` after US-001 and US-002 landed.
+- Preserved the current master progress history.
+- Retained US-003 implementation changes for the raw renderer `/api/` fetch guard.
+- Pre-rebase PR checks for #276 passed: 14 successful, 0 failing, 0 pending.
+

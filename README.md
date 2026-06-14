@@ -419,6 +419,11 @@ npm run build
 
 The current coverage threshold in `pyproject.toml` is 75 percent. Test markers include `unit`, `integration`, `slow`, `audio`, `gpu`, `network`, `asyncio`, `anyio`, and `smoke`. The skipped-test inventory is maintained in [docs/testing/SKIPPED-TESTS-INVENTORY.md](docs/testing/SKIPPED-TESTS-INVENTORY.md).
 
+Renderer IPC policy — raw `fetch('/api/...')` calls in `gui/src/` are blocked by CI:
+
+- `scripts/check_no_renderer_api_fetch.py` — guard script (run via `python scripts/check_no_renderer_api_fetch.py`)
+- `gui/src/ALLOWED_API_FETCHES.txt` — temporary allowlist of unmigrated call sites; see [docs/UI_SURFACES.md](docs/UI_SURFACES.md) for the full policy
+
 ## Documentation
 
 Start with [docs/INDEX.md](docs/INDEX.md). High-value active docs:
