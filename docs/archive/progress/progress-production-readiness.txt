@@ -65,3 +65,51 @@ HEAD: `548bf32`
 - `git diff -- PRD-production-readiness.md` was reviewed.
 - `git diff -- progress-production-readiness.txt` produced no output because `.gitignore` ignores `progress*.txt`; `git status --short --ignored progress-production-readiness.txt` showed `!! progress-production-readiness.txt`.
 - `git status --short` showed only `M PRD-production-readiness.md` before force-adding the requested progress file.
+
+## 2026-06-14 - US-001 security audit triage inventory
+
+Branch: `codex/production-us001-security-audit-inventory`
+HEAD at start: `990e8f0`
+
+### Commands run
+
+- `Get-Content -LiteralPath .\CLAUDE.md`
+- `git status --short`
+- `git branch --show-current`
+- `git fetch origin master`
+- `git rev-list --left-right --count origin/master...HEAD`
+- `git merge-base HEAD origin/master`
+- `git rev-parse origin/master`
+- `git rev-parse HEAD`
+- `python scripts/security_audit.py`
+- `git diff --check`
+- `python -m pytest tests/test_us146_readme_visual.py -q`
+
+### Audit result summary
+
+- `python scripts/security_audit.py` exited 0.
+- Baseline scan reported 1,138 scanned files and 155 excluded files.
+- Merge conflict marker scan was clean.
+- Marker scan reported 82 actionable findings by audit bucket and 132 informational documentation findings.
+- Exposed secret scan was clean.
+- No security findings were fixed or marked resolved in US-001.
+
+### Files changed
+
+- `docs/security/AUDIT-INVENTORY.md`
+- `README.md`
+- `SECURITY.md`
+- `PRD-production-readiness.md`
+- `docs/archive/progress/progress-production-readiness.txt`
+
+### Validation results
+
+- `python scripts/security_audit.py`: passed with exit 0 and the current baseline findings documented in `docs/security/AUDIT-INVENTORY.md`.
+- `git diff --check`: passed; Git reported line-ending warnings only.
+- `python -m pytest tests/test_us146_readme_visual.py -q`: passed, 14 tests.
+
+### Follow-up story IDs assigned to open findings
+
+- `US-020`: `rex/replay.py` stub result behavior.
+- `US-021`: `rex/openclaw/workflow_bridge.py` workflow executor registration stub.
+- `US-022`: `rex/skills/trainer.py` generated skill template marker.

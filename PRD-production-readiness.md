@@ -211,17 +211,23 @@ Stories execute in this phase order. Within a phase, stories execute in numeric 
 **Implementation notes:** Run the audit on a clean checkout. Capture stdout verbatim. Classify every finding as `production-blocker`, `dev-only-documented`, or `false-positive`. Do not fix findings in this story.
 
 **Acceptance Criteria:**
-- [ ] `python scripts/security_audit.py` is run and its full output is committed under `docs/security/AUDIT-INVENTORY.md`.
-- [ ] Each finding has a row with file, line, marker, classification, and the User Story ID that will resolve it (or "no action — documented" with rationale).
-- [ ] `docs/security/AUDIT-INVENTORY.md` is linked from `SECURITY.md` and `README.md` under a "Security baseline" section.
-- [ ] `python scripts/security_audit.py` exits with its current status (no behavior change in this story).
-- [ ] All relevant GitHub checks pass.
+- [x] `python scripts/security_audit.py` is run and its full output is committed under `docs/security/AUDIT-INVENTORY.md`.
+- [x] Each finding has a row with file, line, marker, classification, and the User Story ID that will resolve it (or "no action — documented" with rationale).
+- [x] `docs/security/AUDIT-INVENTORY.md` is linked from `SECURITY.md` and `README.md` under a "Security baseline" section.
+- [x] `python scripts/security_audit.py` exits with its current status (no behavior change in this story).
+- [ ] All relevant GitHub checks pass. *(Pending remote PR checks; local validation passed on `codex/production-us001-security-audit-inventory`.)*
 
 **Validation commands:**
 ```bash
 python scripts/security_audit.py | tee /tmp/security_audit_baseline.txt
 git diff --quiet docs/security/AUDIT-INVENTORY.md || echo "inventory updated"
 ```
+
+**US-001 local validation evidence (2026-06-14):**
+- `python scripts/security_audit.py` exited 0 with 82 actionable marker findings, 132 informational documentation findings, no merge markers, and no exposed secrets.
+- `git diff --check` exited 0; Git reported line-ending warnings only.
+- `python -m pytest tests/test_us146_readme_visual.py -q` passed 14 tests.
+- `docs/security/AUDIT-INVENTORY.md` assigns open production-blocker rows to US-020, US-021, and US-022; no findings are marked resolved by US-001.
 
 **Risk notes:** None — read-only inventory.
 

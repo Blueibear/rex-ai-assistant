@@ -441,6 +441,10 @@ Files under `docs/archive/` are historical development records and may intention
 - `rex-tool-server` requires `REX_TOOL_API_KEY` for tool invocation.
 - Approval-gated high-risk actions, such as WooCommerce writes and remote PC commands, require explicit confirmation flows.
 
+### Security baseline
+
+- [docs/security/AUDIT-INVENTORY.md](docs/security/AUDIT-INVENTORY.md) - current `scripts/security_audit.py` triage inventory
+
 Security references:
 
 - [docs/security/SECURITY_ADVISORY.md](docs/security/SECURITY_ADVISORY.md)
