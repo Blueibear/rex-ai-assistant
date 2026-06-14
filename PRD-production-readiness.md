@@ -251,7 +251,7 @@ git diff --quiet docs/security/AUDIT-INVENTORY.md || echo "inventory updated"
 - [x] Each row records: file, line, skip reason text, classification, and follow-up story (or "permanent" with rationale).
 - [x] Inventory is linked from `docs/TESTING_AND_QUALITY.md` if that file exists, otherwise from `README.md`'s testing section.
 - [x] `pytest --collect-only -q` exits 0.
-- [ ] All relevant GitHub checks pass.
+- [x] All relevant GitHub checks pass.
 
 **US-002 completion notes (2026-06-14):**
 - Created `docs/testing/SKIPPED-TESTS-INVENTORY.md`.
@@ -271,7 +271,6 @@ grep -rn "pytest.mark.skip\|pytest.skip\b" tests | wc -l
 **Risk notes:** None — read-only inventory.
 
 ---
-
 ### US-003: Add CI guard against raw renderer `/api/` fetches
 
 **Priority:** P0

@@ -173,3 +173,8 @@ Branch: `codex/production-us002-baseline-discovery`
 
 - GitHub PR checks were not run for this branch in this local pass.
 - Left the US-002 GitHub-check acceptance criterion unchecked pending PR checks.
+
+### US-002 GitHub checks validation
+
+- `gh pr checks --watch` passed: 12 successful, 0 failing, 0 pending.
+- Marked the US-002 GitHub checks acceptance criterion complete.
