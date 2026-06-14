@@ -89,3 +89,9 @@ Branch: `ralph/production-us007-device-command-ipc`
 
 - Manual device toggle verification requires a running HA instance.
 - GitHub CI checks pending on PR.
+
+### GitHub validation update
+
+- `gh pr checks --watch` ? passed: 13 successful, 0 failing, 0 pending.
+- US-007 GitHub checks acceptance criterion marked complete.
+- Manual packaged-app Home Assistant device-toggle verification remains pending.

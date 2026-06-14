@@ -415,7 +415,7 @@ python scripts/check_no_renderer_api_fetch.py
 - [x] `cd gui && npm run typecheck && npm run build` passes.
 - [ ] Manual: a device toggle in the packaged app reports a verified status when HA confirms state.
 - [x] `docs/home_assistant.md` notes the IPC method.
-- [ ] All relevant GitHub checks pass.
+- [x] All relevant GitHub checks pass.
 
 **Validation commands:**
 ```bash
