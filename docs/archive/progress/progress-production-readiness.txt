@@ -186,3 +186,11 @@ Branch: `codex/production-us002-baseline-discovery`
 - Retained US-003 implementation changes for the raw renderer `/api/` fetch guard.
 - Pre-rebase PR checks for #276 passed: 14 successful, 0 failing, 0 pending.
 
+
+### US-004 rebase reconciliation
+
+- Rebased `ralph/production-us004-about-ipc` onto current `origin/master` after US-003 landed.
+- Preserved the current master progress history.
+- Retained US-004 implementation changes for migrating `AboutPage` `/api/status` usage to typed IPC.
+- Pre-rebase PR checks for #277 passed: 13 successful, 0 failing, 0 pending.
+

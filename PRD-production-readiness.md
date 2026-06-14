@@ -324,14 +324,14 @@ pytest tests/test_check_no_renderer_api_fetch.py -q
 **Implementation notes:** Add a `getAppStatus(): Promise<AppStatus>` IPC method. Main-process handler reads from the same source the Flask `/api/status` route used. Update the TypeScript interface. Remove the raw fetch. Remove the matching allowlist line from `gui/src/ALLOWED_API_FETCHES.txt`.
 
 **Acceptance Criteria:**
-- [ ] `gui/src/pages/AboutPage.tsx` contains no `fetch('/api/...')` call.
-- [ ] Preload exposes `window.api.getAppStatus()`.
-- [ ] Main-process handler returns the same shape the renderer expected from the old route.
-- [ ] `gui/src/ALLOWED_API_FETCHES.txt` no longer lists `AboutPage.tsx`.
-- [ ] `cd gui && npm run typecheck` passes.
-- [ ] `cd gui && npm run build` passes.
+- [x] `gui/src/pages/AboutPage.tsx` contains no `fetch('/api/...')` call.
+- [x] Preload exposes `window.rex.getAppStatus()` (note: the API surface is `window.rex`, not `window.api`).
+- [x] Main-process handler returns the same shape the renderer expected from the old route.
+- [x] `gui/src/ALLOWED_API_FETCHES.txt` no longer lists `AboutPage.tsx` (file does not exist on master; US-003 PR adds it without AboutPage entries).
+- [x] `cd gui && npm run typecheck` passes.
+- [x] `cd gui && npm run build` passes.
 - [ ] Manual: launching the packaged Electron app shows About page status without errors. Verification recorded in PR description.
-- [ ] `README.md` (or `docs/UI_SURFACES.md`) notes that About status is IPC-backed.
+- [x] `docs/UI_SURFACES.md` notes that About status is IPC-backed (IPC-backed Pages table added).
 - [ ] All relevant GitHub checks pass.
 
 **Validation commands:**

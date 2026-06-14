@@ -47,6 +47,14 @@ Electron bridge scripts are resolved by `gui/src/main/bridgeResolver.ts` and inc
 
 For Electron-only verification, run `npm.cmd run build` first, then use harnesses under `gui/tmp_verify_*.cjs` so `gui/dist-electron/main/index.js` matches the TypeScript sources.
 
+## IPC-backed Pages
+
+The following Electron renderer pages communicate with the main process via typed IPC rather than raw `fetch('/api/...')` calls:
+
+| Page | IPC method | Notes |
+|------|-----------|-------|
+| About (`AboutPage.tsx`) | `window.rex.getAppStatus()` → `rex:getAppStatus` | Returns `{ version, python_version, platform }` |
+
 ## Python/Flask Local API and Experimental Dashboard
 
 `rex-gui` starts `rex/gui_app.py`. It remains useful for local Flask API routes, smoke tests, and compatibility work. The browser UI at `/ui/` is incomplete in current testing and is not the primary user-facing GUI.
