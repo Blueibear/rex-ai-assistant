@@ -1,5 +1,9 @@
 # Security Policy
 
+## Security baseline
+
+The current `scripts/security_audit.py` baseline and triage inventory is tracked in [docs/security/AUDIT-INVENTORY.md](docs/security/AUDIT-INVENTORY.md).
+
 ## Reporting a vulnerability
 
 If you discover a security issue in AskRex Assistant, please do **not** open a public GitHub issue with exploit details.
