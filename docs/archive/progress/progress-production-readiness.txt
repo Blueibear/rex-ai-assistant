@@ -118,3 +118,58 @@ HEAD at start: `990e8f0`
 
 - `gh pr checks --watch` passed: 12 successful, 0 failing, 0 pending.
 - Marked the US-001 GitHub checks acceptance criterion complete.
+
+## 2026-06-14 - US-002 skipped-test inventory
+
+Branch: `codex/production-us002-baseline-discovery`
+
+### Commands run
+
+- `Get-Content -LiteralPath .\CLAUDE.md`
+- `git status --short`
+- `git branch --show-current`
+- `rg -n "US-002|Generate the skipped-test inventory|skipped-test|skip" PRD-production-readiness.md`
+- `pytest --collect-only -q`
+- `(rg -n "pytest\.mark\.skip|pytest\.skip\b" tests | Measure-Object).Count`
+- `py -3.11 -` AST skip-site extraction/classification script
+- `pytest -q tests/test_us141_readme_install.py tests/test_us143_readme_structure.py tests/test_us144_quick_start.py tests/test_us145_deep_content.py tests/test_us146_readme_visual.py`
+- `git diff --check`
+
+### Skip inventory result
+
+- Actual executable skip marker/call sites inventoried: 140.
+- Required grep-style search count: 143 matching lines.
+- Grep-style non-sites excluded from the inventory: `tests/test_us129_smoke.py:369`, `tests/test_us129_smoke.py:370`, and `tests/test_us174.py:4`.
+
+### Classification summary
+
+- `optional-dep-skip`: 22, marked permanent with optional dependency/tool/environment rationale.
+- `platform-skip`: 10, marked permanent with platform/runtime rationale.
+- `retired-surface-skip`: 14, assigned to `US-039`.
+- `temporary-bug-skip`: 94, assigned to `US-038`.
+
+### Files changed
+
+- `docs/testing/SKIPPED-TESTS-INVENTORY.md`
+- `README.md`
+- `PRD-production-readiness.md`
+- `docs/archive/progress/progress-production-readiness.txt`
+
+### Validation results
+
+- `pytest --collect-only -q`: passed, 6635 tests collected, 2 module-level skips during collection.
+- `(rg -n "pytest\.mark\.skip|pytest\.skip\b" tests | Measure-Object).Count`: returned 143.
+- AST skip-site extraction/classification script: returned 140 executable skip marker/call sites.
+- `pytest -q tests/test_us141_readme_install.py tests/test_us143_readme_structure.py tests/test_us144_quick_start.py tests/test_us145_deep_content.py tests/test_us146_readme_visual.py`: passed, 97 tests.
+- `git diff --check`: passed; Git reported line-ending warnings for `PRD-production-readiness.md` and this progress log only.
+
+### Follow-up story IDs assigned
+
+- `US-038`: temporary compatibility/artifact skips that need action-level review.
+- `US-039`: retired dashboard/route surface skips that should be removed or archived.
+- Optional dependency and platform skips are marked `permanent` with rationale in `docs/testing/SKIPPED-TESTS-INVENTORY.md`.
+
+### US-002 GitHub checks validation
+
+- GitHub PR checks were not run for this branch in this local pass.
+- Left the US-002 GitHub-check acceptance criterion unchecked pending PR checks.

@@ -238,7 +238,7 @@ git diff --quiet docs/security/AUDIT-INVENTORY.md || echo "inventory updated"
 **Workstream:** Tests / Docs
 **Description:** As a maintainer, I want a classified inventory of every skipped or `skipif` test so later stories can remove retired tests, replace important skips, and set a skip budget.
 
-**Why it matters:** 125 skip markers exist today. Without classification, a skip budget cannot be enforced and trust in the test suite stays low.
+**Why it matters:** 140 actual skip marker/call sites exist today. Without classification, a skip budget cannot be enforced and trust in the test suite stays low.
 
 **Files/areas likely involved:**
 - `tests/`
@@ -247,11 +247,20 @@ git diff --quiet docs/security/AUDIT-INVENTORY.md || echo "inventory updated"
 **Implementation notes:** Use `pytest --collect-only -q` and a focused `grep` to enumerate every skip site. Classify each as `optional-dep-skip`, `platform-skip`, `retired-surface-skip`, or `temporary-bug-skip` and record the file, line, skip reason, and follow-up story ID if any.
 
 **Acceptance Criteria:**
-- [ ] `docs/testing/SKIPPED-TESTS-INVENTORY.md` lists every `@pytest.mark.skip`, `@pytest.mark.skipif`, and inline `pytest.skip(...)` call.
-- [ ] Each row records: file, line, skip reason text, classification, and follow-up story (or "permanent" with rationale).
-- [ ] Inventory is linked from `docs/TESTING_AND_QUALITY.md` if that file exists, otherwise from `README.md`'s testing section.
-- [ ] `pytest --collect-only -q` exits 0.
+- [x] `docs/testing/SKIPPED-TESTS-INVENTORY.md` lists every `@pytest.mark.skip`, `@pytest.mark.skipif`, and inline `pytest.skip(...)` call.
+- [x] Each row records: file, line, skip reason text, classification, and follow-up story (or "permanent" with rationale).
+- [x] Inventory is linked from `docs/TESTING_AND_QUALITY.md` if that file exists, otherwise from `README.md`'s testing section.
+- [x] `pytest --collect-only -q` exits 0.
 - [ ] All relevant GitHub checks pass.
+
+**US-002 completion notes (2026-06-14):**
+- Created `docs/testing/SKIPPED-TESTS-INVENTORY.md`.
+- `docs/TESTING_AND_QUALITY.md` does not exist, so `README.md` links the inventory from the Development testing text.
+- `pytest --collect-only -q` exited 0 and collected 6635 tests, with 2 module-level skips during collection.
+- Focused grep-style search found 143 matching lines. AST-backed inventory found 140 executable skip marker/call sites; three grep matches were quoted/docstring text, not skip sites.
+- Classification summary: `optional-dep-skip` 22, `platform-skip` 10, `retired-surface-skip` 14, `temporary-bug-skip` 94.
+- Follow-up story IDs: `US-038` for temporary-bug skips and `US-039` for retired-surface skips. Optional dependency and platform skips are marked permanent with rationale in the inventory.
+- GitHub-check acceptance remains unchecked pending PR checks on this branch.
 
 **Validation commands:**
 ```bash

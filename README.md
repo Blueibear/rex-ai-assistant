@@ -417,7 +417,7 @@ npm run typecheck
 npm run build
 ```
 
-The current coverage threshold in `pyproject.toml` is 75 percent. Test markers include `unit`, `integration`, `slow`, `audio`, `gpu`, `network`, `asyncio`, `anyio`, and `smoke`.
+The current coverage threshold in `pyproject.toml` is 75 percent. Test markers include `unit`, `integration`, `slow`, `audio`, `gpu`, `network`, `asyncio`, `anyio`, and `smoke`. The skipped-test inventory is maintained in [docs/testing/SKIPPED-TESTS-INVENTORY.md](docs/testing/SKIPPED-TESTS-INVENTORY.md).
 
 ## Documentation
 
