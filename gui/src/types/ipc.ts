@@ -459,6 +459,17 @@ export interface UsageSummary {
   error?: string
 }
 
+export interface Device {
+  entity_id: string
+  name: string
+  type: string
+}
+
+export interface DeviceCommandResult {
+  status: 'attempted' | 'completed' | 'verified' | 'failed'
+  detail?: string
+}
+
 export interface RexAPI {
   sendChat: (message: string) => Promise<string>
   sendChatStream: (message: string, onToken: (token: string) => void) => Promise<void>
@@ -575,4 +586,6 @@ export interface RexAPI {
   downloadLogs: () => Promise<{ ok: boolean; content?: string; filename?: string; log_path?: string; error?: string }>
   onLogEntry: (cb: (entry: LogEntry) => void) => void
   getUsage: () => Promise<UsageSummary>
+  getDevices: () => Promise<{ ok: boolean; devices: Device[]; error?: string }>
+  sendDeviceCommand: (entityId: string, command: string, value?: number) => Promise<DeviceCommandResult>
 }

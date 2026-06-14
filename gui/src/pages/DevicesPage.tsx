@@ -1,31 +1,15 @@
 import React, { useEffect, useState } from 'react'
-
-interface Device {
-  entity_id: string
-  name: string
-  type: 'light' | 'switch' | 'media_player' | string
-}
+import type { Device } from '../types/ipc'
 
 async function sendCommand(
   entityId: string,
   command: string,
   value?: number
 ): Promise<{ ok: boolean; error?: string }> {
-  const token = localStorage.getItem('rex_token') ?? ''
-  const body: Record<string, unknown> = { command }
-  if (value !== undefined) body.value = value
-  try {
-    const resp = await fetch(`/api/devices/${entityId}/command`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`
-      },
-      body: JSON.stringify(body)
-    })
-    return (await resp.json()) as { ok: boolean; error?: string }
-  } catch {
-    return { ok: false, error: 'Network error' }
+  const result = await window.rex.sendDeviceCommand(entityId, command, value)
+  return {
+    ok: result.status !== 'failed',
+    error: result.status === 'failed' ? result.detail : undefined
   }
 }
 
@@ -228,12 +212,12 @@ export function DevicesPage(): React.ReactElement {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    fetch('/api/devices')
-      .then((r) => r.json())
+    window.rex
+      .getDevices()
       .then((d) => {
-        setDevices((d as { devices: Device[] }).devices ?? [])
+        setDevices(d.devices ?? [])
       })
-      .catch(() => {/* ignore */})
+      .catch(() => {})
       .finally(() => setLoading(false))
   }, [])
 

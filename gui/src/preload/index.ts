@@ -32,7 +32,9 @@ import type {
   WakeWordStatus,
   LogEntry,
   LogsResponse,
-  UsageSummary
+  UsageSummary,
+  Device,
+  DeviceCommandResult
 } from '../types/ipc'
 
 function makeSendChatStream(
@@ -338,7 +340,11 @@ const rexAPI = {
   onLogEntry: (cb: (entry: LogEntry) => void): void => {
     ipcRenderer.on('rex:logEntry', (_event, entry: LogEntry) => cb(entry))
   },
-  getUsage: (): Promise<UsageSummary> => ipcRenderer.invoke('rex:getUsage')
+  getUsage: (): Promise<UsageSummary> => ipcRenderer.invoke('rex:getUsage'),
+  getDevices: (): Promise<{ ok: boolean; devices: Device[]; error?: string }> =>
+    ipcRenderer.invoke('rex:getDevices'),
+  sendDeviceCommand: (entityId: string, command: string, value?: number): Promise<DeviceCommandResult> =>
+    ipcRenderer.invoke('rex:sendDeviceCommand', entityId, command, value)
 }
 
 if (process.contextIsolated) {

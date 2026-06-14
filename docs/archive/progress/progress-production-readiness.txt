@@ -65,3 +65,27 @@ HEAD: `548bf32`
 - `git diff -- PRD-production-readiness.md` was reviewed.
 - `git diff -- progress-production-readiness.txt` produced no output because `.gitignore` ignores `progress*.txt`; `git status --short --ignored progress-production-readiness.txt` showed `!! progress-production-readiness.txt`.
 - `git status --short` showed only `M PRD-production-readiness.md` before force-adding the requested progress file.
+
+## 2026-06-13 - US-007: Migrate DevicesPage per-entity command to typed IPC
+
+Branch: `ralph/production-us007-device-command-ipc`
+
+### What was done
+
+- Created `gui/src/main/handlers/devices.ts` with `registerDeviceHandlers()` registering both `rex:getDevices` and `rex:sendDeviceCommand` IPC handlers.
+- `rex:sendDeviceCommand` maps commands to HA service calls via `POST /api/services/{domain}/{service}`, reads credentials from `readSavedHomeAssistantCredentials()`, returns discriminated `{ status, detail }` shape.
+- Added `Device` and `DeviceCommandResult` types to `gui/src/types/ipc.ts` and corresponding methods to `RexAPI`.
+- Updated `gui/src/preload/index.ts` to expose `getDevices` and `sendDeviceCommand` on `window.rex`.
+- Updated `gui/src/main/ipc.ts` to import and call `registerDeviceHandlers()`.
+- Updated `gui/src/pages/DevicesPage.tsx`: removed local `Device` interface, replaced `fetch('/api/devices')` with `window.rex.getDevices()`, replaced `fetch('/api/devices/${entityId}/command')` sendCommand with `window.rex.sendDeviceCommand()`.
+- Added IPC method documentation section to `docs/home_assistant.md`.
+
+### Validation
+
+- `cd gui && npm run typecheck` — passed (zero errors)
+- `cd gui && npm run build` — passed (built in ~1.6s)
+
+### Criteria not yet verified
+
+- Manual device toggle verification requires a running HA instance.
+- GitHub CI checks pending on PR.

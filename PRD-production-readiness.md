@@ -408,13 +408,13 @@ python scripts/check_no_renderer_api_fetch.py
 - `gui/src/types/ipc.ts`
 
 **Acceptance Criteria:**
-- [ ] `fetch(\`/api/devices/${entityId}/command\`, ...)` removed.
-- [ ] IPC method `sendDeviceCommand(entityId, command, payload)` exists, typed.
-- [ ] Allowlist line removed.
-- [ ] Handler returns a discriminated `{ status: 'attempted' | 'completed' | 'verified' | 'failed', detail?: string }` shape (foundation for US-049).
-- [ ] `cd gui && npm run typecheck && npm run build` passes.
+- [x] `fetch(\`/api/devices/${entityId}/command\`, ...)` removed.
+- [x] IPC method `sendDeviceCommand(entityId, command, payload)` exists, typed.
+- [x] Allowlist line removed.
+- [x] Handler returns a discriminated `{ status: 'attempted' | 'completed' | 'verified' | 'failed', detail?: string }` shape (foundation for US-049).
+- [x] `cd gui && npm run typecheck && npm run build` passes.
 - [ ] Manual: a device toggle in the packaged app reports a verified status when HA confirms state.
-- [ ] `docs/home_assistant.md` notes the IPC method.
+- [x] `docs/home_assistant.md` notes the IPC method.
 - [ ] All relevant GitHub checks pass.
 
 **Validation commands:**

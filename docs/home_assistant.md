@@ -219,3 +219,43 @@ pytest -q tests/test_ha_tts.py
 - `allow_http=true` bypasses the scheme restriction but not the IP-class check;
   it is intended for local development with a HA instance on the same machine
   behind a self-signed cert, not for production.
+
+---
+
+## Electron GUI IPC Methods
+
+The Electron GUI controls devices via typed IPC calls exposed on `window.rex`.
+These run in the main process (not the renderer) and call the HA REST API
+directly using stored credentials from `.env` / `gui_settings.json`.
+
+### `window.rex.getDevices()`
+
+Returns the device list from `config/device_aliases.json`.
+
+```typescript
+const { ok, devices } = await window.rex.getDevices()
+// devices: Array<{ entity_id: string; name: string; type: string }>
+```
+
+### `window.rex.sendDeviceCommand(entityId, command, value?)`
+
+Sends a service call to Home Assistant for the given entity.
+
+```typescript
+const result = await window.rex.sendDeviceCommand('light.living_room', 'turn_on')
+// result: { status: 'attempted' | 'completed' | 'verified' | 'failed'; detail?: string }
+```
+
+| command | HA service | notes |
+|---|---|---|
+| `turn_on` | `{domain}.turn_on` | |
+| `turn_off` | `{domain}.turn_off` | |
+| `set_brightness` | `light.turn_on` | `value` = brightness 0–255 |
+| `media_play` | `media_player.media_play` | |
+| `media_pause` | `media_player.media_pause` | |
+| `media_next_track` | `media_player.media_next_track` | |
+| `volume_set` | `media_player.volume_set` | `value` = volume 0.0–1.0 |
+
+The `status` field in the response is the foundation for US-049 verification
+feedback. Currently only `'attempted'` (success) and `'failed'` (error) are
+returned; `'completed'` and `'verified'` are reserved for the US-048 gate.
