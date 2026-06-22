@@ -50,6 +50,13 @@ export function saveHomeAssistantCredentials(baseUrl: string, token: string): vo
   }
 }
 
+export type DeviceCommandStatus = 'attempted' | 'completed' | 'verified' | 'failed'
+
+export interface DeviceCommandResponse {
+  status: DeviceCommandStatus
+  detail?: string
+}
+
 function describeHaError(error: unknown): string {
   if (error instanceof Error) {
     return error.name === 'AbortError' ? 'Connection timed out.' : error.message
@@ -72,6 +79,62 @@ async function requestHomeAssistant(
     })
   } finally {
     clearTimeout(timeout)
+  }
+}
+
+async function postHomeAssistant(
+  baseUrl: string,
+  token: string,
+  path: string,
+  body: Record<string, unknown>,
+  timeoutMs = 5000
+): Promise<Response> {
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), timeoutMs)
+  try {
+    return await fetch(`${baseUrl}${path}`, {
+      method: 'POST',
+      headers: {
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(body),
+      signal: controller.signal
+    })
+  } finally {
+    clearTimeout(timeout)
+  }
+}
+
+export async function callDeviceCommand(
+  entityId: string,
+  command: string,
+  payload?: { value?: number }
+): Promise<DeviceCommandResponse> {
+  const { baseUrl, token } = readSavedHomeAssistantCredentials()
+  if (!baseUrl || !token) {
+    return { status: 'failed', detail: 'Home Assistant is not configured.' }
+  }
+
+  const domain = entityId.split('.')[0]
+  let service = command
+  const serviceBody: Record<string, unknown> = { entity_id: entityId }
+
+  if (command === 'set_brightness' && payload?.value !== undefined) {
+    service = 'turn_on'
+    serviceBody.brightness = payload.value
+  } else if (command === 'volume_set' && payload?.value !== undefined) {
+    serviceBody.volume_level = payload.value
+  }
+
+  try {
+    const resp = await postHomeAssistant(baseUrl, token, `/api/services/${domain}/${service}`, serviceBody)
+    if (resp.ok) {
+      return { status: 'attempted', detail: `${domain}/${service} dispatched` }
+    }
+    return { status: 'failed', detail: `HA returned HTTP ${resp.status}` }
+  } catch (err) {
+    return { status: 'failed', detail: describeHaError(err) }
   }
 }
 

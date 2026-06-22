@@ -18,6 +18,44 @@ bridge configuration see the existing inline docs in `rex/ha_bridge.py`.
 
 ---
 
+## Electron GUI device control (IPC)
+
+The Electron renderer sends device commands via the `window.rex.sendDeviceCommand` IPC method
+(registered as `rex:sendDeviceCommand` in the main process).
+
+```typescript
+// Renderer usage
+const result = await window.rex.sendDeviceCommand(entityId, command, payload?)
+// result: { status: 'attempted' | 'completed' | 'verified' | 'failed', detail?: string }
+```
+
+The main-process handler (in `gui/src/main/handlers/devices.ts`) delegates to
+`callDeviceCommand` in `gui/src/main/homeAssistant.ts`, which calls the HA REST API
+`POST /api/services/{domain}/{service}`.
+
+**Status semantics:**
+
+| Status | Meaning |
+|--------|---------|
+| `attempted` | Command was dispatched to Home Assistant (HTTP 2xx received). State not verified. |
+| `failed` | Command could not be dispatched (HA not configured, network error, or HTTP error). |
+| `completed` | Reserved — will be populated by US-048 post-dispatch state polling. |
+| `verified` | Reserved — will be populated by US-048 state confirmation. |
+
+**Command-to-service mapping:**
+
+| Command | HA service | Notes |
+|---------|-----------|-------|
+| `turn_on` | `{domain}/turn_on` | Works for `light.*`, `switch.*` |
+| `turn_off` | `{domain}/turn_off` | Works for `light.*`, `switch.*` |
+| `set_brightness` | `light/turn_on` | Payload `{ value: 0–255 }` → HA `brightness` |
+| `media_play` | `media_player/media_play` | |
+| `media_pause` | `media_player/media_pause` | |
+| `media_next_track` | `media_player/media_next_track` | |
+| `volume_set` | `media_player/volume_set` | Payload `{ value: 0–1 }` → HA `volume_level` |
+
+---
+
 ## TTS Notification Channel
 
 ### What it does

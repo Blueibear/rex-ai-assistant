@@ -35,7 +35,8 @@ import type {
   LogEntry,
   LogsResponse,
   UsageSummary,
-  DevicesResponse
+  DevicesResponse,
+  DeviceCommandResponse
 } from '../types/ipc'
 
 function makeSendChatStream(
@@ -347,7 +348,13 @@ const rexAPI = {
     ipcRenderer.on('rex:logEntry', (_event, entry: LogEntry) => cb(entry))
   },
   getUsage: (): Promise<UsageSummary> => ipcRenderer.invoke('rex:getUsage'),
-  getDevices: (): Promise<DevicesResponse> => ipcRenderer.invoke('rex:getDevices')
+  getDevices: (): Promise<DevicesResponse> => ipcRenderer.invoke('rex:getDevices'),
+  sendDeviceCommand: (
+    entityId: string,
+    command: string,
+    payload?: { value?: number }
+  ): Promise<DeviceCommandResponse> =>
+    ipcRenderer.invoke('rex:sendDeviceCommand', entityId, command, payload)
 }
 
 if (process.contextIsolated) {

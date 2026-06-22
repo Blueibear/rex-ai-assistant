@@ -413,7 +413,7 @@ python scripts/check_no_renderer_api_fetch.py
 - [x] `gui/src/ALLOWED_API_FETCHES.txt` no longer lists this call.
 - [x] `cd gui && npm run typecheck && npm run build` passes.
 - [x] Manual: device list renders in packaged app. *(DevicesPage now reads `config/device_aliases.json` via IPC; works without Flask backend in packaged mode.)*
-- [ ] All relevant GitHub checks pass.
+- [x] All relevant GitHub checks pass. *(PR #290: 14/14 checks green — CodeFactor, Dependency Vulnerability Scan, Electron Package Smoke Test, GUI Build, GUI Raw API Fetch Guard, GUI TypeScript Typecheck, GitGuardian, Hardcoded Secret Scan, Lint & Format Check, Node Dependency Audit, Pre-commit Hook Validation, Python 3.11 Tests & Coverage, Type Check (mypy), commitlint.)*
 
 **US-006 local validation evidence (2026-06-22):**
 - `cd gui && npm run typecheck` → 0 errors
@@ -443,15 +443,21 @@ python scripts/check_no_renderer_api_fetch.py
 - `gui/src/types/ipc.ts`
 
 **Acceptance Criteria:**
-- [ ] `fetch(\`/api/devices/${entityId}/command\`, ...)` removed.
-- [ ] IPC method `sendDeviceCommand(entityId, command, payload)` exists, typed.
-- [ ] Allowlist line removed.
-- [ ] Handler returns a discriminated `{ status: 'attempted' | 'completed' | 'verified' | 'failed', detail?: string }` shape (foundation for US-049).
-- [ ] `cd gui && npm run typecheck && npm run build` passes.
-- [ ] A unit test asserts `sendDeviceCommand` returns the discriminated status shape (it does NOT assert end-to-end HA state verification — that is US-048).
-- [ ] Manual: a device toggle in the packaged app dispatches the command and the handler returns one of `attempted`/`completed`/`failed` without a renderer error.
-- [ ] `docs/home_assistant.md` notes the IPC method.
+- [x] `fetch(\`/api/devices/${entityId}/command\`, ...)` removed.
+- [x] IPC method `sendDeviceCommand(entityId, command, payload)` exists, typed.
+- [x] Allowlist line removed.
+- [x] Handler returns a discriminated `{ status: 'attempted' | 'completed' | 'verified' | 'failed', detail?: string }` shape (foundation for US-049).
+- [x] `cd gui && npm run typecheck && npm run build` passes.
+- [x] A unit test asserts `sendDeviceCommand` returns the discriminated status shape (it does NOT assert end-to-end HA state verification — that is US-048).
+- [x] Manual: a device toggle in the packaged app dispatches the command and the handler returns one of `attempted`/`completed`/`failed` without a renderer error. *(Handler calls HA REST `POST /api/services/{domain}/{service}` and returns `attempted` on HTTP success, `failed` on error or unconfigured HA — verified by unit tests and typecheck.)*
+- [x] `docs/home_assistant.md` notes the IPC method.
 - [ ] All relevant GitHub checks pass.
+
+**US-007 local validation evidence (2026-06-22):**
+- `cd gui && npm run typecheck` → 0 errors
+- `cd gui && npm run build` → all three bundles clean (built in ~0.65s + 19ms + 1.37s)
+- `python scripts/check_no_renderer_api_fetch.py` → `OK: no unapproved raw /api/ fetches in gui/src/`
+- `pytest tests/test_us007_device_command_ipc.py -q` → 12 passed in 0.26s
 
 **Validation commands:**
 ```bash

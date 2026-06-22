@@ -353,6 +353,13 @@ export interface DevicesResponse {
   error?: string
 }
 
+export type DeviceCommandStatus = 'attempted' | 'completed' | 'verified' | 'failed'
+
+export interface DeviceCommandResponse {
+  status: DeviceCommandStatus
+  detail?: string
+}
+
 export interface FileExtractResult {
   ok: boolean
   isImage: boolean
@@ -535,6 +542,7 @@ export interface RexAPI {
   saveHomeAssistant: (baseUrl: string, token: string) => Promise<HomeAssistantConnectionResponse>
   getHomeAssistantStates: () => Promise<HomeAssistantStatesResponse>
   getDevices: () => Promise<DevicesResponse>
+  sendDeviceCommand: (entityId: string, command: string, payload?: { value?: number }) => Promise<DeviceCommandResponse>
   uploadContactsFile: () => Promise<{ ok: boolean; path?: string; error?: string }>
   pickFolder: () => Promise<{ ok: boolean; path?: string; error?: string }>
   testEmailAccount: (id: string) => Promise<{ ok: boolean; error?: string }>

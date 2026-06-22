@@ -2,6 +2,8 @@ import { ipcMain } from 'electron'
 import { existsSync, readFileSync } from 'fs'
 import { join } from 'path'
 import { getConfigDir } from '../configStore'
+import { callDeviceCommand } from '../homeAssistant'
+import type { DeviceCommandResponse } from '../homeAssistant'
 
 interface DeviceEntry {
   entity_id: string
@@ -29,4 +31,14 @@ export function registerDevicesHandlers(): void {
       return { ok: false, devices: [], error: String(err) }
     }
   })
+
+  ipcMain.handle(
+    'rex:sendDeviceCommand',
+    (
+      _event: Electron.IpcMainInvokeEvent,
+      entityId: string,
+      command: string,
+      payload?: { value?: number }
+    ): Promise<DeviceCommandResponse> => callDeviceCommand(entityId, command, payload)
+  )
 }
