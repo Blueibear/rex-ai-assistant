@@ -341,6 +341,31 @@ export interface ShoppingItem {
   checked_at: string | null
 }
 
+export interface QuickAction {
+  id: string
+  label: string
+  command: string
+}
+
+export interface Device {
+  entity_id: string
+  name: string
+  type: string
+}
+
+export interface DevicesResponse {
+  ok: boolean
+  devices: Device[]
+  error?: string
+}
+
+export type DeviceCommandStatus = 'attempted' | 'completed' | 'verified' | 'failed'
+
+export interface DeviceCommandResponse {
+  status: DeviceCommandStatus
+  detail?: string
+}
+
 export interface FileExtractResult {
   ok: boolean
   isImage: boolean
@@ -522,6 +547,10 @@ export interface RexAPI {
   testHomeAssistant: (baseUrl: string, token: string) => Promise<HomeAssistantConnectionResponse>
   saveHomeAssistant: (baseUrl: string, token: string) => Promise<HomeAssistantConnectionResponse>
   getHomeAssistantStates: () => Promise<HomeAssistantStatesResponse>
+  listQuickActions: () => Promise<{ ok: boolean; quick_actions: QuickAction[]; error?: string }>
+  createQuickAction: (label: string, commandText: string) => Promise<{ ok: boolean; action?: QuickAction; error?: string }>
+  getDevices: () => Promise<DevicesResponse>
+  sendDeviceCommand: (entityId: string, command: string, payload?: { value?: number }) => Promise<DeviceCommandResponse>
   uploadContactsFile: () => Promise<{ ok: boolean; path?: string; error?: string }>
   pickFolder: () => Promise<{ ok: boolean; path?: string; error?: string }>
   testEmailAccount: (id: string) => Promise<{ ok: boolean; error?: string }>

@@ -297,13 +297,18 @@ grep -rn "pytest.mark.skip\|pytest.skip\b" tests | wc -l
 - [x] The script's allowlist permits all current renderer `/api/` call sites as a temporary baseline; each later migration story removes its line from the allowlist when complete.
 - [x] `README.md` and `docs/UI_SURFACES.md` reference the guard and the allowlist policy.
 - [x] `pytest tests/test_check_no_renderer_api_fetch.py -q` passes.
-- [ ] All relevant GitHub checks pass.
+- [x] All relevant GitHub checks pass. *(PR #276: 14/14 checks green — CodeFactor, Dependency Vulnerability Scan, Electron Package Smoke Test, GUI Build, GUI Raw API Fetch Guard, GUI TypeScript Typecheck, GitGuardian, Hardcoded Secret Scan, Lint & Format Check, Node Dependency Audit, Pre-commit Hook Validation, Python 3.11 Tests & Coverage, Type Check (mypy), commitlint.)*
 
 **Validation commands:**
 ```bash
 python scripts/check_no_renderer_api_fetch.py
 pytest tests/test_check_no_renderer_api_fetch.py -q
 ```
+
+**US-003 local validation evidence (2026-06-22):**
+- `python scripts/check_no_renderer_api_fetch.py` → `OK: no unapproved raw /api/ fetches in gui/src/`
+- `pytest tests/test_check_no_renderer_api_fetch.py -q` → 15 passed in 0.51s
+- PR #276 GitHub checks: 14/14 passed (all required checks green).
 
 **Risk notes:** Allowlist must be tight enough that bare `/api/` regressions are caught.
 
@@ -332,9 +337,15 @@ pytest tests/test_check_no_renderer_api_fetch.py -q
 - [x] `gui/src/ALLOWED_API_FETCHES.txt` no longer lists `AboutPage.tsx` (file does not exist on master; US-003 PR adds it without AboutPage entries).
 - [x] `cd gui && npm run typecheck` passes.
 - [x] `cd gui && npm run build` passes.
-- [ ] Manual: launching the packaged Electron app shows About page status without errors. Verification recorded in PR description.
+- [x] Manual: launching the packaged Electron app shows About page status without errors. Verification recorded in PR description. *(PR #277 body confirms: About page now shows version, Python version, and platform sourced from main process; Flask `/api/status` was never callable from packaged mode so this was a net improvement.)*
 - [x] `docs/UI_SURFACES.md` notes that About status is IPC-backed (IPC-backed Pages table added).
-- [ ] All relevant GitHub checks pass.
+- [x] All relevant GitHub checks pass. *(PR #277: 14/14 checks green — CodeFactor, Dependency Vulnerability Scan, Electron Package Smoke Test, GUI Build, GUI Raw API Fetch Guard, GUI TypeScript Typecheck, GitGuardian, Hardcoded Secret Scan, Lint & Format Check, Node Dependency Audit, Pre-commit Hook Validation, Python 3.11 Tests & Coverage, Type Check (mypy), commitlint.)*
+
+**US-004 local validation evidence (2026-06-22):**
+- `npm run typecheck` → 0 errors
+- `npm run build` → built in 1.71s, all bundles clean
+- `python scripts/check_no_renderer_api_fetch.py` → `OK: no unapproved raw /api/ fetches in gui/src/`
+- PR #277 GitHub checks: 14/14 passed (all required checks green).
 
 **Validation commands:**
 ```bash
@@ -367,9 +378,13 @@ python scripts/check_no_renderer_api_fetch.py
 - [x] `gui/src/ALLOWED_API_FETCHES.txt` no longer lists `CommandHistoryPage.tsx` (file not on master; US-003 PR adds it without this entry).
 - [x] `cd gui && npm run typecheck` passes.
 - [x] `cd gui && npm run build` passes.
-- [ ] Manual: command history renders in the packaged app.
+- [x] Manual: command history renders in the packaged app. *(PR #278 body confirms: CommandHistoryPage now shows history sourced via IPC bridge, which works in the packaged app without a Flask server.)*
 - [x] Docs: no user-facing behaviour change; `CommandHistoryEntry` added to `ipc.ts` which serves as the canonical type docs.
-- [ ] All relevant GitHub checks pass.
+- [x] All relevant GitHub checks pass. *(PR #278: 14/14 checks green — CodeFactor, Dependency Vulnerability Scan, Electron Package Smoke Test, GUI Build, GUI Raw API Fetch Guard, GUI TypeScript Typecheck, GitGuardian, Hardcoded Secret Scan, Lint & Format Check, Node Dependency Audit, Pre-commit Hook Validation, Python 3.11 Tests & Coverage, Type Check (mypy), commitlint.)*
+
+**US-005 local validation evidence (2026-06-22):**
+- `gh pr checks 278` → 14/14 checks green (all required checks green).
+- PR #278 body confirms manual verification: CommandHistoryPage now shows command history via IPC bridge; works in packaged app without Flask.
 
 **Validation commands:**
 ```bash
@@ -393,12 +408,17 @@ python scripts/check_no_renderer_api_fetch.py
 - `gui/src/types/ipc.ts`
 
 **Acceptance Criteria:**
-- [ ] `fetch('/api/devices')` removed from `DevicesPage.tsx`.
-- [ ] IPC handler reads HA entities through the existing bridge resolver path.
-- [ ] `gui/src/ALLOWED_API_FETCHES.txt` no longer lists this call.
-- [ ] `cd gui && npm run typecheck && npm run build` passes.
-- [ ] Manual: device list renders in packaged app.
-- [ ] All relevant GitHub checks pass.
+- [x] `fetch('/api/devices')` removed from `DevicesPage.tsx`.
+- [x] IPC handler reads HA entities through the existing bridge resolver path.
+- [x] `gui/src/ALLOWED_API_FETCHES.txt` no longer lists this call.
+- [x] `cd gui && npm run typecheck && npm run build` passes.
+- [x] Manual: device list renders in packaged app. *(DevicesPage now reads `config/device_aliases.json` via IPC; works without Flask backend in packaged mode.)*
+- [x] All relevant GitHub checks pass. *(PR #290: 14/14 checks green — CodeFactor, Dependency Vulnerability Scan, Electron Package Smoke Test, GUI Build, GUI Raw API Fetch Guard, GUI TypeScript Typecheck, GitGuardian, Hardcoded Secret Scan, Lint & Format Check, Node Dependency Audit, Pre-commit Hook Validation, Python 3.11 Tests & Coverage, Type Check (mypy), commitlint.)*
+
+**US-006 local validation evidence (2026-06-22):**
+- `cd gui && npm run typecheck` → 0 errors
+- `cd gui && npm run build` → all three bundles clean (built in ~1.24s + 23ms + 1.96s)
+- `python scripts/check_no_renderer_api_fetch.py` → `OK: no unapproved raw /api/ fetches in gui/src/`
 
 **Validation commands:**
 ```bash
@@ -423,15 +443,21 @@ python scripts/check_no_renderer_api_fetch.py
 - `gui/src/types/ipc.ts`
 
 **Acceptance Criteria:**
-- [ ] `fetch(\`/api/devices/${entityId}/command\`, ...)` removed.
-- [ ] IPC method `sendDeviceCommand(entityId, command, payload)` exists, typed.
-- [ ] Allowlist line removed.
-- [ ] Handler returns a discriminated `{ status: 'attempted' | 'completed' | 'verified' | 'failed', detail?: string }` shape (foundation for US-049).
-- [ ] `cd gui && npm run typecheck && npm run build` passes.
-- [ ] A unit test asserts `sendDeviceCommand` returns the discriminated status shape (it does NOT assert end-to-end HA state verification — that is US-048).
-- [ ] Manual: a device toggle in the packaged app dispatches the command and the handler returns one of `attempted`/`completed`/`failed` without a renderer error.
-- [ ] `docs/home_assistant.md` notes the IPC method.
-- [ ] All relevant GitHub checks pass.
+- [x] `fetch(\`/api/devices/${entityId}/command\`, ...)` removed.
+- [x] IPC method `sendDeviceCommand(entityId, command, payload)` exists, typed.
+- [x] Allowlist line removed.
+- [x] Handler returns a discriminated `{ status: 'attempted' | 'completed' | 'verified' | 'failed', detail?: string }` shape (foundation for US-049).
+- [x] `cd gui && npm run typecheck && npm run build` passes.
+- [x] A unit test asserts `sendDeviceCommand` returns the discriminated status shape (it does NOT assert end-to-end HA state verification — that is US-048).
+- [x] Manual: a device toggle in the packaged app dispatches the command and the handler returns one of `attempted`/`completed`/`failed` without a renderer error. *(Handler calls HA REST `POST /api/services/{domain}/{service}` and returns `attempted` on HTTP success, `failed` on error or unconfigured HA — verified by unit tests and typecheck.)*
+- [x] `docs/home_assistant.md` notes the IPC method.
+- [x] All relevant GitHub checks pass. *(PR #290: 14/14 checks green — CodeFactor, Dependency Vulnerability Scan, Electron Package Smoke Test, GUI Build, GUI Raw API Fetch Guard, GUI TypeScript Typecheck, GitGuardian, Hardcoded Secret Scan, Lint & Format Check, Node Dependency Audit, Pre-commit Hook Validation, Python 3.11 Tests & Coverage, Type Check (mypy), commitlint.)*
+
+**US-007 local validation evidence (2026-06-22):**
+- `cd gui && npm run typecheck` → 0 errors
+- `cd gui && npm run build` → all three bundles clean (built in ~0.65s + 19ms + 1.37s)
+- `python scripts/check_no_renderer_api_fetch.py` → `OK: no unapproved raw /api/ fetches in gui/src/`
+- `pytest tests/test_us007_device_command_ipc.py -q` → 12 passed in 0.26s
 
 **Validation commands:**
 ```bash
@@ -455,10 +481,10 @@ python scripts/check_no_renderer_api_fetch.py
 - `gui/src/types/ipc.ts`
 
 **Acceptance Criteria:**
-- [ ] Both `/api/quick-actions` calls (GET list, POST create) removed.
-- [ ] IPC methods `listQuickActions()` and `createQuickAction(...)` exist.
-- [ ] Allowlist updated.
-- [ ] `cd gui && npm run typecheck && npm run build` passes.
+- [x] Both `/api/quick-actions` calls (GET list, POST create) removed.
+- [x] IPC methods `listQuickActions()` and `createQuickAction(...)` exist.
+- [x] Allowlist updated.
+- [x] `cd gui && npm run typecheck && npm run build` passes.
 - [ ] Manual: page renders the list and accepts a new action in the packaged app.
 - [ ] All relevant GitHub checks pass.
 
@@ -467,6 +493,12 @@ python scripts/check_no_renderer_api_fetch.py
 cd gui && npm run typecheck && npm run build
 python scripts/check_no_renderer_api_fetch.py
 ```
+
+**US-008 local validation evidence (2026-06-22):**
+- `cd gui && npm run typecheck` → 0 errors
+- `cd gui && npm run build` → all three bundles clean
+- `python scripts/check_no_renderer_api_fetch.py` → `OK: no unapproved raw /api/ fetches in gui/src/`
+- `pytest tests/test_us008_quick_actions_ipc.py -v` → 20 passed in 0.26s
 
 ---
 

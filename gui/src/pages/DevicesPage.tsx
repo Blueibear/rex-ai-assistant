@@ -6,29 +6,6 @@ interface Device {
   type: 'light' | 'switch' | 'media_player' | string
 }
 
-async function sendCommand(
-  entityId: string,
-  command: string,
-  value?: number
-): Promise<{ ok: boolean; error?: string }> {
-  const token = localStorage.getItem('rex_token') ?? ''
-  const body: Record<string, unknown> = { command }
-  if (value !== undefined) body.value = value
-  try {
-    const resp = await fetch(`/api/devices/${entityId}/command`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`
-      },
-      body: JSON.stringify(body)
-    })
-    return (await resp.json()) as { ok: boolean; error?: string }
-  } catch {
-    return { ok: false, error: 'Network error' }
-  }
-}
-
 interface LightControlProps {
   device: Device
 }
@@ -41,15 +18,15 @@ function LightControl({ device }: LightControlProps): React.ReactElement {
   const toggle = async (): Promise<void> => {
     setBusy(true)
     const cmd = on ? 'turn_off' : 'turn_on'
-    const result = await sendCommand(device.entity_id, cmd)
-    if (result.ok) setOn(!on)
+    const result = await window.rex.sendDeviceCommand(device.entity_id, cmd)
+    if (result.status !== 'failed') setOn(!on)
     setBusy(false)
   }
 
   const handleBrightness = async (e: React.ChangeEvent<HTMLInputElement>): Promise<void> => {
     const val = Number(e.target.value)
     setBrightness(val)
-    await sendCommand(device.entity_id, 'set_brightness', val)
+    await window.rex.sendDeviceCommand(device.entity_id, 'set_brightness', { value: val })
   }
 
   return (
@@ -102,8 +79,8 @@ function SwitchControl({ device }: SwitchControlProps): React.ReactElement {
   const toggle = async (): Promise<void> => {
     setBusy(true)
     const cmd = on ? 'turn_off' : 'turn_on'
-    const result = await sendCommand(device.entity_id, cmd)
-    if (result.ok) setOn(!on)
+    const result = await window.rex.sendDeviceCommand(device.entity_id, cmd)
+    if (result.status !== 'failed') setOn(!on)
     setBusy(false)
   }
 
@@ -145,19 +122,19 @@ function MediaPlayerControl({ device }: MediaPlayerControlProps): React.ReactEle
   const handlePlayPause = async (): Promise<void> => {
     setBusy(true)
     const cmd = playing ? 'media_pause' : 'media_play'
-    const result = await sendCommand(device.entity_id, cmd)
-    if (result.ok) setPlaying(!playing)
+    const result = await window.rex.sendDeviceCommand(device.entity_id, cmd)
+    if (result.status !== 'failed') setPlaying(!playing)
     setBusy(false)
   }
 
   const handleNext = async (): Promise<void> => {
-    await sendCommand(device.entity_id, 'media_next_track')
+    await window.rex.sendDeviceCommand(device.entity_id, 'media_next_track')
   }
 
   const handleVolume = async (e: React.ChangeEvent<HTMLInputElement>): Promise<void> => {
     const val = Number(e.target.value)
     setVolume(val)
-    await sendCommand(device.entity_id, 'volume_set', val)
+    await window.rex.sendDeviceCommand(device.entity_id, 'volume_set', { value: val })
   }
 
   return (
@@ -228,10 +205,9 @@ export function DevicesPage(): React.ReactElement {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    fetch('/api/devices')
-      .then((r) => r.json())
+    window.rex.getDevices()
       .then((d) => {
-        setDevices((d as { devices: Device[] }).devices ?? [])
+        setDevices(d.devices ?? [])
       })
       .catch(() => {/* ignore */})
       .finally(() => setLoading(false))
