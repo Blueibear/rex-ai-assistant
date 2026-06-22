@@ -54,6 +54,7 @@ The following Electron renderer pages communicate with the main process via type
 | Page | IPC method | Notes |
 |------|-----------|-------|
 | About (`AboutPage.tsx`) | `window.rex.getAppStatus()` → `rex:getAppStatus` | Returns `{ version, python_version, platform }` |
+| Devices (`DevicesPage.tsx`) | `window.rex.getDevices()` → `rex:getDevices` | Reads `config/device_aliases.json`; returns `{ ok, devices }` |
 
 ## Python/Flask Local API and Experimental Dashboard
 

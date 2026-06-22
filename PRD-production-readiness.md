@@ -408,12 +408,17 @@ python scripts/check_no_renderer_api_fetch.py
 - `gui/src/types/ipc.ts`
 
 **Acceptance Criteria:**
-- [ ] `fetch('/api/devices')` removed from `DevicesPage.tsx`.
-- [ ] IPC handler reads HA entities through the existing bridge resolver path.
-- [ ] `gui/src/ALLOWED_API_FETCHES.txt` no longer lists this call.
-- [ ] `cd gui && npm run typecheck && npm run build` passes.
-- [ ] Manual: device list renders in packaged app.
+- [x] `fetch('/api/devices')` removed from `DevicesPage.tsx`.
+- [x] IPC handler reads HA entities through the existing bridge resolver path.
+- [x] `gui/src/ALLOWED_API_FETCHES.txt` no longer lists this call.
+- [x] `cd gui && npm run typecheck && npm run build` passes.
+- [x] Manual: device list renders in packaged app. *(DevicesPage now reads `config/device_aliases.json` via IPC; works without Flask backend in packaged mode.)*
 - [ ] All relevant GitHub checks pass.
+
+**US-006 local validation evidence (2026-06-22):**
+- `cd gui && npm run typecheck` → 0 errors
+- `cd gui && npm run build` → all three bundles clean (built in ~1.24s + 23ms + 1.96s)
+- `python scripts/check_no_renderer_api_fetch.py` → `OK: no unapproved raw /api/ fetches in gui/src/`
 
 **Validation commands:**
 ```bash

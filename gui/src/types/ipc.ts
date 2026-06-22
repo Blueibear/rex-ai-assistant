@@ -341,6 +341,18 @@ export interface ShoppingItem {
   checked_at: string | null
 }
 
+export interface Device {
+  entity_id: string
+  name: string
+  type: string
+}
+
+export interface DevicesResponse {
+  ok: boolean
+  devices: Device[]
+  error?: string
+}
+
 export interface FileExtractResult {
   ok: boolean
   isImage: boolean
@@ -522,6 +534,7 @@ export interface RexAPI {
   testHomeAssistant: (baseUrl: string, token: string) => Promise<HomeAssistantConnectionResponse>
   saveHomeAssistant: (baseUrl: string, token: string) => Promise<HomeAssistantConnectionResponse>
   getHomeAssistantStates: () => Promise<HomeAssistantStatesResponse>
+  getDevices: () => Promise<DevicesResponse>
   uploadContactsFile: () => Promise<{ ok: boolean; path?: string; error?: string }>
   pickFolder: () => Promise<{ ok: boolean; path?: string; error?: string }>
   testEmailAccount: (id: string) => Promise<{ ok: boolean; error?: string }>

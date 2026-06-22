@@ -228,10 +228,9 @@ export function DevicesPage(): React.ReactElement {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    fetch('/api/devices')
-      .then((r) => r.json())
+    window.rex.getDevices()
       .then((d) => {
-        setDevices((d as { devices: Device[] }).devices ?? [])
+        setDevices(d.devices ?? [])
       })
       .catch(() => {/* ignore */})
       .finally(() => setLoading(false))

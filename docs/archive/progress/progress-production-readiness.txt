@@ -303,3 +303,30 @@ process directly. `npm run typecheck` and `npm run build` both passed cleanly.
 - Checked `[ ] Manual:` criterion for US-005 with PR body citation.
 - Checked the final `[ ] All relevant GitHub checks pass.` criterion for US-005.
 - Added local validation evidence block to US-005 in PRD-production-readiness.md.
+
+## 2026-06-22 - US-006 Migrate DevicesPage /api/devices to typed IPC
+
+Branch: `ralph/production-next`
+
+### Implemented
+
+- `gui/src/main/handlers/devices.ts` (new): registers `rex:getDevices`; reads `config/device_aliases.json`
+  via `getConfigDir()` and returns `{ ok, devices }`. No bridge script needed — pure config read.
+- `gui/src/types/ipc.ts`: added `Device` and `DevicesResponse` interfaces; added `getDevices` to `RexAPI`.
+- `gui/src/main/ipc.ts`: imported and called `registerDevicesHandlers()`.
+- `gui/src/preload/index.ts`: imported `DevicesResponse`, added `getDevices` wrapper.
+- `gui/src/pages/DevicesPage.tsx`: replaced `fetch('/api/devices')` in `useEffect` with `window.rex.getDevices()`.
+- `gui/src/ALLOWED_API_FETCHES.txt`: removed `DevicesPage.tsx:231` entry.
+- `docs/UI_SURFACES.md`: added Devices page to IPC-backed pages table.
+
+### Validation
+
+- `cd gui && npm run typecheck` → 0 errors
+- `cd gui && npm run build` → all three bundles clean
+- `python scripts/check_no_renderer_api_fetch.py` → `OK: no unapproved raw /api/ fetches in gui/src/`
+
+### Notes
+
+- `sendCommand` (fetch at line 18) intentionally preserved — that is the US-007 migration target.
+- Auth header removed from device-list path: IPC runs in main process without bearer auth.
+- GitHub-checks criterion left unchecked pending PR checks.
