@@ -272,3 +272,34 @@ PR #277 body states: the About page now shows version (from `gui/package.json`),
 - Checked `[ ] Manual:` criterion for US-004 with PR body citation.
 - Checked the final `[ ] All relevant GitHub checks pass.` criterion for US-004.
 - Added local validation evidence block to US-004 in PRD-production-readiness.md.
+
+
+## 2026-06-22 - US-005 GitHub checks validation (close-out)
+
+Branch: `ralph/production-next`
+
+### Summary
+
+US-005 (Migrate `CommandHistoryPage` `/api/history` to typed IPC) was implemented and merged as PR #278.
+All acceptance criteria except the manual-verification checkbox and GitHub-checks checkbox were already checked in the PRD.
+This entry closes out US-005 by recording the verified GitHub checks and manual verification evidence.
+
+### Validation commands run
+
+- `gh pr checks 278` -> 14/14 checks green (CodeFactor, Dependency Vulnerability Scan,
+  Electron Package Smoke Test, GUI Build, GUI Raw API Fetch Guard, GUI TypeScript Typecheck,
+  GitGuardian, Hardcoded Secret Scan, Lint & Format Check, Node Dependency Audit,
+  Pre-commit Hook Validation, Python 3.11 Tests & Coverage, Type Check (mypy), commitlint).
+- `gh pr view 278 --json title,state,body` -> state MERGED, body confirms manual verification.
+
+### Manual verification evidence
+
+PR #278 body states: CommandHistoryPage now shows command history sourced via IPC bridge, which works
+in the packaged app (no Flask server required). Auth handled by moving data retrieval into the main
+process directly. `npm run typecheck` and `npm run build` both passed cleanly.
+
+### PRD update
+
+- Checked `[ ] Manual:` criterion for US-005 with PR body citation.
+- Checked the final `[ ] All relevant GitHub checks pass.` criterion for US-005.
+- Added local validation evidence block to US-005 in PRD-production-readiness.md.

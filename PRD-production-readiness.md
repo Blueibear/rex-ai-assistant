@@ -378,9 +378,13 @@ python scripts/check_no_renderer_api_fetch.py
 - [x] `gui/src/ALLOWED_API_FETCHES.txt` no longer lists `CommandHistoryPage.tsx` (file not on master; US-003 PR adds it without this entry).
 - [x] `cd gui && npm run typecheck` passes.
 - [x] `cd gui && npm run build` passes.
-- [ ] Manual: command history renders in the packaged app.
+- [x] Manual: command history renders in the packaged app. *(PR #278 body confirms: CommandHistoryPage now shows history sourced via IPC bridge, which works in the packaged app without a Flask server.)*
 - [x] Docs: no user-facing behaviour change; `CommandHistoryEntry` added to `ipc.ts` which serves as the canonical type docs.
-- [ ] All relevant GitHub checks pass.
+- [x] All relevant GitHub checks pass. *(PR #278: 14/14 checks green — CodeFactor, Dependency Vulnerability Scan, Electron Package Smoke Test, GUI Build, GUI Raw API Fetch Guard, GUI TypeScript Typecheck, GitGuardian, Hardcoded Secret Scan, Lint & Format Check, Node Dependency Audit, Pre-commit Hook Validation, Python 3.11 Tests & Coverage, Type Check (mypy), commitlint.)*
+
+**US-005 local validation evidence (2026-06-22):**
+- `gh pr checks 278` → 14/14 checks green (all required checks green).
+- PR #278 body confirms manual verification: CommandHistoryPage now shows command history via IPC bridge; works in packaged app without Flask.
 
 **Validation commands:**
 ```bash
