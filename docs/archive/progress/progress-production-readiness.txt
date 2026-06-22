@@ -194,3 +194,27 @@ Branch: `codex/production-us002-baseline-discovery`
 - Retained US-004 implementation changes for migrating `AboutPage` `/api/status` usage to typed IPC.
 - Pre-rebase PR checks for #277 passed: 13 successful, 0 failing, 0 pending.
 
+## 2026-06-13 - US-005 Migrate CommandHistoryPage /api/history to typed IPC
+
+Branch: `ralph/production-us005-history-ipc`
+
+### Implemented
+
+- `bridge/rex_history_bridge.py`: bridge script — reads `{"command": "list", "limit": N}` from stdin, calls `CommandHistoryStore().get_recent(limit)`, returns `{"ok": true, "history": [...]}`.
+- `gui/src/main/handlers/history.ts`: registers `rex:getCommandHistory` via `spawnSync` to bridge; 5 s timeout, clamps limit 1–500.
+- `gui/src/main/bridgeResolver.ts`: added `rex_history_bridge` to registry.
+- `gui/src/main/ipc.ts`: imported and called `registerHistoryHandlers()`.
+- `gui/src/types/ipc.ts`: added `CommandHistoryEntry` interface and `getCommandHistory` to `RexAPI`.
+- `gui/src/preload/index.ts`: imported `CommandHistoryEntry`, added `getCommandHistory(limit=50)` wrapper.
+- `gui/src/pages/CommandHistoryPage.tsx`: replaced `fetch('/api/history?limit=50', ...)` with `window.rex.getCommandHistory(50)`.
+
+### Validation
+
+- `cd gui && npm run typecheck` → 0 errors
+- `cd gui && npm run build` → all three bundles clean
+- No `fetch('/api/history')` remaining in `CommandHistoryPage.tsx`
+
+### Notes
+
+- Auth header removed: IPC calls run in main process and need no bearer auth.
+- Limit clamped 1–500 in both handler and bridge for defence-in-depth.

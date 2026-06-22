@@ -1,12 +1,5 @@
 import React, { useEffect, useState } from 'react'
-
-interface HistoryEntry {
-  id: number
-  timestamp: string
-  command: string
-  result: string
-  success: boolean
-}
+import type { CommandHistoryEntry } from '../types/ipc'
 
 function formatTimestamp(iso: string): string {
   try {
@@ -17,21 +10,19 @@ function formatTimestamp(iso: string): string {
 }
 
 export function CommandHistoryPage(): React.ReactElement {
-  const [entries, setEntries] = useState<HistoryEntry[]>([])
+  const [entries, setEntries] = useState<CommandHistoryEntry[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
   useEffect(() => {
-    const token = localStorage.getItem('rex_token') ?? ''
-    fetch('/api/history?limit=50', {
-      headers: { Authorization: `Bearer ${token}` }
-    })
-      .then((r) => {
-        if (!r.ok) throw new Error(`HTTP ${r.status}`)
-        return r.json()
-      })
-      .then((d) => {
-        setEntries((d as { history: HistoryEntry[] }).history ?? [])
+    window.rex
+      .getCommandHistory(50)
+      .then((res) => {
+        if (res.ok) {
+          setEntries(res.history)
+        } else {
+          setError(res.error ?? 'Failed to load history')
+        }
       })
       .catch((e: Error) => setError(e.message))
       .finally(() => setLoading(false))

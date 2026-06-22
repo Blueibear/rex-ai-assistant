@@ -360,13 +360,13 @@ python scripts/check_no_renderer_api_fetch.py
 **Implementation notes:** Add `getCommandHistory(limit: number): Promise<CommandHistoryEntry[]>`. Preserve the `limit=50` default. Remove the raw fetch and remove the allowlist line.
 
 **Acceptance Criteria:**
-- [ ] No raw `/api/...` fetch remains in `CommandHistoryPage.tsx`.
-- [ ] IPC handler returns the same shape the renderer expects.
-- [ ] `gui/src/ALLOWED_API_FETCHES.txt` no longer lists `CommandHistoryPage.tsx`.
-- [ ] `cd gui && npm run typecheck` passes.
-- [ ] `cd gui && npm run build` passes.
+- [x] No raw `/api/...` fetch remains in `CommandHistoryPage.tsx`.
+- [x] IPC handler returns the same shape the renderer expects (`{ ok, history: CommandHistoryEntry[], error? }`).
+- [x] `gui/src/ALLOWED_API_FETCHES.txt` no longer lists `CommandHistoryPage.tsx` (file not on master; US-003 PR adds it without this entry).
+- [x] `cd gui && npm run typecheck` passes.
+- [x] `cd gui && npm run build` passes.
 - [ ] Manual: command history renders in the packaged app.
-- [ ] Docs updated if user-facing behavior or wording changes.
+- [x] Docs: no user-facing behaviour change; `CommandHistoryEntry` added to `ipc.ts` which serves as the canonical type docs.
 - [ ] All relevant GitHub checks pass.
 
 **Validation commands:**
