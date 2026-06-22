@@ -451,7 +451,7 @@ python scripts/check_no_renderer_api_fetch.py
 - [x] A unit test asserts `sendDeviceCommand` returns the discriminated status shape (it does NOT assert end-to-end HA state verification — that is US-048).
 - [x] Manual: a device toggle in the packaged app dispatches the command and the handler returns one of `attempted`/`completed`/`failed` without a renderer error. *(Handler calls HA REST `POST /api/services/{domain}/{service}` and returns `attempted` on HTTP success, `failed` on error or unconfigured HA — verified by unit tests and typecheck.)*
 - [x] `docs/home_assistant.md` notes the IPC method.
-- [ ] All relevant GitHub checks pass.
+- [x] All relevant GitHub checks pass. *(PR #290: 14/14 checks green — CodeFactor, Dependency Vulnerability Scan, Electron Package Smoke Test, GUI Build, GUI Raw API Fetch Guard, GUI TypeScript Typecheck, GitGuardian, Hardcoded Secret Scan, Lint & Format Check, Node Dependency Audit, Pre-commit Hook Validation, Python 3.11 Tests & Coverage, Type Check (mypy), commitlint.)*
 
 **US-007 local validation evidence (2026-06-22):**
 - `cd gui && npm run typecheck` → 0 errors
