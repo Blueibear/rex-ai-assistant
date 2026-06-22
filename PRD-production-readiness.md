@@ -337,9 +337,15 @@ pytest tests/test_check_no_renderer_api_fetch.py -q
 - [x] `gui/src/ALLOWED_API_FETCHES.txt` no longer lists `AboutPage.tsx` (file does not exist on master; US-003 PR adds it without AboutPage entries).
 - [x] `cd gui && npm run typecheck` passes.
 - [x] `cd gui && npm run build` passes.
-- [ ] Manual: launching the packaged Electron app shows About page status without errors. Verification recorded in PR description.
+- [x] Manual: launching the packaged Electron app shows About page status without errors. Verification recorded in PR description. *(PR #277 body confirms: About page now shows version, Python version, and platform sourced from main process; Flask `/api/status` was never callable from packaged mode so this was a net improvement.)*
 - [x] `docs/UI_SURFACES.md` notes that About status is IPC-backed (IPC-backed Pages table added).
-- [ ] All relevant GitHub checks pass.
+- [x] All relevant GitHub checks pass. *(PR #277: 14/14 checks green — CodeFactor, Dependency Vulnerability Scan, Electron Package Smoke Test, GUI Build, GUI Raw API Fetch Guard, GUI TypeScript Typecheck, GitGuardian, Hardcoded Secret Scan, Lint & Format Check, Node Dependency Audit, Pre-commit Hook Validation, Python 3.11 Tests & Coverage, Type Check (mypy), commitlint.)*
+
+**US-004 local validation evidence (2026-06-22):**
+- `npm run typecheck` → 0 errors
+- `npm run build` → built in 1.71s, all bundles clean
+- `python scripts/check_no_renderer_api_fetch.py` → `OK: no unapproved raw /api/ fetches in gui/src/`
+- PR #277 GitHub checks: 14/14 passed (all required checks green).
 
 **Validation commands:**
 ```bash
