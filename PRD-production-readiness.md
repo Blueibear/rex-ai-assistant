@@ -192,6 +192,8 @@ Stories execute in this phase order. Within a phase, stories execute in numeric 
 - **Phase 16 — Identity, Memory, History, Shopping, and Uploads** (US-083 to US-087)
 - **Phase 17 — Mobile/API Gateway and Release Boundary** (US-088)
 
+> **Story-sizing note (added in skill-compliance pass).** Several Phase 15–17 stories (US-080, US-083, US-085, US-086, US-088) bundle more work than one Ralph iteration can finish. Each of those stories carries an explicit decomposition directive in its Implementation notes: before Ralph executes the story, split it into the listed one-iteration slices and run them in order. Do not attempt the full bundle in a single iteration.
+
 ---
 
 ## 8. User Stories
@@ -426,7 +428,8 @@ python scripts/check_no_renderer_api_fetch.py
 - [ ] Allowlist line removed.
 - [ ] Handler returns a discriminated `{ status: 'attempted' | 'completed' | 'verified' | 'failed', detail?: string }` shape (foundation for US-049).
 - [ ] `cd gui && npm run typecheck && npm run build` passes.
-- [ ] Manual: a device toggle in the packaged app reports a verified status when HA confirms state.
+- [ ] A unit test asserts `sendDeviceCommand` returns the discriminated status shape (it does NOT assert end-to-end HA state verification — that is US-048).
+- [ ] Manual: a device toggle in the packaged app dispatches the command and the handler returns one of `attempted`/`completed`/`failed` without a renderer error.
 - [ ] `docs/home_assistant.md` notes the IPC method.
 - [ ] All relevant GitHub checks pass.
 
@@ -436,7 +439,7 @@ cd gui && npm run typecheck && npm run build
 python scripts/check_no_renderer_api_fetch.py
 ```
 
-**Risk notes:** The verification gate is added by US-048; this story only establishes the response shape.
+**Risk notes:** The verification gate is added by US-048; this story only establishes the response shape. Do NOT add a `verified`-status acceptance criterion here — it cannot be satisfied until US-048 lands and would loop-block Ralph on US-007.
 
 ---
 
@@ -603,6 +606,7 @@ bash tests/smoke/test_electron_package.sh
 - [ ] `INSTALL.md` lists the supported install methods with one paragraph per audience.
 - [ ] `pyproject.toml` `description` reflects the package scope.
 - [ ] `SURFACE-CLASSIFICATION.md` lists pip/wheel as `developer-only` with rationale.
+- [ ] Documentation links and references touched by this story are accurate.
 - [ ] All relevant GitHub checks pass.
 
 **Validation commands:**
@@ -1690,6 +1694,7 @@ cd gui && npm run typecheck && npm run build
 - [ ] README has a "Capabilities & Status" table that mirrors `SURFACE-CLASSIFICATION.md`.
 - [ ] Every row links to the deeper doc for that surface.
 - [ ] No conflicting status claims between README, `SURFACE-CLASSIFICATION.md`, `docs/UI_SURFACES.md`, and `INTEGRATIONS_STATUS.md`.
+- [ ] Documentation links and references are accurate.
 - [ ] All relevant GitHub checks pass.
 
 **Validation commands:**
@@ -1714,6 +1719,7 @@ grep -n "Capabilities" README.md
 - [ ] A `docs/AUDIT-CROSS-DOC.md` (new) lists every cross-doc claim about install methods, console scripts, root file count, voice mode default, OpenClaw status, Docker tier, and HA verification.
 - [ ] Every claim is verified against the code at the audit commit.
 - [ ] Conflicts are resolved in the same story.
+- [ ] Documentation links and references are accurate.
 - [ ] All relevant GitHub checks pass.
 
 **Validation commands:**
@@ -1740,6 +1746,7 @@ grep -n "rex-gui\|rex_loop\|wake word\|OpenClaw\|Docker" README.md INSTALL.md RU
 - [ ] Voice-mode default matches US-042.
 - [ ] OpenClaw status matches US-050.
 - [ ] Docker tier matches US-041.
+- [ ] Documentation links and references are accurate.
 - [ ] All relevant GitHub checks pass.
 
 **Validation commands:**
@@ -2578,6 +2585,8 @@ cd gui && npm run typecheck && npm run build
 
 **Implementation notes:** This story depends on the safety/verification model from US-047 through US-049. Group by HA areas, rooms, floors, devices, domains, or user-custom organization when metadata is insufficient.
 
+> **Decomposition directive (skill-compliance):** This story is larger than one Ralph iteration. Before execution, split it into ordered one-iteration slices and run them in order: (a) grouping by available HA metadata; (b) search/filter/grouping controls; (c) safe interactive controls per supported domain (reusing the US-047 confirmation gate and US-048 verification); (d) loading/disconnected/not-configured/error/empty states; (e) grouping/filtering/control tests. Do not attempt the full bundle in one iteration.
+
 **Acceptance Criteria:**
 - [ ] HA entities are grouped by available HA metadata or documented user-custom organization.
 - [ ] Search/filter/grouping controls are available.
@@ -2694,6 +2703,8 @@ grep -n "Email\|SMS\|beta\|experimental" README.md docs/claude/INTEGRATIONS_STAT
 
 **Implementation notes:** Define per-user and shared/household history rules before adding UI. Include retention, delete, and export controls.
 
+> **Decomposition directive (skill-compliance):** This story is larger than one Ralph iteration. Before execution, split it into ordered one-iteration slices and run them in order: (a) define and document per-user vs shared/household history rules and retention policy; (b) list prior conversations for the current user; (c) select and resume a prior chat; (d) delete a conversation; (e) export conversation history; (f) cross-user isolation tests. Do not attempt the full bundle in one iteration.
+
 **Acceptance Criteria:**
 - [ ] Chat UI lists prior conversations for the current user.
 - [ ] User can select and resume a prior chat.
@@ -2774,6 +2785,8 @@ cd gui && npm run typecheck && npm run build
 
 **Implementation notes:** Voice interactions should attach memory to the identified user or household context. Include import/export/delete controls and a retrieval latency budget.
 
+> **Decomposition directive (skill-compliance):** This story is larger than one Ralph iteration. Before execution, split it into ordered one-iteration slices and run them in order: (a) define and store the per-user vs shared/household memory model; (b) attach voice-interaction memory to the identified user/household context; (c) GUI view/add/edit/delete controls; (d) import/export controls; (e) retrieval latency budget plus private-vs-shared isolation tests. Do not attempt the full bundle in one iteration.
+
 **Acceptance Criteria:**
 - [ ] Memory model distinguishes per-user private memory and shared household memory.
 - [ ] Voice interactions attach memory to identified user or household context.
@@ -2811,6 +2824,8 @@ cd gui && npm run typecheck && npm run build
 - `docs/memory.md`
 
 **Implementation notes:** Distinguish per-user vector stores from a household/shared vector store. Let users tag/label uploaded content or tell Rex how to label it.
+
+> **Decomposition directive (skill-compliance):** This story is larger than one Ralph iteration. Before execution, split it into ordered one-iteration slices and run them in order: (a) upload UI accepting supported document/data types; (b) scope selection (private vs household) plus user/Rex-confirmed tagging; (c) indexing into the correct per-user or household vector store; (d) search/delete/audit of uploaded content; (e) cross-scope isolation tests. Do not attempt the full bundle in one iteration.
 
 **Acceptance Criteria:**
 - [ ] Upload UI accepts supported document/data types.
@@ -2854,6 +2869,8 @@ cd gui && npm run typecheck && npm run build
 
 **Implementation notes:** This is the connecting architecture story for US-068, US-083, US-084, US-085, and US-086. It should define canonical user ID, display name, avatar, voice enrollment ID, personal/shared scope, and household behavior.
 
+> **Note on sequencing:** This is a design-and-enforcement story. Land the canonical identity model and its tests first; the consuming features (US-068, US-083, US-084, US-085, US-086) read from it. Keep the model document plus its consistency tests within a single iteration; do not bundle the per-feature migrations here — each consuming story owns its own migration.
+
 **Acceptance Criteria:**
 - [ ] One canonical user identity model is documented.
 - [ ] Voice enrollment stores and reads the canonical user ID.
@@ -2892,6 +2909,8 @@ pytest -q tests/test_identity.py tests/test_us048_data_isolation.py tests/test_v
 - Cloudflare Tunnel or equivalent deployment docs/config
 
 **Implementation notes:** First document whether the existing Flask/API bridge is safe for external/mobile use. Define a secure gateway before any exposure. Use `askrex.app` as the target domain only in documentation/config examples, not as an implicit live deployment.
+
+> **Decomposition directive (skill-compliance):** This story is larger than one Ralph iteration. Before execution, split it into ordered one-iteration slices and run them in order: (a) commit the mobile/API threat model; (b) classify the existing Flask/API bridge as safe or unsafe for external/mobile use with evidence; (c) design the secure gateway (HTTPS, auth, rate limiting, CORS, token management/revocation) and define the iOS API scope; (d) document the Cloudflare-Tunnel-or-equivalent deployment path without committing credentials; (e) auth-rejection, rate-limit, and CORS-policy tests for mobile/API routes. Do not attempt the full bundle in one iteration.
 
 **Acceptance Criteria:**
 - [ ] A mobile/API threat model is committed.
