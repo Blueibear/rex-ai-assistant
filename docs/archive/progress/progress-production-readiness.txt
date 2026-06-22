@@ -218,3 +218,27 @@ Branch: `ralph/production-us005-history-ipc`
 
 - Auth header removed: IPC calls run in main process and need no bearer auth.
 - Limit clamped 1–500 in both handler and bridge for defence-in-depth.
+
+## 2026-06-22 - US-003 GitHub checks validation (close-out)
+
+Branch: `ralph/production-next`
+
+### Summary
+
+US-003 (Add CI guard against raw renderer `/api/` fetches) was implemented and merged as PR #276.
+All acceptance criteria except the GitHub-checks checkbox were already checked in the PRD.
+This entry closes out US-003 by recording the verified GitHub checks evidence.
+
+### Validation commands run
+
+- `python scripts/check_no_renderer_api_fetch.py` → `OK: no unapproved raw /api/ fetches in gui/src/`
+- `python -m pytest tests/test_check_no_renderer_api_fetch.py -q` → 15 passed in 0.51s
+- `gh pr checks 276` → 14/14 checks green (CodeFactor, Dependency Vulnerability Scan,
+  Electron Package Smoke Test, GUI Build, GUI Raw API Fetch Guard, GUI TypeScript Typecheck,
+  GitGuardian, Hardcoded Secret Scan, Lint & Format Check, Node Dependency Audit,
+  Pre-commit Hook Validation, Python 3.11 Tests & Coverage, Type Check (mypy), commitlint).
+
+### PRD update
+
+- Checked the final `[ ] All relevant GitHub checks pass.` criterion for US-003.
+- Added local validation evidence block to US-003 in PRD-production-readiness.md.

@@ -297,13 +297,18 @@ grep -rn "pytest.mark.skip\|pytest.skip\b" tests | wc -l
 - [x] The script's allowlist permits all current renderer `/api/` call sites as a temporary baseline; each later migration story removes its line from the allowlist when complete.
 - [x] `README.md` and `docs/UI_SURFACES.md` reference the guard and the allowlist policy.
 - [x] `pytest tests/test_check_no_renderer_api_fetch.py -q` passes.
-- [ ] All relevant GitHub checks pass.
+- [x] All relevant GitHub checks pass. *(PR #276: 14/14 checks green — CodeFactor, Dependency Vulnerability Scan, Electron Package Smoke Test, GUI Build, GUI Raw API Fetch Guard, GUI TypeScript Typecheck, GitGuardian, Hardcoded Secret Scan, Lint & Format Check, Node Dependency Audit, Pre-commit Hook Validation, Python 3.11 Tests & Coverage, Type Check (mypy), commitlint.)*
 
 **Validation commands:**
 ```bash
 python scripts/check_no_renderer_api_fetch.py
 pytest tests/test_check_no_renderer_api_fetch.py -q
 ```
+
+**US-003 local validation evidence (2026-06-22):**
+- `python scripts/check_no_renderer_api_fetch.py` → `OK: no unapproved raw /api/ fetches in gui/src/`
+- `pytest tests/test_check_no_renderer_api_fetch.py -q` → 15 passed in 0.51s
+- PR #276 GitHub checks: 14/14 passed (all required checks green).
 
 **Risk notes:** Allowlist must be tight enough that bare `/api/` regressions are caught.
 
