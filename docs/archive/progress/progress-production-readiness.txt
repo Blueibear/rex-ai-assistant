@@ -409,3 +409,29 @@ All acceptance criteria are now met; this entry records the GitHub checks result
 ### PRD update
 
 - Checked the final `[ ] All relevant GitHub checks pass.` criterion for US-007.
+
+## 2026-06-22 - US-008 Migrate QuickActionsPage list/create /api/quick-actions to typed IPC
+
+Branch: `ralph/production-next`
+
+### Implemented
+
+- `bridge/rex_quick_actions_bridge.py`: bridge script — reads `{"command": "list"}` or `{"command": "add", "label": "...", "command_text": "..."}` from stdin; resolves the active user ID via `rex.identity.resolve_active_user()`, reads/writes quick actions in the user's Memory profile `preferences.quick_actions` list; returns `{"ok": true, "quick_actions": [...]}` or `{"ok": true, "action": {...}}`.
+- `gui/src/main/handlers/quickActions.ts`: registers `rex:listQuickActions` and `rex:createQuickAction` IPC handlers via `spawn` to the bridge script.
+- `gui/src/main/ipc.ts`: imported and called `registerQuickActionsHandlers()`.
+- `gui/src/types/ipc.ts`: added `QuickAction` interface; added `listQuickActions()` and `createQuickAction(label, commandText)` to `RexAPI`.
+- `gui/src/preload/index.ts`: imported `QuickAction`, added `listQuickActions()` and `createQuickAction(...)` wrappers.
+- `gui/src/pages/QuickActionsPage.tsx`: replaced `fetch('/api/quick-actions')` GET with `window.rex.listQuickActions()`; replaced POST with `window.rex.createQuickAction(label, command)`; removed local `QuickAction` interface (now from `ipc.ts`); kept DELETE and run fetches for US-009.
+- `gui/src/ALLOWED_API_FETCHES.txt`: removed US-008 GET and POST lines; updated US-009 line numbers from 61→49, 68→56.
+
+### Validation
+
+- `cd gui && npm run typecheck` → 0 errors
+- `cd gui && npm run build` → all three bundles clean (1.18s main + 21ms preload + 1.77s renderer)
+- `python scripts/check_no_renderer_api_fetch.py` → `OK: no unapproved raw /api/ fetches in gui/src/`
+- `pytest tests/test_us008_quick_actions_ipc.py -v` → 20 passed in 0.26s
+
+### Notes
+
+- `authHeaders()` helper is retained in QuickActionsPage.tsx because the DELETE and run raw fetches (US-009) still need it.
+- GitHub-checks criterion left unchecked pending PR checks.

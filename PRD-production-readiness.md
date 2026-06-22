@@ -481,10 +481,10 @@ python scripts/check_no_renderer_api_fetch.py
 - `gui/src/types/ipc.ts`
 
 **Acceptance Criteria:**
-- [ ] Both `/api/quick-actions` calls (GET list, POST create) removed.
-- [ ] IPC methods `listQuickActions()` and `createQuickAction(...)` exist.
-- [ ] Allowlist updated.
-- [ ] `cd gui && npm run typecheck && npm run build` passes.
+- [x] Both `/api/quick-actions` calls (GET list, POST create) removed.
+- [x] IPC methods `listQuickActions()` and `createQuickAction(...)` exist.
+- [x] Allowlist updated.
+- [x] `cd gui && npm run typecheck && npm run build` passes.
 - [ ] Manual: page renders the list and accepts a new action in the packaged app.
 - [ ] All relevant GitHub checks pass.
 
@@ -493,6 +493,12 @@ python scripts/check_no_renderer_api_fetch.py
 cd gui && npm run typecheck && npm run build
 python scripts/check_no_renderer_api_fetch.py
 ```
+
+**US-008 local validation evidence (2026-06-22):**
+- `cd gui && npm run typecheck` → 0 errors
+- `cd gui && npm run build` → all three bundles clean
+- `python scripts/check_no_renderer_api_fetch.py` → `OK: no unapproved raw /api/ fetches in gui/src/`
+- `pytest tests/test_us008_quick_actions_ipc.py -v` → 20 passed in 0.26s
 
 ---
 

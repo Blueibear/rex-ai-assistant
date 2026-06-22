@@ -1,10 +1,5 @@
 import React, { useEffect, useState } from 'react'
-
-interface QuickAction {
-  id: string
-  label: string
-  command: string
-}
+import type { QuickAction } from '../types/ipc'
 
 function authHeaders(): Record<string, string> {
   const token = localStorage.getItem('rex_token') ?? ''
@@ -24,9 +19,8 @@ export function QuickActionsPage(): React.ReactElement {
   const [runResult, setRunResult] = useState<Record<string, string>>({})
 
   const loadActions = (): void => {
-    fetch('/api/quick-actions', { headers: authHeaders() })
-      .then((r) => r.json())
-      .then((d) => setActions((d as { quick_actions: QuickAction[] }).quick_actions ?? []))
+    window.rex.listQuickActions()
+      .then((d) => setActions(d.quick_actions ?? []))
       .catch(() => {/* ignore */})
       .finally(() => setLoading(false))
   }
@@ -41,19 +35,13 @@ export function QuickActionsPage(): React.ReactElement {
       setAddError('Both label and command are required.')
       return
     }
-    const resp = await fetch('/api/quick-actions', {
-      method: 'POST',
-      headers: authHeaders(),
-      body: JSON.stringify({ label: newLabel.trim(), command: newCommand.trim() })
-    })
-    if (resp.ok) {
-      const action = (await resp.json()) as QuickAction
-      setActions((prev) => [...prev, action])
+    const result = await window.rex.createQuickAction(newLabel.trim(), newCommand.trim())
+    if (result.ok && result.action) {
+      setActions((prev) => [...prev, result.action!])
       setNewLabel('')
       setNewCommand('')
     } else {
-      const body = (await resp.json()) as { error?: string }
-      setAddError(body.error ?? 'Failed to add action.')
+      setAddError(result.error ?? 'Failed to add action.')
     }
   }
 

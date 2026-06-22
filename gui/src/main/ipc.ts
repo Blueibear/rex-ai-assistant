@@ -18,6 +18,7 @@ import { registerIntegrationsHandlers } from './handlers/integrations'
 import { registerSystemHandlers } from './handlers/system'
 import { registerHistoryHandlers } from './handlers/history'
 import { registerDevicesHandlers } from './handlers/devices'
+import { registerQuickActionsHandlers } from './handlers/quickActions'
 
 export function registerIpcHandlers(mainWindow: BrowserWindow | null = null): void {
   registerChatHandlers()
@@ -39,4 +40,5 @@ export function registerIpcHandlers(mainWindow: BrowserWindow | null = null): vo
   registerSystemHandlers()
   registerHistoryHandlers()
   registerDevicesHandlers()
+  registerQuickActionsHandlers()
 }

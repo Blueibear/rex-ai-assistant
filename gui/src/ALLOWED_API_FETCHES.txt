@@ -16,9 +16,7 @@
 
 gui/src/pages/AboutPage.tsx:13  # fetch('/api/status') — pending US-004 migration to typed IPC
 gui/src/pages/CommandHistoryPage.tsx:26  # fetch('/api/history?limit=50') — pending US-005 migration
-gui/src/pages/QuickActionsPage.tsx:27  # fetch('/api/quick-actions') GET — pending US-008 migration
-gui/src/pages/QuickActionsPage.tsx:44  # fetch('/api/quick-actions') POST — pending US-008 migration
-gui/src/pages/QuickActionsPage.tsx:61  # fetch(`/api/quick-actions/${id}`) DELETE — pending US-009 migration
-gui/src/pages/QuickActionsPage.tsx:68  # fetch(`/api/quick-actions/${action.id}/run`) — pending US-009 migration
+gui/src/pages/QuickActionsPage.tsx:49  # fetch(`/api/quick-actions/${id}`) DELETE — pending US-009 migration
+gui/src/pages/QuickActionsPage.tsx:56  # fetch(`/api/quick-actions/${action.id}/run`) — pending US-009 migration
 gui/src/pages/SetupWizardPage.tsx:223  # fetch('/api/setup/complete') — pending US-010 migration
 gui/src/renderer/src/App.tsx:49  # fetch('/api/setup/status') — pending US-010 migration

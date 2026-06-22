@@ -36,7 +36,8 @@ import type {
   LogsResponse,
   UsageSummary,
   DevicesResponse,
-  DeviceCommandResponse
+  DeviceCommandResponse,
+  QuickAction
 } from '../types/ipc'
 
 function makeSendChatStream(
@@ -348,6 +349,10 @@ const rexAPI = {
     ipcRenderer.on('rex:logEntry', (_event, entry: LogEntry) => cb(entry))
   },
   getUsage: (): Promise<UsageSummary> => ipcRenderer.invoke('rex:getUsage'),
+  listQuickActions: (): Promise<{ ok: boolean; quick_actions: QuickAction[]; error?: string }> =>
+    ipcRenderer.invoke('rex:listQuickActions'),
+  createQuickAction: (label: string, commandText: string): Promise<{ ok: boolean; action?: QuickAction; error?: string }> =>
+    ipcRenderer.invoke('rex:createQuickAction', label, commandText),
   getDevices: (): Promise<DevicesResponse> => ipcRenderer.invoke('rex:getDevices'),
   sendDeviceCommand: (
     entityId: string,
