@@ -89,11 +89,11 @@ def test_bridge_resolver_imported_in_main():
 
 
 def test_app_tsx_checks_setup_status_on_load():
-    """App.tsx must fetch /api/setup/status to determine if setup wizard is needed."""
+    """App.tsx must call getSetupStatus() via IPC to determine if setup wizard is needed."""
     src = read_file("gui/src/renderer/src/App.tsx")
     assert (
-        "/api/setup/status" in src
-    ), "App.tsx must call /api/setup/status on load to decide setup vs main app"
+        "getSetupStatus" in src
+    ), "App.tsx must call getSetupStatus() on load to decide setup vs main app"
 
 
 def test_app_tsx_setup_error_falls_back_to_no_setup():
