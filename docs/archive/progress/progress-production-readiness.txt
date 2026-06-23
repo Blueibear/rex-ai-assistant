@@ -539,3 +539,34 @@ PR #291 branch `ralph/production-next-2` — CI run 28001450878:
 Additional fix commits: fix(bridge): replaced try/except/pass with debug logging (B110 CodeFactor); test(gui): updated test_us328 App.tsx setup status assertion for IPC migration.
 
 US-010 is fully complete. All acceptance criteria checked.
+---
+
+## US-011: Drain the /api/ allowlist and lock the guard (2026-06-22)
+
+Branch: `ralph/production-next-2`
+
+### What was done
+
+Removed the two stale entries from `gui/src/ALLOWED_API_FETCHES.txt`:
+- `gui/src/pages/AboutPage.tsx:13` — migrated in US-004; entry was stale
+- `gui/src/pages/CommandHistoryPage.tsx:26` — migrated in US-005; entry was stale
+
+Updated `README.md`:
+- Quick Start step 4: replaced "The Electron app communicates with the Python Flask backend automatically." with an accurate note stating the packaged app is IPC-only and Flask backend is not required at runtime.
+- Renderer IPC policy section: updated allowlist note to state all fetches migrated, allowlist is empty, new raw fetches fail CI.
+
+### Verified
+
+- `SURFACE-CLASSIFICATION.md` already consistent: `rex-gui` is `developer-only`; notes "All core Electron GUI functionality uses IPC bridge scripts. Renderer fetch('/api/...') calls are dead in packaged mode."
+- No changes required to SURFACE-CLASSIFICATION.md.
+
+### Validation commands run
+
+- `python scripts/check_no_renderer_api_fetch.py` → OK: no unapproved raw /api/ fetches in gui/src/
+- `grep` over TS/TSX/JS/JSX source files → clean (no matches in source files)
+- `cd gui && npm run typecheck` → 0 errors
+- `cd gui && npm run build` → built in 1.44s, all bundles clean
+
+### GitHub checks
+
+Left unchecked pending PR checks on this branch.

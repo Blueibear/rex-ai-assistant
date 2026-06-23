@@ -583,11 +583,11 @@ python scripts/check_no_renderer_api_fetch.py
 - `gui/src/main/handlers/` (any leftover call sites)
 
 **Acceptance Criteria:**
-- [ ] `gui/src/ALLOWED_API_FETCHES.txt` contains only header comments — no allowed entries.
-- [ ] `python scripts/check_no_renderer_api_fetch.py` exits 0 on a clean repo.
-- [ ] `grep -rn "fetch('/api\\|fetch(\"/api\\|fetch(\`/api" gui/src` returns no matches.
-- [ ] `README.md` documents the packaged Electron runtime as IPC-only and explicitly states a Flask backend is NOT required at runtime for end users.
-- [ ] `SURFACE-CLASSIFICATION.md` is verified consistent with this state.
+- [x] `gui/src/ALLOWED_API_FETCHES.txt` contains only header comments — no allowed entries.
+- [x] `python scripts/check_no_renderer_api_fetch.py` exits 0 on a clean repo.
+- [x] `grep -rn "fetch('/api\\|fetch(\"/api\\|fetch(\`/api" gui/src` returns no matches in TS/TSX/JS/JSX source files.
+- [x] `README.md` documents the packaged Electron runtime as IPC-only and explicitly states a Flask backend is NOT required at runtime for end users.
+- [x] `SURFACE-CLASSIFICATION.md` is verified consistent with this state. *(Already consistent: `rex-gui` is `developer-only`; notes "All core Electron GUI functionality uses IPC bridge scripts. Renderer fetch('/api/...') calls are dead in packaged mode.")*
 - [ ] All relevant GitHub checks pass.
 
 **Validation commands:**
@@ -596,6 +596,14 @@ python scripts/check_no_renderer_api_fetch.py
 grep -rn "fetch('/api\|fetch(\"/api\|fetch(\`/api" gui/src || echo "clean"
 cd gui && npm run typecheck && npm run build
 ```
+
+**US-011 local validation evidence (2026-06-22):**
+- `python scripts/check_no_renderer_api_fetch.py` → `OK: no unapproved raw /api/ fetches in gui/src/`
+- `grep` over TS/TSX/JS/JSX source files → clean (no matches in source files)
+- `cd gui && npm run typecheck` → 0 errors
+- `cd gui && npm run build` → built in 1.44s, all bundles clean
+- `gui/src/ALLOWED_API_FETCHES.txt` → header comments only; no allowed entries
+- `SURFACE-CLASSIFICATION.md` → already consistent (no changes required)
 
 **Risk notes:** If any call site was missed in US-004 through US-010, finish it here.
 

@@ -93,7 +93,7 @@ Python 3.12 and newer are intentionally rejected by the current installers and r
    npm run dev
    ```
 
-   The Electron app communicates with the Python Flask backend automatically.
+   The packaged Electron app communicates with Python via IPC bridge scripts. A Flask backend (`rex-gui`) is **not required** at runtime for end users — the Electron app is IPC-only. Run `rex-gui` separately only for developer/operator web-dashboard access.
 
 5. Verify it works.
 
@@ -422,7 +422,7 @@ The current coverage threshold in `pyproject.toml` is 75 percent. Test markers i
 Renderer IPC policy — raw `fetch('/api/...')` calls in `gui/src/` are blocked by CI:
 
 - `scripts/check_no_renderer_api_fetch.py` — guard script (run via `python scripts/check_no_renderer_api_fetch.py`)
-- `gui/src/ALLOWED_API_FETCHES.txt` — temporary allowlist of unmigrated call sites; see [docs/UI_SURFACES.md](docs/UI_SURFACES.md) for the full policy
+- `gui/src/ALLOWED_API_FETCHES.txt` — allowlist of exempted call sites; all renderer `/api/` fetches have been migrated to IPC (US-003 through US-010); the allowlist is now empty and any new raw fetch will fail CI
 
 ## Documentation
 
