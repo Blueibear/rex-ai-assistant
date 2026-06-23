@@ -777,7 +777,13 @@ pytest tests/test_wheel_contents.py -q
 - [x] `scripts/check_wheel_contents.py` passes after this story.
 - [x] No new top-level package is created.
 - [x] `README.md` and `INSTALL.md` describe what `pip install` ships.
-- [ ] All relevant GitHub checks pass.
+- [x] All relevant GitHub checks pass. *(PR #293: 14/14 checks green — CodeFactor, Dependency Vulnerability Scan, GUI Build, GUI Raw API Fetch Guard, GUI TypeScript Typecheck, GitGuardian, Hardcoded Secret Scan, Lint & Format Check, Node Dependency Audit, Pre-commit Hook Validation, Python 3.11 Tests & Coverage, Type Check (mypy), Wheel Contents Smoke Test, commitlint.)*
+
+**US-016 local validation evidence (2026-06-23):**
+- `python -m build --wheel` → `Successfully built askrex_assistant-0.1.0-py3-none-any.whl`
+- `python scripts/check_wheel_contents.py dist/askrex_assistant-0.1.0-py3-none-any.whl` → `OK: all required files present`
+- `pytest tests/test_wheel_contents.py -q` → 32 passed
+- PR #293 GitHub checks: 14/14 passed (all required checks green).
 
 **Validation commands:**
 ```bash
