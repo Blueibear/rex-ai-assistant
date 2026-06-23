@@ -702,11 +702,11 @@ python -m pip install --dry-run . >/dev/null
 **Implementation notes:** Inspect each entry in `py_modules`. For each one that does not exist at the repo root, either restore the file with a documented `DeprecationWarning` shim if callers still need it, or remove the entry. Document the result.
 
 **Acceptance Criteria:**
-- [ ] Every entry in `setup.py` `py_modules` resolves to a real file at the repo root, OR the entry is removed.
-- [ ] A comment block in `setup.py` documents why each surviving entry exists.
-- [ ] `python -m build` produces a wheel without warnings about missing modules.
-- [ ] `pip install dist/askrex_assistant-*.whl --force-reinstall` succeeds in a fresh venv.
-- [ ] `README.md` and `INSTALL.md` are updated if any root file's classification changes.
+- [x] Every entry in `setup.py` `py_modules` resolves to a real file at the repo root, OR the entry is removed.
+- [x] A comment block in `setup.py` documents why each surviving entry exists.
+- [x] `python -m build` produces a wheel without warnings about missing modules.
+- [x] `pip install dist/askrex_assistant-*.whl --force-reinstall` succeeds in a fresh venv.
+- [x] `README.md` and `INSTALL.md` are updated if any root file's classification changes.
 - [ ] All relevant GitHub checks pass.
 
 **Validation commands:**

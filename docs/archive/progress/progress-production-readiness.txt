@@ -1,5 +1,33 @@
 # Production Readiness Progress Log
 
+## 2026-06-23 - US-014 complete
+
+Branch: `ralph/production-next-3`
+
+### US-014: Repair `setup.py` `py_modules` to match files on disk
+
+Removed four `py_modules` entries that had no corresponding root file: `rex_assistant`,
+`memory_utils`, `audio_config`, `conversation_memory`. Confirmed no active callers
+outside `archived/` for any of them (active code uses `rex.memory_utils`, not root shim).
+
+Kept three entries that exist at root and have active callers:
+- `config` (shim → `rex.config`; callers: test_llm_client, test_us013-016 tests)
+- `llm_client` (shim → `rex.llm_client`; callers: test_llm_client, test_us013-016 tests)
+- `rex_speak_api` (entry-point module; callers: wsgi.py, speak-api tests)
+
+Updated `setup.py` comment block to document each surviving entry and record
+the removed entries with rationale.
+
+Verified: `python -m build --wheel` (clean, no missing-module warnings); wheel
+contains only the three expected root modules; `pip install` into fresh venv succeeded;
+all three modules importable (DeprecationWarnings emitted as expected for shims).
+
+### Next
+
+US-015: Add a wheel contents smoke test.
+
+---
+
 ## 2026-06-23 - US-013 complete
 
 Branch: `ralph/production-next-3`
