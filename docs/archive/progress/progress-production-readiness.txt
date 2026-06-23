@@ -633,3 +633,31 @@ The Electron Package Smoke Test passed with the new Step 3d (Flask port check) a
 renderer bundle.
 
 US-012 is fully complete. All acceptance criteria checked.
+
+## US-013: Decide and document the supported pip/wheel install scope (2026-06-23)
+
+Branch: `ralph/production-next-3`
+
+### What was done
+
+Documented the supported install scope for pip/wheel:
+- End users get the packaged Electron desktop installer (not yet published).
+- Developers/operators use `pip install .` for the Python library, console scripts, and IPC bridge scripts.
+
+### Files changed
+
+- `README.md`: Added `## Install` section to TOC and body; states end-user vs developer audiences clearly.
+- `INSTALL.md`: Added `## Install Audiences` section with one paragraph per audience (end users / developers and operators).
+- `pyproject.toml`: Updated `description` to reflect the developer-facing package scope.
+- `SURFACE-CLASSIFICATION.md`: Added `## Package Distribution (pip / wheel)` section classifying pip/wheel as developer-only with rationale; added US-013 changelog entry.
+- `PRD-production-readiness.md`: Checked US-013 acceptance criteria (all except GitHub checks); added local validation evidence block.
+
+### Validation commands run
+
+- `python -m pip install --dry-run .` -> OK: would install askrex-assistant-0.1.0
+- pyproject.toml TOML parse -> valid
+- `pytest tests/test_us146_readme_visual.py tests/test_us141_readme_install.py tests/test_us143_readme_structure.py -q` -> 46 passed in 4.08s
+
+### GitHub checks
+
+Left unchecked pending PR checks on this branch.

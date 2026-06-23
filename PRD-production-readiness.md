@@ -662,11 +662,11 @@ bash tests/smoke/test_electron_package.sh
 **Implementation notes:** The decision for the release candidate: `pip install .` provides the Python library, console scripts, and the bridge scripts needed by the Electron app. It does NOT provide the Electron desktop installer. Document this explicitly. Update `pyproject.toml` `description` and `classifiers` to match.
 
 **Acceptance Criteria:**
-- [ ] `README.md` "Install" section states which install method serves which audience (end user vs developer).
-- [ ] `INSTALL.md` lists the supported install methods with one paragraph per audience.
-- [ ] `pyproject.toml` `description` reflects the package scope.
-- [ ] `SURFACE-CLASSIFICATION.md` lists pip/wheel as `developer-only` with rationale.
-- [ ] Documentation links and references touched by this story are accurate.
+- [x] `README.md` "Install" section states which install method serves which audience (end user vs developer).
+- [x] `INSTALL.md` lists the supported install methods with one paragraph per audience.
+- [x] `pyproject.toml` `description` reflects the package scope.
+- [x] `SURFACE-CLASSIFICATION.md` lists pip/wheel as `developer-only` with rationale.
+- [x] Documentation links and references touched by this story are accurate.
 - [ ] All relevant GitHub checks pass.
 
 **Validation commands:**
@@ -674,6 +674,15 @@ bash tests/smoke/test_electron_package.sh
 python -c "import askrex_assistant" 2>/dev/null || true
 python -m pip install --dry-run . >/dev/null
 ```
+
+**US-013 local validation evidence (2026-06-23):**
+- `python -m pip install --dry-run .` → dry-run OK, would install askrex-assistant-0.1.0
+- `python -c "import tomllib; tomllib.load(open('pyproject.toml', 'rb'))"` → TOML valid
+- `pytest tests/test_us146_readme_visual.py tests/test_us141_readme_install.py tests/test_us143_readme_structure.py -q` → 46 passed in 4.08s
+- `README.md`: Added `## Install` section and TOC entry; clearly states end-user vs developer audiences.
+- `INSTALL.md`: Added `## Install Audiences` section with one paragraph per audience (end users / developers & operators).
+- `pyproject.toml`: Updated `description` to reflect developer-facing package scope.
+- `SURFACE-CLASSIFICATION.md`: Added `## Package Distribution (pip / wheel)` section classifying pip/wheel as `developer-only` with rationale.
 
 **Risk notes:** Avoid promising an end-user pip path that does not exist.
 
