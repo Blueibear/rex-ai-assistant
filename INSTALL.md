@@ -8,7 +8,13 @@ Different audiences use different install methods. Read the paragraph for your u
 
 **End users (packaged Electron installer — future):** When a release is published, end users install the packaged Electron desktop app directly. The packaged app bundles the Python runtime and bridge scripts; no separate `pip install` or Python environment setup is required from the user's perspective. A packaged installer is not yet available; end users who want to try AskRex today should follow the developer path below.
 
-**Developers and operators (`pip install .` from source):** `pip install .` installs the `askrex-assistant` Python package, which provides the `rex` package library, all six console scripts (`rex`, `rex-gui`, `rex-config`, `rex-speak-api`, `rex-agent`, `rex-tool-server`), and the IPC bridge scripts the Electron app spawns at runtime via its bridge resolver. This is the correct path for contributors, developers, and operators who need CLI text mode, the voice loop, TTS API, direct Python library access, or a developer Electron app (`npm run dev`). It does **not** provide an Electron desktop installer.
+**Developers and operators (`pip install .` from source):** `pip install .` installs:
+- The `rex` Python package library
+- All six console scripts (`rex`, `rex-gui`, `rex-config`, `rex-speak-api`, `rex-agent`, `rex-tool-server`)
+- The IPC bridge scripts (`bridge/rex_*.py`) installed to `{sys.prefix}/bridge/` — these are the Python scripts the Electron app spawns at runtime
+- The config example (`config/rex_config.example.json`) installed to `{sys.prefix}/config/`
+
+This is the correct path for contributors, developers, and operators who need CLI text mode, the voice loop, TTS API, direct Python library access, or a developer Electron app (`npm run dev`). It does **not** provide the Electron desktop installer.
 
 ## System Requirements
 

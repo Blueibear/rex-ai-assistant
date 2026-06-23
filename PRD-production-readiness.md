@@ -774,9 +774,9 @@ pytest tests/test_wheel_contents.py -q
 **Implementation notes:** Configure `setuptools` so the wheel includes the resources US-015 asserts. Where appropriate, move resources into the `rex` package and update consumers, OR explicitly include top-level data via `MANIFEST.in` + `include_package_data`.
 
 **Acceptance Criteria:**
-- [ ] `scripts/check_wheel_contents.py` passes after this story.
-- [ ] No new top-level package is created.
-- [ ] `README.md` and `INSTALL.md` describe what `pip install` ships.
+- [x] `scripts/check_wheel_contents.py` passes after this story.
+- [x] No new top-level package is created.
+- [x] `README.md` and `INSTALL.md` describe what `pip install` ships.
 - [ ] All relevant GitHub checks pass.
 
 **Validation commands:**

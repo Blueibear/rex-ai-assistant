@@ -1,5 +1,60 @@
 # Production Readiness Progress Log
 
+## 2026-06-23 - US-016 complete
+
+Branch: `ralph/production-next-4`
+
+### US-016: Ensure required runtime resources are packaged in the wheel
+
+Added `data_files` to `setup.py` to include all `bridge/rex_*.py` scripts and
+`config/rex_config.example.json` in the wheel. Files land at:
+  `{sys.prefix}/bridge/rex_*.py`
+  `{sys.prefix}/config/rex_config.example.json`
+and inside the wheel zip at:
+  `askrex_assistant-0.1.0.data/data/bridge/rex_*.py`
+  `askrex_assistant-0.1.0.data/data/config/rex_config.example.json`
+
+Updated `scripts/check_wheel_contents.py`:
+- `check_wheel()` now resolves both exact-path entries (package files) and
+  data-file entries that appear under `.data/data/` in the wheel zip, using
+  suffix matching so the check is version-agnostic.
+- Uncommented and cleaned up all 23 bridge script entries (removed the
+  duplicate `rex_voice_bridge.py`; added the missing `rex_chat_stream_bridge.py`).
+- Uncommented `config/rex_config.example.json` entry.
+
+Updated `tests/test_wheel_contents.py`: added 12 new tests for data-file path
+resolution, the `_make_wheel_with_data_files` helper, missing bridge script
+detection, config example presence, and parametric core-bridge checks. Total: 32.
+
+Updated `README.md` and `INSTALL.md` to document that `pip install .` installs
+bridge scripts to `{sys.prefix}/bridge/` and the config example to
+`{sys.prefix}/config/`.
+
+Verified:
+- `python -m build --wheel` (clean build, no errors)
+- `python scripts/check_wheel_contents.py dist/askrex_assistant-0.1.0-py3-none-any.whl`
+  → `OK: all required files present in askrex_assistant-0.1.0-py3-none-any.whl`
+- `pytest tests/test_wheel_contents.py -q` → 32 passed
+- `ruff check` + `black --check` → clean
+
+### Learnings
+
+- `data_files` in `setup.py` is deprecated but remains the only way to include
+  non-package files (`bridge/`, `config/`) in a wheel without creating a new
+  top-level importable package. The deprecation warning is acceptable in 78.x.
+- Bridge scripts appear in the wheel zip under
+  `{name}-{version}.data/data/{dest}/`, so wheel content checks must match via
+  suffix (stripping the `.data/data/` prefix) rather than exact path, to remain
+  version-agnostic.
+- Stale `build/lib/` artifacts from previous iteration runs can pollute wheel
+  contents. Always `Remove-Item -Recurse build` before verifying wheel contents.
+
+### Next
+
+US-017: Audit and classify every root-level `.py` file.
+
+---
+
 ## 2026-06-23 - US-015 complete
 
 Branch: `ralph/production-next-3`
