@@ -140,9 +140,7 @@ def main() -> None:
                 assistant = Assistant()
                 try:
                     reply = asyncio.run(assistant.generate_reply(command_text))
-                    sys.stdout.write(
-                        json.dumps({"status": "attempted", "detail": str(reply)})
-                    )
+                    sys.stdout.write(json.dumps({"status": "attempted", "detail": str(reply)}))
                 finally:
                     shutdown_plugins(plugin_specs)
             except Exception as exc:
