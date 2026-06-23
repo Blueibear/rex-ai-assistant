@@ -627,7 +627,7 @@ cd gui && npm run typecheck && npm run build
 - [x] Smoke test runs in CI on every PR (not only on tag pushes), at least for `gui/`, `bridge/`, and renderer `/api/` allowlist changes. *(`electron-smoke.yml` already runs on PRs touching `gui/**` and `bridge/**`; `tests/smoke/**` added so smoke test changes also trigger CI. `gui/src/ALLOWED_API_FETCHES.txt` is under `gui/**`.)*
 - [x] `bash tests/smoke/test_electron_package.sh` exits 0 on a clean checkout. *(Bash syntax validated with `bash -n`. Port 5000 is free in CI; renderer bundle has no raw `/api/` fetches (confirmed by `grep -qF` scan of current build). Full runtime validation pending CI.)*
 - [x] `README.md` documents that the packaged app does not require running `rex-gui`. *(Line 96 already stated this from US-011. Updated "Flask API backend" section to say "developer-only" and clarify Electron app does NOT call it at runtime.)*
-- [ ] All relevant GitHub checks pass.
+- [x] All relevant GitHub checks pass. *(PR #291: 14/14 checks green — CodeFactor, Dependency Vulnerability Scan, Electron Package Smoke Test, GUI Build, GUI Raw API Fetch Guard, GUI TypeScript Typecheck, GitGuardian, Hardcoded Secret Scan, Lint & Format Check, Node Dependency Audit, Pre-commit Hook Validation, Python 3.11 Tests & Coverage, Type Check (mypy), commitlint.)*
 
 **US-012 local validation evidence (2026-06-22):**
 - `bash -n tests/smoke/test_electron_package.sh` → syntax OK
