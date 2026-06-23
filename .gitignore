@@ -184,3 +184,5 @@ data/shopping_list.json
 
 # Local bridge runtime state
 bridge/data/
+
+/gui/profiles/
