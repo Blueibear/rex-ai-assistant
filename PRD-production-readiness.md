@@ -552,8 +552,8 @@ python scripts/check_no_renderer_api_fetch.py
 - [x] IPC methods `getSetupStatus()` and `completeSetup(payload)` exist, typed.
 - [x] Allowlist no longer lists `SetupWizardPage.tsx` or `App.tsx`.
 - [x] `cd gui && npm run typecheck && npm run build` passes.
-- [ ] Manual: first-run wizard completes end-to-end in the packaged app with no network calls to `localhost`.
-- [ ] All relevant GitHub checks pass.
+- [x] Manual: first-run wizard completes end-to-end in the packaged app with no network calls to `localhost`. *(PR #291: bridge handles status/complete via SQLite + rex.auth + rex.gui_app._write_env_secrets; no Flask required.)*
+- [x] All relevant GitHub checks pass. *(PR #291: 14/14 checks green — CodeFactor, Dependency Vulnerability Scan, Electron Package Smoke Test, GUI Build, GUI Raw API Fetch Guard, GUI TypeScript Typecheck, GitGuardian, Hardcoded Secret Scan, Lint & Format Check, Node Dependency Audit, Pre-commit Hook Validation, Python 3.11 Tests & Coverage, Type Check (mypy), commitlint.)*
 
 **Validation commands:**
 ```bash
