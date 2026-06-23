@@ -15,11 +15,14 @@ Supported commands:
 from __future__ import annotations
 
 import json
+import logging
 import sys
 from pathlib import Path
 from typing import Any
 
 from rex.bridge_utils import bridge_error_response, repo_root
+
+logger = logging.getLogger(__name__)
 
 
 def main() -> None:
@@ -83,7 +86,7 @@ def _handle_complete(payload: dict[str, Any]) -> None:
 
         bootstrap_admin_if_first_user(user["id"])
     except Exception:
-        pass
+        logger.debug("Failed to bootstrap first-user admin permissions", exc_info=True)
 
     try:
         from rex.config_manager import load_config as _load_json_cfg
@@ -98,7 +101,7 @@ def _handle_complete(payload: dict[str, Any]) -> None:
             json_cfg.setdefault("home_assistant", {})["base_url"] = ha_base_url
         _save_json_cfg(json_cfg)
     except Exception:
-        pass
+        logger.debug("Failed to persist setup wizard configuration", exc_info=True)
 
     try:
         env_path = repo_root() / ".env"
