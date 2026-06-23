@@ -34,8 +34,8 @@ setup(
     # Most configuration is in pyproject.toml.
     # This only adds the py_modules that pyproject.toml cannot specify.
     py_modules=[
-        "config",        # compat shim → rex.config; callers: test_llm_client, test_us013-016
-        "llm_client",    # compat shim → rex.llm_client; callers: test_llm_client, test_us013-016
-        "rex_speak_api", # entry-point module; callers: wsgi.py, speak-api tests
+        "config",  # compat shim → rex.config; callers: test_llm_client, test_us013-016
+        "llm_client",  # compat shim → rex.llm_client; callers: test_llm_client, test_us013-016
+        "rex_speak_api",  # entry-point module; callers: wsgi.py, speak-api tests
     ],
 )
