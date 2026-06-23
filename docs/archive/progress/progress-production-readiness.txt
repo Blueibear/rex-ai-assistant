@@ -3,6 +3,7 @@
 ## 2026-06-23 - US-014 complete
 
 Branch: `ralph/production-next-3`
+PR: #292
 
 ### US-014: Repair `setup.py` `py_modules` to match files on disk
 
@@ -21,6 +22,7 @@ the removed entries with rationale.
 Verified: `python -m build --wheel` (clean, no missing-module warnings); wheel
 contains only the three expected root modules; `pip install` into fresh venv succeeded;
 all three modules importable (DeprecationWarnings emitted as expected for shims).
+PR #292 GitHub checks: 13/13 green.
 
 ### Next
 

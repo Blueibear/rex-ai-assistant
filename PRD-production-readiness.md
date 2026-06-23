@@ -707,7 +707,7 @@ python -m pip install --dry-run . >/dev/null
 - [x] `python -m build` produces a wheel without warnings about missing modules.
 - [x] `pip install dist/askrex_assistant-*.whl --force-reinstall` succeeds in a fresh venv.
 - [x] `README.md` and `INSTALL.md` are updated if any root file's classification changes.
-- [ ] All relevant GitHub checks pass.
+- [x] All relevant GitHub checks pass.
 
 **Validation commands:**
 ```bash
