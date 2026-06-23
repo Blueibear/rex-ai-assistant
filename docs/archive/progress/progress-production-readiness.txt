@@ -30,11 +30,12 @@ test — confirming the contract between `bridgeResolver.ts` and the bridge scri
 - `cd gui && npm test` → vitest 3.2.6, 2 tests passed
 - `cd gui && npm run typecheck` → no errors
 - `cd gui && npm run build` → built successfully
-- `pytest -q -m "not slow and not audio and not gpu"` → all passed (awaiting GitHub CI)
+- `pytest -q -m "not slow and not audio and not gpu"` → all passed (exit code 0)
+- `gh pr checks 293` → 16/16 checks passed (GUI Vitest Tests pass, Python 3.11 Tests & Coverage pass)
 
 ### PRD update
 
-All local acceptance criteria for US-018 checked. GitHub checks pending.
+All acceptance criteria for US-018 checked. GitHub checks all green.
 
 ### Next
 

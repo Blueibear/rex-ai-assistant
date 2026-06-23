@@ -852,7 +852,7 @@ pytest -q
 - [x] TypeScript test asserts resolver behavior in both dev and packaged-path modes.
 - [x] `pytest tests/test_bridge_resolution.py -q` passes.
 - [x] `cd gui && npm test` passes (if vitest is wired) OR `cd gui && npm run typecheck && npm run build` passes (acceptable interim).
-- [ ] All relevant GitHub checks pass.
+- [x] All relevant GitHub checks pass.
 
 **Local validation evidence (2026-06-23):**
 - `pytest tests/test_bridge_resolution.py -q` → 24 passed (3 setup tests + 21 parametrized bridge scripts)
