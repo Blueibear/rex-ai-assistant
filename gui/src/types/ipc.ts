@@ -347,6 +347,13 @@ export interface QuickAction {
   command: string
 }
 
+export type QuickActionRunStatus = 'attempted' | 'completed' | 'verified' | 'failed'
+
+export interface QuickActionRunResponse {
+  status: QuickActionRunStatus
+  detail?: string
+}
+
 export interface Device {
   entity_id: string
   name: string
@@ -549,6 +556,8 @@ export interface RexAPI {
   getHomeAssistantStates: () => Promise<HomeAssistantStatesResponse>
   listQuickActions: () => Promise<{ ok: boolean; quick_actions: QuickAction[]; error?: string }>
   createQuickAction: (label: string, commandText: string) => Promise<{ ok: boolean; action?: QuickAction; error?: string }>
+  deleteQuickAction: (id: string) => Promise<{ ok: boolean; deleted?: boolean; error?: string }>
+  runQuickAction: (id: string) => Promise<QuickActionRunResponse>
   getDevices: () => Promise<DevicesResponse>
   sendDeviceCommand: (entityId: string, command: string, payload?: { value?: number }) => Promise<DeviceCommandResponse>
   uploadContactsFile: () => Promise<{ ok: boolean; path?: string; error?: string }>

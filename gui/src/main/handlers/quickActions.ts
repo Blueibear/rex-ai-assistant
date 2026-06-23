@@ -1,6 +1,6 @@
 import { ipcMain } from 'electron'
 import { spawn } from 'child_process'
-import type { QuickAction } from '../../types/ipc'
+import type { QuickAction, QuickActionRunResponse } from '../../types/ipc'
 import { resolveBridgePath, resolvePythonCommand } from '../bridgeResolver'
 
 function callQuickActionsBridge(payload: Record<string, unknown>): Promise<Record<string, unknown>> {
@@ -66,5 +66,21 @@ export function registerQuickActionsHandlers(): void {
         action?: QuickAction
         error?: string
       }>
+  )
+
+  ipcMain.handle(
+    'rex:deleteQuickAction',
+    (_event, id: string): Promise<{ ok: boolean; deleted?: boolean; error?: string }> =>
+      callQuickActionsBridge({ command: 'delete', id }) as Promise<{
+        ok: boolean
+        deleted?: boolean
+        error?: string
+      }>
+  )
+
+  ipcMain.handle(
+    'rex:runQuickAction',
+    (_event, id: string): Promise<QuickActionRunResponse> =>
+      callQuickActionsBridge({ command: 'run', id }) as unknown as Promise<QuickActionRunResponse>
   )
 }

@@ -8,6 +8,12 @@ Supported commands:
 
   {"command": "add", "label": "...", "command_text": "..."}
     -> {"ok": true, "action": {id, label, command}}
+
+  {"command": "delete", "id": "..."}
+    -> {"ok": true, "deleted": true|false}
+
+  {"command": "run", "id": "..."}
+    -> {"status": "attempted", "detail": "<reply>"} | {"status": "failed", "detail": "<error>"}
 """
 
 from __future__ import annotations
@@ -91,6 +97,56 @@ def main() -> None:
             actions.append(new_action)
             _save_quick_actions(user_id, actions)
             sys.stdout.write(json.dumps({"ok": True, "action": new_action}))
+
+        elif command == "delete":
+            action_id = str(payload.get("id", "")).strip()
+            if not action_id:
+                sys.stdout.write(json.dumps({"ok": False, "error": "id is required"}))
+                return
+            actions = _get_quick_actions(user_id)
+            filtered = [a for a in actions if a.get("id") != action_id]
+            _save_quick_actions(user_id, filtered)
+            sys.stdout.write(json.dumps({"ok": True, "deleted": len(filtered) < len(actions)}))
+
+        elif command == "run":
+            action_id = str(payload.get("id", "")).strip()
+            if not action_id:
+                sys.stdout.write(json.dumps({"status": "failed", "detail": "id is required"}))
+                return
+            actions = _get_quick_actions(user_id)
+            action = next((a for a in actions if a.get("id") == action_id), None)
+            if action is None:
+                sys.stdout.write(
+                    json.dumps({"status": "failed", "detail": f"action {action_id!r} not found"})
+                )
+                return
+            command_text = str(action.get("command", "")).strip()
+            if not command_text:
+                sys.stdout.write(
+                    json.dumps({"status": "failed", "detail": "action has no command text"})
+                )
+                return
+            try:
+                import asyncio
+
+                from rex.assistant import Assistant
+                from rex.logging_utils import configure_logging
+                from rex.plugins import load_plugins, shutdown_plugins
+                from rex.services import initialize_services
+
+                configure_logging()
+                initialize_services()
+                plugin_specs = load_plugins()
+                assistant = Assistant()
+                try:
+                    reply = asyncio.run(assistant.generate_reply(command_text))
+                    sys.stdout.write(
+                        json.dumps({"status": "attempted", "detail": str(reply)})
+                    )
+                finally:
+                    shutdown_plugins(plugin_specs)
+            except Exception as exc:
+                sys.stdout.write(json.dumps({"status": "failed", "detail": str(exc)}))
 
         else:
             sys.stdout.write(json.dumps({"ok": False, "error": f"unknown command: {command}"}))

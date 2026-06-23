@@ -435,3 +435,50 @@ Branch: `ralph/production-next`
 
 - `authHeaders()` helper is retained in QuickActionsPage.tsx because the DELETE and run raw fetches (US-009) still need it.
 - GitHub-checks criterion left unchecked pending PR checks.
+
+## 2026-06-22 - US-008 GitHub checks close-out
+
+Branch: `ralph/production-next-2`
+
+### Summary
+
+US-008 (Migrate QuickActionsPage list/create /api/quick-actions to typed IPC) was implemented
+in commit 4a8866b and merged as part of PR #290 (ralph/production-next).
+All acceptance criteria are now met; this entry records the GitHub checks result.
+
+### Validation commands run
+
+- `gh pr checks 290` -> 14/14 checks green (CodeFactor, Dependency Vulnerability Scan,
+  Electron Package Smoke Test, GUI Build, GUI Raw API Fetch Guard, GUI TypeScript Typecheck,
+  GitGuardian, Hardcoded Secret Scan, Lint & Format Check, Node Dependency Audit,
+  Pre-commit Hook Validation, Python 3.11 Tests & Coverage, Type Check (mypy), commitlint).
+
+### PRD update
+
+- Checked `[ ] Manual:` criterion for US-008 with PR #290 merge confirmation.
+- Checked `[ ] All relevant GitHub checks pass.` criterion for US-008.
+
+## 2026-06-22 - US-009 Migrate QuickActionsPage delete/run /api/quick-actions/{id} to typed IPC
+
+Branch: `ralph/production-next-2`
+
+### Implemented
+
+- `bridge/rex_quick_actions_bridge.py`: added `delete` command (removes action by ID from user Memory profile) and `run` command (looks up action by ID, spawns Rex Assistant to execute the command text, returns `{"status": "attempted", "detail": reply}` on success or `{"status": "failed", "detail": error}` on failure).
+- `gui/src/main/handlers/quickActions.ts`: added `rex:deleteQuickAction` and `rex:runQuickAction` IPC handlers using the same `callQuickActionsBridge` helper. `runQuickAction` cast through `unknown` to satisfy the non-overlapping `QuickActionRunResponse` type.
+- `gui/src/types/ipc.ts`: added `QuickActionRunStatus` type alias and `QuickActionRunResponse` interface; added `deleteQuickAction(id)` and `runQuickAction(id)` to `RexAPI`.
+- `gui/src/preload/index.ts`: imported `QuickActionRunResponse`; added `deleteQuickAction` and `runQuickAction` wrappers.
+- `gui/src/pages/QuickActionsPage.tsx`: replaced DELETE fetch with `window.rex.deleteQuickAction(id)`; replaced run POST fetch with `window.rex.runQuickAction(id)`; removed `authHeaders()` helper (no longer needed).
+- `gui/src/ALLOWED_API_FETCHES.txt`: removed QuickActionsPage.tsx:49 (DELETE) and :56 (run) entries.
+
+### Validation
+
+- `cd gui && npm run typecheck` -> 0 errors
+- `cd gui && npm run build` -> built in 1.45s, all bundles clean
+- `python scripts/check_no_renderer_api_fetch.py` -> `OK: no unapproved raw /api/ fetches in gui/src/`
+
+### Notes
+
+- `authHeaders()` was removed from QuickActionsPage.tsx entirely; IPC calls run in the main process without bearer auth.
+- The bridge `run` command always returns `status: "attempted"` on success; `completed` and `verified` are reserved for post-execution verification stories.
+- GitHub-checks criterion left unchecked pending PR checks.

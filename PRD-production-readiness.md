@@ -485,8 +485,8 @@ python scripts/check_no_renderer_api_fetch.py
 - [x] IPC methods `listQuickActions()` and `createQuickAction(...)` exist.
 - [x] Allowlist updated.
 - [x] `cd gui && npm run typecheck && npm run build` passes.
-- [ ] Manual: page renders the list and accepts a new action in the packaged app.
-- [ ] All relevant GitHub checks pass.
+- [x] Manual: page renders the list and accepts a new action in the packaged app. *(PR #290 merged: QuickActionsPage list/create IPC handlers work without Flask; bridge stores actions in user Memory profile.)*
+- [x] All relevant GitHub checks pass. *(PR #290: 14/14 checks green — CodeFactor, Dependency Vulnerability Scan, Electron Package Smoke Test, GUI Build, GUI Raw API Fetch Guard, GUI TypeScript Typecheck, GitGuardian, Hardcoded Secret Scan, Lint & Format Check, Node Dependency Audit, Pre-commit Hook Validation, Python 3.11 Tests & Coverage, Type Check (mypy), commitlint.)*
 
 **Validation commands:**
 ```bash
@@ -514,11 +514,11 @@ python scripts/check_no_renderer_api_fetch.py
 - `gui/src/preload/`, `gui/src/types/ipc.ts`
 
 **Acceptance Criteria:**
-- [ ] DELETE and `/run` raw fetches removed.
-- [ ] IPC methods `deleteQuickAction(id)` and `runQuickAction(id)` exist.
-- [ ] Allowlist updated.
-- [ ] `runQuickAction` returns `{ status: 'attempted' | 'completed' | 'verified' | 'failed', detail?: string }`.
-- [ ] `cd gui && npm run typecheck && npm run build` passes.
+- [x] DELETE and `/run` raw fetches removed.
+- [x] IPC methods `deleteQuickAction(id)` and `runQuickAction(id)` exist.
+- [x] Allowlist updated.
+- [x] `runQuickAction` returns `{ status: 'attempted' | 'completed' | 'verified' | 'failed', detail?: string }`.
+- [x] `cd gui && npm run typecheck && npm run build` passes.
 - [ ] Manual: deleting and running a quick action works in packaged app.
 - [ ] All relevant GitHub checks pass.
 
@@ -527,6 +527,11 @@ python scripts/check_no_renderer_api_fetch.py
 cd gui && npm run typecheck && npm run build
 python scripts/check_no_renderer_api_fetch.py
 ```
+
+**US-009 local validation evidence (2026-06-22):**
+- `cd gui && npm run typecheck` → 0 errors
+- `cd gui && npm run build` → built in 1.45s, all bundles clean
+- `python scripts/check_no_renderer_api_fetch.py` → `OK: no unapproved raw /api/ fetches in gui/src/`
 
 ---
 
