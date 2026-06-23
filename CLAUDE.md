@@ -141,17 +141,43 @@ Top-level directories:
 - docs/ — documentation
 - gui/ — React + Electron desktop GUI source
 
-### Active root-level `.py` files (9 total)
+### Root-level `.py` files (27 total)
+
+Active entry points and developer utilities (6):
 
 - rex_loop.py — full voice loop entry point (wake word → STT → LLM → TTS)
 - rex_speak_api.py — Flask TTS API with auth and rate limiting
-- voice_loop.py — legacy voice loop helpers (DeprecationWarning; canonical: `rex/voice_loop.py`)
-- config.py — config shim (re-exports from `rex.config`)
-- llm_client.py — LLM client shim (re-exports from `rex.llm_client`)
 - wsgi.py — WSGI entry point for `rex-gui`
 - setup.py — legacy setuptools stub (packaging via `pyproject.toml`)
 - sitecustomize.py — Windows UTF-8 encoding fix applied at interpreter start
 - conftest.py — pytest root conftest (shared fixtures)
+
+Deprecated compatibility shims (4):
+
+- voice_loop.py — legacy voice loop helpers (DeprecationWarning; canonical: `rex/voice_loop.py`)
+- config.py — config shim (re-exports from `rex.config`)
+- llm_client.py — LLM client shim (re-exports from `rex.llm_client`)
+- flask_proxy.py — legacy Flask API and proxy; canonical replacement is `rex-gui`; archived copy at `archived/compat_shims/flask_proxy.py`
+
+Bridge compatibility wrappers (17) — exec canonical `bridge/<name>.py` in their namespace for test-import compatibility; Electron resolves bridges from `bridge/` directly and does not use these root wrappers:
+
+- rex_chat_bridge.py
+- rex_chat_stream_bridge.py
+- rex_file_extract_bridge.py
+- rex_memories_bridge.py
+- rex_reminders_bridge.py
+- rex_shopping_list_bridge.py
+- rex_speaker_bridge.py
+- rex_stt_bridge.py
+- rex_tasks_bridge.py
+- rex_voice_bridge.py
+- rex_voice_enrollment_bridge.py
+- rex_voice_sample_bridge.py
+- rex_voice_upload_bridge.py
+- rex_voices_bridge.py
+- rex_wakeword_list_bridge.py
+- rex_wakeword_sample_bridge.py
+- rex_wakeword_train_bridge.py
 
 ### Important subpackages
 

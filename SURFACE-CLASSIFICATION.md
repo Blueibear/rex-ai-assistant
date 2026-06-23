@@ -56,6 +56,23 @@ here first, then propagated to docs, packaging config, and CI.
 | `llm_client.py` | `deprecated` | Root-level re-export shim for `rex.llm_client`. Emits `DeprecationWarning` on import. Canonical implementation: `rex.llm_client`. Scheduled for removal — see US-REM-020. |
 | `config.py` | `deprecated` | Root-level re-export shim for `rex.config`. Emits `DeprecationWarning` on import. Canonical implementation: `rex.config`. Scheduled for removal — see US-REM-020. |
 | `flask_proxy.py` | `deprecated` | Legacy Flask API and proxy application. Still present at repo root but not an entry point in `pyproject.toml`. Canonical replacement: `rex-gui` (`rex.gui_app:main`). An archived copy lives at `archived/compat_shims/flask_proxy.py`. Scheduled for removal in a future release. |
+| `rex_chat_bridge.py` | `developer-only` | Compatibility wrapper — executes `bridge/rex_chat_bridge.py` in its namespace to preserve patchable helpers for test imports. Electron resolves bridge scripts from `bridge/` directly; this root wrapper is not used by the Electron app. Canonical implementation: `bridge/rex_chat_bridge.py`. |
+| `rex_chat_stream_bridge.py` | `developer-only` | Compatibility wrapper — executes `bridge/rex_chat_stream_bridge.py`. Canonical implementation: `bridge/rex_chat_stream_bridge.py`. |
+| `rex_file_extract_bridge.py` | `developer-only` | Compatibility wrapper — executes `bridge/rex_file_extract_bridge.py`. Canonical implementation: `bridge/rex_file_extract_bridge.py`. |
+| `rex_memories_bridge.py` | `developer-only` | Compatibility wrapper — executes `bridge/rex_memories_bridge.py`. Canonical implementation: `bridge/rex_memories_bridge.py`. |
+| `rex_reminders_bridge.py` | `developer-only` | Compatibility wrapper — executes `bridge/rex_reminders_bridge.py`. Canonical implementation: `bridge/rex_reminders_bridge.py`. |
+| `rex_shopping_list_bridge.py` | `developer-only` | Compatibility wrapper — executes `bridge/rex_shopping_list_bridge.py`. Canonical implementation: `bridge/rex_shopping_list_bridge.py`. |
+| `rex_speaker_bridge.py` | `developer-only` | Compatibility wrapper — executes `bridge/rex_speaker_bridge.py`. Canonical implementation: `bridge/rex_speaker_bridge.py`. |
+| `rex_stt_bridge.py` | `developer-only` | Compatibility wrapper — executes `bridge/rex_stt_bridge.py`. Canonical implementation: `bridge/rex_stt_bridge.py`. |
+| `rex_tasks_bridge.py` | `developer-only` | Compatibility wrapper — executes `bridge/rex_tasks_bridge.py`. Canonical implementation: `bridge/rex_tasks_bridge.py`. |
+| `rex_voice_bridge.py` | `developer-only` | Compatibility wrapper — executes `bridge/rex_voice_bridge.py`. Canonical implementation: `bridge/rex_voice_bridge.py`. |
+| `rex_voice_enrollment_bridge.py` | `developer-only` | Compatibility wrapper — executes `bridge/rex_voice_enrollment_bridge.py`. Canonical implementation: `bridge/rex_voice_enrollment_bridge.py`. |
+| `rex_voice_sample_bridge.py` | `developer-only` | Compatibility wrapper — executes `bridge/rex_voice_sample_bridge.py`. Canonical implementation: `bridge/rex_voice_sample_bridge.py`. |
+| `rex_voice_upload_bridge.py` | `developer-only` | Compatibility wrapper — executes `bridge/rex_voice_upload_bridge.py`. Canonical implementation: `bridge/rex_voice_upload_bridge.py`. |
+| `rex_voices_bridge.py` | `developer-only` | Compatibility wrapper — executes `bridge/rex_voices_bridge.py`. Canonical implementation: `bridge/rex_voices_bridge.py`. |
+| `rex_wakeword_list_bridge.py` | `developer-only` | Compatibility wrapper — executes `bridge/rex_wakeword_list_bridge.py`. Canonical implementation: `bridge/rex_wakeword_list_bridge.py`. |
+| `rex_wakeword_sample_bridge.py` | `developer-only` | Compatibility wrapper — executes `bridge/rex_wakeword_sample_bridge.py`. Canonical implementation: `bridge/rex_wakeword_sample_bridge.py`. |
+| `rex_wakeword_train_bridge.py` | `developer-only` | Compatibility wrapper — executes `bridge/rex_wakeword_train_bridge.py`. Canonical implementation: `bridge/rex_wakeword_train_bridge.py`. |
 
 ---
 
@@ -97,13 +114,13 @@ any entry point, import, or startup path in the active codebase.
 | Classification | Count |
 |----------------|-------|
 | `shippable` | 3 |
-| `developer-only` | 10 |
+| `developer-only` | 27 |
 | `deprecated` | 5 |
 | `archived` | 15 |
 | `removed` | 0 |
-| **Total** | **33** |
+| **Total** | **50** |
 
-(Note: The pip/wheel artifact above is counted separately as a distribution artifact, not as an additional entry point. Entry-point and UI-surface counts above are unchanged.)
+(Note: The pip/wheel artifact above is counted separately as a distribution artifact, not as an additional entry point. Entry-point and UI-surface counts above are unchanged. The `developer-only` count increased from 10 to 27 in US-017 when 17 root-level bridge compatibility wrappers were classified.)
 
 ---
 
@@ -115,3 +132,4 @@ any entry point, import, or startup path in the active codebase.
 | 2026-06-01 | US-REM-019 | rex-gui reclassified shippable → developer-only. Audit confirmed: packaged Electron app does not spawn rex-gui; IPC uses bridge scripts only; renderer /api/... calls are dead in packaged mode (file:// protocol). |
 | 2026-06-07 | US-REM-025 | Added root-level flask_proxy.py as deprecated (count: deprecated 4→5, total 32→33). Updated docs to use archived (not deprecated) for gui.py/run_gui.py. Added developer-only labels across INSTRUCTION_MANUAL.md, ARCHITECTURE.md, COMMANDS_AND_ENTRYPOINTS.md, and API/deployment docs. |
 | 2026-06-23 | US-013 | Added Package Distribution section classifying pip/wheel (askrex-assistant) as developer-only. |
+| 2026-06-23 | US-017 | Classified all 17 root-level bridge compatibility wrappers as developer-only (count: developer-only 10→27, total 33→50). Updated CLAUDE.md root-file count from 9 to 27. No files moved to archived/ — all bridge wrappers are actively used for test-import compatibility. |

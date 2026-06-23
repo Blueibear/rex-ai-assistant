@@ -1,5 +1,49 @@
 # Production Readiness Progress Log
 
+## 2026-06-23 - US-017: Audit and classify every root-level `.py` file
+
+Branch: `ralph/production-next-4`
+
+### Summary
+
+US-017 classified all 27 root-level `.py` files and updated `SURFACE-CLASSIFICATION.md`
+and `CLAUDE.md` to match.
+
+Previously SURFACE-CLASSIFICATION.md listed only 10 of the 27 root `.py` files. The
+17 missing files were the root-level bridge compatibility wrappers (`rex_chat_bridge.py`,
+`rex_tasks_bridge.py`, etc.). Each one `exec()`s the canonical `bridge/<name>.py`
+implementation to preserve patchable helpers for test imports.
+
+Key findings:
+- Electron's `bridgeResolver.ts` resolves bridge scripts to `bridge/<script>` in BOTH
+  dev and packaged modes — the root wrappers are NOT used by the Electron app.
+- The root wrappers ARE imported by tests (confirmed: `rex_voice_bridge`, `rex_tasks_bridge`,
+  `rex_chat_bridge` imported directly in tests; `flask_proxy` referenced by 2 test files).
+- No files moved to `archived/` — all retain active test-import uses.
+- `scripts/check_imports.py` had a Windows cp1252 encoding issue (Unicode `⚠`/`✓`/`✗`
+  characters) and a stale module list referencing archived `gui.py`/`gui_settings_tab.py`.
+  Fixed by replacing Unicode symbols with ASCII `[OK]`/`[FAIL]`/`[MISSING]` and removing
+  the two archived entries.
+- CLAUDE.md updated: "Active root-level `.py` files (9 total)" restructured into three
+  groups (active entry points/utilities × 6, deprecated compat shims × 4,
+  bridge compat wrappers × 17) totalling 27.
+
+### Validation commands run
+
+- `python -m compileall -q <all 27 root .py files>` → clean
+- `python scripts/check_imports.py` → `[OK] All critical modules have valid syntax`
+- `pytest -q` → passed (exit code 0)
+
+### PRD update
+
+Checked all local acceptance criteria for US-017. GitHub checks pending PR merge.
+
+### Next
+
+US-018: Bridge path resolution tests for dev and packaged mode.
+
+---
+
 ## 2026-06-23 - US-016 GitHub checks close-out
 
 Branch: `ralph/production-next-4`

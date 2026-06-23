@@ -811,11 +811,11 @@ python scripts/check_wheel_contents.py
 **Implementation notes:** Classify each root `.py` as `production-entrypoint`, `compatibility-wrapper`, `developer-utility`, `test-helper`, or `archive-candidate`. Move archive candidates under `archived/` with a rationale. Update `CLAUDE.md`'s "Active root-level `.py` files" count to match.
 
 **Acceptance Criteria:**
-- [ ] `SURFACE-CLASSIFICATION.md` lists every root `.py` file with its classification.
-- [ ] `CLAUDE.md`'s root-file count and list match reality.
-- [ ] Files moved to `archived/` retain history (use `git mv`).
-- [ ] No production import path is broken (covered by US-018's bridge-resolver tests and US-019's entry-point smoke).
-- [ ] `python scripts/check_imports.py` or equivalent passes.
+- [x] `SURFACE-CLASSIFICATION.md` lists every root `.py` file with its classification.
+- [x] `CLAUDE.md`'s root-file count and list match reality.
+- [x] Files moved to `archived/` retain history (use `git mv`).
+- [x] No production import path is broken (covered by US-018's bridge-resolver tests and US-019's entry-point smoke).
+- [x] `python scripts/check_imports.py` or equivalent passes.
 - [ ] All relevant GitHub checks pass.
 
 **Validation commands:**
@@ -825,6 +825,12 @@ pytest -q
 ```
 
 **Risk notes:** Moving a file that the Electron `bridgeResolver.ts` references will break the packaged app. Verify resolver paths first.
+
+**Local validation evidence (2026-06-23):**
+- `python -m compileall -q <all 27 root .py files>` → clean (no output)
+- `python scripts/check_imports.py` → `[OK] All critical modules have valid syntax` (fixed Unicode encoding issue in script; removed archived gui.py/gui_settings_tab.py from module list)
+- `pytest -q` → all tests passed (exit code 0)
+- No files moved to `archived/` — all 17 bridge wrappers are actively imported by tests (`flask_proxy` imported by 2 test files; bridge wrappers imported by at least 3 test files)
 
 ---
 
