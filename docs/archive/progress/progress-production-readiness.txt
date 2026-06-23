@@ -751,3 +751,33 @@ Documented the supported install scope for pip/wheel:
 ### GitHub checks
 
 Left unchecked pending PR checks on this branch.
+
+## US-015 GitHub checks close-out (2026-06-23)
+
+Branch: `ralph/production-next-3`
+
+### Summary
+
+US-015 (Add a wheel contents smoke test) was implemented in commit 0fd3986 on this branch.
+The initial CI run (28022648955) failed because `scripts/check_wheel_contents.py` used
+`--no-isolation` for the build, which requires `wheel` to be pre-installed in the environment.
+Fixed in commit ebd1c6f by removing `--no-isolation` so `build` uses its own isolated environment.
+
+### Validation commands run
+
+- `python scripts/check_wheel_contents.py` → OK: all required files present in askrex_assistant-0.1.0-py3-none-any.whl
+- `pytest tests/test_wheel_contents.py -q` → 20 passed in 0.26s
+- `gh pr checks 292` → 14/14 checks green (CodeFactor, Dependency Vulnerability Scan,
+  GUI Build, GUI Raw API Fetch Guard, GUI TypeScript Typecheck, GitGuardian, Hardcoded Secret Scan,
+  Lint & Format Check, Node Dependency Audit, Pre-commit Hook Validation,
+  Python 3.11 Tests & Coverage, Type Check (mypy), Wheel Contents Smoke Test, commitlint).
+
+### Fix committed
+
+- `fix(packaging): remove --no-isolation from wheel build to fix CI (US-015)` (ebd1c6f)
+
+### PRD update
+
+- Checked `[ ] All relevant GitHub checks pass.` criterion for US-015.
+
+US-015 is fully complete. All acceptance criteria checked.

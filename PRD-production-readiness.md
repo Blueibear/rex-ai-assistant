@@ -739,7 +739,7 @@ python -c "import setup; print('ok')" 2>/dev/null || true
 - [x] CI runs the script.
 - [x] `pytest tests/test_wheel_contents.py -q` passes.
 - [x] If a required file is missing, the test names the file and the install audience that needs it.
-- [ ] All relevant GitHub checks pass.
+- [x] All relevant GitHub checks pass. *(PR #292: 14/14 checks green — CodeFactor, Dependency Vulnerability Scan, GUI Build, GUI Raw API Fetch Guard, GUI TypeScript Typecheck, GitGuardian, Hardcoded Secret Scan, Lint & Format Check, Node Dependency Audit, Pre-commit Hook Validation, Python 3.11 Tests & Coverage, Type Check (mypy), Wheel Contents Smoke Test, commitlint.)*
 
 **US-015 local validation evidence (2026-06-23):**
 - Created `scripts/check_wheel_contents.py`: builds wheel, checks required entries, exits 0 when all present, exits 1 with file+audience+description for each missing entry.
