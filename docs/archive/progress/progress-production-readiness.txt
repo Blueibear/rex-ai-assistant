@@ -570,3 +570,12 @@ Updated `README.md`:
 ### GitHub checks
 
 Left unchecked pending PR checks on this branch.
+
+## US-011 GitHub checks close-out (2026-06-22)
+
+PR #291 branch `ralph/production-next-2` — 14/14 checks green:
+CodeFactor, Dependency Vulnerability Scan, Electron Package Smoke Test, GUI Build, GUI Raw API Fetch Guard,
+GUI TypeScript Typecheck, GitGuardian, Hardcoded Secret Scan, Lint & Format Check, Node Dependency Audit,
+Pre-commit Hook Validation, Python 3.11 Tests & Coverage, Type Check (mypy), commitlint.
+
+US-011 is fully complete. All acceptance criteria checked.

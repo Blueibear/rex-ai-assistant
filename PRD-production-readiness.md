@@ -588,7 +588,7 @@ python scripts/check_no_renderer_api_fetch.py
 - [x] `grep -rn "fetch('/api\\|fetch(\"/api\\|fetch(\`/api" gui/src` returns no matches in TS/TSX/JS/JSX source files.
 - [x] `README.md` documents the packaged Electron runtime as IPC-only and explicitly states a Flask backend is NOT required at runtime for end users.
 - [x] `SURFACE-CLASSIFICATION.md` is verified consistent with this state. *(Already consistent: `rex-gui` is `developer-only`; notes "All core Electron GUI functionality uses IPC bridge scripts. Renderer fetch('/api/...') calls are dead in packaged mode.")*
-- [ ] All relevant GitHub checks pass.
+- [x] All relevant GitHub checks pass. *(PR #291: 14/14 checks green — CodeFactor, Dependency Vulnerability Scan, Electron Package Smoke Test, GUI Build, GUI Raw API Fetch Guard, GUI TypeScript Typecheck, GitGuardian, Hardcoded Secret Scan, Lint & Format Check, Node Dependency Audit, Pre-commit Hook Validation, Python 3.11 Tests & Coverage, Type Check (mypy), commitlint.)*
 
 **Validation commands:**
 ```bash
