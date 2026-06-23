@@ -579,3 +579,43 @@ GUI TypeScript Typecheck, GitGuardian, Hardcoded Secret Scan, Lint & Format Chec
 Pre-commit Hook Validation, Python 3.11 Tests & Coverage, Type Check (mypy), commitlint.
 
 US-011 is fully complete. All acceptance criteria checked.
+
+## US-012: Packaged Electron smoke test requires no Flask backend (2026-06-22)
+
+Branch: `ralph/production-next-2`
+
+### What was done
+
+Extended `tests/smoke/test_electron_package.sh` with three new checks (US-012):
+
+- Added `FLASK_PORT` config variable (default: 5000, matching AppConfig.ui.gui_port default).
+- Added `flask_port_bound()` helper using ss/lsof/netstat to detect if Flask port is listening.
+- Added `_renderer_has_raw_api_fetch()` helper to check JS files for `fetch('/api/` or `fetch("/api/` patterns.
+- **Step 3d** (pre-launch port check): Fails if port 5000 is already bound before Electron launch.
+- **Step 3e** (renderer bundle scan): Scans `gui/dist-electron/renderer/**/*.js` for raw `/api/` fetch
+  patterns; mandatory failure if any found.
+- **Step 4 enhancements**: After Electron wait loop —
+  - Port check: fails if port 5000 was bound during the Electron smoke window.
+  - Log scan: greps Electron stderr log for `/api/` patterns; hard fail with REQUIRE_ELECTRON_SIGNAL=1.
+
+Updated `tests/smoke/test_electron_package.sh` header comments (exit codes, step list).
+
+Updated `.github/workflows/electron-smoke.yml`:
+- Added `tests/smoke/**` to PR path filter so smoke test changes trigger CI.
+  (`gui/**` already covers `gui/src/ALLOWED_API_FETCHES.txt` and all `bridge/**` changes.)
+
+Updated `README.md`:
+- Rewrote "Flask API backend for Electron (`rex-gui`)" section (lines ~257-274) to remove the
+  outdated "the Electron GUI calls" language. Now clearly states: packaged Electron does NOT call
+  rex-gui at runtime; rex-gui is developer-only for API route testing.
+
+### Validation commands run
+
+- `bash -n tests/smoke/test_electron_package.sh` → syntax OK
+- `python scripts/check_no_renderer_api_fetch.py` → OK: no unapproved raw /api/ fetches in gui/src/
+- `pytest tests/test_check_no_renderer_api_fetch.py -q` → 15 passed in 0.36s
+- `cd gui && npm run typecheck` → 0 errors
+
+### GitHub checks
+
+Left unchecked pending PR checks.

@@ -254,24 +254,21 @@ npm run build
 npm run preview
 ```
 
-### Flask API backend for Electron (`rex-gui`)
+### Flask API backend (`rex-gui`) — developer-only
 
-`rex-gui` starts the Flask server that the Electron GUI calls. It is a **backend service**, not a
-standalone browser app. Running it directly will log a warning that the Electron shell is not
-detected.
+`rex-gui` starts the Flask server at `http://127.0.0.1:<gui_port>`. It is a **developer-only
+backend service** — the packaged Electron app does **not** call it at runtime. All Electron GUI
+functionality is backed by IPC bridge scripts (see Quick Start above and
+[docs/UI_SURFACES.md](docs/UI_SURFACES.md)).
 
 ```bash
 rex-gui
-## Flask API listens on http://127.0.0.1:8765/
-## Not intended for direct browser use; open the Electron app instead
+## Flask API listens on http://127.0.0.1:8765/ (or configured gui_port)
+## Use only for API route testing or the experimental /ui/ browser dashboard
 ```
 
-The Electron app requires the Python bridge scripts at the repo root and the current
-`gui/dist-electron` build for built-app verification harnesses. See
-[docs/UI_SURFACES.md](docs/UI_SURFACES.md) and [docs/e2e-gui-launch-test.md](docs/e2e-gui-launch-test.md).
-
-The supported GUI interface is the **Electron desktop app**. Use `rex-gui` only as a backend API
-server or for local API route testing.
+Use `rex-gui` only for operator/developer tasks: inspecting API routes, testing bridge scripts
+outside Electron, or verifying the Flask layer independently. End users do not need to run it.
 
 ## Advanced / Developer
 
