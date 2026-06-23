@@ -548,10 +548,10 @@ python scripts/check_no_renderer_api_fetch.py
 - `gui/src/types/ipc.ts`
 
 **Acceptance Criteria:**
-- [ ] `/api/setup/status` and `/api/setup/complete` raw fetches removed.
-- [ ] IPC methods `getSetupStatus()` and `completeSetup(payload)` exist, typed.
-- [ ] Allowlist no longer lists `SetupWizardPage.tsx` or `App.tsx`.
-- [ ] `cd gui && npm run typecheck && npm run build` passes.
+- [x] `/api/setup/status` and `/api/setup/complete` raw fetches removed.
+- [x] IPC methods `getSetupStatus()` and `completeSetup(payload)` exist, typed.
+- [x] Allowlist no longer lists `SetupWizardPage.tsx` or `App.tsx`.
+- [x] `cd gui && npm run typecheck && npm run build` passes.
 - [ ] Manual: first-run wizard completes end-to-end in the packaged app with no network calls to `localhost`.
 - [ ] All relevant GitHub checks pass.
 
@@ -560,6 +560,12 @@ python scripts/check_no_renderer_api_fetch.py
 cd gui && npm run typecheck && npm run build
 python scripts/check_no_renderer_api_fetch.py
 ```
+
+**US-010 local validation evidence (2026-06-22):**
+- `cd gui && npm run typecheck` → 0 errors
+- `cd gui && npm run build` → built in 1.47s, all bundles clean
+- `python scripts/check_no_renderer_api_fetch.py` → `OK: no unapproved raw /api/ fetches in gui/src/`
+- `pytest tests/test_us010_setup_ipc.py -v` → 26 passed in 0.23s
 
 **Risk notes:** This is the most user-visible path. Manual sanity check is required.
 

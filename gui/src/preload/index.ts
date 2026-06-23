@@ -38,7 +38,10 @@ import type {
   DevicesResponse,
   DeviceCommandResponse,
   QuickAction,
-  QuickActionRunResponse
+  QuickActionRunResponse,
+  SetupStatusResponse,
+  SetupCompletePayload,
+  SetupCompleteResponse
 } from '../types/ipc'
 
 function makeSendChatStream(
@@ -364,7 +367,10 @@ const rexAPI = {
     command: string,
     payload?: { value?: number }
   ): Promise<DeviceCommandResponse> =>
-    ipcRenderer.invoke('rex:sendDeviceCommand', entityId, command, payload)
+    ipcRenderer.invoke('rex:sendDeviceCommand', entityId, command, payload),
+  getSetupStatus: (): Promise<SetupStatusResponse> => ipcRenderer.invoke('rex:getSetupStatus'),
+  completeSetup: (payload: SetupCompletePayload): Promise<SetupCompleteResponse> =>
+    ipcRenderer.invoke('rex:completeSetup', payload)
 }
 
 if (process.contextIsolated) {

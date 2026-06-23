@@ -505,6 +505,26 @@ export interface UsageSummary {
   error?: string
 }
 
+export interface SetupStatusResponse {
+  needs_setup: boolean
+}
+
+export interface SetupCompletePayload {
+  username: string
+  password: string
+  llm_provider: string
+  llm_api_key: string
+  tts_provider: string
+  ha_base_url: string
+  ha_token: string
+}
+
+export interface SetupCompleteResponse {
+  ok: boolean
+  user_id?: string
+  error?: string
+}
+
 export interface RexAPI {
   sendChat: (message: string) => Promise<string>
   sendChatStream: (message: string, onToken: (token: string) => void) => Promise<void>
@@ -631,4 +651,6 @@ export interface RexAPI {
   downloadLogs: () => Promise<{ ok: boolean; content?: string; filename?: string; log_path?: string; error?: string }>
   onLogEntry: (cb: (entry: LogEntry) => void) => void
   getUsage: () => Promise<UsageSummary>
+  getSetupStatus: () => Promise<SetupStatusResponse>
+  completeSetup: (payload: SetupCompletePayload) => Promise<SetupCompleteResponse>
 }

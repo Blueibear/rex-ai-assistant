@@ -491,3 +491,40 @@ PR #291 branch `ralph/production-next-2` — CI run 28000392084:
 14/14 checks green: CodeFactor, Dependency Vulnerability Scan, Electron Package Smoke Test, GUI Build, GUI Raw API Fetch Guard, GUI TypeScript Typecheck, GitGuardian, Hardcoded Secret Scan, Lint & Format Check, Node Dependency Audit, Pre-commit Hook Validation, Python 3.11 Tests & Coverage (31 tests, 8m41s), Type Check (mypy), commitlint.
 
 US-009 is fully complete. All acceptance criteria checked.
+
+---
+
+## US-010: SetupWizardPage and App.tsx /api/setup/* IPC migration (2026-06-22)
+
+### What was done
+
+Migrated two raw `/api/setup/` fetches to typed IPC:
+- `App.tsx:49` — `fetch('/api/setup/status')` → `window.rex.getSetupStatus()`
+- `SetupWizardPage.tsx:223` — `fetch('/api/setup/complete', ...)` → `window.rex.completeSetup(payload)`
+
+### New files
+
+- `bridge/rex_setup_bridge.py`: handles `status` (count users in auth DB → `{needs_setup: bool}`) and `complete` (calls `create_user`, `bootstrap_admin_if_first_user`, saves JSON config, writes .env secrets via `_write_env_secrets`).
+- `gui/src/main/handlers/setup.ts`: IPC main-process handler that spawns the bridge.
+- `tests/test_us010_setup_ipc.py`: 26 structural tests.
+
+### Modified files
+
+- `gui/src/types/ipc.ts`: added `SetupStatusResponse`, `SetupCompletePayload`, `SetupCompleteResponse` interfaces; added `getSetupStatus()` and `completeSetup()` to `RexAPI`.
+- `gui/src/main/ipc.ts`: imported and called `registerSetupHandlers()`.
+- `gui/src/preload/index.ts`: imported new types; exposed `getSetupStatus` and `completeSetup`.
+- `gui/src/renderer/src/App.tsx`: replaced `fetch('/api/setup/status')` with `window.rex.getSetupStatus()`.
+- `gui/src/pages/SetupWizardPage.tsx`: replaced raw fetch with `window.rex.completeSetup(payload)`.
+- `gui/src/ALLOWED_API_FETCHES.txt`: removed SetupWizardPage.tsx:223 and App.tsx:49 entries.
+
+### Validation
+
+- `cd gui && npm run typecheck` → 0 errors
+- `cd gui && npm run build` → built in 1.47s, all bundles clean
+- `python scripts/check_no_renderer_api_fetch.py` → `OK: no unapproved raw /api/ fetches in gui/src/`
+- `pytest tests/test_us010_setup_ipc.py -v` → 26 passed
+
+### Notes
+
+- The Flask setup token (`X-Setup-Token`) was not replicated in the bridge. IPC calls originate from the Electron main process; there is no HTTP attack surface to protect against, so the token is unnecessary.
+- GitHub-checks criterion left unchecked pending PR checks.

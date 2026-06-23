@@ -16,5 +16,3 @@
 
 gui/src/pages/AboutPage.tsx:13  # fetch('/api/status') — pending US-004 migration to typed IPC
 gui/src/pages/CommandHistoryPage.tsx:26  # fetch('/api/history?limit=50') — pending US-005 migration
-gui/src/pages/SetupWizardPage.tsx:223  # fetch('/api/setup/complete') — pending US-010 migration
-gui/src/renderer/src/App.tsx:49  # fetch('/api/setup/status') — pending US-010 migration
