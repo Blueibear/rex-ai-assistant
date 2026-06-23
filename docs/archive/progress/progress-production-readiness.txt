@@ -1,5 +1,47 @@
 # Production Readiness Progress Log
 
+## 2026-06-23 - US-018: Bridge path resolution tests for dev and packaged mode
+
+Branch: `ralph/production-next-4`
+
+### Summary
+
+US-018 added bridge path resolution tests — one Python test and one TypeScript/Vitest
+test — confirming the contract between `bridgeResolver.ts` and the bridge scripts on disk.
+
+**Python test (`tests/test_bridge_resolution.py`):**
+- Parses `BRIDGE_REGISTRY` from `bridgeResolver.ts` via regex
+- Parametrizes one test per bridge script (21 scripts)
+- Asserts each script exists in `bridge/` directory
+- 24 tests total (3 setup + 21 parametrized)
+
+**TypeScript/Vitest test (`gui/tests/bridgeResolver.test.ts`):**
+- Added `vitest ^3.2.0` to `gui/package.json` devDependencies
+- Added `"test": "vitest run"` script
+- Created `gui/vitest.config.ts` (environment: node, include: tests/*.test.ts)
+- Updated `gui/tsconfig.node.json` to include `vitest.config.*` and `tests/**/*`
+- Test mocks `electron` via `vi.hoisted` + `vi.mock`
+- Tests dev mode path (appPath/../bridge/<script>) and packaged mode path (resourcesPath/bridge/<script>)
+- Both tests pass: `cd gui && npm test` → 2 passed
+
+### Validation commands run
+
+- `pytest tests/test_bridge_resolution.py -q` → 24 passed
+- `cd gui && npm test` → vitest 3.2.6, 2 tests passed
+- `cd gui && npm run typecheck` → no errors
+- `cd gui && npm run build` → built successfully
+- `pytest -q -m "not slow and not audio and not gpu"` → all passed (awaiting GitHub CI)
+
+### PRD update
+
+All local acceptance criteria for US-018 checked. GitHub checks pending.
+
+### Next
+
+US-019: Console script import/help smoke tests.
+
+---
+
 ## 2026-06-23 - US-017: Audit and classify every root-level `.py` file
 
 Branch: `ralph/production-next-4`

@@ -848,11 +848,17 @@ pytest -q
 **Implementation notes:** A Python test enumerates the bridge scripts referenced by `bridgeResolver.ts` (parse the TypeScript file deterministically), then asserts each path exists in the source tree. A TypeScript/Vitest test asserts that, given a faked `app.getAppPath()`, the resolver returns paths under `resources/bridge/` for the packaged layout and under `bridge/` (or repo root) for dev.
 
 **Acceptance Criteria:**
-- [ ] Python test asserts every bridge script referenced by `bridgeResolver.ts` exists in the source tree.
-- [ ] TypeScript test asserts resolver behavior in both dev and packaged-path modes.
-- [ ] `pytest tests/test_bridge_resolution.py -q` passes.
-- [ ] `cd gui && npm test` passes (if vitest is wired) OR `cd gui && npm run typecheck && npm run build` passes (acceptable interim).
+- [x] Python test asserts every bridge script referenced by `bridgeResolver.ts` exists in the source tree.
+- [x] TypeScript test asserts resolver behavior in both dev and packaged-path modes.
+- [x] `pytest tests/test_bridge_resolution.py -q` passes.
+- [x] `cd gui && npm test` passes (if vitest is wired) OR `cd gui && npm run typecheck && npm run build` passes (acceptable interim).
 - [ ] All relevant GitHub checks pass.
+
+**Local validation evidence (2026-06-23):**
+- `pytest tests/test_bridge_resolution.py -q` → 24 passed (3 setup tests + 21 parametrized bridge scripts)
+- `cd gui && npm test` → vitest 3.2.6, 2 tests passed (dev mode + packaged mode)
+- `cd gui && npm run typecheck` → no errors
+- `cd gui && npm run build` → built in ~1.4s, no errors
 
 **Validation commands:**
 ```bash
