@@ -84,6 +84,14 @@ any entry point, import, or startup path in the active codebase.
 
 ---
 
+## Package Distribution (pip / wheel)
+
+| Artifact | Classification | Notes |
+|----------|----------------|-------|
+| `askrex-assistant` wheel (`pip install .` / `pip install askrex-assistant`) | `developer-only` | Installs the `rex` Python library, six console scripts, and IPC bridge scripts. **Not** an end-user install artifact. End users install via the packaged Electron desktop installer (not yet published). Developers and operators use `pip install .` for CLI access, voice loop, TTS API, and developer Electron (`npm run dev`) workflows. The wheel does not include the Electron app bundle or the pre-built GUI assets. |
+
+---
+
 ## Summary Counts
 
 | Classification | Count |
@@ -95,6 +103,8 @@ any entry point, import, or startup path in the active codebase.
 | `removed` | 0 |
 | **Total** | **33** |
 
+(Note: The pip/wheel artifact above is counted separately as a distribution artifact, not as an additional entry point. Entry-point and UI-surface counts above are unchanged.)
+
 ---
 
 ## Change Log
@@ -104,3 +114,4 @@ any entry point, import, or startup path in the active codebase.
 | 2026-06-01 | US-REM-018 | Initial classification of all surfaces |
 | 2026-06-01 | US-REM-019 | rex-gui reclassified shippable → developer-only. Audit confirmed: packaged Electron app does not spawn rex-gui; IPC uses bridge scripts only; renderer /api/... calls are dead in packaged mode (file:// protocol). |
 | 2026-06-07 | US-REM-025 | Added root-level flask_proxy.py as deprecated (count: deprecated 4→5, total 32→33). Updated docs to use archived (not deprecated) for gui.py/run_gui.py. Added developer-only labels across INSTRUCTION_MANUAL.md, ARCHITECTURE.md, COMMANDS_AND_ENTRYPOINTS.md, and API/deployment docs. |
+| 2026-06-23 | US-013 | Added Package Distribution section classifying pip/wheel (askrex-assistant) as developer-only. |

@@ -1,5 +1,95 @@
 # Production Readiness Progress Log
 
+## 2026-06-23 - US-015 complete
+
+Branch: `ralph/production-next-3`
+
+### US-015: Add a wheel contents smoke test
+
+Created `scripts/check_wheel_contents.py`: builds `dist/askrex_assistant-*.whl` using
+`python -m build --wheel`, lists contents via `zipfile`, and asserts all REQUIRED_ENTRIES
+are present. Exits 0 on success; exits 1 and names each missing file with its install
+audience and description on failure.
+
+Created `rex/py.typed` (PEP 561 type marker). The file was declared in
+`pyproject.toml` `[tool.setuptools.package-data]` but did not exist on disk, so it
+was absent from every wheel build. Creating it makes it automatically included.
+
+Created `tests/test_wheel_contents.py` with 20 tests covering: all-present returns [],
+single missing file identified, all missing reported, extra files tolerated, audience/
+description populated, REQUIRED_ENTRIES structure, main() exit codes, and parametric
+checks that every console-script module and `rex/py.typed` are in the required list.
+
+Bridge scripts (`bridge/`) and `config/rex_config.example.json` are commented in
+REQUIRED_ENTRIES with a "added in US-016" note — those resources are not yet packaged.
+
+Added `wheel-contents-smoke` CI job to `.github/workflows/ci.yml`.
+
+Verified:
+- `python scripts/check_wheel_contents.py dist/askrex_assistant-0.1.0-py3-none-any.whl`
+  → `OK: all required files present in askrex_assistant-0.1.0-py3-none-any.whl`
+- `pytest tests/test_wheel_contents.py -q` → 20 passed in 0.26s
+- `ruff check` + `black --check` → clean
+
+### Learnings
+
+- `rex/py.typed` was declared in `pyproject.toml` package-data but had never been
+  created; setuptools silently omits missing package-data files from the wheel.
+  Always verify with `python -m build && python -c "import zipfile; ..."` rather
+  than trusting the declaration alone.
+
+### Next
+
+US-016: Ensure required runtime resources are packaged in the wheel (bridge scripts,
+config/rex_config.example.json).
+
+---
+
+## 2026-06-23 - US-014 complete
+
+Branch: `ralph/production-next-3`
+PR: #292
+
+### US-014: Repair `setup.py` `py_modules` to match files on disk
+
+Removed four `py_modules` entries that had no corresponding root file: `rex_assistant`,
+`memory_utils`, `audio_config`, `conversation_memory`. Confirmed no active callers
+outside `archived/` for any of them (active code uses `rex.memory_utils`, not root shim).
+
+Kept three entries that exist at root and have active callers:
+- `config` (shim → `rex.config`; callers: test_llm_client, test_us013-016 tests)
+- `llm_client` (shim → `rex.llm_client`; callers: test_llm_client, test_us013-016 tests)
+- `rex_speak_api` (entry-point module; callers: wsgi.py, speak-api tests)
+
+Updated `setup.py` comment block to document each surviving entry and record
+the removed entries with rationale.
+
+Verified: `python -m build --wheel` (clean, no missing-module warnings); wheel
+contains only the three expected root modules; `pip install` into fresh venv succeeded;
+all three modules importable (DeprecationWarnings emitted as expected for shims).
+PR #292 GitHub checks: 13/13 green.
+
+### Next
+
+US-015: Add a wheel contents smoke test.
+
+---
+
+## 2026-06-23 - US-013 complete
+
+Branch: `ralph/production-next-3`
+PR: #292
+
+### US-013: Decide and document the supported pip/wheel install scope
+
+All acceptance criteria satisfied. Implementation committed in `d650d62`. PR #292 GitHub checks: 13/13 green (docs-only PR; Electron Package Smoke Test does not trigger). Checked off final checkbox in PRD.
+
+### Next
+
+US-014: Repair `setup.py` `py_modules` to match files on disk.
+
+---
+
 ## 2026-06-12 01:39:36 -05:00 - PRD reconciliation against current repo
 
 Branch: `ralph/reconcile-production-readiness-prd`
@@ -633,3 +723,61 @@ The Electron Package Smoke Test passed with the new Step 3d (Flask port check) a
 renderer bundle.
 
 US-012 is fully complete. All acceptance criteria checked.
+
+## US-013: Decide and document the supported pip/wheel install scope (2026-06-23)
+
+Branch: `ralph/production-next-3`
+
+### What was done
+
+Documented the supported install scope for pip/wheel:
+- End users get the packaged Electron desktop installer (not yet published).
+- Developers/operators use `pip install .` for the Python library, console scripts, and IPC bridge scripts.
+
+### Files changed
+
+- `README.md`: Added `## Install` section to TOC and body; states end-user vs developer audiences clearly.
+- `INSTALL.md`: Added `## Install Audiences` section with one paragraph per audience (end users / developers and operators).
+- `pyproject.toml`: Updated `description` to reflect the developer-facing package scope.
+- `SURFACE-CLASSIFICATION.md`: Added `## Package Distribution (pip / wheel)` section classifying pip/wheel as developer-only with rationale; added US-013 changelog entry.
+- `PRD-production-readiness.md`: Checked US-013 acceptance criteria (all except GitHub checks); added local validation evidence block.
+
+### Validation commands run
+
+- `python -m pip install --dry-run .` -> OK: would install askrex-assistant-0.1.0
+- pyproject.toml TOML parse -> valid
+- `pytest tests/test_us146_readme_visual.py tests/test_us141_readme_install.py tests/test_us143_readme_structure.py -q` -> 46 passed in 4.08s
+
+### GitHub checks
+
+Left unchecked pending PR checks on this branch.
+
+## US-015 GitHub checks close-out (2026-06-23)
+
+Branch: `ralph/production-next-3`
+
+### Summary
+
+US-015 (Add a wheel contents smoke test) was implemented in commit 0fd3986 on this branch.
+The initial CI run (28022648955) failed because `scripts/check_wheel_contents.py` used
+`--no-isolation` for the build, which requires `wheel` to be pre-installed in the environment.
+Fixed in commit ebd1c6f by removing `--no-isolation` so `build` uses its own isolated environment.
+
+### Validation commands run
+
+- `python scripts/check_wheel_contents.py` → OK: all required files present in askrex_assistant-0.1.0-py3-none-any.whl
+- `pytest tests/test_wheel_contents.py -q` → 20 passed in 0.26s
+- `gh pr checks 292` → 14/14 checks green (CodeFactor, Dependency Vulnerability Scan,
+  GUI Build, GUI Raw API Fetch Guard, GUI TypeScript Typecheck, GitGuardian, Hardcoded Secret Scan,
+  Lint & Format Check, Node Dependency Audit, Pre-commit Hook Validation,
+  Python 3.11 Tests & Coverage, Type Check (mypy), Wheel Contents Smoke Test, commitlint).
+
+### Fix committed
+
+- `fix(packaging): remove --no-isolation from wheel build to fix CI (US-015)` (ebd1c6f)
+
+### PRD update
+
+- Checked `[ ] All relevant GitHub checks pass.` criterion for US-015.
+
+US-015 is fully complete. All acceptance criteria checked.

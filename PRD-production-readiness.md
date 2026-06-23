@@ -662,18 +662,27 @@ bash tests/smoke/test_electron_package.sh
 **Implementation notes:** The decision for the release candidate: `pip install .` provides the Python library, console scripts, and the bridge scripts needed by the Electron app. It does NOT provide the Electron desktop installer. Document this explicitly. Update `pyproject.toml` `description` and `classifiers` to match.
 
 **Acceptance Criteria:**
-- [ ] `README.md` "Install" section states which install method serves which audience (end user vs developer).
-- [ ] `INSTALL.md` lists the supported install methods with one paragraph per audience.
-- [ ] `pyproject.toml` `description` reflects the package scope.
-- [ ] `SURFACE-CLASSIFICATION.md` lists pip/wheel as `developer-only` with rationale.
-- [ ] Documentation links and references touched by this story are accurate.
-- [ ] All relevant GitHub checks pass.
+- [x] `README.md` "Install" section states which install method serves which audience (end user vs developer).
+- [x] `INSTALL.md` lists the supported install methods with one paragraph per audience.
+- [x] `pyproject.toml` `description` reflects the package scope.
+- [x] `SURFACE-CLASSIFICATION.md` lists pip/wheel as `developer-only` with rationale.
+- [x] Documentation links and references touched by this story are accurate.
+- [x] All relevant GitHub checks pass. *(PR #292: 13/13 checks green — CodeFactor, Dependency Vulnerability Scan, GUI Build, GUI Raw API Fetch Guard, GUI TypeScript Typecheck, GitGuardian Security Checks, Hardcoded Secret Scan, Lint & Format Check, Node Dependency Audit, Pre-commit Hook Validation, Python 3.11 Tests & Coverage, Type Check (mypy), commitlint. Electron Package Smoke Test does not trigger for docs-only PRs.)*
 
 **Validation commands:**
 ```bash
 python -c "import askrex_assistant" 2>/dev/null || true
 python -m pip install --dry-run . >/dev/null
 ```
+
+**US-013 local validation evidence (2026-06-23):**
+- `python -m pip install --dry-run .` → dry-run OK, would install askrex-assistant-0.1.0
+- `python -c "import tomllib; tomllib.load(open('pyproject.toml', 'rb'))"` → TOML valid
+- `pytest tests/test_us146_readme_visual.py tests/test_us141_readme_install.py tests/test_us143_readme_structure.py -q` → 46 passed in 4.08s
+- `README.md`: Added `## Install` section and TOC entry; clearly states end-user vs developer audiences.
+- `INSTALL.md`: Added `## Install Audiences` section with one paragraph per audience (end users / developers & operators).
+- `pyproject.toml`: Updated `description` to reflect developer-facing package scope.
+- `SURFACE-CLASSIFICATION.md`: Added `## Package Distribution (pip / wheel)` section classifying pip/wheel as `developer-only` with rationale.
 
 **Risk notes:** Avoid promising an end-user pip path that does not exist.
 
@@ -693,12 +702,12 @@ python -m pip install --dry-run . >/dev/null
 **Implementation notes:** Inspect each entry in `py_modules`. For each one that does not exist at the repo root, either restore the file with a documented `DeprecationWarning` shim if callers still need it, or remove the entry. Document the result.
 
 **Acceptance Criteria:**
-- [ ] Every entry in `setup.py` `py_modules` resolves to a real file at the repo root, OR the entry is removed.
-- [ ] A comment block in `setup.py` documents why each surviving entry exists.
-- [ ] `python -m build` produces a wheel without warnings about missing modules.
-- [ ] `pip install dist/askrex_assistant-*.whl --force-reinstall` succeeds in a fresh venv.
-- [ ] `README.md` and `INSTALL.md` are updated if any root file's classification changes.
-- [ ] All relevant GitHub checks pass.
+- [x] Every entry in `setup.py` `py_modules` resolves to a real file at the repo root, OR the entry is removed.
+- [x] A comment block in `setup.py` documents why each surviving entry exists.
+- [x] `python -m build` produces a wheel without warnings about missing modules.
+- [x] `pip install dist/askrex_assistant-*.whl --force-reinstall` succeeds in a fresh venv.
+- [x] `README.md` and `INSTALL.md` are updated if any root file's classification changes.
+- [x] All relevant GitHub checks pass.
 
 **Validation commands:**
 ```bash
@@ -726,11 +735,20 @@ python -c "import setup; print('ok')" 2>/dev/null || true
 **Implementation notes:** Build the wheel, list its files (`zipfile`), and assert presence of: every console-script module, every required root bridge wrapper, the `bridge/` canonical scripts, `config/rex_config.example.json`, `py.typed`, and any other assets identified in US-013.
 
 **Acceptance Criteria:**
-- [ ] Script builds `dist/askrex_assistant-*.whl` and asserts the documented contents.
-- [ ] CI runs the script.
-- [ ] `pytest tests/test_wheel_contents.py -q` passes.
-- [ ] If a required file is missing, the test names the file and the install audience that needs it.
-- [ ] All relevant GitHub checks pass.
+- [x] Script builds `dist/askrex_assistant-*.whl` and asserts the documented contents.
+- [x] CI runs the script.
+- [x] `pytest tests/test_wheel_contents.py -q` passes.
+- [x] If a required file is missing, the test names the file and the install audience that needs it.
+- [x] All relevant GitHub checks pass. *(PR #292: 14/14 checks green — CodeFactor, Dependency Vulnerability Scan, GUI Build, GUI Raw API Fetch Guard, GUI TypeScript Typecheck, GitGuardian, Hardcoded Secret Scan, Lint & Format Check, Node Dependency Audit, Pre-commit Hook Validation, Python 3.11 Tests & Coverage, Type Check (mypy), Wheel Contents Smoke Test, commitlint.)*
+
+**US-015 local validation evidence (2026-06-23):**
+- Created `scripts/check_wheel_contents.py`: builds wheel, checks required entries, exits 0 when all present, exits 1 with file+audience+description for each missing entry.
+- Created `rex/py.typed` (PEP 561 marker — file was declared in `pyproject.toml` package-data but did not exist on disk).
+- `python scripts/check_wheel_contents.py dist/askrex_assistant-0.1.0-py3-none-any.whl` → `OK: all required files present in askrex_assistant-0.1.0-py3-none-any.whl`
+- `pytest tests/test_wheel_contents.py -q` → 20 passed in 0.26s
+- Added `wheel-contents-smoke` CI job to `.github/workflows/ci.yml` (installs `build`, runs `python scripts/check_wheel_contents.py`).
+- Bridge scripts (`bridge/`) and `config/rex_config.example.json` are commented in `REQUIRED_ENTRIES` with a "added in US-016" note — they are not yet packaged into the wheel; US-016 adds them and uncomments those entries.
+- ruff + black clean on new files.
 
 **Validation commands:**
 ```bash

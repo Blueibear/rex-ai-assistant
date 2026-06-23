@@ -411,6 +411,28 @@ jobs:
       - name: 🔍 Check for unapproved raw /api/ fetches in gui/src/
         run: python scripts/check_no_renderer_api_fetch.py
 
+  wheel-contents-smoke:
+    name: Wheel Contents Smoke Test
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: 🧾 Checkout repository
+        uses: actions/checkout@v4
+
+      - name: 🐍 Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: 📦 Install build tool
+        run: |
+          python -m pip install --upgrade "pip>=26.1"
+          pip install build
+
+      - name: 🏗️ Build wheel and check required contents
+        run: python scripts/check_wheel_contents.py
+
   secret-scan:
     name: Hardcoded Secret Scan
     runs-on: ubuntu-latest

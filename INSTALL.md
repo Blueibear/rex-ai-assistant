@@ -2,6 +2,14 @@
 
 This guide covers supported install paths for the current repo. AskRex is Python 3.11-only today; use a 3.11 virtual environment even if your system default `python` is newer.
 
+## Install Audiences
+
+Different audiences use different install methods. Read the paragraph for your use case before proceeding.
+
+**End users (packaged Electron installer — future):** When a release is published, end users install the packaged Electron desktop app directly. The packaged app bundles the Python runtime and bridge scripts; no separate `pip install` or Python environment setup is required from the user's perspective. A packaged installer is not yet available; end users who want to try AskRex today should follow the developer path below.
+
+**Developers and operators (`pip install .` from source):** `pip install .` installs the `askrex-assistant` Python package, which provides the `rex` package library, all six console scripts (`rex`, `rex-gui`, `rex-config`, `rex-speak-api`, `rex-agent`, `rex-tool-server`), and the IPC bridge scripts the Electron app spawns at runtime via its bridge resolver. This is the correct path for contributors, developers, and operators who need CLI text mode, the voice loop, TTS API, direct Python library access, or a developer Electron app (`npm run dev`). It does **not** provide an Electron desktop installer.
+
 ## System Requirements
 
 | Component | Requirement |

@@ -20,6 +20,7 @@ AskRex is alpha software. It is useful for local testing and development, but it
 ## Table of Contents
 
 - [Getting Started](#getting-started)
+- [Install](#install)
 - [Current Status](#current-status)
 - [Working Now](#working-now)
 - [Known Limitations / In Progress](#known-limitations--in-progress)
@@ -102,6 +103,16 @@ Python 3.12 and newer are intentionally rejected by the current installers and r
    ```
 
    Then send a short chat message in the Electron app and confirm Rex replies.
+
+## Install
+
+This section states which install method serves which audience. See [INSTALL.md](INSTALL.md) for detailed per-audience instructions.
+
+**End users — packaged Electron installer (future):** When a release is published, end users will install the packaged Electron desktop app directly. The packaged app bundles everything needed at runtime; no separate `pip install` step is required. Until a packaged release is published, follow the developer path below.
+
+**Developers and operators — `pip install .` from source:** `pip install .` installs the Python library (`rex` package), all six console scripts (`rex`, `rex-gui`, `rex-config`, `rex-speak-api`, `rex-agent`, `rex-tool-server`), and the IPC bridge scripts that the Electron app spawns at runtime. This is the correct install path for developers, contributors, and operators who need CLI access, voice loop, TTS API, or direct Python library access. It does **not** provide the Electron desktop installer. See the [Advanced / Developer](#advanced--developer) section and [INSTALL.md](INSTALL.md) for the full developer setup.
+
+The `askrex-assistant` PyPI package, when published, targets the **developer/operator** audience. It is not an end-user install artifact.
 
 ## Current Status
 
