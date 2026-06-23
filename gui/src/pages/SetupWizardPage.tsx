@@ -220,28 +220,23 @@ export function SetupWizardPage({ onComplete }: SetupWizardPageProps): React.Rea
     setSubmitting(true)
     setError('')
     try {
-      const resp = await fetch('/api/setup/complete', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          username: data.username,
-          password: data.password,
-          llm_provider: data.llmProvider,
-          llm_api_key: data.llmApiKey,
-          tts_provider: data.ttsProvider,
-          ha_base_url: data.haBaseUrl,
-          ha_token: data.haToken
-        })
+      const result = await window.rex.completeSetup({
+        username: data.username,
+        password: data.password,
+        llm_provider: data.llmProvider,
+        llm_api_key: data.llmApiKey,
+        tts_provider: data.ttsProvider,
+        ha_base_url: data.haBaseUrl,
+        ha_token: data.haToken
       })
-      if (!resp.ok) {
-        const body = (await resp.json()) as { error?: string }
-        setError(body.error ?? 'Setup failed.')
+      if (!result.ok) {
+        setError(result.error ?? 'Setup failed.')
         setSubmitting(false)
         return
       }
       setStep(STEPS.length - 1) // Done step
     } catch {
-      setError('Network error. Is the Rex backend running?')
+      setError('Setup failed. Please try again.')
       setSubmitting(false)
     }
   }

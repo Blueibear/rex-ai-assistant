@@ -37,7 +37,11 @@ import type {
   UsageSummary,
   DevicesResponse,
   DeviceCommandResponse,
-  QuickAction
+  QuickAction,
+  QuickActionRunResponse,
+  SetupStatusResponse,
+  SetupCompletePayload,
+  SetupCompleteResponse
 } from '../types/ipc'
 
 function makeSendChatStream(
@@ -353,13 +357,20 @@ const rexAPI = {
     ipcRenderer.invoke('rex:listQuickActions'),
   createQuickAction: (label: string, commandText: string): Promise<{ ok: boolean; action?: QuickAction; error?: string }> =>
     ipcRenderer.invoke('rex:createQuickAction', label, commandText),
+  deleteQuickAction: (id: string): Promise<{ ok: boolean; deleted?: boolean; error?: string }> =>
+    ipcRenderer.invoke('rex:deleteQuickAction', id),
+  runQuickAction: (id: string): Promise<QuickActionRunResponse> =>
+    ipcRenderer.invoke('rex:runQuickAction', id),
   getDevices: (): Promise<DevicesResponse> => ipcRenderer.invoke('rex:getDevices'),
   sendDeviceCommand: (
     entityId: string,
     command: string,
     payload?: { value?: number }
   ): Promise<DeviceCommandResponse> =>
-    ipcRenderer.invoke('rex:sendDeviceCommand', entityId, command, payload)
+    ipcRenderer.invoke('rex:sendDeviceCommand', entityId, command, payload),
+  getSetupStatus: (): Promise<SetupStatusResponse> => ipcRenderer.invoke('rex:getSetupStatus'),
+  completeSetup: (payload: SetupCompletePayload): Promise<SetupCompleteResponse> =>
+    ipcRenderer.invoke('rex:completeSetup', payload)
 }
 
 if (process.contextIsolated) {

@@ -45,13 +45,9 @@ function AppShell(): React.ReactElement {
   const addToast = useToast()
 
   useEffect(() => {
-    // Check setup wizard status before loading the main app.
-    fetch('/api/setup/status')
-      .then((r) => r.json())
-      .then((d) => {
-        const ns = (d as { needs_setup?: boolean }).needs_setup ?? false
-        setNeedsSetup(ns)
-      })
+    window.rex
+      .getSetupStatus()
+      .then((d) => setNeedsSetup(d.needs_setup ?? false))
       .catch(() => setNeedsSetup(false))
   }, [])
 

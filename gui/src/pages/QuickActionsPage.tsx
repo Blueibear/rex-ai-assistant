@@ -1,14 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import type { QuickAction } from '../types/ipc'
 
-function authHeaders(): Record<string, string> {
-  const token = localStorage.getItem('rex_token') ?? ''
-  return {
-    'Content-Type': 'application/json',
-    Authorization: `Bearer ${token}`
-  }
-}
-
 export function QuickActionsPage(): React.ReactElement {
   const [actions, setActions] = useState<QuickAction[]>([])
   const [loading, setLoading] = useState(true)
@@ -46,21 +38,17 @@ export function QuickActionsPage(): React.ReactElement {
   }
 
   const handleDelete = async (id: string): Promise<void> => {
-    await fetch(`/api/quick-actions/${id}`, { method: 'DELETE', headers: authHeaders() })
+    await window.rex.deleteQuickAction(id)
     setActions((prev) => prev.filter((a) => a.id !== id))
   }
 
   const handleRun = async (action: QuickAction): Promise<void> => {
     setRunningId(action.id)
     try {
-      const resp = await fetch(`/api/quick-actions/${action.id}/run`, {
-        method: 'POST',
-        headers: authHeaders()
-      })
-      const data = (await resp.json()) as { reply?: string; error?: string }
-      setRunResult((prev) => ({ ...prev, [action.id]: data.reply ?? data.error ?? '…' }))
+      const result = await window.rex.runQuickAction(action.id)
+      setRunResult((prev) => ({ ...prev, [action.id]: result.detail ?? '…' }))
     } catch {
-      setRunResult((prev) => ({ ...prev, [action.id]: 'Network error.' }))
+      setRunResult((prev) => ({ ...prev, [action.id]: 'Failed to run action.' }))
     } finally {
       setRunningId(null)
     }

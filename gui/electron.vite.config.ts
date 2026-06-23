@@ -16,6 +16,13 @@ export default defineConfig({
     plugins: [externalizeDepsPlugin()]
   },
   renderer: {
+    optimizeDeps: {
+      esbuildOptions: {
+        supported: {
+          destructuring: true
+        }
+      }
+    },
     build: {
       outDir: 'dist-electron/renderer'
     },

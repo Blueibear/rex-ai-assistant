@@ -1,9 +1,9 @@
 """
-US-008: Verify QuickActionsPage list/create fetches are migrated to typed IPC.
+US-008 / US-009: Verify QuickActionsPage IPC migration is complete.
 
 Static/structural tests — verify TypeScript type definitions and that raw
-fetch('/api/quick-actions') GET and POST calls no longer exist in
-QuickActionsPage.tsx.
+fetch('/api/quick-actions') calls no longer exist in QuickActionsPage.tsx.
+US-008 migrated list/create; US-009 migrated delete/run.
 """
 
 from pathlib import Path
@@ -100,9 +100,7 @@ def test_quick_actions_page_no_raw_get_fetch():
 def test_quick_actions_page_no_raw_post_fetch():
     """QuickActionsPage.tsx has no raw POST fetch to /api/quick-actions."""
     content = _read(QUICK_ACTIONS_PAGE)
-    # The remaining fetches are only the DELETE and run calls (US-009 scope).
-    # Verify there is no 'method: POST' paired with /api/quick-actions.
-    assert "method: 'POST'" not in content or "quick-actions/${" in content
+    assert "fetch(" not in content or "/api/quick-actions" not in content
 
 
 def test_quick_actions_page_uses_list_ipc():
@@ -123,11 +121,11 @@ def test_allowlist_no_us008_entries():
     assert "US-008" not in content
 
 
-def test_allowlist_us009_entries_updated():
-    """ALLOWED_API_FETCHES.txt still references the two US-009 call sites."""
+def test_allowlist_us009_entries_removed():
+    """ALLOWED_API_FETCHES.txt no longer has US-009 QuickActionsPage entries (US-009 migrated)."""
     content = _read(ALLOWED_FETCHES)
-    assert "US-009" in content
-    assert "QuickActionsPage" in content
+    assert "US-009" not in content
+    assert "QuickActionsPage" not in content
 
 
 def test_bridge_script_exists():
@@ -145,3 +143,74 @@ def test_bridge_script_supports_add_command():
     """Bridge script handles the 'add' command."""
     content = _read(BRIDGE_SCRIPT)
     assert '"add"' in content or "== 'add'" in content or '== "add"' in content
+
+
+# US-009 additions — delete and run migration
+def test_delete_quick_action_in_rex_api():
+    """RexAPI interface declares deleteQuickAction."""
+    content = _read(IPC_TYPES)
+    assert "deleteQuickAction" in content
+
+
+def test_run_quick_action_in_rex_api():
+    """RexAPI interface declares runQuickAction with discriminated status."""
+    content = _read(IPC_TYPES)
+    assert "runQuickAction" in content
+    assert "QuickActionRunResponse" in content
+    assert "'attempted'" in content or '"attempted"' in content
+
+
+def test_handler_registers_delete_channel():
+    """Main-process handler registers rex:deleteQuickAction."""
+    content = _read(HANDLER_FILE)
+    assert "rex:deleteQuickAction" in content
+
+
+def test_handler_registers_run_channel():
+    """Main-process handler registers rex:runQuickAction."""
+    content = _read(HANDLER_FILE)
+    assert "rex:runQuickAction" in content
+
+
+def test_preload_exposes_delete_quick_action():
+    """Preload exposes deleteQuickAction to the renderer."""
+    content = _read(PRELOAD_FILE)
+    assert "deleteQuickAction" in content
+    assert "rex:deleteQuickAction" in content
+
+
+def test_preload_exposes_run_quick_action():
+    """Preload exposes runQuickAction to the renderer."""
+    content = _read(PRELOAD_FILE)
+    assert "runQuickAction" in content
+    assert "rex:runQuickAction" in content
+
+
+def test_quick_actions_page_uses_delete_ipc():
+    """QuickActionsPage.tsx calls window.rex.deleteQuickAction(...)."""
+    content = _read(QUICK_ACTIONS_PAGE)
+    assert "window.rex.deleteQuickAction" in content
+
+
+def test_quick_actions_page_uses_run_ipc():
+    """QuickActionsPage.tsx calls window.rex.runQuickAction(...)."""
+    content = _read(QUICK_ACTIONS_PAGE)
+    assert "window.rex.runQuickAction" in content
+
+
+def test_quick_actions_page_no_auth_headers():
+    """QuickActionsPage.tsx no longer defines authHeaders (all calls use IPC)."""
+    content = _read(QUICK_ACTIONS_PAGE)
+    assert "authHeaders" not in content
+
+
+def test_bridge_script_supports_delete_command():
+    """Bridge script handles the 'delete' command."""
+    content = _read(BRIDGE_SCRIPT)
+    assert '"delete"' in content or "== 'delete'" in content or '== "delete"' in content
+
+
+def test_bridge_script_supports_run_command():
+    """Bridge script handles the 'run' command."""
+    content = _read(BRIDGE_SCRIPT)
+    assert '"run"' in content or "== 'run'" in content or '== "run"' in content

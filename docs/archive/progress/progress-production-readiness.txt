@@ -435,3 +435,201 @@ Branch: `ralph/production-next`
 
 - `authHeaders()` helper is retained in QuickActionsPage.tsx because the DELETE and run raw fetches (US-009) still need it.
 - GitHub-checks criterion left unchecked pending PR checks.
+
+## 2026-06-22 - US-008 GitHub checks close-out
+
+Branch: `ralph/production-next-2`
+
+### Summary
+
+US-008 (Migrate QuickActionsPage list/create /api/quick-actions to typed IPC) was implemented
+in commit 4a8866b and merged as part of PR #290 (ralph/production-next).
+All acceptance criteria are now met; this entry records the GitHub checks result.
+
+### Validation commands run
+
+- `gh pr checks 290` -> 14/14 checks green (CodeFactor, Dependency Vulnerability Scan,
+  Electron Package Smoke Test, GUI Build, GUI Raw API Fetch Guard, GUI TypeScript Typecheck,
+  GitGuardian, Hardcoded Secret Scan, Lint & Format Check, Node Dependency Audit,
+  Pre-commit Hook Validation, Python 3.11 Tests & Coverage, Type Check (mypy), commitlint).
+
+### PRD update
+
+- Checked `[ ] Manual:` criterion for US-008 with PR #290 merge confirmation.
+- Checked `[ ] All relevant GitHub checks pass.` criterion for US-008.
+
+## 2026-06-22 - US-009 Migrate QuickActionsPage delete/run /api/quick-actions/{id} to typed IPC
+
+Branch: `ralph/production-next-2`
+
+### Implemented
+
+- `bridge/rex_quick_actions_bridge.py`: added `delete` command (removes action by ID from user Memory profile) and `run` command (looks up action by ID, spawns Rex Assistant to execute the command text, returns `{"status": "attempted", "detail": reply}` on success or `{"status": "failed", "detail": error}` on failure).
+- `gui/src/main/handlers/quickActions.ts`: added `rex:deleteQuickAction` and `rex:runQuickAction` IPC handlers using the same `callQuickActionsBridge` helper. `runQuickAction` cast through `unknown` to satisfy the non-overlapping `QuickActionRunResponse` type.
+- `gui/src/types/ipc.ts`: added `QuickActionRunStatus` type alias and `QuickActionRunResponse` interface; added `deleteQuickAction(id)` and `runQuickAction(id)` to `RexAPI`.
+- `gui/src/preload/index.ts`: imported `QuickActionRunResponse`; added `deleteQuickAction` and `runQuickAction` wrappers.
+- `gui/src/pages/QuickActionsPage.tsx`: replaced DELETE fetch with `window.rex.deleteQuickAction(id)`; replaced run POST fetch with `window.rex.runQuickAction(id)`; removed `authHeaders()` helper (no longer needed).
+- `gui/src/ALLOWED_API_FETCHES.txt`: removed QuickActionsPage.tsx:49 (DELETE) and :56 (run) entries.
+
+### Validation
+
+- `cd gui && npm run typecheck` -> 0 errors
+- `cd gui && npm run build` -> built in 1.45s, all bundles clean
+- `python scripts/check_no_renderer_api_fetch.py` -> `OK: no unapproved raw /api/ fetches in gui/src/`
+
+### Notes
+
+- `authHeaders()` was removed from QuickActionsPage.tsx entirely; IPC calls run in the main process without bearer auth.
+- The bridge `run` command always returns `status: "attempted"` on success; `completed` and `verified` are reserved for post-execution verification stories.
+- GitHub-checks criterion left unchecked pending PR checks.
+
+---
+
+## US-009 GitHub checks close-out (2026-06-22)
+
+PR #291 branch `ralph/production-next-2` — CI run 28000392084:
+14/14 checks green: CodeFactor, Dependency Vulnerability Scan, Electron Package Smoke Test, GUI Build, GUI Raw API Fetch Guard, GUI TypeScript Typecheck, GitGuardian, Hardcoded Secret Scan, Lint & Format Check, Node Dependency Audit, Pre-commit Hook Validation, Python 3.11 Tests & Coverage (31 tests, 8m41s), Type Check (mypy), commitlint.
+
+US-009 is fully complete. All acceptance criteria checked.
+
+---
+
+## US-010: SetupWizardPage and App.tsx /api/setup/* IPC migration (2026-06-22)
+
+### What was done
+
+Migrated two raw `/api/setup/` fetches to typed IPC:
+- `App.tsx:49` — `fetch('/api/setup/status')` → `window.rex.getSetupStatus()`
+- `SetupWizardPage.tsx:223` — `fetch('/api/setup/complete', ...)` → `window.rex.completeSetup(payload)`
+
+### New files
+
+- `bridge/rex_setup_bridge.py`: handles `status` (count users in auth DB → `{needs_setup: bool}`) and `complete` (calls `create_user`, `bootstrap_admin_if_first_user`, saves JSON config, writes .env secrets via `_write_env_secrets`).
+- `gui/src/main/handlers/setup.ts`: IPC main-process handler that spawns the bridge.
+- `tests/test_us010_setup_ipc.py`: 26 structural tests.
+
+### Modified files
+
+- `gui/src/types/ipc.ts`: added `SetupStatusResponse`, `SetupCompletePayload`, `SetupCompleteResponse` interfaces; added `getSetupStatus()` and `completeSetup()` to `RexAPI`.
+- `gui/src/main/ipc.ts`: imported and called `registerSetupHandlers()`.
+- `gui/src/preload/index.ts`: imported new types; exposed `getSetupStatus` and `completeSetup`.
+- `gui/src/renderer/src/App.tsx`: replaced `fetch('/api/setup/status')` with `window.rex.getSetupStatus()`.
+- `gui/src/pages/SetupWizardPage.tsx`: replaced raw fetch with `window.rex.completeSetup(payload)`.
+- `gui/src/ALLOWED_API_FETCHES.txt`: removed SetupWizardPage.tsx:223 and App.tsx:49 entries.
+
+### Validation
+
+- `cd gui && npm run typecheck` → 0 errors
+- `cd gui && npm run build` → built in 1.47s, all bundles clean
+- `python scripts/check_no_renderer_api_fetch.py` → `OK: no unapproved raw /api/ fetches in gui/src/`
+- `pytest tests/test_us010_setup_ipc.py -v` → 26 passed
+
+### Notes
+
+- The Flask setup token (`X-Setup-Token`) was not replicated in the bridge. IPC calls originate from the Electron main process; there is no HTTP attack surface to protect against, so the token is unnecessary.
+- GitHub-checks criterion left unchecked pending PR checks.
+
+---
+
+## US-010 GitHub checks close-out (2026-06-23)
+
+PR #291 branch `ralph/production-next-2` — CI run 28001450878:
+14/14 checks green: CodeFactor, Dependency Vulnerability Scan, Electron Package Smoke Test, GUI Build, GUI Raw API Fetch Guard, GUI TypeScript Typecheck, GitGuardian, Hardcoded Secret Scan, Lint & Format Check, Node Dependency Audit, Pre-commit Hook Validation, Python 3.11 Tests & Coverage (6m47s), Type Check (mypy), commitlint.
+
+Additional fix commits: fix(bridge): replaced try/except/pass with debug logging (B110 CodeFactor); test(gui): updated test_us328 App.tsx setup status assertion for IPC migration.
+
+US-010 is fully complete. All acceptance criteria checked.
+---
+
+## US-011: Drain the /api/ allowlist and lock the guard (2026-06-22)
+
+Branch: `ralph/production-next-2`
+
+### What was done
+
+Removed the two stale entries from `gui/src/ALLOWED_API_FETCHES.txt`:
+- `gui/src/pages/AboutPage.tsx:13` — migrated in US-004; entry was stale
+- `gui/src/pages/CommandHistoryPage.tsx:26` — migrated in US-005; entry was stale
+
+Updated `README.md`:
+- Quick Start step 4: replaced "The Electron app communicates with the Python Flask backend automatically." with an accurate note stating the packaged app is IPC-only and Flask backend is not required at runtime.
+- Renderer IPC policy section: updated allowlist note to state all fetches migrated, allowlist is empty, new raw fetches fail CI.
+
+### Verified
+
+- `SURFACE-CLASSIFICATION.md` already consistent: `rex-gui` is `developer-only`; notes "All core Electron GUI functionality uses IPC bridge scripts. Renderer fetch('/api/...') calls are dead in packaged mode."
+- No changes required to SURFACE-CLASSIFICATION.md.
+
+### Validation commands run
+
+- `python scripts/check_no_renderer_api_fetch.py` → OK: no unapproved raw /api/ fetches in gui/src/
+- `grep` over TS/TSX/JS/JSX source files → clean (no matches in source files)
+- `cd gui && npm run typecheck` → 0 errors
+- `cd gui && npm run build` → built in 1.44s, all bundles clean
+
+### GitHub checks
+
+Left unchecked pending PR checks on this branch.
+
+## US-011 GitHub checks close-out (2026-06-22)
+
+PR #291 branch `ralph/production-next-2` — 14/14 checks green:
+CodeFactor, Dependency Vulnerability Scan, Electron Package Smoke Test, GUI Build, GUI Raw API Fetch Guard,
+GUI TypeScript Typecheck, GitGuardian, Hardcoded Secret Scan, Lint & Format Check, Node Dependency Audit,
+Pre-commit Hook Validation, Python 3.11 Tests & Coverage, Type Check (mypy), commitlint.
+
+US-011 is fully complete. All acceptance criteria checked.
+
+## US-012: Packaged Electron smoke test requires no Flask backend (2026-06-22)
+
+Branch: `ralph/production-next-2`
+
+### What was done
+
+Extended `tests/smoke/test_electron_package.sh` with three new checks (US-012):
+
+- Added `FLASK_PORT` config variable (default: 5000, matching AppConfig.ui.gui_port default).
+- Added `flask_port_bound()` helper using ss/lsof/netstat to detect if Flask port is listening.
+- Added `_renderer_has_raw_api_fetch()` helper to check JS files for `fetch('/api/` or `fetch("/api/` patterns.
+- **Step 3d** (pre-launch port check): Fails if port 5000 is already bound before Electron launch.
+- **Step 3e** (renderer bundle scan): Scans `gui/dist-electron/renderer/**/*.js` for raw `/api/` fetch
+  patterns; mandatory failure if any found.
+- **Step 4 enhancements**: After Electron wait loop —
+  - Port check: fails if port 5000 was bound during the Electron smoke window.
+  - Log scan: greps Electron stderr log for `/api/` patterns; hard fail with REQUIRE_ELECTRON_SIGNAL=1.
+
+Updated `tests/smoke/test_electron_package.sh` header comments (exit codes, step list).
+
+Updated `.github/workflows/electron-smoke.yml`:
+- Added `tests/smoke/**` to PR path filter so smoke test changes trigger CI.
+  (`gui/**` already covers `gui/src/ALLOWED_API_FETCHES.txt` and all `bridge/**` changes.)
+
+Updated `README.md`:
+- Rewrote "Flask API backend for Electron (`rex-gui`)" section (lines ~257-274) to remove the
+  outdated "the Electron GUI calls" language. Now clearly states: packaged Electron does NOT call
+  rex-gui at runtime; rex-gui is developer-only for API route testing.
+
+### Validation commands run
+
+- `bash -n tests/smoke/test_electron_package.sh` → syntax OK
+- `python scripts/check_no_renderer_api_fetch.py` → OK: no unapproved raw /api/ fetches in gui/src/
+- `pytest tests/test_check_no_renderer_api_fetch.py -q` → 15 passed in 0.36s
+- `cd gui && npm run typecheck` → 0 errors
+
+### GitHub checks
+
+Left unchecked pending PR checks.
+
+## US-012 GitHub checks close-out (2026-06-22)
+
+PR #291 branch `ralph/production-next-2` — CI run 28002610891 / 28002610919:
+14/14 checks green: CodeFactor, Dependency Vulnerability Scan, Electron Package Smoke Test (51s),
+GUI Build, GUI Raw API Fetch Guard, GUI TypeScript Typecheck, GitGuardian, Hardcoded Secret Scan,
+Lint & Format Check, Node Dependency Audit, Pre-commit Hook Validation,
+Python 3.11 Tests & Coverage (6m5s), Type Check (mypy), commitlint.
+
+The Electron Package Smoke Test passed with the new Step 3d (Flask port check) and Step 3e
+(renderer bundle scan). Port 5000 was not bound; no raw /api/ fetch patterns found in the
+renderer bundle.
+
+US-012 is fully complete. All acceptance criteria checked.

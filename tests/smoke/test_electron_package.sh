@@ -10,9 +10,16 @@
 #   3. Sends a bridge health-check request directly to a packaged bridge script
 #      using the Python venv — WITHOUT the source-tree bridge/ on PYTHONPATH.
 #      A valid JSON response (ok=true or ok=false) proves the bridge is reachable.
-#   4. Launches the packaged Electron app and waits for the bridge validation
-#      startup signal logged by validateBridges() in bridgeResolver.ts.
-#      This step is best-effort unless REQUIRE_ELECTRON_SIGNAL=1.
+#   3c. Confirms the built main-process bundle has no Flask/gui_app spawn.
+#   3d. Asserts the Flask GUI port (default: 5000) is NOT bound before launch.
+#       The packaged app must not start rex-gui (US-012).
+#   3e. Scans the built renderer bundle for raw fetch('/api/...) strings.
+#       These are dead in packaged mode and indicate a missed IPC migration (US-012).
+#   4. Launches the packaged Electron app and:
+#      - Asserts the Flask port is NOT bound during the smoke window (US-012).
+#      - Scans the Electron log for renderer /api/ fetch error traces (US-012).
+#      - Waits for the bridge validation startup signal (best-effort).
+#      Step 4 is best-effort unless REQUIRE_ELECTRON_SIGNAL=1.
 #
 # Usage:
 #   bash tests/smoke/test_electron_package.sh
@@ -32,9 +39,10 @@
 #                              Overrides venv and system Python fallback.
 #
 # Exit codes:
-#   0  All required checks passed (steps 1-3 must pass; step 4 best-effort).
+#   0  All required checks passed (steps 1-3e must pass; step 4 best-effort).
 #   1  A required check failed: build error, missing bridge scripts,
-#      bridge unreachable (no JSON response), or REQUIRE_ELECTRON_SIGNAL=1 timeout.
+#      bridge unreachable (no JSON response), Flask port bound (3d or step 4),
+#      raw /api/ fetch in renderer bundle (3e), or REQUIRE_ELECTRON_SIGNAL=1 timeout.
 #
 # Platform notes:
 #   - Windows: Electron is a GUI-subsystem binary; stderr capture from bash may
@@ -59,6 +67,11 @@ GUI_DIR="$REPO_ROOT/gui"
 SKIP_BUILD="${SKIP_BUILD:-0}"
 REQUIRE_ELECTRON_SIGNAL="${REQUIRE_ELECTRON_SIGNAL:-0}"
 SMOKE_TIMEOUT="${SMOKE_TIMEOUT:-30}"
+
+# rex-gui (the Flask backend) binds AppConfig.ui.gui_port (default: 5000).
+# The packaged Electron app must NOT start rex-gui or bind this port.
+# Override with FLASK_GUI_PORT if rex_config.json configures a different port.
+FLASK_PORT="${FLASK_GUI_PORT:-5000}"
 
 # Bridge script used for the health check.
 # Sends an unknown command so no database or config reads are triggered.
@@ -105,6 +118,26 @@ os_type() {
     Linux*)  echo linux ;;
     *)       echo windows ;;
   esac
+}
+
+# Returns 0 if FLASK_PORT is currently bound (a listener exists), 1 otherwise.
+# Tries ss (Linux), lsof (macOS/Linux), then netstat (universal fallback).
+flask_port_bound() {
+  local port="$1"
+  if command -v ss >/dev/null 2>&1; then
+    ss -tlnH 2>/dev/null | awk '{print $4}' | grep -qE ":${port}$"
+  elif command -v lsof >/dev/null 2>&1; then
+    lsof -iTCP:"$port" -sTCP:LISTEN -t >/dev/null 2>&1
+  else
+    netstat -an 2>/dev/null | grep -qE ":${port}[[:space:]].*LISTEN"
+  fi
+}
+
+# Returns 0 if a .js file contains a raw fetch('/api/ or fetch("/api/ call.
+_renderer_has_raw_api_fetch() {
+  local f="$1"
+  grep -qF "fetch('/api/" "$f" 2>/dev/null ||
+  grep -qF 'fetch("/api/' "$f" 2>/dev/null
 }
 
 # ---------------------------------------------------------------------------
@@ -278,6 +311,48 @@ fi
 log "Flask routes are not reachable from the packaged app by default (renderer loads via file:// protocol)."
 
 # ===========================================================================
+# Step 3d: Pre-launch Flask port check (US-012)
+#
+# rex-gui binds AppConfig.ui.gui_port (default: ${FLASK_PORT}).
+# The packaged Electron app must not start rex-gui or bind this port.
+# Asserting the port is free before launch serves as the pre-condition check.
+# ===========================================================================
+log "Step 3d: Pre-launch Flask port check (port ${FLASK_PORT} must be free)..."
+if flask_port_bound "$FLASK_PORT"; then
+  fail "Flask port ${FLASK_PORT} is bound before Electron launch. Stop any stray rex-gui process and retry."
+fi
+log "Port ${FLASK_PORT} is free — no Flask backend running before Electron launch."
+
+# ===========================================================================
+# Step 3e: Built renderer bundle — no raw /api/ fetch patterns (US-012)
+#
+# Scans gui/dist-electron/renderer/**/*.js for raw fetch('/api/...) strings.
+# Such strings are dead in packaged mode (file:// protocol) and indicate a
+# missed or regressed renderer IPC migration (US-003 through US-011).
+#
+# This static check is the mandatory counterpart to the runtime renderer
+# console scan in Step 4. It catches regressions even when Electron does
+# not produce capturable stderr output in the headless CI environment.
+# ===========================================================================
+log "Step 3e: Built renderer bundle check (no raw /api/ fetch patterns)..."
+RENDERER_DIST="$GUI_DIR/dist-electron/renderer"
+RENDERER_API_HITS=0
+if [[ -d "$RENDERER_DIST" ]]; then
+  while IFS= read -r -d '' jsfile; do
+    if _renderer_has_raw_api_fetch "$jsfile"; then
+      warn "Raw /api/ fetch found in renderer bundle: $jsfile"
+      RENDERER_API_HITS=$((RENDERER_API_HITS + 1))
+    fi
+  done < <(find "$RENDERER_DIST" -name "*.js" -print0 2>/dev/null)
+  if [[ "$RENDERER_API_HITS" -gt 0 ]]; then
+    fail "$RENDERER_API_HITS renderer JS file(s) contain raw /api/ fetches. Run: python scripts/check_no_renderer_api_fetch.py"
+  fi
+  log "Renderer bundle check passed: no raw /api/ fetch patterns in $RENDERER_DIST."
+else
+  warn "Renderer dist not found at $RENDERER_DIST; built bundle check skipped (run npm run build first or set SKIP_BUILD=0)."
+fi
+
+# ===========================================================================
 # Step 4: Electron launch — wait for bridge startup signal
 #
 # Launches the packaged app with ELECTRON_ENABLE_LOGGING=1 and watches stderr
@@ -319,6 +394,32 @@ else
   wait "$_ELECTRON_PID" 2>/dev/null || true
   _ELECTRON_PID=""  # prevent double-kill in cleanup trap
 
+  # Flask port check — the packaged Electron app must not have started rex-gui
+  # at any point during the smoke window (mandatory regardless of REQUIRE_ELECTRON_SIGNAL).
+  if flask_port_bound "$FLASK_PORT"; then
+    fail "Flask port ${FLASK_PORT} was bound during the Electron smoke window. The packaged app must not start rex-gui."
+  fi
+  log "Flask port check passed: port ${FLASK_PORT} not bound during Electron launch."
+
+  # Renderer console /api/ check — scan Electron log for fetch error traces.
+  # ELECTRON_ENABLE_LOGGING=1 captures Chromium internals to stderr; failed
+  # fetch('/api/...) calls may appear as resource-load errors.
+  # Step 3e (static bundle scan) is the mandatory gate; this is the dynamic layer.
+  if [[ -s "$_ELECTRON_LOG" ]]; then
+    if grep -qE '/api/' "$_ELECTRON_LOG" 2>/dev/null; then
+      warn "Electron log contains '/api/' references — possible raw renderer fetch error:"
+      grep -E '/api/' "$_ELECTRON_LOG" | head -5 | sed 's/^/  /' >&2
+      if [[ "$REQUIRE_ELECTRON_SIGNAL" == "1" && $STARTUP_SIGNAL -eq 1 ]]; then
+        fail "'/api/' pattern in Electron log while renderer was running. Renderer /api/ fetches must use IPC."
+      fi
+      warn "Set REQUIRE_ELECTRON_SIGNAL=1 to make this a hard failure (Step 3e static check is the mandatory gate)."
+    else
+      log "Renderer console check passed: no '/api/' patterns in Electron log."
+    fi
+  else
+    log "No Electron log captured; dynamic renderer console check skipped (Step 3e static check is the mandatory gate)."
+  fi
+
   if [[ $STARTUP_SIGNAL -eq 1 ]]; then
     log "Electron startup signal received: bridge validation confirmed."
   else
@@ -342,7 +443,8 @@ fi
 # Done
 # ===========================================================================
 log "Smoke test PASSED."
-log "  Steps verified: build, bridge scripts present (${#REQUIRED_BRIDGES[@]}), bridge health check."
+log "  Steps verified: build, bridge scripts present (${#REQUIRED_BRIDGES[@]}), bridge health check,"
+log "    Flask port ${FLASK_PORT} free (no rex-gui started), renderer bundle clean (no raw /api/ fetches)."
 if [[ $STARTUP_SIGNAL -eq 1 ]]; then
   log "  Electron startup signal: received."
 else
