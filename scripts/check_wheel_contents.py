@@ -109,7 +109,7 @@ def check_wheel(wheel_path: Path) -> list[tuple[str, str, str]]:
 def build_wheel(repo_root: Path) -> Path:
     """Run `python -m build --wheel` and return the resulting .whl path."""
     subprocess.run(
-        [sys.executable, "-m", "build", "--wheel", "--no-isolation"],
+        [sys.executable, "-m", "build", "--wheel"],
         cwd=repo_root,
         check=True,
     )
