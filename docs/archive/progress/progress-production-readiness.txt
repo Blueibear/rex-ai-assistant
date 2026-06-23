@@ -1,5 +1,20 @@
 # Production Readiness Progress Log
 
+## 2026-06-23 - US-013 complete
+
+Branch: `ralph/production-next-3`
+PR: #292
+
+### US-013: Decide and document the supported pip/wheel install scope
+
+All acceptance criteria satisfied. Implementation committed in `d650d62`. PR #292 GitHub checks: 13/13 green (docs-only PR; Electron Package Smoke Test does not trigger). Checked off final checkbox in PRD.
+
+### Next
+
+US-014: Repair `setup.py` `py_modules` to match files on disk.
+
+---
+
 ## 2026-06-12 01:39:36 -05:00 - PRD reconciliation against current repo
 
 Branch: `ralph/reconcile-production-readiness-prd`

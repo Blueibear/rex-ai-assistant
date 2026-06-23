@@ -667,7 +667,7 @@ bash tests/smoke/test_electron_package.sh
 - [x] `pyproject.toml` `description` reflects the package scope.
 - [x] `SURFACE-CLASSIFICATION.md` lists pip/wheel as `developer-only` with rationale.
 - [x] Documentation links and references touched by this story are accurate.
-- [ ] All relevant GitHub checks pass.
+- [x] All relevant GitHub checks pass. *(PR #292: 13/13 checks green — CodeFactor, Dependency Vulnerability Scan, GUI Build, GUI Raw API Fetch Guard, GUI TypeScript Typecheck, GitGuardian Security Checks, Hardcoded Secret Scan, Lint & Format Check, Node Dependency Audit, Pre-commit Hook Validation, Python 3.11 Tests & Coverage, Type Check (mypy), commitlint. Electron Package Smoke Test does not trigger for docs-only PRs.)*
 
 **Validation commands:**
 ```bash
