@@ -816,7 +816,7 @@ python scripts/check_wheel_contents.py
 - [x] Files moved to `archived/` retain history (use `git mv`).
 - [x] No production import path is broken (covered by US-018's bridge-resolver tests and US-019's entry-point smoke).
 - [x] `python scripts/check_imports.py` or equivalent passes.
-- [ ] All relevant GitHub checks pass.
+- [x] All relevant GitHub checks pass.
 
 **Validation commands:**
 ```bash
