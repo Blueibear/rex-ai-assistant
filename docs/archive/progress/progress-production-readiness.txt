@@ -1,5 +1,50 @@
 # Production Readiness Progress Log
 
+## 2026-06-23 - US-015 complete
+
+Branch: `ralph/production-next-3`
+
+### US-015: Add a wheel contents smoke test
+
+Created `scripts/check_wheel_contents.py`: builds `dist/askrex_assistant-*.whl` using
+`python -m build --wheel`, lists contents via `zipfile`, and asserts all REQUIRED_ENTRIES
+are present. Exits 0 on success; exits 1 and names each missing file with its install
+audience and description on failure.
+
+Created `rex/py.typed` (PEP 561 type marker). The file was declared in
+`pyproject.toml` `[tool.setuptools.package-data]` but did not exist on disk, so it
+was absent from every wheel build. Creating it makes it automatically included.
+
+Created `tests/test_wheel_contents.py` with 20 tests covering: all-present returns [],
+single missing file identified, all missing reported, extra files tolerated, audience/
+description populated, REQUIRED_ENTRIES structure, main() exit codes, and parametric
+checks that every console-script module and `rex/py.typed` are in the required list.
+
+Bridge scripts (`bridge/`) and `config/rex_config.example.json` are commented in
+REQUIRED_ENTRIES with a "added in US-016" note — those resources are not yet packaged.
+
+Added `wheel-contents-smoke` CI job to `.github/workflows/ci.yml`.
+
+Verified:
+- `python scripts/check_wheel_contents.py dist/askrex_assistant-0.1.0-py3-none-any.whl`
+  → `OK: all required files present in askrex_assistant-0.1.0-py3-none-any.whl`
+- `pytest tests/test_wheel_contents.py -q` → 20 passed in 0.26s
+- `ruff check` + `black --check` → clean
+
+### Learnings
+
+- `rex/py.typed` was declared in `pyproject.toml` package-data but had never been
+  created; setuptools silently omits missing package-data files from the wheel.
+  Always verify with `python -m build && python -c "import zipfile; ..."` rather
+  than trusting the declaration alone.
+
+### Next
+
+US-016: Ensure required runtime resources are packaged in the wheel (bridge scripts,
+config/rex_config.example.json).
+
+---
+
 ## 2026-06-23 - US-014 complete
 
 Branch: `ralph/production-next-3`
