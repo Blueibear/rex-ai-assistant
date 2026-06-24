@@ -774,10 +774,16 @@ pytest tests/test_wheel_contents.py -q
 **Implementation notes:** Configure `setuptools` so the wheel includes the resources US-015 asserts. Where appropriate, move resources into the `rex` package and update consumers, OR explicitly include top-level data via `MANIFEST.in` + `include_package_data`.
 
 **Acceptance Criteria:**
-- [ ] `scripts/check_wheel_contents.py` passes after this story.
-- [ ] No new top-level package is created.
-- [ ] `README.md` and `INSTALL.md` describe what `pip install` ships.
-- [ ] All relevant GitHub checks pass.
+- [x] `scripts/check_wheel_contents.py` passes after this story.
+- [x] No new top-level package is created.
+- [x] `README.md` and `INSTALL.md` describe what `pip install` ships.
+- [x] All relevant GitHub checks pass. *(PR #293: 14/14 checks green — CodeFactor, Dependency Vulnerability Scan, GUI Build, GUI Raw API Fetch Guard, GUI TypeScript Typecheck, GitGuardian, Hardcoded Secret Scan, Lint & Format Check, Node Dependency Audit, Pre-commit Hook Validation, Python 3.11 Tests & Coverage, Type Check (mypy), Wheel Contents Smoke Test, commitlint.)*
+
+**US-016 local validation evidence (2026-06-23):**
+- `python -m build --wheel` → `Successfully built askrex_assistant-0.1.0-py3-none-any.whl`
+- `python scripts/check_wheel_contents.py dist/askrex_assistant-0.1.0-py3-none-any.whl` → `OK: all required files present`
+- `pytest tests/test_wheel_contents.py -q` → 32 passed
+- PR #293 GitHub checks: 14/14 passed (all required checks green).
 
 **Validation commands:**
 ```bash
@@ -805,12 +811,12 @@ python scripts/check_wheel_contents.py
 **Implementation notes:** Classify each root `.py` as `production-entrypoint`, `compatibility-wrapper`, `developer-utility`, `test-helper`, or `archive-candidate`. Move archive candidates under `archived/` with a rationale. Update `CLAUDE.md`'s "Active root-level `.py` files" count to match.
 
 **Acceptance Criteria:**
-- [ ] `SURFACE-CLASSIFICATION.md` lists every root `.py` file with its classification.
-- [ ] `CLAUDE.md`'s root-file count and list match reality.
-- [ ] Files moved to `archived/` retain history (use `git mv`).
-- [ ] No production import path is broken (covered by US-018's bridge-resolver tests and US-019's entry-point smoke).
-- [ ] `python scripts/check_imports.py` or equivalent passes.
-- [ ] All relevant GitHub checks pass.
+- [x] `SURFACE-CLASSIFICATION.md` lists every root `.py` file with its classification.
+- [x] `CLAUDE.md`'s root-file count and list match reality.
+- [x] Files moved to `archived/` retain history (use `git mv`).
+- [x] No production import path is broken (covered by US-018's bridge-resolver tests and US-019's entry-point smoke).
+- [x] `python scripts/check_imports.py` or equivalent passes.
+- [x] All relevant GitHub checks pass.
 
 **Validation commands:**
 ```bash
@@ -819,6 +825,12 @@ pytest -q
 ```
 
 **Risk notes:** Moving a file that the Electron `bridgeResolver.ts` references will break the packaged app. Verify resolver paths first.
+
+**Local validation evidence (2026-06-23):**
+- `python -m compileall -q <all 27 root .py files>` → clean (no output)
+- `python scripts/check_imports.py` → `[OK] All critical modules have valid syntax` (fixed Unicode encoding issue in script; removed archived gui.py/gui_settings_tab.py from module list)
+- `pytest -q` → all tests passed (exit code 0)
+- No files moved to `archived/` — all 17 bridge wrappers are actively imported by tests (`flask_proxy` imported by 2 test files; bridge wrappers imported by at least 3 test files)
 
 ---
 
@@ -836,11 +848,17 @@ pytest -q
 **Implementation notes:** A Python test enumerates the bridge scripts referenced by `bridgeResolver.ts` (parse the TypeScript file deterministically), then asserts each path exists in the source tree. A TypeScript/Vitest test asserts that, given a faked `app.getAppPath()`, the resolver returns paths under `resources/bridge/` for the packaged layout and under `bridge/` (or repo root) for dev.
 
 **Acceptance Criteria:**
-- [ ] Python test asserts every bridge script referenced by `bridgeResolver.ts` exists in the source tree.
-- [ ] TypeScript test asserts resolver behavior in both dev and packaged-path modes.
-- [ ] `pytest tests/test_bridge_resolution.py -q` passes.
-- [ ] `cd gui && npm test` passes (if vitest is wired) OR `cd gui && npm run typecheck && npm run build` passes (acceptable interim).
-- [ ] All relevant GitHub checks pass.
+- [x] Python test asserts every bridge script referenced by `bridgeResolver.ts` exists in the source tree.
+- [x] TypeScript test asserts resolver behavior in both dev and packaged-path modes.
+- [x] `pytest tests/test_bridge_resolution.py -q` passes.
+- [x] `cd gui && npm test` passes (if vitest is wired) OR `cd gui && npm run typecheck && npm run build` passes (acceptable interim).
+- [x] All relevant GitHub checks pass.
+
+**Local validation evidence (2026-06-23):**
+- `pytest tests/test_bridge_resolution.py -q` → 24 passed (3 setup tests + 21 parametrized bridge scripts)
+- `cd gui && npm test` → vitest 3.2.6, 2 tests passed (dev mode + packaged mode)
+- `cd gui && npm run typecheck` → no errors
+- `cd gui && npm run build` → built in ~1.4s, no errors
 
 **Validation commands:**
 ```bash

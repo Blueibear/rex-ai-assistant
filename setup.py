@@ -26,16 +26,44 @@ WHY THIS FILE STILL EXISTS (US-259 evaluation, 2026-04-05):
     memory_utils        — no root file; archived/ callers only; active code uses rex.memory_utils
     audio_config        — no root file, no callers
     conversation_memory — no root file, no callers
+
+WHY data_files IS USED HERE (US-016):
+  pyproject.toml [tool.setuptools] has no equivalent of data_files, and
+  MANIFEST.in + include_package_data only covers files within Python package
+  directories.  Bridge scripts (bridge/rex_*.py) and the config example
+  (config/rex_config.example.json) live outside the rex/ package tree.
+
+  data_files is deprecated in modern setuptools but continues to work in
+  78.x.  It is the only mechanism that includes these files in the wheel
+  without (a) creating a new top-level importable package or (b) duplicating
+  files into rex/.  The deprecation warning is acceptable here; a future
+  packaging story can revisit if setuptools removes the feature.
+
+  After pip install, data files land at:
+    {sys.prefix}/bridge/rex_*.py
+    {sys.prefix}/config/rex_config.example.json
+  Within the wheel zip they appear at:
+    {name}-{version}.data/data/bridge/rex_*.py
+    {name}-{version}.data/data/config/rex_config.example.json
 """
+
+import glob
 
 from setuptools import setup
 
 setup(
     # Most configuration is in pyproject.toml.
-    # This only adds the py_modules that pyproject.toml cannot specify.
+    # This adds py_modules (unsupported in pyproject.toml) and data_files.
     py_modules=[
         "config",  # compat shim → rex.config; callers: test_llm_client, test_us013-016
         "llm_client",  # compat shim → rex.llm_client; callers: test_llm_client, test_us013-016
         "rex_speak_api",  # entry-point module; callers: wsgi.py, speak-api tests
+    ],
+    # US-016: include bridge scripts and config example in the wheel so that
+    # `pip install .` delivers every resource documented in INSTALL.md.
+    # Paths must be relative to the project root (where this file lives).
+    data_files=[
+        ("bridge", sorted(glob.glob("bridge/rex_*.py"))),
+        ("config", ["config/rex_config.example.json"]),
     ],
 )

@@ -17,7 +17,7 @@ def check_module_exists(module_path: str) -> bool:
         py_compile.compile(module_path, doraise=True)
         return True
     except Exception as e:
-        print(f"  ✗ Syntax error in {module_path}: {e}")
+        print(f"  [FAIL] Syntax error in {module_path}: {e}")
         return False
 
 
@@ -27,8 +27,6 @@ def main():
     print("=" * 60)
 
     critical_modules = [
-        "gui.py",
-        "gui_settings_tab.py",
         "utils/env_loader.py",
         "utils/env_schema.py",
         "utils/env_writer.py",
@@ -48,21 +46,21 @@ def main():
         module_path = repo_root / module
         if module_path.exists():
             if check_module_exists(str(module_path)):
-                print(f"  ✓ {module}")
+                print(f"  [OK] {module}")
             else:
                 all_ok = False
         else:
-            print(f"  ⚠ {module} - not found")
+            print(f"  [MISSING] {module} - not found")
 
     print("\n" + "=" * 60)
     if all_ok:
-        print("✓ All critical modules have valid syntax")
+        print("[OK] All critical modules have valid syntax")
         print("\nNote: Runtime dependencies (numpy, tkinter, torch, etc.) are")
         print("checked when the application starts. Install requirements:")
         print("  pip install -r requirements.txt")
         return 0
     else:
-        print("✗ Some modules have syntax errors")
+        print("[FAIL] Some modules have syntax errors")
         return 1
 
 

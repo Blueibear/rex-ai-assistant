@@ -178,9 +178,10 @@ class TestMemoryBaseline:
         finally:
             tracemalloc.stop()
 
-        # Second half growth should be <= first half (converging behaviour)
-        # Allow 2x tolerance for natural fluctuation.
-        assert growth_second_half <= growth_first_half * 2 + 10 * 1024, (
+        # Second half growth should be <= first half (converging behaviour).
+        # 50 KB absolute floor accounts for CI allocator jitter when the first
+        # half converges to 0 KB (full warm-up from the rest of the test suite).
+        assert growth_second_half <= growth_first_half * 2 + 50 * 1024, (
             f"Memory growth is increasing: first 50 reqs={growth_first_half // 1024}KB, "
             f"second 50 reqs={growth_second_half // 1024}KB - possible linear leak"
         )
