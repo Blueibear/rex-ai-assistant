@@ -1,5 +1,49 @@
 # Production Readiness Progress Log
 
+## 2026-06-24 - US-019: Console script import/help smoke tests
+
+Branch: `ralph/production-next-5`
+
+### Summary
+
+US-019 added `tests/test_console_scripts_smoke.py` with 8 parametrized tests covering all
+six console scripts declared in `pyproject.toml [project.scripts]`.
+
+**Approach:**
+- 6 import tests (`test_console_script_importable[<name>]`): one per script, each runs
+  `python -c "from <module> import <fn>; print('<script> ok')"` via subprocess and asserts
+  exit 0 plus the sentinel string in stdout.
+- 2 help tests (`test_console_script_help[<name>]`): rex and rex-config only (these are
+  argparse CLIs). Server scripts (rex-speak-api, rex-agent, rex-gui, rex-tool-server) require
+  env vars or bind ports at startup and are unsafe to invoke with `--help`.
+- `rex` is invoked via `python -m rex --help`; `rex-config` via sys.argv injection.
+
+**Why import-only for server scripts:**
+- `rex-speak-api`: raises `RuntimeError: REX_SPEAK_API_KEY must be set` on main(); no --help
+- `rex-agent`: binds to port, requires REX_AGENT_TOKEN; no --help
+- `rex-gui`: starts Flask server; no --help, would timeout
+- `rex-tool-server`: starts Flask server; requires REX_TOOL_API_KEY; no --help
+
+**CI coverage:**
+The existing `tests` job does `pip install -e ".[dev]"` then runs `pytest`, so
+`tests/test_console_scripts_smoke.py` is automatically included. No CI changes needed.
+
+### Validation commands run
+
+- `ruff check tests/test_console_scripts_smoke.py` → all checks passed
+- `black --check tests/test_console_scripts_smoke.py` → no changes
+- `pytest tests/test_console_scripts_smoke.py -q` → 8 passed in 9.75s
+
+### PRD update
+
+ACs 1-3 checked. AC4 (GitHub checks) pending PR.
+
+### Next
+
+US-020: Fix or formally stub `rex/replay.py` so production callers do not silently misreport.
+
+---
+
 ## 2026-06-23 - US-018: Bridge path resolution tests for dev and packaged mode
 
 Branch: `ralph/production-next-4`

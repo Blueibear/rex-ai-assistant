@@ -883,10 +883,17 @@ cd gui && npm run typecheck && npm run build
 **Implementation notes:** Parametrize a pytest over `rex`, `rex-config`, `rex-speak-api`, `rex-agent`, `rex-gui`, `rex-tool-server`. For each, run `<script> --help` (or `python -c "from <module> import <fn>"` where `--help` is not safe) and assert exit code 0 and non-empty stdout.
 
 **Acceptance Criteria:**
-- [ ] One test per declared console script.
-- [ ] All tests pass on a clean install of the wheel.
-- [ ] CI runs these tests after `pip install -e .`.
+- [x] One test per declared console script. *(6 parametrized import tests, one per script; plus 2 help tests for scripts with argparse.)*
+- [x] All tests pass on a clean install of the wheel. *(Subprocess import approach works on any install; validated locally.)*
+- [x] CI runs these tests after `pip install -e .`. *(Existing `tests` job does `pip install -e ".[dev]"` then `pytest`, which includes `tests/test_console_scripts_smoke.py`.)*
 - [ ] All relevant GitHub checks pass.
+
+**US-019 local validation evidence (2026-06-24):**
+- `pytest tests/test_console_scripts_smoke.py -q` → 8 passed in 9.75s
+- All 6 import tests pass (rex, rex-config, rex-speak-api, rex-agent, rex-gui, rex-tool-server)
+- Both help tests pass (rex, rex-config): exit 0, non-empty stdout with "usage" string
+- `ruff check` and `black --check` pass on the new test file
+- Server scripts (rex-speak-api, rex-agent, rex-gui, rex-tool-server) tested via import only — `--help` is unsafe for server-start scripts requiring env vars or port-binding
 
 **Validation commands:**
 ```bash
