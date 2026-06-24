@@ -56,3 +56,9 @@ Security reports are especially helpful for issues involving:
 Please allow reasonable time for investigation before publicly disclosing a vulnerability.
 
 If you are unsure whether something is a security issue, email first.
+
+## Change Log
+
+- **US-020 (2026-06-24):** `rex/replay.py` stub result behavior resolved. `replay()` now raises
+  `NotImplementedError("replay is not available in this build")` instead of returning a
+  misleading `{"status": "stub"}` dict. No caller receives a false positive result.

@@ -1010,3 +1010,34 @@ Fixed in commit ebd1c6f by removing `--no-isolation` so `build` uses its own iso
 - Checked `[ ] All relevant GitHub checks pass.` criterion for US-015.
 
 US-015 is fully complete. All acceptance criteria checked.
+
+## US-020: Fix rex/replay.py so production callers do not silently misreport (2026-06-24)
+
+Branch: `ralph/production-next-5`
+
+### What was done
+
+Replaced the stub replay implementation with an honest NotImplementedError path:
+
+- rex/replay.py: replay() now raises NotImplementedError("replay is not available in this build")
+  instead of returning {"status": "stub", ...}. batch_replay() catches the exception and
+  produces a ReplayResult with new_result=None and the error in notes.
+  All "placeholder", "status": "stub", and TODO strings removed from the file.
+- tests/test_replay.py: Rewrote TestReplay to assert NotImplementedError is raised.
+  Added test_replay_never_returns_placeholder_dict, test_audit_replay_wrapper_raises_not_implemented,
+  test_batch_replay_failure_new_result_is_none, test_batch_replay_failure_notes_contain_error.
+  Rewrote TestReplayResultStructure to test the dataclass directly.
+- docs/audit.md: Updated "Replay Mechanism" section to document the NotImplementedError behavior
+  with correct usage examples.
+- SECURITY.md: Added "Change Log" section noting the US-020 fix.
+
+### Validation commands run
+
+- pytest tests/test_replay.py -q -> 17 passed in 0.26s
+- python scripts/security_audit.py -> rex/replay.py no longer appears in actionable findings
+- ruff check rex/replay.py tests/test_replay.py -> All checks passed
+- black --check rex/replay.py tests/test_replay.py -> 2 files would be left unchanged
+
+### GitHub checks
+
+Left unchecked pending PR checks on this branch.

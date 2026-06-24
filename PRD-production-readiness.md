@@ -919,11 +919,11 @@ pytest tests/test_console_scripts_smoke.py -q
 **Implementation notes:** Either (a) remove `rex/replay.py` from the production path and emit a clear "not implemented" error when called, or (b) implement minimal honest replay that reruns the tool through the existing tool executor. Either way, the function must not return a `status: "stub"` payload to callers that present it as a result.
 
 **Acceptance Criteria:**
-- [ ] Calling `replay_tool_call(...)` either returns a real, verified result, OR raises `NotImplementedError("replay is not available in this build")` with no placeholder dict.
-- [ ] `rex/replay.py` no longer contains the strings `"placeholder"`, `"status": "stub"`, or `# TODO: implement` on any execution path reachable from a console script or IPC handler.
-- [ ] A test asserts that a calling code path either gets a real result or an exception — never a placeholder dict.
-- [ ] `README.md` or `docs/audit.md` documents the replay capability state honestly.
-- [ ] `SECURITY.md` notes the change if applicable.
+- [x] Calling `replay_tool_call(...)` either returns a real, verified result, OR raises `NotImplementedError("replay is not available in this build")` with no placeholder dict.
+- [x] `rex/replay.py` no longer contains the strings `"placeholder"`, `"status": "stub"`, or `# TODO: implement` on any execution path reachable from a console script or IPC handler.
+- [x] A test asserts that a calling code path either gets a real result or an exception — never a placeholder dict.
+- [x] `README.md` or `docs/audit.md` documents the replay capability state honestly.
+- [x] `SECURITY.md` notes the change if applicable.
 - [ ] All relevant GitHub checks pass.
 
 **Validation commands:**
