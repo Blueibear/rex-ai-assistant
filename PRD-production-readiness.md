@@ -886,7 +886,7 @@ cd gui && npm run typecheck && npm run build
 - [x] One test per declared console script. *(6 parametrized import tests, one per script; plus 2 help tests for scripts with argparse.)*
 - [x] All tests pass on a clean install of the wheel. *(Subprocess import approach works on any install; validated locally.)*
 - [x] CI runs these tests after `pip install -e .`. *(Existing `tests` job does `pip install -e ".[dev]"` then `pytest`, which includes `tests/test_console_scripts_smoke.py`.)*
-- [ ] All relevant GitHub checks pass.
+- [x] All relevant GitHub checks pass. *(PR #294: 15/15 checks green — CodeFactor, Dependency Vulnerability Scan, GUI Build, GUI Raw API Fetch Guard, GUI TypeScript Typecheck, GUI Vitest Tests, GitGuardian, Hardcoded Secret Scan, Lint & Format Check, Node Dependency Audit, Pre-commit Hook Validation, Python 3.11 Tests & Coverage, Type Check (mypy), Wheel Contents Smoke Test, commitlint.)*
 
 **US-019 local validation evidence (2026-06-24):**
 - `pytest tests/test_console_scripts_smoke.py -q` → 8 passed in 9.75s
