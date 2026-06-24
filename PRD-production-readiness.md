@@ -949,11 +949,11 @@ python scripts/security_audit.py
 **Implementation notes:** The current code logs `"OpenClaw workflow executor registration stub — update once API is confirmed (PRD §8.6)"` and continues. Update the behavior: when `use_openclaw_tools` is False (default per US-050), registration is a no-op and the log is `info`. When `use_openclaw_tools` is True and the upstream API is not implemented, registration must raise `OpenClawConfigError("workflow executor not available")` so downstream code fails closed rather than silently bypassing OpenClaw.
 
 **Acceptance Criteria:**
-- [ ] With `use_openclaw_tools=False`, registration is a no-op; no `# TODO` or `stub` log text remains on the reachable path.
-- [ ] With `use_openclaw_tools=True`, registration raises a clear error if the upstream API is not present.
-- [ ] A test covers both branches.
-- [ ] `python scripts/security_audit.py` no longer flags this file (or the inventory in US-001 marks it as `dev-only-documented` with a follow-up story).
-- [ ] `docs/openclaw-migration-status.md` is updated.
+- [x] With `use_openclaw_tools=False`, registration is a no-op; no `# TODO` or `stub` log text remains on the reachable path.
+- [x] With `use_openclaw_tools=True`, registration raises a clear error if the upstream API is not present.
+- [x] A test covers both branches.
+- [x] `python scripts/security_audit.py` no longer flags this file (or the inventory in US-001 marks it as `dev-only-documented` with a follow-up story).
+- [x] `docs/openclaw-migration-status.md` is updated.
 - [ ] All relevant GitHub checks pass.
 
 **Validation commands:**

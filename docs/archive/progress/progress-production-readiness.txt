@@ -1,5 +1,40 @@
 # Production Readiness Progress Log
 
+## 2026-06-24 - US-021: Fix workflow_bridge.py registration stub
+
+Branch: `ralph/production-next-5`
+
+### Summary
+
+US-021 fixed `WorkflowBridge.register()` so it fails closed rather than silently
+bypassing OpenClaw when `use_openclaw_tools=True`.
+
+**Changes:**
+- `rex/openclaw/errors.py`: Added `OpenClawConfigError` (inherits `AssistantError`).
+  Raised when a feature is enabled but the API is not available. Added to `__all__`.
+- `rex/openclaw/workflow_bridge.py`: Replaced the stub `register()` body with:
+  - `use_openclaw_tools=False` → info log, returns None (no-op, no TODO/stub text)
+  - `use_openclaw_tools=True` → raises `OpenClawConfigError("workflow executor not available")`
+  Removed the `# TODO:` comment and the "stub" warning log entirely.
+- `tests/test_openclaw_workflow_bridge.py`: Replaced `TestRegister` class with three
+  tests covering both config branches:
+  - `test_register_noop_when_tools_disabled` — returns None
+  - `test_register_noop_accepts_agent_arg` — returns None with agent kwarg
+  - `test_register_raises_when_tools_enabled` — raises `OpenClawConfigError`
+- `docs/openclaw-migration-status.md`: Updated errors.py and workflow_runner.py rows.
+
+### Validation commands run
+
+- `pytest tests/test_openclaw_workflow_bridge.py -q` → 19 passed
+- `python scripts/security_audit.py` → workflow_bridge.py no longer flagged
+- `ruff check` + `black --check` → all passed
+
+### Next
+
+US-022: Remove or guard the `rex/skills/trainer.py` placeholder.
+
+---
+
 ## 2026-06-24 - US-019: Console script import/help smoke tests
 
 Branch: `ralph/production-next-5`

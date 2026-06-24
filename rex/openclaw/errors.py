@@ -49,8 +49,23 @@ class OpenClawAPIError(AssistantError):
         self.body = body
 
 
+class OpenClawConfigError(AssistantError):
+    """Raised when an OpenClaw feature is enabled but the required API is not available.
+
+    Args:
+        detail: Human-readable description of the missing capability.
+    """
+
+    def __init__(self, detail: str = "") -> None:
+        msg = "OpenClaw configuration error"
+        if detail:
+            msg += f": {detail}"
+        super().__init__(msg)
+
+
 __all__ = [
     "OpenClawConnectionError",
     "OpenClawAuthError",
     "OpenClawAPIError",
+    "OpenClawConfigError",
 ]
