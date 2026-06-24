@@ -924,7 +924,7 @@ pytest tests/test_console_scripts_smoke.py -q
 - [x] A test asserts that a calling code path either gets a real result or an exception — never a placeholder dict.
 - [x] `README.md` or `docs/audit.md` documents the replay capability state honestly.
 - [x] `SECURITY.md` notes the change if applicable.
-- [ ] All relevant GitHub checks pass.
+- [x] All relevant GitHub checks pass.
 
 **Validation commands:**
 ```bash
