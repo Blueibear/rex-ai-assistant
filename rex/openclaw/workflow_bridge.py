@@ -143,31 +143,31 @@ class WorkflowBridge:
     def register(self, agent: Any = None) -> Any:
         """Register this bridge as the OpenClaw workflow executor.
 
-        When ``openclaw`` is installed, this method registers the bridge so
-        that OpenClaw routes workflow execution through Rex's runner.  When
-        OpenClaw is absent, logs a warning and returns ``None``.
+        When ``use_openclaw_tools`` is False (the default), registration is a
+        no-op and this method returns ``None``.
 
-        .. note::
-            The exact OpenClaw workflow executor registration call is a stub
-            (see PRD §8.6 — *"Confirm OpenClaw's workflow execution mechanism"*).
+        When ``use_openclaw_tools`` is True, the workflow executor registration
+        API is not yet available, so this method raises
+        :class:`~rex.openclaw.errors.OpenClawConfigError` so callers fail
+        closed rather than silently bypassing OpenClaw.
 
         Args:
-            agent: Optional OpenClaw agent handle.
+            agent: Optional OpenClaw agent handle (reserved for future use).
 
         Returns:
-            The registration handle from OpenClaw, or ``None``.
+            ``None`` when OpenClaw tools are disabled.
+
+        Raises:
+            :class:`~rex.openclaw.errors.OpenClawConfigError`: When
+                ``use_openclaw_tools`` is True and the workflow executor API is
+                not available.
         """
         from rex.config import load_config as _load_config
-        from rex.openclaw.http_client import get_openclaw_client
+        from rex.openclaw.errors import OpenClawConfigError
 
-        if get_openclaw_client(_load_config()) is None:
-            logger.warning(
-                "OpenClaw gateway not configured — WorkflowBridge not registered as workflow executor"
-            )
+        cfg = _load_config()
+        if not cfg.use_openclaw_tools:
+            logger.info("OpenClaw tools disabled — workflow executor registration skipped")
             return None
 
-        # TODO: replace with real OpenClaw workflow executor registration once API is confirmed.
-        logger.warning(
-            "OpenClaw workflow executor registration stub — update once API is confirmed (PRD §8.6)"
-        )
-        return None
+        raise OpenClawConfigError("workflow executor not available")

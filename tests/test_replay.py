@@ -83,156 +83,64 @@ class TestReconstructToolCall:
         )
         tool_call = reconstruct_tool_call(entry)
 
-        # The reconstructed tool call should have a recent timestamp
         assert tool_call.created_at > old_time
 
 
 class TestReplay:
     """Tests for the replay function."""
 
-    def test_replay_returns_result(self):
-        """Replay should return a ReplayResult."""
-        entry = LogEntry(
-            action_id="act_001",
-            tool="time_now",
-            tool_call_args={"location": "Dallas"},
-            policy_decision="allowed",
-            tool_result={"local_time": "2024-01-15 10:30"},
-        )
-        result = replay(entry)
-
-        assert isinstance(result, ReplayResult)
-
-    def test_replay_preserves_original_entry(self):
-        """ReplayResult should contain the original entry."""
+    def test_replay_raises_not_implemented(self):
+        """replay() must raise NotImplementedError — never return a result dict."""
         entry = LogEntry(
             action_id="act_001",
             tool="time_now",
             tool_call_args={"location": "Dallas"},
             policy_decision="allowed",
         )
-        result = replay(entry)
+        with pytest.raises(NotImplementedError, match="replay is not available in this build"):
+            replay(entry)
 
-        assert result.original_entry is entry
+    def test_replay_raises_regardless_of_dry_run(self):
+        """replay() raises whether dry_run is True or False."""
+        entry = LogEntry(
+            action_id="act_001",
+            tool="time_now",
+            tool_call_args={},
+            policy_decision="allowed",
+        )
+        with pytest.raises(NotImplementedError):
+            replay(entry, dry_run=True)
 
-    def test_replay_contains_reconstructed_tool_call(self):
-        """ReplayResult should contain reconstructed ToolCall."""
+        with pytest.raises(NotImplementedError):
+            replay(entry, dry_run=False)
+
+    def test_replay_never_returns_placeholder_dict(self):
+        """replay() must not return a dict with placeholder or stub content."""
         entry = LogEntry(
             action_id="act_001",
             tool="time_now",
             tool_call_args={"location": "Dallas"},
             policy_decision="allowed",
         )
-        result = replay(entry)
+        try:
+            result = replay(entry)
+            # If it somehow returned, verify it's not a placeholder
+            assert result is not None
+            if isinstance(result, ReplayResult) and result.new_result is not None:
+                assert "stub" not in str(result.new_result).lower()
+        except NotImplementedError:
+            pass  # Expected path
 
-        assert isinstance(result.replayed_tool_call, ToolCall)
-        assert result.replayed_tool_call.tool == "time_now"
-        assert result.replayed_tool_call.args == {"location": "Dallas"}
-
-    def test_replay_dry_run_default(self):
-        """Replay should default to dry_run=True."""
-        entry = LogEntry(
-            action_id="act_001",
-            tool="time_now",
-            tool_call_args={},
-            policy_decision="allowed",
-        )
-        result = replay(entry)
-
-        assert result.dry_run is True
-
-    def test_replay_dry_run_explicit_false(self):
-        """Replay should accept dry_run=False."""
-        entry = LogEntry(
-            action_id="act_001",
-            tool="time_now",
-            tool_call_args={},
-            policy_decision="allowed",
-        )
-        result = replay(entry, dry_run=False)
-
-        assert result.dry_run is False
-
-    def test_replay_has_stub_result(self):
-        """Replay should return stub result indicating not implemented."""
-        entry = LogEntry(
-            action_id="act_001",
-            tool="time_now",
-            tool_call_args={"location": "Dallas"},
-            policy_decision="allowed",
-        )
-        result = replay(entry)
-
-        assert result.new_result is not None
-        assert result.new_result["status"] == "stub"
-        assert "not yet implemented" in result.new_result["message"].lower()
-
-    def test_replay_has_comparison(self):
-        """ReplayResult should contain comparison data."""
-        entry = LogEntry(
-            action_id="act_001",
-            tool="time_now",
-            tool_call_args={},
-            policy_decision="allowed",
-            tool_result={"local_time": "2024-01-15 10:30"},
-        )
-        result = replay(entry)
-
-        assert "original_result" in result.comparison
-        assert "new_result" in result.comparison
-        assert result.comparison["original_result"] == {"local_time": "2024-01-15 10:30"}
-
-    def test_replay_has_notes(self):
-        """ReplayResult should contain explanatory notes."""
-        entry = LogEntry(
-            action_id="act_001",
-            tool="time_now",
-            tool_call_args={},
-            policy_decision="allowed",
-        )
-        result = replay(entry)
-
-        assert result.notes is not None
-        assert "STUB" in result.notes
-        assert "future phase" in result.notes.lower()
-
-    def test_audit_replay_wrapper(self):
-        """Audit replay wrapper should return a ReplayResult."""
+    def test_audit_replay_wrapper_raises_not_implemented(self):
+        """The rex.audit.replay convenience wrapper also raises NotImplementedError."""
         entry = LogEntry(
             action_id="act_006",
             tool="time_now",
             tool_call_args={"location": "Dallas"},
             policy_decision="allowed",
         )
-        result = audit_replay(entry)
-        assert isinstance(result, ReplayResult)
-
-    def test_replay_has_timestamp(self):
-        """ReplayResult should have replayed_at timestamp."""
-        entry = LogEntry(
-            action_id="act_001",
-            tool="time_now",
-            tool_call_args={},
-            policy_decision="allowed",
-        )
-        result = replay(entry)
-
-        assert isinstance(result.replayed_at, datetime)
-        # Should be recent
-        assert (datetime.now(UTC) - result.replayed_at).total_seconds() < 5
-
-    def test_replay_does_not_raise(self):
-        """Replay should not raise exceptions for valid entries."""
-        entry = LogEntry(
-            action_id="act_001",
-            tool="unknown_tool",
-            tool_call_args={"weird": "args"},
-            policy_decision="denied",
-            error="Some error occurred",
-        )
-        # Should not raise
-        result = replay(entry)
-        assert result is not None
+        with pytest.raises(NotImplementedError, match="replay is not available in this build"):
+            audit_replay(entry)
 
 
 class TestBatchReplay:
@@ -244,7 +152,7 @@ class TestBatchReplay:
         assert results == []
 
     def test_batch_replay_single_entry(self):
-        """Batch replay with single entry should return single result."""
+        """Batch replay with single entry returns one failure result."""
         entry = LogEntry(
             action_id="act_001",
             tool="time_now",
@@ -303,7 +211,7 @@ class TestBatchReplay:
         assert results[2].original_entry.action_id == "third"
 
     def test_batch_replay_dry_run_applied_to_all(self):
-        """Batch replay should apply dry_run to all entries."""
+        """Batch replay should apply dry_run to all failure results."""
         entries = [
             LogEntry(
                 action_id=f"act_{i}",
@@ -314,30 +222,91 @@ class TestBatchReplay:
             for i in range(3)
         ]
 
-        # Test with dry_run=True
         results = batch_replay(entries, dry_run=True)
         assert all(r.dry_run is True for r in results)
 
-        # Test with dry_run=False
         results = batch_replay(entries, dry_run=False)
         assert all(r.dry_run is False for r in results)
+
+    def test_batch_replay_failure_new_result_is_none(self):
+        """Batch replay failure results must have new_result=None, not a dict."""
+        entry = LogEntry(
+            action_id="act_001",
+            tool="time_now",
+            tool_call_args={},
+            policy_decision="allowed",
+        )
+        results = batch_replay([entry])
+
+        assert len(results) == 1
+        assert results[0].new_result is None
+
+    def test_batch_replay_failure_notes_contain_error(self):
+        """Batch replay failure notes should contain the error message."""
+        entry = LogEntry(
+            action_id="act_001",
+            tool="time_now",
+            tool_call_args={},
+            policy_decision="allowed",
+        )
+        results = batch_replay([entry])
+
+        assert len(results) == 1
+        assert "replay is not available in this build" in results[0].notes
 
 
 class TestReplayResultStructure:
     """Tests for ReplayResult data structure."""
 
-    def test_replay_result_attributes(self):
-        """ReplayResult should have all expected attributes."""
+    def test_replay_result_can_be_instantiated(self):
+        """ReplayResult dataclass should be directly instantiable."""
         entry = LogEntry(
             action_id="act_001",
             tool="time_now",
             tool_call_args={"location": "Dallas"},
             policy_decision="allowed",
-            tool_result={"time": "10:30"},
         )
-        result = replay(entry)
+        tool_call = reconstruct_tool_call(entry)
+        now = datetime.now(UTC)
 
-        # Check all attributes exist
+        result = ReplayResult(
+            original_entry=entry,
+            replayed_tool_call=tool_call,
+            new_result=None,
+            comparison={"error": "replay is not available in this build"},
+            dry_run=True,
+            replayed_at=now,
+            notes="Replay failed: replay is not available in this build",
+        )
+
+        assert isinstance(result, ReplayResult)
+        assert result.original_entry is entry
+        assert result.replayed_tool_call is tool_call
+        assert result.new_result is None
+        assert isinstance(result.comparison, dict)
+        assert result.dry_run is True
+        assert result.replayed_at is now
+        assert isinstance(result.notes, str)
+
+    def test_replay_result_attributes_exist(self):
+        """ReplayResult should have all expected attributes."""
+        entry = LogEntry(
+            action_id="act_001",
+            tool="time_now",
+            tool_call_args={},
+            policy_decision="allowed",
+        )
+        tool_call = reconstruct_tool_call(entry)
+        result = ReplayResult(
+            original_entry=entry,
+            replayed_tool_call=tool_call,
+            new_result=None,
+            comparison={},
+            dry_run=True,
+            replayed_at=datetime.now(UTC),
+            notes="",
+        )
+
         assert hasattr(result, "original_entry")
         assert hasattr(result, "replayed_tool_call")
         assert hasattr(result, "new_result")
@@ -345,21 +314,3 @@ class TestReplayResultStructure:
         assert hasattr(result, "dry_run")
         assert hasattr(result, "replayed_at")
         assert hasattr(result, "notes")
-
-    def test_replay_result_types(self):
-        """ReplayResult attributes should have correct types."""
-        entry = LogEntry(
-            action_id="act_001",
-            tool="time_now",
-            tool_call_args={},
-            policy_decision="allowed",
-        )
-        result = replay(entry)
-
-        assert isinstance(result.original_entry, LogEntry)
-        assert isinstance(result.replayed_tool_call, ToolCall)
-        assert isinstance(result.new_result, dict)
-        assert isinstance(result.comparison, dict)
-        assert isinstance(result.dry_run, bool)
-        assert isinstance(result.replayed_at, datetime)
-        assert isinstance(result.notes, str)

@@ -199,35 +199,46 @@ Redaction applies recursively to nested dictionaries and lists:
 
 ## Replay Mechanism
 
-### Current State (Stub)
+### Current State
 
-The replay mechanism is currently a **stub implementation** that:
+Replay execution is **not available** in this build. Calling `replay()` raises
+`NotImplementedError("replay is not available in this build")`. No placeholder
+or stub results are returned.
 
-1. Reconstructs a `ToolCall` from a `LogEntry`
-2. Returns a placeholder result
-3. Does **not** actually execute tools
+The following utilities are available for inspection:
 
-This is intentional - full replay with actual tool execution will be implemented in a future phase.
+- `reconstruct_tool_call(entry)` — reconstructs a `ToolCall` from a `LogEntry`
+- `batch_replay(entries)` — attempts replay for each entry; on failure returns a
+  `ReplayResult` with `new_result=None` and the error in `notes`
+- `ReplayResult` dataclass — available for typing and testing purposes
 
 ### Usage
 
 ```python
 from rex.audit import get_audit_logger
-from rex.replay import replay, batch_replay
+from rex.replay import batch_replay
 
 logger = get_audit_logger()
 entries = logger.read()
 
-# Replay a single entry
-if entries:
-    result = replay(entries[0])
-    print(f"Original tool: {result.original_entry.tool}")
-    print(f"Notes: {result.notes}")
-
-# Batch replay
+# batch_replay captures errors per entry; new_result is None on failure
 results = batch_replay(entries[:10])
 for r in results:
-    print(f"Replayed {r.original_entry.action_id}")
+    if r.new_result is None:
+        print(f"Replay not available for {r.original_entry.action_id}: {r.notes}")
+```
+
+Calling `replay()` directly:
+
+```python
+from rex.replay import replay
+from rex.audit import LogEntry
+
+entry = LogEntry(...)
+try:
+    result = replay(entry)
+except NotImplementedError as e:
+    print(e)  # "replay is not available in this build"
 ```
 
 ### ReplayResult Structure
@@ -237,21 +248,12 @@ for r in results:
 class ReplayResult:
     original_entry: LogEntry      # The original audit log entry
     replayed_tool_call: ToolCall  # Reconstructed ToolCall
-    new_result: dict | None       # Result from replay (stub)
-    comparison: dict              # Comparison data
-    dry_run: bool                 # Whether side effects were committed
-    replayed_at: datetime         # When replay was performed
-    notes: str                    # Additional information
+    new_result: dict | None       # None when replay is unavailable
+    comparison: dict              # Error details when replay fails
+    dry_run: bool                 # Reserved for future use
+    replayed_at: datetime         # When replay was attempted
+    notes: str                    # Error message or additional information
 ```
-
-### Future Extensions
-
-Planned replay enhancements:
-
-- **Actual tool execution** in dry-run mode (no side effects)
-- **Result comparison** between original and replayed executions
-- **Determinism testing** to verify consistent behavior
-- **Debugging mode** with detailed execution tracing
 
 ## Skipping Audit Logging
 

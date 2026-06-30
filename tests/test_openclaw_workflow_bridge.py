@@ -294,24 +294,52 @@ class TestMultiStepWorkflow:
 
 
 # ---------------------------------------------------------------------------
-# US-P4-030: register() stub
+# US-021: register() — use_openclaw_tools branching
 # ---------------------------------------------------------------------------
 
 
 class TestRegister:
-    def test_register_returns_none_without_openclaw(self):
-        from unittest.mock import patch
+    """register() is a no-op when use_openclaw_tools=False; raises when True."""
 
+    def _patch_cfg(self, use_openclaw_tools: bool):
+        """Return a context manager that patches load_config inside workflow_bridge."""
+        mock_cfg = MagicMock()
+        mock_cfg.use_openclaw_tools = use_openclaw_tools
+        return patch("rex.openclaw.workflow_bridge.WorkflowBridge.register.__func__", None), patch(
+            "rex.config.load_config", return_value=mock_cfg
+        )
+
+    def test_register_noop_when_tools_disabled(self):
+        """register() returns None without side effects when use_openclaw_tools=False."""
+        mock_cfg = MagicMock()
+        mock_cfg.use_openclaw_tools = False
         wf = _make_workflow([_make_step("step")])
         bridge = WorkflowBridge(wf)
-        with patch("rex.openclaw.http_client.get_openclaw_client", return_value=None):
-            assert bridge.register() is None
+        with patch("rex.config.load_config", return_value=mock_cfg):
+            result = bridge.register()
+        assert result is None
 
-    def test_register_accepts_agent_arg(self):
-        from unittest.mock import patch
-
+    def test_register_noop_accepts_agent_arg(self):
+        """register(agent=...) also returns None when use_openclaw_tools=False."""
+        mock_cfg = MagicMock()
+        mock_cfg.use_openclaw_tools = False
         wf = _make_workflow([_make_step("step")])
         bridge = WorkflowBridge(wf)
         agent = MagicMock()
-        with patch("rex.openclaw.http_client.get_openclaw_client", return_value=None):
-            assert bridge.register(agent=agent) is None
+        with patch("rex.config.load_config", return_value=mock_cfg):
+            result = bridge.register(agent=agent)
+        assert result is None
+
+    def test_register_raises_when_tools_enabled(self):
+        """register() raises OpenClawConfigError when use_openclaw_tools=True."""
+        import pytest
+
+        from rex.openclaw.errors import OpenClawConfigError
+
+        mock_cfg = MagicMock()
+        mock_cfg.use_openclaw_tools = True
+        wf = _make_workflow([_make_step("step")])
+        bridge = WorkflowBridge(wf)
+        with patch("rex.config.load_config", return_value=mock_cfg):
+            with pytest.raises(OpenClawConfigError, match="workflow executor not available"):
+                bridge.register()

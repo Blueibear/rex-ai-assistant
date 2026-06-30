@@ -1,5 +1,88 @@
 # Production Readiness Progress Log
 
+## 2026-06-24 - US-021: Fix workflow_bridge.py registration stub
+
+Branch: `ralph/production-next-5`
+
+### Summary
+
+US-021 fixed `WorkflowBridge.register()` so it fails closed rather than silently
+bypassing OpenClaw when `use_openclaw_tools=True`.
+
+**Changes:**
+- `rex/openclaw/errors.py`: Added `OpenClawConfigError` (inherits `AssistantError`).
+  Raised when a feature is enabled but the API is not available. Added to `__all__`.
+- `rex/openclaw/workflow_bridge.py`: Replaced the stub `register()` body with:
+  - `use_openclaw_tools=False` → info log, returns None (no-op, no TODO/stub text)
+  - `use_openclaw_tools=True` → raises `OpenClawConfigError("workflow executor not available")`
+  Removed the `# TODO:` comment and the "stub" warning log entirely.
+- `tests/test_openclaw_workflow_bridge.py`: Replaced `TestRegister` class with three
+  tests covering both config branches:
+  - `test_register_noop_when_tools_disabled` — returns None
+  - `test_register_noop_accepts_agent_arg` — returns None with agent kwarg
+  - `test_register_raises_when_tools_enabled` — raises `OpenClawConfigError`
+- `docs/openclaw-migration-status.md`: Updated errors.py and workflow_runner.py rows.
+
+### Validation commands run
+
+- `pytest tests/test_openclaw_workflow_bridge.py -q` → 19 passed
+- `python scripts/security_audit.py` → workflow_bridge.py no longer flagged
+- `ruff check` + `black --check` → all passed
+
+### Next
+
+US-022: Remove or guard the `rex/skills/trainer.py` placeholder.
+
+---
+
+## 2026-06-24 - US-019: Console script import/help smoke tests
+
+Branch: `ralph/production-next-5`
+
+### Summary
+
+US-019 added `tests/test_console_scripts_smoke.py` with 8 parametrized tests covering all
+six console scripts declared in `pyproject.toml [project.scripts]`.
+
+**Approach:**
+- 6 import tests (`test_console_script_importable[<name>]`): one per script, each runs
+  `python -c "from <module> import <fn>; print('<script> ok')"` via subprocess and asserts
+  exit 0 plus the sentinel string in stdout.
+- 2 help tests (`test_console_script_help[<name>]`): rex and rex-config only (these are
+  argparse CLIs). Server scripts (rex-speak-api, rex-agent, rex-gui, rex-tool-server) require
+  env vars or bind ports at startup and are unsafe to invoke with `--help`.
+- `rex` is invoked via `python -m rex --help`; `rex-config` via sys.argv injection.
+
+**Why import-only for server scripts:**
+- `rex-speak-api`: raises `RuntimeError: REX_SPEAK_API_KEY must be set` on main(); no --help
+- `rex-agent`: binds to port, requires REX_AGENT_TOKEN; no --help
+- `rex-gui`: starts Flask server; no --help, would timeout
+- `rex-tool-server`: starts Flask server; requires REX_TOOL_API_KEY; no --help
+
+**CI coverage:**
+The existing `tests` job does `pip install -e ".[dev]"` then runs `pytest`, so
+`tests/test_console_scripts_smoke.py` is automatically included. No CI changes needed.
+
+### Validation commands run
+
+- `ruff check tests/test_console_scripts_smoke.py` → all checks passed
+- `black --check tests/test_console_scripts_smoke.py` → no changes
+- `pytest tests/test_console_scripts_smoke.py -q` → 8 passed in 9.75s
+
+### PRD update
+
+All acceptance criteria checked. PR #294 GitHub checks: 15/15 passed (CodeFactor, Dependency
+Vulnerability Scan, GUI Build, GUI Raw API Fetch Guard, GUI TypeScript Typecheck, GUI Vitest
+Tests, GitGuardian, Hardcoded Secret Scan, Lint & Format Check, Node Dependency Audit,
+Pre-commit Hook Validation, Python 3.11 Tests & Coverage, Type Check (mypy), Wheel Contents
+Smoke Test, commitlint).
+
+### Next
+
+US-020: Fix or formally stub `rex/replay.py` so production callers do not silently misreport.
+
+---
+
 ## 2026-06-23 - US-018: Bridge path resolution tests for dev and packaged mode
 
 Branch: `ralph/production-next-4`
@@ -962,3 +1045,45 @@ Fixed in commit ebd1c6f by removing `--no-isolation` so `build` uses its own iso
 - Checked `[ ] All relevant GitHub checks pass.` criterion for US-015.
 
 US-015 is fully complete. All acceptance criteria checked.
+
+## US-020: Fix rex/replay.py so production callers do not silently misreport (2026-06-24)
+
+Branch: `ralph/production-next-5`
+
+### What was done
+
+Replaced the stub replay implementation with an honest NotImplementedError path:
+
+- rex/replay.py: replay() now raises NotImplementedError("replay is not available in this build")
+  instead of returning {"status": "stub", ...}. batch_replay() catches the exception and
+  produces a ReplayResult with new_result=None and the error in notes.
+  All "placeholder", "status": "stub", and TODO strings removed from the file.
+- tests/test_replay.py: Rewrote TestReplay to assert NotImplementedError is raised.
+  Added test_replay_never_returns_placeholder_dict, test_audit_replay_wrapper_raises_not_implemented,
+  test_batch_replay_failure_new_result_is_none, test_batch_replay_failure_notes_contain_error.
+  Rewrote TestReplayResultStructure to test the dataclass directly.
+- docs/audit.md: Updated "Replay Mechanism" section to document the NotImplementedError behavior
+  with correct usage examples.
+- SECURITY.md: Added "Change Log" section noting the US-020 fix.
+
+### Validation commands run
+
+- pytest tests/test_replay.py -q -> 17 passed in 0.26s
+- python scripts/security_audit.py -> rex/replay.py no longer appears in actionable findings
+- ruff check rex/replay.py tests/test_replay.py -> All checks passed
+- black --check rex/replay.py tests/test_replay.py -> 2 files would be left unchanged
+
+### GitHub checks
+
+Left unchecked pending PR checks on this branch.
+
+## US-020 GitHub checks close-out (2026-06-24)
+
+PR #294 branch `ralph/production-next-5` — all 15 checks green:
+CodeFactor, Dependency Vulnerability Scan, GUI Build, GUI Raw API Fetch Guard,
+GUI TypeScript Typecheck, GUI Vitest Tests, GitGuardian Security Checks,
+Hardcoded Secret Scan, Lint & Format Check, Node Dependency Audit,
+Pre-commit Hook Validation, Python 3.11 Tests & Coverage, Type Check (mypy),
+Wheel Contents Smoke Test, commitlint.
+
+US-020 is fully complete. All acceptance criteria checked.

@@ -883,10 +883,17 @@ cd gui && npm run typecheck && npm run build
 **Implementation notes:** Parametrize a pytest over `rex`, `rex-config`, `rex-speak-api`, `rex-agent`, `rex-gui`, `rex-tool-server`. For each, run `<script> --help` (or `python -c "from <module> import <fn>"` where `--help` is not safe) and assert exit code 0 and non-empty stdout.
 
 **Acceptance Criteria:**
-- [ ] One test per declared console script.
-- [ ] All tests pass on a clean install of the wheel.
-- [ ] CI runs these tests after `pip install -e .`.
-- [ ] All relevant GitHub checks pass.
+- [x] One test per declared console script. *(6 parametrized import tests, one per script; plus 2 help tests for scripts with argparse.)*
+- [x] All tests pass on a clean install of the wheel. *(Subprocess import approach works on any install; validated locally.)*
+- [x] CI runs these tests after `pip install -e .`. *(Existing `tests` job does `pip install -e ".[dev]"` then `pytest`, which includes `tests/test_console_scripts_smoke.py`.)*
+- [x] All relevant GitHub checks pass. *(PR #294: 15/15 checks green — CodeFactor, Dependency Vulnerability Scan, GUI Build, GUI Raw API Fetch Guard, GUI TypeScript Typecheck, GUI Vitest Tests, GitGuardian, Hardcoded Secret Scan, Lint & Format Check, Node Dependency Audit, Pre-commit Hook Validation, Python 3.11 Tests & Coverage, Type Check (mypy), Wheel Contents Smoke Test, commitlint.)*
+
+**US-019 local validation evidence (2026-06-24):**
+- `pytest tests/test_console_scripts_smoke.py -q` → 8 passed in 9.75s
+- All 6 import tests pass (rex, rex-config, rex-speak-api, rex-agent, rex-gui, rex-tool-server)
+- Both help tests pass (rex, rex-config): exit 0, non-empty stdout with "usage" string
+- `ruff check` and `black --check` pass on the new test file
+- Server scripts (rex-speak-api, rex-agent, rex-gui, rex-tool-server) tested via import only — `--help` is unsafe for server-start scripts requiring env vars or port-binding
 
 **Validation commands:**
 ```bash
@@ -912,12 +919,12 @@ pytest tests/test_console_scripts_smoke.py -q
 **Implementation notes:** Either (a) remove `rex/replay.py` from the production path and emit a clear "not implemented" error when called, or (b) implement minimal honest replay that reruns the tool through the existing tool executor. Either way, the function must not return a `status: "stub"` payload to callers that present it as a result.
 
 **Acceptance Criteria:**
-- [ ] Calling `replay_tool_call(...)` either returns a real, verified result, OR raises `NotImplementedError("replay is not available in this build")` with no placeholder dict.
-- [ ] `rex/replay.py` no longer contains the strings `"placeholder"`, `"status": "stub"`, or `# TODO: implement` on any execution path reachable from a console script or IPC handler.
-- [ ] A test asserts that a calling code path either gets a real result or an exception — never a placeholder dict.
-- [ ] `README.md` or `docs/audit.md` documents the replay capability state honestly.
-- [ ] `SECURITY.md` notes the change if applicable.
-- [ ] All relevant GitHub checks pass.
+- [x] Calling `replay_tool_call(...)` either returns a real, verified result, OR raises `NotImplementedError("replay is not available in this build")` with no placeholder dict.
+- [x] `rex/replay.py` no longer contains the strings `"placeholder"`, `"status": "stub"`, or `# TODO: implement` on any execution path reachable from a console script or IPC handler.
+- [x] A test asserts that a calling code path either gets a real result or an exception — never a placeholder dict.
+- [x] `README.md` or `docs/audit.md` documents the replay capability state honestly.
+- [x] `SECURITY.md` notes the change if applicable.
+- [x] All relevant GitHub checks pass.
 
 **Validation commands:**
 ```bash
@@ -942,11 +949,11 @@ python scripts/security_audit.py
 **Implementation notes:** The current code logs `"OpenClaw workflow executor registration stub — update once API is confirmed (PRD §8.6)"` and continues. Update the behavior: when `use_openclaw_tools` is False (default per US-050), registration is a no-op and the log is `info`. When `use_openclaw_tools` is True and the upstream API is not implemented, registration must raise `OpenClawConfigError("workflow executor not available")` so downstream code fails closed rather than silently bypassing OpenClaw.
 
 **Acceptance Criteria:**
-- [ ] With `use_openclaw_tools=False`, registration is a no-op; no `# TODO` or `stub` log text remains on the reachable path.
-- [ ] With `use_openclaw_tools=True`, registration raises a clear error if the upstream API is not present.
-- [ ] A test covers both branches.
-- [ ] `python scripts/security_audit.py` no longer flags this file (or the inventory in US-001 marks it as `dev-only-documented` with a follow-up story).
-- [ ] `docs/openclaw-migration-status.md` is updated.
+- [x] With `use_openclaw_tools=False`, registration is a no-op; no `# TODO` or `stub` log text remains on the reachable path.
+- [x] With `use_openclaw_tools=True`, registration raises a clear error if the upstream API is not present.
+- [x] A test covers both branches.
+- [x] `python scripts/security_audit.py` no longer flags this file (or the inventory in US-001 marks it as `dev-only-documented` with a follow-up story).
+- [x] `docs/openclaw-migration-status.md` is updated.
 - [ ] All relevant GitHub checks pass.
 
 **Validation commands:**
