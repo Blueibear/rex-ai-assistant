@@ -7,6 +7,34 @@
   - All documentation, badges, and clone URLs updated to `https://github.com/Blueibear/AskRex-Assistant`.
   - See `docs/BRANDING.md` for the full canonical naming ruleset.
 
+## [1.3.0](https://github.com/Blueibear/AskRex-Assistant/compare/v1.2.1...v1.3.0) (2026-06-30)
+
+
+### Features
+
+* **ci:** add raw renderer /api/ fetch guard (US-003) ([#276](https://github.com/Blueibear/AskRex-Assistant/issues/276)) ([b9352ce](https://github.com/Blueibear/AskRex-Assistant/commit/b9352cec4f0fa178f5c508fb85e474a9f2f87138))
+* **electron:** drain api allowlist and document ipc-only runtime (US-011) ([fa4e2f3](https://github.com/Blueibear/AskRex-Assistant/commit/fa4e2f354500fd815201f5448150e07f64406356))
+* **electron:** migrate AboutPage /api/status to typed IPC (US-004) ([#277](https://github.com/Blueibear/AskRex-Assistant/issues/277)) ([c10ee27](https://github.com/Blueibear/AskRex-Assistant/commit/c10ee272fdcbe50c03ed5505e0dd86db09a0f9e1))
+* **electron:** migrate CommandHistoryPage /api/history to typed IPC (US-005) ([0436a62](https://github.com/Blueibear/AskRex-Assistant/commit/0436a620675743e433ae4aa0f8c2eb015dd0592f))
+* **electron:** migrate DevicesPage /api/devices to typed IPC ([2b30553](https://github.com/Blueibear/AskRex-Assistant/commit/2b305530c3012f72aca0d3af7b3e957498afb0d0))
+* **electron:** migrate DevicesPage /api/devices/{id}/command to typed IPC (US-007) ([2669ff8](https://github.com/Blueibear/AskRex-Assistant/commit/2669ff80a8c57a7cc919a018dbae0a9adb82391f))
+* **electron:** migrate QuickActionsPage delete/run /api/quick-actions/{id} to typed IPC (US-009) ([e4a71b9](https://github.com/Blueibear/AskRex-Assistant/commit/e4a71b92c32dc29fe5671d30b491c3aa24712d43))
+* **electron:** migrate QuickActionsPage list/create /api/quick-actions to typed IPC (US-008) ([4a8866b](https://github.com/Blueibear/AskRex-Assistant/commit/4a8866b24b5cccef94f2e869e644044d33a84705))
+* **electron:** migrate SetupWizardPage and App.tsx /api/setup/* to typed IPC (US-010) ([b000032](https://github.com/Blueibear/AskRex-Assistant/commit/b0000320c68cda6793d1fbc48ac2b3903c2271c4))
+* **packaging:** add wheel contents smoke test and py.typed marker (US-015) ([0fd3986](https://github.com/Blueibear/AskRex-Assistant/commit/0fd398668a82489f7ab5424ba4e5c656306ee8e7))
+* **packaging:** include bridge scripts and config example in wheel (US-016) ([2a1b5e5](https://github.com/Blueibear/AskRex-Assistant/commit/2a1b5e5404e65670a69ce5caf87b766027292c34))
+* **smoke:** add Flask port and renderer /api/ checks to Electron smoke test (US-012) ([ac41c29](https://github.com/Blueibear/AskRex-Assistant/commit/ac41c29ba08b7f95805181e74051b58d58fce896))
+
+
+### Bug Fixes
+
+* **bridge:** black format rex_quick_actions_bridge ([e06171e](https://github.com/Blueibear/AskRex-Assistant/commit/e06171ea4fa0ffde5ba7f33188d5684a968aa980))
+* **bridge:** replace try/except/pass with debug logging in rex_setup_bridge ([c756fc7](https://github.com/Blueibear/AskRex-Assistant/commit/c756fc74a81b4d70be85252c7591e0d8d6a991fb))
+* **gui:** support destructuring during Vite dependency optimization ([e2e670e](https://github.com/Blueibear/AskRex-Assistant/commit/e2e670ea2df1af19af51d9ac2a8c2e74f486bc59))
+* **openclaw:** replace workflow_bridge register() stub with fail-closed behavior (US-021) ([977a885](https://github.com/Blueibear/AskRex-Assistant/commit/977a885c665f6b421b9f8d31e7e95a6dbfe7443f))
+* **packaging:** remove --no-isolation from wheel build to fix CI (US-015) ([ebd1c6f](https://github.com/Blueibear/AskRex-Assistant/commit/ebd1c6f7b29d26ebd11e0a2067b51056c3b5bf50))
+* **replay:** raise NotImplementedError instead of returning stub dict (US-020) ([3b049cd](https://github.com/Blueibear/AskRex-Assistant/commit/3b049cdba4ba354d1adb7d2ef0a6f373aade9064))
+
 ## [1.2.1](https://github.com/Blueibear/AskRex-Assistant/compare/v1.2.0...v1.2.1) (2026-06-07)
 
 
