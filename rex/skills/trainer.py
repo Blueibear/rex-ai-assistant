@@ -124,7 +124,6 @@ def run(transcript: str) -> str:
     Returns:
         A human-readable response.
     """
-    # TODO: implement {name}
     return "The {name} skill was triggered but is not yet fully implemented."
 '''
 
