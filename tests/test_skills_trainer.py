@@ -116,7 +116,7 @@ class TestSkillTrainerHandleIfTrainingRequest:
         assert "not yet fully implemented" in content
 
     def test_write_failure_returns_error_message(self, tmp_path):
-        trainer = SkillTrainer(skils_dir=tmp_path / "nonexistent" / "nested")
+        trainer = SkillTrainer(skills_dir=tmp_path / "nonexistent" / "nested")
         registry = MagicMock()
 
         with patch.object(Path, "mkdir", side_effect=PermissionError("no write")):
@@ -129,7 +129,7 @@ class TestSkillTrainerHandleIfTrainingRequest:
         registry.register.assert_not_called()
 
     def test_register_failure_returns_partial_error_message(self, tmp_path):
-        trainer = SkillTrainer(skils_dir=tmp_path)
+        trainer = SkillTrainer(skills_dir=tmp_path)
         registry = MagicMock()
         registry.register.side_effect = RuntimeError("registry full")
 
