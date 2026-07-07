@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
 
 def test_store_and_recall(tmp_path: Path) -> None:
     """store() persists a fact; recall() retrieves it."""
@@ -67,6 +69,27 @@ def test_format_facts_for_prompt_empty(tmp_path: Path) -> None:
     assert format_facts_for_prompt("nobody", memory_root=tmp_path) is None
 
 
+@pytest.mark.parametrize("user", ["", ".", "..", "alice/bob", r"alice\bob", " alice"])
+def test_fact_store_rejects_unsafe_user_ids(tmp_path: Path, user: str) -> None:
+    """Fact paths must use the canonical identity validator."""
+    from rex.user_facts import store
+
+    with pytest.raises(ValueError, match="Invalid user_id"):
+        store(user, "key", "value", memory_root=tmp_path)
+
+
+def test_invalid_user_cannot_collide_with_safe_user(tmp_path: Path) -> None:
+    """Sanitization must not merge an invalid identity into a valid user's file."""
+    from rex.user_facts import recall, store
+
+    store("alice_bob", "owner", "safe", memory_root=tmp_path)
+
+    with pytest.raises(ValueError, match="Invalid user_id"):
+        store("alice/bob", "owner", "unsafe", memory_root=tmp_path)
+
+    assert recall("alice_bob", "owner", memory_root=tmp_path) == "safe"
+
+
 def test_cli_remember_stores_fact(tmp_path: Path, monkeypatch: object) -> None:
     """python -m rex remember 'fact' stores the fact for the default user."""
     import types
@@ -77,7 +100,6 @@ def test_cli_remember_stores_fact(tmp_path: Path, monkeypatch: object) -> None:
         "rex.user_facts._MEMORY_ROOT",
         tmp_path,
     )
-
     args = types.SimpleNamespace(fact="My dog is named Max", user="default", key=None, value=None)
     ret = cmd_remember(args)
     assert ret == 0
