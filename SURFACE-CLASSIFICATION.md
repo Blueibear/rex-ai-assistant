@@ -101,6 +101,16 @@ any entry point, import, or startup path in the active codebase.
 
 ---
 
+## Internal Python APIs (User-Facing Capabilities)
+
+These modules implement user-facing capabilities invoked by the assistant pipeline. They are not entry points and are not user-invocable directly, but they affect user-visible behavior.
+
+| Module | Classification | Notes |
+|--------|----------------|-------|
+| `rex.skills.trainer` (`SkillTrainer`) | `shippable` | Invoked by the assistant when a user says "teach yourself to…" or similar. Generates a Python skill scaffold in `plugins/skills/` and registers it in the skill registry. The generated script includes an honest stub that tells the user the skill is not yet implemented. Users can edit the generated file to add real behavior. |
+
+---
+
 ## Package Distribution (pip / wheel)
 
 | Artifact | Classification | Notes |
@@ -133,3 +143,4 @@ any entry point, import, or startup path in the active codebase.
 | 2026-06-07 | US-REM-025 | Added root-level flask_proxy.py as deprecated (count: deprecated 4→5, total 32→33). Updated docs to use archived (not deprecated) for gui.py/run_gui.py. Added developer-only labels across INSTRUCTION_MANUAL.md, ARCHITECTURE.md, COMMANDS_AND_ENTRYPOINTS.md, and API/deployment docs. |
 | 2026-06-23 | US-013 | Added Package Distribution section classifying pip/wheel (askrex-assistant) as developer-only. |
 | 2026-06-23 | US-017 | Classified all 17 root-level bridge compatibility wrappers as developer-only (count: developer-only 10→27, total 33→50). Updated CLAUDE.md root-file count from 9 to 27. No files moved to archived/ — all bridge wrappers are actively used for test-import compatibility. |
+| 2026-06-24 | US-022 | Added Internal Python APIs section. Classified `rex.skills.trainer` (`SkillTrainer`) as shippable — invoked by assistant when user requests skill creation. |
