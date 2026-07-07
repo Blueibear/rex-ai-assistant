@@ -21,12 +21,44 @@ from __future__ import annotations
 import json
 import logging
 import os
+import re
 from datetime import UTC, datetime
 from pathlib import Path
 
 from .config import settings
 
 logger = logging.getLogger(__name__)
+
+_USER_ID_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$")
+
+
+def validate_user_id(user_id: str) -> str:
+    """Validate and return a filesystem-safe user identifier.
+
+    User IDs are used as directory names under ``Memory/``. Restricting the
+    accepted characters and length prevents traversal through values such as
+    ``..`` while retaining common IDs containing letters, digits, dots,
+    underscores, and hyphens.
+
+    Raises:
+        ValueError: If *user_id* is empty, reserved, or filesystem-unsafe.
+    """
+    if not isinstance(user_id, str) or not _USER_ID_PATTERN.fullmatch(user_id):
+        raise ValueError(f"Invalid user_id: {user_id!r}")
+    if user_id in {".", ".."}:
+        raise ValueError(f"Invalid user_id: {user_id!r}")
+    return user_id
+
+
+def _validated_candidate(user_id: object, *, source: str) -> str | None:
+    """Return a valid candidate ID or fail closed for persisted configuration."""
+    if not isinstance(user_id, str) or not user_id:
+        return None
+    try:
+        return validate_user_id(user_id)
+    except ValueError:
+        logger.warning("Ignoring invalid %s user ID: %r", source, user_id)
+        return None
 
 
 def _session_state_path() -> Path:
@@ -48,7 +80,8 @@ def _known_user_ids() -> list[str]:
     users = []
     for entry in sorted(memory_dir.iterdir()):
         if entry.is_dir() and (entry / "core.json").exists():
-            users.append(entry.name)
+            if _validated_candidate(entry.name, source="Memory directory"):
+                users.append(entry.name)
     return users
 
 
@@ -89,6 +122,7 @@ def get_session_user() -> str | None:
 
 def set_session_user(user_id: str) -> None:
     """Set the active user in session state."""
+    user_id = validate_user_id(user_id)
     session = _load_session()
     session["active_user"] = user_id
     _save_session(session)
@@ -118,24 +152,26 @@ def resolve_active_user(
     Returns:
         User ID string, or ``None`` if no user could be resolved.
     """
-    # 1. Explicit flag
+    # 1. Explicit flag. Invalid explicit selection is a caller error and must
+    # not silently fall back to another person's session.
     if explicit_user:
-        return explicit_user
+        return validate_user_id(explicit_user)
 
-    # 2. Session state
+    # 2. Session state. Invalid persisted state fails closed.
     session_user = get_session_user()
     if session_user:
-        return session_user
+        return _validated_candidate(session_user, source="session")
 
-    # 3-4. Config values
+    # 3-4. Config values. Invalid configured identity fails closed rather than
+    # unexpectedly selecting the legacy fallback.
     if config:
         runtime = config.get("runtime", {})
         active = runtime.get("active_user")
         if active:
-            return active  # type: ignore[no-any-return]
+            return _validated_candidate(active, source="runtime.active_user")
         uid = runtime.get("user_id")
         if uid and uid != "default":
-            return uid  # type: ignore[no-any-return]
+            return _validated_candidate(uid, source="runtime.user_id")
 
     return None
 
@@ -185,6 +221,8 @@ def list_known_users() -> list[dict]:
     for entry in sorted(memory_dir.iterdir()):
         core = entry / "core.json"
         if entry.is_dir() and core.exists():
+            if not _validated_candidate(entry.name, source="Memory directory"):
+                continue
             try:
                 data = json.loads(core.read_text(encoding="utf-8"))
                 users.append(
@@ -225,8 +263,7 @@ def create_user_profile(
         ValueError: If user_id is empty or contains path separators.
         FileExistsError: If the profile already exists and overwrite is False.
     """
-    if not user_id or "/" in user_id or "\\" in user_id:
-        raise ValueError(f"Invalid user_id: {user_id!r}")
+    user_id = validate_user_id(user_id)
 
     base = (
         memory_dir if memory_dir is not None else Path(__file__).resolve().parent.parent / "Memory"
@@ -266,7 +303,11 @@ def get_user_profile(
 
     Returns:
         Profile dict, or None if not found.
+
+    Raises:
+        ValueError: If *user_id* is filesystem-unsafe.
     """
+    user_id = validate_user_id(user_id)
     base = (
         memory_dir if memory_dir is not None else Path(__file__).resolve().parent.parent / "Memory"
     )
@@ -295,7 +336,11 @@ def update_user_preferences(
 
     Returns:
         True if the profile was updated, False if not found.
+
+    Raises:
+        ValueError: If *user_id* is filesystem-unsafe.
     """
+    user_id = validate_user_id(user_id)
     base = (
         memory_dir if memory_dir is not None else Path(__file__).resolve().parent.parent / "Memory"
     )
@@ -328,4 +373,5 @@ __all__ = [
     "resolve_active_user",
     "set_session_user",
     "update_user_preferences",
+    "validate_user_id",
 ]
