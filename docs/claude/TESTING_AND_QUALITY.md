@@ -44,10 +44,30 @@ For Electron-only verification harnesses:
 ruff check .
 black --check .
 mypy .
+pre-commit run --all-files --show-diff-on-failure
 ```
 
 When only a small Python file set changed, prefer targeted checks on those
 files first, then broaden if the change touched shared contracts.
+
+### Deterministic CI tool versions
+
+- `.pre-commit-config.yaml` is the source of truth for Ruff and Black revisions.
+- Any direct Ruff or Black installation in GitHub Actions must use the same
+  versions as the corresponding pre-commit hooks.
+- Do not install unpinned formatters in CI. A newer formatter can reject files
+  accepted by the pinned pre-commit environment and create false red checks.
+- Pre-commit CI must use `--show-diff-on-failure` so any file mutation is visible
+  in the job log.
+
+### Dependency-audit scope
+
+- The Python dependency scan must audit the repository project explicitly with
+  a project path, for example `pip-audit --strict .`.
+- A bare `pip-audit` command audits the current runner environment and must not
+  be used as the repository security gate.
+- Accepted vulnerability suppressions require an owner, rationale, expiry, and
+  matching documentation in `docs/security/VULNERABILITY-SCAN.md`.
 
 ## Package Smoke Tests
 
