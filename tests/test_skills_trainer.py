@@ -71,13 +71,9 @@ class TestSkillTrainerHandleIfTrainingRequest:
     def test_training_message_creates_skill_file(self, tmp_path):
         trainer = SkillTrainer(skills_dir=tmp_path)
         registry = MagicMock()
-        registry.register.return_value = MagicMock(
-            name="check the battery", id="abc123"
-        )
+        registry.register.return_value = MagicMock(name="check the battery", id="abc123")
 
-        result = trainer.handle_if_training_request(
-            "teach yourself to check the battery", registry
-        )
+        result = trainer.handle_if_training_request("teach yourself to check the battery", registry)
 
         assert result is not None
         assert "check the battery" in result.lower() or "learned" in result.lower()
@@ -120,30 +116,24 @@ class TestSkillTrainerHandleIfTrainingRequest:
         assert "not yet fully implemented" in content
 
     def test_write_failure_returns_error_message(self, tmp_path):
-        trainer = SkillTrainer(skills_dir=tmp_path / "nonexistent" / "nested")
+        trainer = SkillTrainer(skils_dir=tmp_path / "nonexistent" / "nested")
         registry = MagicMock()
 
         with patch.object(Path, "mkdir", side_effect=PermissionError("no write")):
-            result = trainer.handle_if_training_request(
-                "teach yourself to do something", registry
-            )
+            result = trainer.handle_if_training_request("teach yourself to do something", registry)
 
         assert result is not None
         assert (
-            "couldn't" in result.lower()
-            or "failed" in result.lower()
-            or "tried" in result.lower()
+            "couldn't" in result.lower() or "failed" in result.lower() or "tried" in result.lower()
         )
         registry.register.assert_not_called()
 
     def test_register_failure_returns_partial_error_message(self, tmp_path):
-        trainer = SkillTrainer(skills_dir=tmp_path)
+        trainer = SkillTrainer(skils_dir=tmp_path)
         registry = MagicMock()
         registry.register.side_effect = RuntimeError("registry full")
 
-        result = trainer.handle_if_training_request(
-            "teach yourself to do something", registry
-        )
+        result = trainer.handle_if_training_request("teach yourself to do something", registry)
 
         assert result is not None
         assert (

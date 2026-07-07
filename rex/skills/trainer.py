@@ -150,9 +150,7 @@ class SkillTrainer:
     """
 
     def __init__(self, skills_dir: Path | str | None = None) -> None:
-        self._skills_dir = (
-            Path(skills_dir) if skills_dir is not None else _DEFAULT_SKILLS_DIR
-        )
+        self._skills_dir = Path(skills_dir) if skills_dir is not None else _DEFAULT_SKILLS_DIR
 
     def handle_if_training_request(
         self,
@@ -198,17 +196,10 @@ class SkillTrainer:
                 trigger_patterns=triggers,
                 handler=str(script_path),
             )
-            logger.info(
-                "SkillTrainer: registered skill %r (id=%s)", skill.name, skill.id
-            )
+            logger.info("SkillTrainer: registered skill %r (id=%s)", skill.name, skill.id)
         except Exception as exc:
             logger.warning("SkillTrainer: failed to register skill: %s", exc)
-            return (
-                f"I created the skill file for '{name}' but couldn't register it: {exc}"
-            )
+            return f"I created the skill file for '{name}' but couldn't register it: {exc}"
 
         example_trigger = triggers[0] if triggers else name
-        return (
-            f"I've learned how to {name}. "
-            f'You can trigger it by saying "{example_trigger}".'
-        )
+        return f"I've learned how to {name}. " f'You can trigger it by saying "{example_trigger}".'
