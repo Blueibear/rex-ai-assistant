@@ -166,7 +166,7 @@ class TestEmailCLI:
         mock_email_service.connect.return_value = True
         mock_email_service.fetch_unread.return_value = []
 
-        args = MagicMock(email_command="unread", limit=10, verbose=False)
+        args = MagicMock(email_command="unread", limit=10, verbose=False, user=None)
         result = cmd_email(args)
 
         assert result == 0
@@ -190,7 +190,7 @@ class TestEmailCLI:
         mock_email_service.fetch_unread.return_value = [email1]
         mock_email_service.categorize.return_value = "important"
 
-        args = MagicMock(email_command="unread", limit=10, verbose=False)
+        args = MagicMock(email_command="unread", limit=10, verbose=False, user=None)
         result = cmd_email(args)
 
         assert result == 0
@@ -217,7 +217,7 @@ class TestEmailCLI:
         mock_email_service.fetch_unread.return_value = [email]
         mock_email_service.categorize.return_value = "general"
 
-        args = MagicMock(email_command="unread", limit=10, verbose=True)
+        args = MagicMock(email_command="unread", limit=10, verbose=True, user=None)
         result = cmd_email(args)
 
         assert result == 0
@@ -229,7 +229,7 @@ class TestEmailCLI:
         """Test email command when connection fails."""
         mock_email_service.connect.return_value = False
 
-        args = MagicMock(email_command="unread", limit=10, verbose=False)
+        args = MagicMock(email_command="unread", limit=10, verbose=False, user=None)
         result = cmd_email(args)
 
         assert result == 1
@@ -241,14 +241,14 @@ class TestEmailCLI:
         mock_email_service.connect.return_value = True
         mock_email_service.fetch_unread.return_value = []
 
-        args = MagicMock(email_command="unread", limit=5, verbose=False)
+        args = MagicMock(email_command="unread", limit=5, verbose=False, user=None)
         cmd_email(args)
 
         mock_email_service.fetch_unread.assert_called_once_with(limit=5)
 
     def test_email_unknown_command(self, mock_email_service, capsys):
         """Test unknown email subcommand."""
-        args = MagicMock(email_command="unknown")
+        args = MagicMock(email_command="unknown", user=None)
         result = cmd_email(args)
 
         assert result == 1
@@ -276,7 +276,9 @@ class TestCalendarCLI:
         mock_calendar_service.connect.return_value = True
         mock_calendar_service.get_upcoming_events.return_value = []
 
-        args = MagicMock(calendar_command="upcoming", days=7, conflicts=False, verbose=False)
+        args = MagicMock(
+            calendar_command="upcoming", days=7, conflicts=False, verbose=False, user=None
+        )
         result = cmd_calendar(args)
 
         assert result == 0
@@ -303,7 +305,9 @@ class TestCalendarCLI:
         mock_calendar_service.connect.return_value = True
         mock_calendar_service.get_upcoming_events.return_value = [event]
 
-        args = MagicMock(calendar_command="upcoming", days=7, conflicts=False, verbose=False)
+        args = MagicMock(
+            calendar_command="upcoming", days=7, conflicts=False, verbose=False, user=None
+        )
         result = cmd_calendar(args)
 
         assert result == 0
@@ -332,7 +336,9 @@ class TestCalendarCLI:
         mock_calendar_service.connect.return_value = True
         mock_calendar_service.get_upcoming_events.return_value = [event]
 
-        args = MagicMock(calendar_command="upcoming", days=7, conflicts=False, verbose=True)
+        args = MagicMock(
+            calendar_command="upcoming", days=7, conflicts=False, verbose=True, user=None
+        )
         result = cmd_calendar(args)
 
         assert result == 0
@@ -356,7 +362,9 @@ class TestCalendarCLI:
         mock_calendar_service.connect.return_value = True
         mock_calendar_service.get_upcoming_events.return_value = [event]
 
-        args = MagicMock(calendar_command="upcoming", days=7, conflicts=False, verbose=False)
+        args = MagicMock(
+            calendar_command="upcoming", days=7, conflicts=False, verbose=False, user=None
+        )
         result = cmd_calendar(args)
 
         assert result == 0
@@ -389,7 +397,9 @@ class TestCalendarCLI:
         mock_calendar_service.get_upcoming_events.return_value = [event1, event2]
         mock_calendar_service.find_conflicts.return_value = [(event1, event2)]
 
-        args = MagicMock(calendar_command="upcoming", days=7, conflicts=True, verbose=False)
+        args = MagicMock(
+            calendar_command="upcoming", days=7, conflicts=True, verbose=False, user=None
+        )
         result = cmd_calendar(args)
 
         assert result == 0
@@ -403,7 +413,9 @@ class TestCalendarCLI:
         mock_calendar_service.connect.return_value = True
         mock_calendar_service.get_upcoming_events.return_value = []
 
-        args = MagicMock(calendar_command="upcoming", days=14, conflicts=False, verbose=False)
+        args = MagicMock(
+            calendar_command="upcoming", days=14, conflicts=False, verbose=False, user=None
+        )
         cmd_calendar(args)
 
         mock_calendar_service.get_upcoming_events.assert_called_once_with(days=14)
@@ -412,7 +424,9 @@ class TestCalendarCLI:
         """Test calendar command when connection fails."""
         mock_calendar_service.connect.return_value = False
 
-        args = MagicMock(calendar_command="upcoming", days=7, conflicts=False, verbose=False)
+        args = MagicMock(
+            calendar_command="upcoming", days=7, conflicts=False, verbose=False, user=None
+        )
         result = cmd_calendar(args)
 
         assert result == 1
@@ -421,7 +435,7 @@ class TestCalendarCLI:
 
     def test_calendar_unknown_command(self, mock_calendar_service, capsys):
         """Test unknown calendar subcommand."""
-        args = MagicMock(calendar_command="unknown")
+        args = MagicMock(calendar_command="unknown", user=None)
         result = cmd_calendar(args)
 
         assert result == 1
