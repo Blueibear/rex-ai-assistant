@@ -83,7 +83,7 @@ class TestRemindersBridgeJsonIO:
             "sys.modules",
             {"rex.reminder_service": MagicMock(get_reminder_service=lambda: mock_service)},
         ):
-            result = _run_main(REMINDERS_MODULE, '{"action": "list"}')
+            result = _run_main(REMINDERS_MODULE, '{"action": "list", "user": "default"}')
         assert isinstance(result, dict)
         assert "reminders" in result or "error" in result
 
@@ -94,7 +94,7 @@ class TestRemindersBridgeJsonIO:
             "sys.modules",
             {"rex.reminder_service": MagicMock(get_reminder_service=lambda: mock_service)},
         ):
-            result = _run_main(REMINDERS_MODULE, '{"command": "list"}')
+            result = _run_main(REMINDERS_MODULE, '{"command": "list", "user": "default"}')
         assert isinstance(result, dict)
         assert "reminders" in result or "error" in result
 
