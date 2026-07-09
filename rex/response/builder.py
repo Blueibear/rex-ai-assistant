@@ -129,7 +129,7 @@ class ResponseBuilder:
         """
         text = action_result.response
         tts_text = _clean_for_tts(text)
-        suggestions = self._get_suggestions()
+        suggestions = self._get_suggestions(user_id)
         followups = self._get_followups()
 
         # Cache PUT: store result so identical future queries skip the LLM.
@@ -151,17 +151,19 @@ class ResponseBuilder:
     # Private helpers
     # ------------------------------------------------------------------
 
-    def _get_suggestions(self) -> list[str]:
-        """Return any pending suggestion text from the suggestion engine."""
+    def _get_suggestions(self, user_id: str | None = None) -> list[str]:
+        """Return *user_id*'s pending suggestion text from the suggestion engine.
+
+        Pending suggestions are per-user (issue #303); without a *user_id* no
+        suggestion is surfaced (fail closed).
+        """
         engine = self._suggestion_engine
-        if engine is None:
+        if engine is None or not user_id:
             return []
         try:
-            pending = getattr(engine, "_pending", None)
-            if pending and isinstance(pending, dict):
-                spoken = pending.get("spoken_text")
-                if spoken:
-                    return [str(spoken)]
+            spoken = engine.pending_spoken_text(user_id)
+            if spoken:
+                return [str(spoken)]
         except Exception as exc:
             logger.debug("Failed to get suggestions from engine: %s", exc)
         return []

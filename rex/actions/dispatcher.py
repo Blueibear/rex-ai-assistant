@@ -70,7 +70,8 @@ class ActionDispatcher:
         music_handler:        Optional :class:`~rex.music_handler.MusicHandler`.
         device_state_handler: Optional :class:`~rex.ha.state_handler.DeviceStateHandler`.
         suggestion_engine:    Optional proactive suggestion engine.
-        pattern_entries:      Shared mutable list of PatternEntry objects for suggestion detection.
+        pattern_entries:      Mutable dict mapping user_id to that user's list of
+                              PatternEntry objects for suggestion detection (issue #303).
         build_tool_context_fn: Callable returning ``{"location": ..., "timezone": ...}`` dict.
         model_call_fn_builder: Callable ``(transcript) -> model_call_fn`` used for tool re-prompts.
         run_plugins_fn:       Async callable ``(transcript) -> list[str]`` for plugin enrichments.
@@ -91,7 +92,7 @@ class ActionDispatcher:
         music_handler: Any = None,
         device_state_handler: Any = None,
         suggestion_engine: Any = None,
-        pattern_entries: list | None = None,
+        pattern_entries: dict | None = None,
         build_tool_context_fn: Callable[[], dict] | None = None,
         model_call_fn_builder: Callable[[str], Any] | None = None,
         run_plugins_fn: Callable[..., Awaitable[list[str]]] | None = None,
@@ -108,7 +109,8 @@ class ActionDispatcher:
         self._music_handler = music_handler
         self._device_state_handler = device_state_handler
         self._suggestion_engine = suggestion_engine
-        self._pattern_entries: list = pattern_entries if pattern_entries is not None else []
+        # Per-user command log for pattern detection, keyed by user_id (#303)
+        self._pattern_entries: dict = pattern_entries if pattern_entries is not None else {}
         self._build_tool_context_fn = build_tool_context_fn
         self._model_call_fn_builder = model_call_fn_builder
         self._run_plugins_fn = run_plugins_fn
@@ -242,7 +244,7 @@ class ActionDispatcher:
                             _last = _cmd_hist._entries[-1]
                             from rex.suggestions.pattern_detector import PatternEntry
 
-                            self._pattern_entries.append(
+                            self._pattern_entries.setdefault(effective_user, []).append(
                                 PatternEntry(
                                     entity_id=_last.entity_id,
                                     service=_last.service,
@@ -255,8 +257,12 @@ class ActionDispatcher:
                         try:
                             from rex.suggestions.pattern_detector import detect_patterns
 
-                            _patterns = detect_patterns(self._pattern_entries)
-                            _sug = self._suggestion_engine.get_suggestion(_patterns)
+                            _patterns = detect_patterns(
+                                self._pattern_entries.get(effective_user, [])
+                            )
+                            _sug = self._suggestion_engine.get_suggestion(
+                                _patterns, user_id=effective_user
+                            )
                             if _sug is not None:
                                 _, _spoken = _sug
                                 completion = f"{completion} {_spoken}"

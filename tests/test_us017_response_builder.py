@@ -191,17 +191,27 @@ class TestBuild:
 
     def test_suggestions_from_pending_engine(self):
         engine = MagicMock()
-        engine._pending = {"spoken_text": "Want me to automate that?"}
+        engine.pending_spoken_text.return_value = "Want me to automate that?"
         rb = _make_builder(suggestion_engine=engine)
-        result = rb.build(_make_action_result("ok"), _make_context())
+        result = rb.build(_make_action_result("ok"), _make_context(), user_id="alice")
         assert result.suggestions == ["Want me to automate that?"]
+        engine.pending_spoken_text.assert_called_once_with("alice")
 
     def test_suggestions_empty_when_no_pending(self):
         engine = MagicMock()
-        engine._pending = None
+        engine.pending_spoken_text.return_value = None
+        rb = _make_builder(suggestion_engine=engine)
+        result = rb.build(_make_action_result("ok"), _make_context(), user_id="alice")
+        assert result.suggestions == []
+
+    def test_suggestions_empty_without_user_id(self):
+        # Fail closed: no user identity means no suggestion is surfaced (#303)
+        engine = MagicMock()
+        engine.pending_spoken_text.return_value = "Want me to automate that?"
         rb = _make_builder(suggestion_engine=engine)
         result = rb.build(_make_action_result("ok"), _make_context())
         assert result.suggestions == []
+        engine.pending_spoken_text.assert_not_called()
 
     def test_followups_empty_no_engine(self):
         rb = _make_builder()
@@ -256,7 +266,7 @@ class TestAssistantUsesResponseBuilder:
         a._response_cache = None
         a._ha_bridge = None
         a._suggestion_engine = None
-        a._pattern_entries = []
+        a._pattern_entries = {}
         return a
 
     def test_get_or_create_response_builder_returns_instance(self):
