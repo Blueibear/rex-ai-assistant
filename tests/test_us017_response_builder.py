@@ -322,7 +322,8 @@ class TestAssistantUsesResponseBuilder:
             reply = asyncio.run(a.generate_reply("hello"))
 
         assert reply == "LLM reply"
-        rb.check_cache.assert_called_once_with("hello")
+        # Cache lookups are confined to the active user's partition (#303)
+        rb.check_cache.assert_called_once_with("hello", user_id="default")
         rb.build.assert_called_once()
 
     def test_generate_reply_returns_cached_without_dispatch(self):

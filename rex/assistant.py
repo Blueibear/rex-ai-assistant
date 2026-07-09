@@ -91,13 +91,19 @@ class Assistant:
     ) -> None:
         self._settings = settings_obj or settings
         self._llm = LanguageModel(config=self._settings)
-        self._history: list[ConversationTurn] = []
-        self._history_limit = history_limit or self._settings.max_memory_items
-        self._plugins = list(plugins or [])
-        self._transcripts_dir = Path(transcripts_dir or self._settings.transcripts_dir)
 
         # Prefer explicit user_id, then settings.user_id, then "default"
         self._user_id = user_id or getattr(self._settings, "user_id", None) or "default"
+
+        # Per-user in-memory history windows keyed by user id (issue #303).
+        # ``self._history`` is a property that resolves to the current
+        # ``self._user_id``'s list, so identified-speaker requests never see
+        # another user's turns.
+        self._histories: dict[str, list[ConversationTurn]] = {}
+        self._history = []
+        self._history_limit = history_limit or self._settings.max_memory_items
+        self._plugins = list(plugins or [])
+        self._transcripts_dir = Path(transcripts_dir or self._settings.transcripts_dir)
 
         # Conversation history persistence
         self._history_store: HistoryStore | None = None
@@ -222,6 +228,9 @@ class Assistant:
             history=self._history,
             user_id=self._user_id,
             followup_engine=self._followup_engine,
+            # Live per-user view: resolves to the active user's history at
+            # build time instead of a construction-time snapshot (#303).
+            history_provider=lambda: self._history,
         )
 
         # Intent router: handles direct-reply shortcuts without LLM (US-015)
@@ -304,6 +313,41 @@ class Assistant:
     def user_id(self) -> str:
         """Get the user ID for this assistant session."""
         return self._user_id
+
+    # ------------------------------------------------------------------
+    # Per-user in-memory history (issue #303)
+    # ------------------------------------------------------------------
+
+    def _load_persisted_history(self, user_id: str) -> list[ConversationTurn]:
+        """Load the most recent persisted turns for *user_id* (empty when no store)."""
+        store = getattr(self, "_history_store", None)
+        if store is None:
+            return []
+        try:
+            stored = store.load_history(user_id, limit=50)
+            return [ConversationTurn(speaker=row["role"], text=row["content"]) for row in stored]
+        except Exception as exc:
+            logger.warning("Failed to load history for user %s: %s", user_id, exc)
+            return []
+
+    def _history_for(self, user_id: str) -> list[ConversationTurn]:
+        """Return the in-memory history window for *user_id*, loading it lazily."""
+        histories: dict[str, list[ConversationTurn]] = self.__dict__.setdefault("_histories", {})
+        hist = histories.get(user_id)
+        if hist is None:
+            hist = self._load_persisted_history(user_id)
+            histories[user_id] = hist
+        return hist
+
+    @property
+    def _history(self) -> list[ConversationTurn]:
+        """History window for the currently active ``self._user_id``."""
+        return self._history_for(getattr(self, "_user_id", "default"))
+
+    @_history.setter
+    def _history(self, value: list[ConversationTurn]) -> None:
+        uid = getattr(self, "_user_id", "default")
+        self.__dict__.setdefault("_histories", {})[uid] = list(value)
 
     @property
     def has_pending_followup(self) -> bool:
@@ -400,24 +444,35 @@ class Assistant:
             plugin_enrichments=plugin_enrichments,
         )
 
-    def _record_completion(self, transcript: str, completion: str) -> None:
+    def _record_completion(
+        self, transcript: str, completion: str, *, user_id: str | None = None
+    ) -> None:
+        """Persist and remember a completed turn under its owning user.
+
+        *user_id* overrides ``self._user_id`` so early-return paths (intent
+        shortcuts, cache hits) and post-``_end_request`` recording attribute
+        the turn to the identified speaker rather than the session default
+        (issue #303).
+        """
+        uid = user_id if user_id is not None else self._user_id
         now = datetime.utcnow()
         history_store = getattr(self, "_history_store", None)
         if history_store is not None:
             try:
-                history_store.save_turn(self._user_id, "user", transcript, now)
-                history_store.save_turn(self._user_id, "assistant", completion, now)
+                history_store.save_turn(uid, "user", transcript, now)
+                history_store.save_turn(uid, "assistant", completion, now)
             except Exception as exc:
                 logger.warning("Failed to persist conversation turn: %s", exc)
 
-        self._history.append(ConversationTurn("user", transcript))
-        self._history.append(ConversationTurn("assistant", completion))
-        self._history = [
+        hist = self._history_for(uid)
+        hist.append(ConversationTurn("user", transcript))
+        hist.append(ConversationTurn("assistant", completion))
+        self._histories[uid] = [
             ConversationTurn(**item) if isinstance(item, dict) else item
-            for item in trim_history(self._history, limit=self._history_limit)  # type: ignore[arg-type]
+            for item in trim_history(hist, limit=self._history_limit)  # type: ignore[arg-type]
         ]
 
-        self._log_turn(transcript, completion)
+        self._log_turn(transcript, completion, user_id=uid)
 
     def _looks_like_unverified_action_claim(self, completion: str) -> bool:
         return any(pattern.search(completion) for pattern in _UNVERIFIED_ACTION_CLAIM_PATTERNS)
@@ -536,6 +591,13 @@ class Assistant:
         """Orchestrate a full reply: intent → cache → context → dispatch → response."""
         loop = asyncio.get_running_loop()
 
+        # The user this turn belongs to: the identified speaker when known,
+        # otherwise the session default.  Used for cache partitioning and
+        # turn attribution on every path, including early returns (#303).
+        effective_user_id = (
+            active_user_id if active_user_id is not None else getattr(self, "_user_id", "default")
+        )
+
         # Route intent: capability queries, pending suggestions, time/date, greetings, recipes
         _intent = self._get_or_create_intent_router().route(
             transcript,
@@ -545,13 +607,16 @@ class Assistant:
         if _intent.handled:
             # Greeting shortcuts are suppressed in multi-user voice sessions
             if not (_intent.intent_type == "greeting" and active_user_id is not None):
-                self._record_completion(transcript, _intent.response)
+                self._record_completion(transcript, _intent.response, user_id=effective_user_id)
                 return _intent.response  # type: ignore[no-any-return]
 
-        # Fast path: return cached response without hitting the LLM
-        _cached = self._get_or_create_response_builder().check_cache(transcript)
+        # Fast path: return cached response without hitting the LLM.
+        # Lookup is confined to the effective user's cache partition.
+        _cached = self._get_or_create_response_builder().check_cache(
+            transcript, user_id=effective_user_id
+        )
         if _cached is not None:
-            self._record_completion(transcript, _cached)
+            self._record_completion(transcript, _cached, user_id=effective_user_id)
             return _cached  # type: ignore[no-any-return]
 
         # Apply per-request model routing and user ID scoping; restore in finally
@@ -570,13 +635,13 @@ class Assistant:
                 loop=loop,
             )
             final = self._get_or_create_response_builder().build(
-                result, _ctx, transcript=transcript
+                result, _ctx, transcript=transcript, user_id=effective_user_id
             )
             completion = final.text
         finally:
             self._end_request(prev_model, prev_user_id)
 
-        self._record_completion(transcript, completion)
+        self._record_completion(transcript, completion, user_id=effective_user_id)
         return completion  # type: ignore[no-any-return]
 
     def _begin_request(self, transcript: str, active_user_id: str | None) -> tuple[str | None, str]:
@@ -703,6 +768,7 @@ class Assistant:
                 history=getattr(self, "_history", []),
                 user_id=getattr(self, "_user_id", "default"),
                 followup_engine=getattr(self, "_followup_engine", None),
+                history_provider=lambda: getattr(self, "_history", []),
             )
             self._context_builder = cb
         return cb
@@ -832,10 +898,11 @@ class Assistant:
     def history(self) -> list[ConversationTurn]:
         return list(self._history)
 
-    def _log_turn(self, transcript: str, reply: str) -> None:
+    def _log_turn(self, transcript: str, reply: str, *, user_id: str | None = None) -> None:
         try:
+            uid = user_id if user_id is not None else self._user_id
             self._transcripts_dir.mkdir(parents=True, exist_ok=True)
-            user_dir = self._transcripts_dir / self._user_id
+            user_dir = self._transcripts_dir / uid
             user_dir.mkdir(parents=True, exist_ok=True)
             timestamp = datetime.utcnow()
             file_path = user_dir / f"{timestamp:%Y-%m-%d}.txt"

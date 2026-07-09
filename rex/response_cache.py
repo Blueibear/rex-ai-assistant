@@ -1,8 +1,13 @@
 """Response cache for repeated factual queries (US-LAT-004).
 
-Caches LLM responses keyed on normalized message text.  Cache entries expire
-after a configurable TTL (default 5 minutes).  Cache lookup is bypassed for
-messages that reference time-sensitive intents or invoke tools.
+Caches LLM responses keyed on normalized message text and the requesting
+user.  Cache entries expire after a configurable TTL (default 5 minutes).
+Cache lookup is bypassed for messages that reference time-sensitive intents
+or invoke tools.
+
+Entries stored for one ``user_id`` are never returned for another, so a
+personalized answer cached for user A cannot leak to user B asking the same
+question (issue #303).
 """
 
 from __future__ import annotations
@@ -111,7 +116,7 @@ class ResponseCache:
     def __init__(self, ttl: float = 300.0, max_size: int = 256) -> None:
         self._ttl = ttl
         self._max_size = max_size
-        self._store: dict[str, _CacheEntry] = {}
+        self._store: dict[tuple[str | None, str], _CacheEntry] = {}
         self._lock = Lock()
         self._hits = 0
         self._misses = 0
@@ -120,13 +125,17 @@ class ResponseCache:
     # Public API
     # ------------------------------------------------------------------
 
-    def get(self, message: str) -> str | None:
-        """Return a cached response for *message*, or None on miss/bypass/expiry."""
+    def get(self, message: str, *, user_id: str | None = None) -> str | None:
+        """Return a cached response for *message*, or None on miss/bypass/expiry.
+
+        Entries are partitioned by *user_id*: a response stored for one user
+        is never returned for another.  ``None`` is its own partition.
+        """
         if _should_bypass(message):
             logger.debug("[cache] bypass: %r", message[:60])
             return None
 
-        key = _normalize(message)
+        key = (user_id, _normalize(message))
         now = time.monotonic()
 
         with self._lock:
@@ -136,27 +145,32 @@ class ResponseCache:
                     del self._store[key]
                 self._misses += 1
                 logger.debug(
-                    "[cache] miss (total hits=%d misses=%d): %r",
+                    "[cache] miss (total hits=%d misses=%d): user=%r %r",
                     self._hits,
                     self._misses,
-                    key[:60],
+                    user_id,
+                    key[1][:60],
                 )
                 return None
             self._hits += 1
             logger.debug(
-                "[cache] hit (total hits=%d misses=%d): %r",
+                "[cache] hit (total hits=%d misses=%d): user=%r %r",
                 self._hits,
                 self._misses,
-                key[:60],
+                user_id,
+                key[1][:60],
             )
             return entry.response
 
-    def put(self, message: str, response: str) -> None:
-        """Store *response* for *message* unless the query should be bypassed."""
+    def put(self, message: str, response: str, *, user_id: str | None = None) -> None:
+        """Store *response* for *message* in *user_id*'s partition.
+
+        Skipped entirely when the query should be bypassed.
+        """
         if _should_bypass(message):
             return
 
-        key = _normalize(message)
+        key = (user_id, _normalize(message))
         expires_at = time.monotonic() + self._ttl
 
         with self._lock:

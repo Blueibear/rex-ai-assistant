@@ -89,15 +89,19 @@ class ResponseBuilder:
     # Cache lookup (pre-dispatch fast path)
     # ------------------------------------------------------------------
 
-    def check_cache(self, transcript: str) -> str | None:
+    def check_cache(self, transcript: str, *, user_id: str | None = None) -> str | None:
         """Return a cached response for *transcript*, or ``None`` on miss/bypass.
 
-        Delegates to :meth:`~rex.response_cache.ResponseCache.get`.
+        Delegates to :meth:`~rex.response_cache.ResponseCache.get`.  When
+        *user_id* is given the lookup is confined to that user's cache
+        partition so one user never receives another user's cached answer.
         Returns ``None`` when no cache is configured.
         """
         if self._cache is None:
             return None
-        return self._cache.get(transcript)  # type: ignore[no-any-return]
+        if user_id is None:
+            return self._cache.get(transcript)  # type: ignore[no-any-return]
+        return self._cache.get(transcript, user_id=user_id)  # type: ignore[no-any-return]
 
     # ------------------------------------------------------------------
     # Primary entry point
@@ -109,6 +113,7 @@ class ResponseBuilder:
         context: Any,
         *,
         transcript: str = "",
+        user_id: str | None = None,
     ) -> FinalResponse:
         """Build a :class:`FinalResponse` from an :class:`~rex.actions.dispatcher.ActionResult`.
 
@@ -116,6 +121,8 @@ class ResponseBuilder:
             action_result: Result from :class:`~rex.actions.dispatcher.ActionDispatcher`.
             context:       :class:`~rex.context.builder.ContextPackage` from the context builder.
             transcript:    The original user transcript; used as the cache key for the PUT.
+            user_id:       Owner of the cache entry; confines the PUT to that
+                           user's partition (issue #303).
 
         Returns:
             A fully populated :class:`FinalResponse`.
@@ -127,7 +134,10 @@ class ResponseBuilder:
 
         # Cache PUT: store result so identical future queries skip the LLM.
         if self._cache is not None and transcript:
-            self._cache.put(transcript, text)
+            if user_id is None:
+                self._cache.put(transcript, text)
+            else:
+                self._cache.put(transcript, text, user_id=user_id)
 
         return FinalResponse(
             text=text,

@@ -274,7 +274,7 @@ class TestAssistantMusicRouting:
         assistant._history_store = None
         assistant._transcripts_dir = pathlib.Path("/tmp")
         assistant._user_id = "test"
-        assistant._record_completion = lambda t, c: None  # type: ignore[method-assign]
+        assistant._record_completion = lambda t, c, **kw: None  # type: ignore[method-assign]
         assistant._router = MagicMock()
         assistant._router.classify.return_value = "general"
         assistant._router.resolve_model.return_value = ""
