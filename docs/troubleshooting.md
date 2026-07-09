@@ -77,6 +77,41 @@ The current Rex install paths are validated on Python 3.11. Fresh installs on Py
 3. Test wake word detection: `python wakeword_listener.py`
 4. Record custom wake word: `python scripts/record_wakeword.py`
 
+## Custom Wake Model — False Triggers on Silence
+
+**Issue:** Rex wakes up constantly on background noise with a custom-trained wake
+model, or logs show `custom_wake_model_unreliable` / `wakeword_backend_fallback_activated`.
+
+**What happened:** During the first 10 seconds of each wake-listening cycle the
+listener runs a noise self-test on the `custom_embedding` backend. If it sees 5
+high-confidence detections (≥ 0.85) on effectively silent audio (RMS ≤ 0.006 and
+peak ≤ 0.025), it concludes the model is unreliable in this environment:
+
+- **With a fallback available** (`wakeword.fallback_to_builtin: true`, the default) —
+  Rex automatically swaps to the built-in `openwakeword` keyword
+  (`wakeword.fallback_keyword`, default "hey jarvis") and keeps listening. The log
+  contains `wakeword_backend_fallback_activated`, and the detection that triggered
+  the swap is suppressed so no false capture fires.
+
+- **Without a fallback** (`fallback_to_builtin: false`) — the model is marked
+  unreliable in the logs (`custom_wake_model_unreliable`) but keeps running;
+  expect continued false triggers until you fix the model.
+
+**Solutions:**
+1. **Retrain in your environment.** Run `python scripts/record_wakeword.py` in the
+   same room and mic setup Rex will use. More varied samples improve robustness.
+2. **Keep the built-in fallback enabled** in `config/rex_config.json`:
+   ```json
+   "wakeword": {
+     "backend": "custom_embedding",
+     "fallback_to_builtin": true,
+     "fallback_keyword": "hey jarvis"
+   }
+   ```
+3. **Switch backend** to `openwakeword` if retraining is not practical.
+4. **Check microphone gain.** Very high ambient gain (OS AGC) can make room
+   noise look like speech. Reduce the OS microphone boost level.
+
 ## Rate Limit Errors (TTS API)
 
 **Error:** `429 Too Many Requests`

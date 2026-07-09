@@ -23,6 +23,17 @@ from .utils import (
 logger = logging.getLogger(__name__)
 _DEFAULT_LOAD_WAKEWORD_MODEL = load_wakeword_model
 
+# Thresholds for detecting unreliable custom-embedding models: a model that
+# repeatedly reports high confidence on quiet/background audio is broken and
+# would fire constantly. Frames are only counted inside the self-test window
+# at the start of a listening cycle to avoid false fallbacks from marginal
+# models during long quiet periods.
+_UNRELIABLE_CONFIDENCE_THRESHOLD: float = 0.85
+_UNRELIABLE_RMS_MAX: float = 0.006
+_UNRELIABLE_PEAK_MAX: float = 0.025
+_UNRELIABLE_MIN_FRAMES: int = 5
+_UNRELIABLE_WINDOW_S: float = 10.0
+
 DetectorResult: TypeAlias = bool | WakeWordDetectionResult
 DetectorCallable: TypeAlias = Callable[[np.ndarray], DetectorResult]
 DetectorFactoryResult: TypeAlias = tuple[DetectorCallable, Callable[[], None] | None, str | None]
@@ -44,6 +55,10 @@ class WakeWordListener:
         keyword: str | None = None,
         backend: str | None = None,
         event_callback: WakeEventCallback | None = None,
+        fallback_detector_factory: DetectorFactory | None = None,
+        fallback_keyword: str | None = None,
+        fallback_backend: str | None = None,
+        unreliable_silence_enabled: bool = False,
     ) -> None:
         self._detector = detector
         self._poll_interval = poll_interval
@@ -59,12 +74,22 @@ class WakeWordListener:
         self._event_callback = event_callback
         self._listening_started_at: float | None = None
         self._listening_cycle = 0
+        self._fallback_detector_factory = fallback_detector_factory
+        self._fallback_keyword = fallback_keyword
+        self._fallback_backend = fallback_backend
+        self._unreliable_silence_enabled = unreliable_silence_enabled
+        self._high_confidence_quiet_frames = 0
+        self._model_marked_unreliable = False
+        self._suppress_next_trigger = False
 
     def mark_listening_started(self, *, reason: str = "manual") -> None:
         """Mark a user-visible wake-listening cycle as active."""
         self._attempt_count = 0
         self._listening_cycle += 1
         self._listening_started_at = time.monotonic()
+        # Restart the unreliable-model self-test window for the new cycle.
+        # A model already marked unreliable stays on the fallback detector.
+        self._high_confidence_quiet_frames = 0
         extra: dict[str, object] = {
             "event": "wakeword_listening_cycle_started",
             "reason": reason,
@@ -194,7 +219,66 @@ class WakeWordListener:
                     attempt_extra,
                 )
 
-                if triggered:
+                # Unreliable custom-model self-test: count frames where the
+                # model reports high confidence on quiet/background audio
+                # inside the self-test window at the start of the cycle.
+                # After _UNRELIABLE_MIN_FRAMES such frames the model is
+                # declared unreliable and the fallback detector is activated.
+                if (
+                    self._unreliable_silence_enabled
+                    and not self._model_marked_unreliable
+                    and time_since_listening_start_s <= _UNRELIABLE_WINDOW_S
+                ):
+                    _rms_raw = result_extra.get("audio_rms")
+                    _peak_raw = result_extra.get("audio_peak")
+                    _rms = float(_rms_raw) if isinstance(_rms_raw, (int, float)) else 0.0
+                    _peak = float(_peak_raw) if isinstance(_peak_raw, (int, float)) else 0.0
+                    _is_quiet = _rms <= _UNRELIABLE_RMS_MAX and _peak <= _UNRELIABLE_PEAK_MAX
+                    _is_high_conf = confidence >= _UNRELIABLE_CONFIDENCE_THRESHOLD
+                    if _is_quiet and _is_high_conf:
+                        self._high_confidence_quiet_frames += 1
+                        _sample_extra: dict[str, object] = {
+                            "event": "wakeword_custom_embedding_score_sample",
+                            "self_test_state": "accumulating",
+                            "confidence": confidence,
+                            "threshold": threshold,
+                            "audio_rms": _rms,
+                            "audio_peak": _peak,
+                            "high_confidence_quiet_frames": self._high_confidence_quiet_frames,
+                            "unreliable_min_frames": _UNRELIABLE_MIN_FRAMES,
+                            "active_wake_phrase": self._keyword,
+                            "active_backend": self._backend,
+                        }
+                        logger.debug(
+                            "Custom embedding high-confidence silence frame %d/%d",
+                            self._high_confidence_quiet_frames,
+                            _UNRELIABLE_MIN_FRAMES,
+                            extra=_sample_extra,
+                        )
+                        self._emit_event(
+                            "DEBUG",
+                            "Custom embedding high-confidence silence frame",
+                            _sample_extra,
+                        )
+                        if self._high_confidence_quiet_frames >= _UNRELIABLE_MIN_FRAMES:
+                            await self._activate_fallback(
+                                audio_rms=_rms,
+                                audio_peak=_peak,
+                                confidence=confidence,
+                            )
+
+                if triggered and self._suppress_next_trigger:
+                    self._suppress_next_trigger = False
+                    logger.debug(
+                        "Wake-word trigger suppressed after fallback activation",
+                        extra={
+                            "event": "wakeword_trigger_suppressed_fallback",
+                            "confidence": confidence,
+                            "keyword": keyword,
+                            "backend": self._backend,
+                        },
+                    )
+                elif triggered:
                     detected_at = time.monotonic()
                     self._mark_listening_ended(
                         reason="accepted_wake",
@@ -242,6 +326,119 @@ class WakeWordListener:
             self._event_callback({"level": level, "message": message, "extra": dict(extra)})
         except Exception:
             logger.debug("Wake event callback failed", exc_info=True)
+
+    async def _activate_fallback(
+        self, *, audio_rms: float, audio_peak: float, confidence: float
+    ) -> None:
+        """Mark the custom model unreliable and switch to the fallback detector.
+
+        Emits ``high_confidence_silence`` and ``custom_wake_model_unreliable``
+        events, then loads the fallback detector (openWakeWord) and emits
+        ``wakeword_backend_fallback_activated``.  Suppresses the frame that
+        triggered activation so no false STT capture fires.
+        """
+        self._model_marked_unreliable = True
+        self._high_confidence_quiet_frames = 0
+        self._suppress_next_trigger = True
+
+        original_backend = self._backend
+        original_keyword = self._keyword
+
+        base_extra: dict[str, object] = {
+            "confidence": confidence,
+            "audio_rms": audio_rms,
+            "audio_peak": audio_peak,
+            "unreliable_confidence_threshold": _UNRELIABLE_CONFIDENCE_THRESHOLD,
+            "unreliable_rms_max": _UNRELIABLE_RMS_MAX,
+            "unreliable_peak_max": _UNRELIABLE_PEAK_MAX,
+            "original_backend": original_backend,
+            "original_keyword": original_keyword,
+            "fallback_keyword": self._fallback_keyword,
+            "fallback_backend": self._fallback_backend,
+            "detector_generation": self._detector_generation,
+        }
+
+        silence_extra: dict[str, object] = {**base_extra, "event": "high_confidence_silence"}
+        logger.warning(
+            "Wake-word custom model unreliable: high-confidence on quiet audio "
+            "(backend=%s keyword=%r rms=%.4f peak=%.4f confidence=%.4f)",
+            original_backend,
+            original_keyword,
+            audio_rms,
+            audio_peak,
+            confidence,
+            extra=silence_extra,
+        )
+        self._emit_event(
+            "WARNING",
+            "Wake-word custom model unreliable: high-confidence on quiet audio",
+            silence_extra,
+        )
+
+        unreliable_extra: dict[str, object] = {
+            **base_extra,
+            "event": "custom_wake_model_unreliable",
+        }
+        self._emit_event("WARNING", "Custom wake model marked unreliable", unreliable_extra)
+
+        if self._fallback_detector_factory is None:
+            return
+
+        loading_extra: dict[str, object] = {
+            "event": "wakeword_fallback_loading",
+            "original_backend": original_backend,
+            "original_keyword": original_keyword,
+            "fallback_keyword": self._fallback_keyword,
+            "fallback_backend": self._fallback_backend,
+        }
+        self._emit_event("INFO", "Wake-word fallback detector loading", loading_extra)
+
+        factory = self._fallback_detector_factory
+        try:
+            fallback_detector, fallback_reset, fallback_label = (
+                await asyncio.get_running_loop().run_in_executor(None, factory)
+            )
+        except Exception as exc:
+            disabled_extra: dict[str, object] = {
+                "event": "wakeword_backend_fallback_disabled",
+                "error": str(exc),
+                "original_backend": original_backend,
+                "original_keyword": original_keyword,
+            }
+            logger.error(
+                "Wake-word fallback detector failed to load: %s",
+                exc,
+                extra=disabled_extra,
+            )
+            self._emit_event(
+                "ERROR",
+                "Wake-word fallback detector failed to load",
+                disabled_extra,
+            )
+            return
+
+        self._detector = fallback_detector
+        self._reset_detector = fallback_reset
+        self._rebuild_detector = factory
+        if fallback_label:
+            self._keyword = fallback_label
+        if self._fallback_backend:
+            self._backend = self._fallback_backend
+        self._detector_generation += 1
+
+        activated_extra: dict[str, object] = {
+            "event": "wakeword_backend_fallback_activated",
+            "fallback_keyword": self._keyword,
+            "fallback_backend": self._backend,
+            "detector_generation": self._detector_generation,
+            "original_backend": original_backend,
+            "original_keyword": original_keyword,
+            "confidence_at_activation": confidence,
+            "audio_rms_at_activation": audio_rms,
+            "audio_peak_at_activation": audio_peak,
+        }
+        logger.info("Wake-word backend fallback activated", extra=activated_extra)
+        self._emit_event("INFO", "Wake-word backend fallback activated", activated_extra)
 
     @staticmethod
     def _coerce_result(
@@ -454,6 +651,37 @@ def build_default_detector(
     if poll_interval is None:
         poll_interval = min(0.05, max(0.0, chunk_duration / 2))
 
+    # Build a fallback factory for runtime unreliable-model detection when
+    # using a custom embedding backend.  The factory loads the builtin
+    # openWakeWord model with the configured fallback keyword so the listener
+    # can swap it in if the custom model proves unreliable at runtime.
+    _fallback_factory: DetectorFactory | None = None
+    _fallback_kw: str | None = None
+    _fallback_be: str | None = None
+    if active_backend == "custom_embedding" and fallback_to_builtin is not False:
+        _fb_kw = (fallback_keyword or "hey jarvis").strip()
+        _fb_threshold = threshold
+
+        def _build_fallback_instance() -> DetectorFactoryResult:
+            fb_model, fb_selection = load_wakeword_model_with_metadata(
+                keyword=_fb_kw,
+                backend="openwakeword",
+                fallback_to_builtin=True,
+                fallback_keyword=_fb_kw,
+            )
+            fb_label = fb_selection.active_label
+
+            def _fb_detector(frame: np.ndarray) -> WakeWordDetectionResult:
+                return evaluate_wakeword(fb_model, frame, threshold=_fb_threshold)
+
+            fb_reset = getattr(fb_model, "reset", None)
+            fb_reset_fn = fb_reset if callable(fb_reset) else None
+            return _fb_detector, fb_reset_fn, fb_label
+
+        _fallback_factory = _build_fallback_instance
+        _fallback_kw = _fb_kw
+        _fallback_be = "openwakeword"
+
     logger.info(
         "Wake-word listener configured",
         extra={
@@ -475,6 +703,9 @@ def build_default_detector(
             "fallback_keyword": selection.fallback_keyword if selection else fallback_keyword,
             "validation_error": selection.validation_error if selection else None,
             "reset_supported": reset_detector is not None,
+            "unreliable_silence_enabled": _fallback_factory is not None
+            or active_backend == "custom_embedding",
+            "fallback_factory_available": _fallback_factory is not None,
         },
     )
     logger.info(
@@ -509,6 +740,10 @@ def build_default_detector(
         keyword=active_label,
         backend=active_backend,
         event_callback=event_callback,
+        fallback_detector_factory=_fallback_factory,
+        fallback_keyword=_fallback_kw,
+        fallback_backend=_fallback_be,
+        unreliable_silence_enabled=(active_backend == "custom_embedding"),
     )
 
 
