@@ -5,6 +5,22 @@ Reminders can optionally create follow-up cues after they fire.
 
 Reminders integrate with the scheduler system and notification system.
 
+Ownership model (US-303 per-user isolation):
+- Every reminder has exactly one validated owner ``user_id``.
+- Every user-facing operation (get/list/complete/cancel/delete/update)
+  requires the requesting ``user_id`` and only operates on reminders owned
+  by that user. Non-owned reminders behave as if they do not exist.
+- Missing, blank, or malformed user IDs fail closed (``ValueError``).
+- Background firing (``fire_due_reminders`` with no ``user_id``) runs in
+  system context: each due reminder executes as its stored owner (the
+  notification and follow-up cue are attributed to ``reminder.user_id``).
+- Legacy records persisted without a ``user_id`` load as owned by the
+  distinct ``default`` profile. They are not shared and are not reassigned;
+  only callers explicitly operating as ``default`` can access them. Manual
+  reassignment may be added later via a separate administrative tool.
+- Persisted records with an invalid ``user_id`` are quarantined: preserved
+  in the storage file but excluded from all operations.
+
 Usage:
     from rex.reminder_service import get_reminder_service
 
@@ -16,7 +32,7 @@ Usage:
         followup_enabled=True,
     )
     pending = service.list_reminders(user_id="default", status="pending")
-    service.mark_done(reminder.reminder_id)
+    service.mark_done(reminder.reminder_id, user_id="default")
 """
 
 from __future__ import annotations
@@ -29,7 +45,9 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
+
+from rex.identity import validate_user_id
 
 logger = logging.getLogger(__name__)
 
@@ -75,7 +93,10 @@ class Reminder(BaseModel):
     )
     user_id: str = Field(
         default="default",
-        description="User/profile ID this reminder belongs to",
+        description=(
+            "User/profile ID this reminder belongs to. Legacy records without "
+            "one belong to the distinct 'default' profile."
+        ),
     )
     title: str = Field(
         ...,
@@ -118,6 +139,12 @@ class Reminder(BaseModel):
         description="Additional metadata",
     )
 
+    @field_validator("user_id")
+    @classmethod
+    def _check_user_id(cls, value: str) -> str:
+        """Reject blank, malformed, or traversal-style owner IDs (fail closed)."""
+        return validate_user_id(value)
+
     def is_due(self, now: datetime | None = None) -> bool:
         """Check if this reminder is due to fire."""
         check_time = _ensure_utc(now or _utc_now())
@@ -149,10 +176,11 @@ class Reminder(BaseModel):
 class ReminderService:
     """Service for managing reminders.
 
-    - Create one-off reminders
-    - List reminders
-    - Mark reminders as done/canceled
-    - Fire due reminders (notifications + optional follow-up cue)
+    - Create one-off reminders (owner recorded and validated)
+    - List reminders (scoped to the requesting owner)
+    - Mark reminders as done/canceled (ownership enforced)
+    - Fire due reminders (notifications + optional follow-up cue, each
+      executing as its stored owner)
     - Optionally register a scheduler job to auto-fire
 
     Backward compatible aliases:
@@ -160,7 +188,8 @@ class ReminderService:
     - cancel(...) -> cancel_reminder(...)
     - fire_due(...) -> fire_due_reminders(...)
     - get(...) -> get_reminder(...)
-    - all_reminders() -> iterable of all reminders
+    - all_reminders() -> iterable of all reminders (system/maintenance
+      context only; must not back a user-facing surface)
     """
 
     def __init__(
@@ -173,6 +202,9 @@ class ReminderService:
 
         self.storage_path = Path(storage_path)
         self._reminders: dict[str, Reminder] = {}
+        # Raw persisted records that failed validation (e.g. invalid owner
+        # user_id). Preserved verbatim on save, excluded from all operations.
+        self._quarantined: list[dict[str, Any]] = []
         self._scheduler_job_registered = False
 
         self._load()
@@ -189,6 +221,7 @@ class ReminderService:
 
         if not path_to_use.exists():
             self._reminders = {}
+            self._quarantined = []
             return
 
         try:
@@ -196,6 +229,7 @@ class ReminderService:
                 data = json.load(f)
 
             loaded: dict[str, Reminder] = {}
+            quarantined: list[dict[str, Any]] = []
             for rem_data in data.get("reminders", []):
                 try:
                     reminder = Reminder.model_validate(rem_data)
@@ -210,16 +244,32 @@ class ReminderService:
                         reminder.canceled_at = _ensure_utc(reminder.canceled_at)
                     loaded[reminder.reminder_id] = reminder
                 except Exception as exc:
-                    logger.debug("Skipping invalid reminder entry: %s", exc)
+                    # Fail closed but preserve the record: invalid entries
+                    # (including invalid owner IDs) are quarantined, not
+                    # dropped and not attributed to any user.
+                    if isinstance(rem_data, dict):
+                        quarantined.append(rem_data)
+                    logger.warning(
+                        "Quarantined invalid reminder entry %r: %s",
+                        rem_data.get("reminder_id") if isinstance(rem_data, dict) else rem_data,
+                        exc,
+                    )
 
             self._reminders = loaded
-            logger.debug("Loaded %d reminders from %s", len(self._reminders), path_to_use)
+            self._quarantined = quarantined
+            logger.debug(
+                "Loaded %d reminders (%d quarantined) from %s",
+                len(self._reminders),
+                len(self._quarantined),
+                path_to_use,
+            )
         except (json.JSONDecodeError, OSError) as e:
             logger.warning("Failed to load reminders: %s", e)
             self._reminders = {}
+            self._quarantined = []
 
         # If we loaded from legacy, write back to new path so migration happens naturally.
-        if path_to_use != self.storage_path and self._reminders:
+        if path_to_use != self.storage_path and (self._reminders or self._quarantined):
             try:
                 self._save()
             except Exception:
@@ -227,14 +277,27 @@ class ReminderService:
                 pass
 
     def _save(self) -> None:
-        """Save reminders to disk."""
+        """Save reminders to disk (including quarantined records, verbatim)."""
         self.storage_path.parent.mkdir(parents=True, exist_ok=True)
         try:
             reminders_data = [r.model_dump(mode="json") for r in self._reminders.values()]
+            reminders_data.extend(self._quarantined)
             with open(self.storage_path, "w", encoding="utf-8") as f:
                 json.dump({"reminders": reminders_data}, f, indent=2, default=str)
         except OSError as e:
             logger.error("Failed to save reminders: %s", e)
+
+    def _owned(self, reminder_id: str, user_id: str) -> Reminder | None:
+        """Return the reminder only if it exists and is owned by *user_id*.
+
+        Validates *user_id* (fail closed) and treats non-owned reminders as
+        nonexistent so callers cannot probe other users' reminder IDs.
+        """
+        user_id = validate_user_id(user_id)
+        reminder = self._reminders.get(reminder_id)
+        if reminder is None or reminder.user_id != user_id:
+            return None
+        return reminder
 
     def create_reminder(
         self,
@@ -247,8 +310,18 @@ class ReminderService:
         metadata: dict[str, Any] | None = None,
         reminder_id: str | None = None,
     ) -> Reminder:
-        """Create a new reminder."""
+        """Create a new reminder owned by *user_id*.
+
+        Raises:
+            ValueError: If *user_id* is invalid or *reminder_id* already
+                exists (a caller-supplied ID must never overwrite another
+                reminder, which could belong to a different user).
+        """
+        user_id = validate_user_id(user_id)
         remind_at_utc = _ensure_utc(remind_at)
+
+        if reminder_id and reminder_id in self._reminders:
+            raise ValueError(f"Reminder ID already exists: {reminder_id!r}")
 
         reminder = Reminder(
             reminder_id=reminder_id or f"rem_{uuid.uuid4().hex[:12]}",
@@ -264,27 +337,26 @@ class ReminderService:
 
         self._reminders[reminder.reminder_id] = reminder
         self._save()
-        logger.info("Created reminder %s: %s", reminder.reminder_id, title)
+        logger.info("Created reminder %s for user %s: %s", reminder.reminder_id, user_id, title)
 
         # Try to register scheduler job if available
         self._ensure_scheduler_job()
 
         return reminder
 
-    def get_reminder(self, reminder_id: str) -> Reminder | None:
-        """Get a reminder by ID."""
-        return self._reminders.get(reminder_id)
+    def get_reminder(self, reminder_id: str, user_id: str) -> Reminder | None:
+        """Get a reminder by ID, only if owned by *user_id*."""
+        return self._owned(reminder_id, user_id)
 
     def list_reminders(
         self,
-        user_id: str | None = None,
+        user_id: str,
         status: ReminderStatus | None = None,
         include_past: bool = True,
     ) -> list[Reminder]:
-        """List reminders with optional filtering."""
-        reminders = list(self._reminders.values())
-        if user_id is not None:
-            reminders = [r for r in reminders if r.user_id == user_id]
+        """List reminders owned by *user_id*, with optional filtering."""
+        user_id = validate_user_id(user_id)
+        reminders = [r for r in self._reminders.values() if r.user_id == user_id]
         if status is not None:
             reminders = [r for r in reminders if r.status == status]
         if not include_past:
@@ -293,45 +365,87 @@ class ReminderService:
         reminders.sort(key=lambda r: r.remind_at)
         return reminders
 
-    def mark_done(self, reminder_id: str) -> bool:
-        """Mark a reminder as done."""
-        reminder = self._reminders.get(reminder_id)
+    def update_reminder(
+        self,
+        reminder_id: str,
+        user_id: str,
+        *,
+        title: str | None = None,
+        remind_at: datetime | None = None,
+        metadata: dict[str, Any] | None = None,
+    ) -> Reminder | None:
+        """Update fields on a reminder owned by *user_id*.
+
+        Returns the updated reminder, or None if not found / not owned.
+        """
+        reminder = self._owned(reminder_id, user_id)
+        if reminder is None:
+            return None
+
+        if title is not None:
+            reminder.title = title
+        if remind_at is not None:
+            reminder.remind_at = _ensure_utc(remind_at)
+        if metadata is not None:
+            reminder.metadata = metadata
+        self._save()
+        logger.info("Updated reminder %s for user %s", reminder_id, user_id)
+        return reminder
+
+    def mark_done(self, reminder_id: str, user_id: str) -> bool:
+        """Mark a reminder as done (ownership enforced)."""
+        reminder = self._owned(reminder_id, user_id)
         if reminder is None:
             return False
 
         reminder.status = "done"
         reminder.done_at = _utc_now()
         self._save()
-        logger.info("Marked reminder %s as done", reminder_id)
+        logger.info("Marked reminder %s as done for user %s", reminder_id, user_id)
         return True
 
-    def cancel_reminder(self, reminder_id: str) -> bool:
-        """Cancel a reminder."""
-        reminder = self._reminders.get(reminder_id)
+    def cancel_reminder(self, reminder_id: str, user_id: str) -> bool:
+        """Cancel a reminder (ownership enforced)."""
+        reminder = self._owned(reminder_id, user_id)
         if reminder is None:
             return False
 
         reminder.status = "canceled"
         reminder.canceled_at = _utc_now()
         self._save()
-        logger.info("Canceled reminder %s", reminder_id)
+        logger.info("Canceled reminder %s for user %s", reminder_id, user_id)
         return True
 
-    def delete_reminder(self, reminder_id: str) -> bool:
-        """Delete a reminder."""
-        if reminder_id in self._reminders:
-            del self._reminders[reminder_id]
-            self._save()
-            logger.debug("Deleted reminder %s", reminder_id)
-            return True
-        return False
+    def delete_reminder(self, reminder_id: str, user_id: str) -> bool:
+        """Delete a reminder (ownership enforced)."""
+        if self._owned(reminder_id, user_id) is None:
+            return False
+        del self._reminders[reminder_id]
+        self._save()
+        logger.debug("Deleted reminder %s for user %s", reminder_id, user_id)
+        return True
 
-    def fire_due_reminders(self, now: datetime | None = None) -> list[Reminder]:
-        """Fire all due reminders (notifications + optional follow-up cues)."""
+    def fire_due_reminders(
+        self,
+        now: datetime | None = None,
+        *,
+        user_id: str | None = None,
+    ) -> list[Reminder]:
+        """Fire due reminders (notifications + optional follow-up cues).
+
+        With ``user_id=None`` this runs in system context (the background
+        scheduler job): every user's due reminders fire, each executing as
+        its stored owner. A user-initiated call must pass ``user_id`` and
+        only fires that user's reminders.
+        """
+        if user_id is not None:
+            user_id = validate_user_id(user_id)
         check_time = _ensure_utc(now or _utc_now())
         fired: list[Reminder] = []
 
         for reminder in list(self._reminders.values()):
+            if user_id is not None and reminder.user_id != user_id:
+                continue
             if reminder.is_due(check_time):
                 self._fire_reminder(reminder, now=check_time)
                 fired.append(reminder)
@@ -339,9 +453,14 @@ class ReminderService:
         return fired
 
     def _fire_reminder(self, reminder: Reminder, *, now: datetime | None = None) -> None:
-        """Fire a single reminder."""
+        """Fire a single reminder as its stored owner."""
         fire_time = _ensure_utc(now or _utc_now())
-        logger.info("Firing reminder %s: %s", reminder.reminder_id, reminder.title)
+        logger.info(
+            "Firing reminder %s for user %s: %s",
+            reminder.reminder_id,
+            reminder.user_id,
+            reminder.title,
+        )
 
         self._send_notification(reminder)
 
@@ -422,6 +541,8 @@ class ReminderService:
                 return
 
             def reminder_check_callback(job):
+                # System context: fires every user's due reminders, each
+                # executing as its stored owner.
                 service = get_reminder_service()
                 fired = service.fire_due_reminders()
                 if fired:
@@ -458,6 +579,7 @@ class ReminderService:
             "total": len(self._reminders),
             "by_status": by_status,
             "with_followup": followup_count,
+            "quarantined": len(self._quarantined),
         }
 
     # Backward compatible aliases (codex branch API)
@@ -469,9 +591,13 @@ class ReminderService:
         *,
         follow_up: bool = False,
         metadata: dict[str, Any] | None = None,
-        user_id: str = "default",
+        user_id: str,
     ) -> Reminder:
-        """Alias for older code: add_reminder(title, remind_at, follow_up=...)."""
+        """Alias for older code: add_reminder(title, remind_at, follow_up=...).
+
+        ``user_id`` is required: reminders must record their real owner and
+        never silently fall back to the ``default`` profile.
+        """
         return self.create_reminder(
             user_id=user_id,
             title=title,
@@ -480,21 +606,26 @@ class ReminderService:
             metadata=metadata,
         )
 
-    def cancel(self, reminder_id: str, *, at: datetime | None = None) -> bool:
-        """Alias for older code: cancel(reminder_id)."""
+    def cancel(self, reminder_id: str, user_id: str, *, at: datetime | None = None) -> bool:
+        """Alias for older code: cancel(reminder_id) (ownership enforced)."""
         _ = at  # kept for signature compatibility
-        return self.cancel_reminder(reminder_id)
+        return self.cancel_reminder(reminder_id, user_id)
 
     def fire_due(self, *, now: datetime | None = None) -> list[Reminder]:
-        """Alias for older code: fire_due(now=...)."""
+        """Alias for older code: fire_due(now=...) (system context)."""
         return self.fire_due_reminders(now=now)
 
-    def get(self, reminder_id: str) -> Reminder | None:
-        """Alias for older code: get(reminder_id)."""
-        return self.get_reminder(reminder_id)
+    def get(self, reminder_id: str, user_id: str) -> Reminder | None:
+        """Alias for older code: get(reminder_id) (ownership enforced)."""
+        return self.get_reminder(reminder_id, user_id)
 
     def all_reminders(self) -> Iterable[Reminder]:
-        """Alias for older code: iterable of all reminders."""
+        """Iterable of all reminders, across every owner.
+
+        System/maintenance context only (e.g. diagnostics and tests). Must
+        never back a user-facing list surface — those go through
+        :meth:`list_reminders` with the requesting user's ID.
+        """
         return list(self._reminders.values())
 
 

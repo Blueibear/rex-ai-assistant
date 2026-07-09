@@ -366,8 +366,8 @@ class TestReminderService:
                 None,
             )
 
-        assert service.mark_done(reminder.reminder_id) is True
-        updated = service.get_reminder(reminder.reminder_id)
+        assert service.mark_done(reminder.reminder_id, "test_user") is True
+        updated = service.get_reminder(reminder.reminder_id, "test_user")
         assert updated is not None
         assert updated.status == "done"
 
@@ -376,8 +376,8 @@ class TestReminderService:
             title="Submit report",
             remind_at=now + timedelta(days=1),
         )
-        assert service.cancel_reminder(reminder2.reminder_id) is True
-        updated2 = service.get_reminder(reminder2.reminder_id)
+        assert service.cancel_reminder(reminder2.reminder_id, "test_user") is True
+        updated2 = service.get_reminder(reminder2.reminder_id, "test_user")
         assert updated2 is not None
         assert updated2.status == "canceled"
 
@@ -397,10 +397,10 @@ class TestReminderService:
         # Depending on now, this might fire; should not error
         assert isinstance(fired, list)
 
-        got = service.get(reminder.reminder_id)
+        got = service.get(reminder.reminder_id, "test_user")
         assert got is not None
 
-        assert service.cancel(reminder.reminder_id) in (True, False)
+        assert service.cancel(reminder.reminder_id, "test_user") is True
 
 
 # =============================================================================
@@ -525,20 +525,20 @@ class TestCLICommands:
         monkeypatch.setattr("rex.cli.get_reminder_service", lambda: reminder_service, raising=False)
         monkeypatch.setattr("rex.cli.get_cue_store", lambda: cue_store, raising=False)
 
-        # Add reminder
+        # Add reminder (explicit --user so identity resolution is deterministic)
         args_add = SimpleNamespace(
             reminders_command="add",
             title="Call mom",
             at="2024-01-02 09:00",
             follow_up=True,  # legacy flag
             followup_enabled=True,  # newer flag
-            user_id="default",
+            user="default",
         )
         result_add = cmd_reminders(args_add)
         assert result_add in (0, 1)
 
         # List reminders
-        args_list = argparse.Namespace(reminders_command="list", status=None)
+        args_list = argparse.Namespace(reminders_command="list", status=None, user="default")
         result_list = cmd_reminders(args_list)
         assert result_list in (0, 1)
         out = capsys.readouterr().out
@@ -546,15 +546,19 @@ class TestCLICommands:
             assert ("Call mom" in out) or (out.strip() != "")
 
         # Mark done if possible
-        reminders = reminder_service.list_reminders()
+        reminders = reminder_service.list_reminders(user_id="default")
         if reminders:
             reminder_id = reminders[0].reminder_id
-            args_done = argparse.Namespace(reminders_command="done", reminder_id=reminder_id)
+            args_done = argparse.Namespace(
+                reminders_command="done", reminder_id=reminder_id, user="default"
+            )
             result_done = cmd_reminders(args_done)
             assert result_done in (0, 1)
 
         # Cancel missing should return non-zero in most implementations
-        args_cancel = argparse.Namespace(reminders_command="cancel", reminder_id="missing")
+        args_cancel = argparse.Namespace(
+            reminders_command="cancel", reminder_id="missing", user="default"
+        )
         result_cancel = cmd_reminders(args_cancel)
         assert result_cancel in (0, 1)
 

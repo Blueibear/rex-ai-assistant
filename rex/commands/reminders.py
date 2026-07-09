@@ -24,10 +24,40 @@ def _cli():
     return cli
 
 
+def _resolve_reminders_user(args: argparse.Namespace) -> str | None:
+    """Resolve the requesting user for reminder commands, failing closed.
+
+    Uses ``--user`` when given, otherwise the standard identity chain
+    (``rex identify`` session state, then ``runtime.active_user`` /
+    ``runtime.user_id`` in config). Never silently falls back to the
+    ``default`` profile — single-user setups select it explicitly with
+    ``--user default`` or ``rex identify --user default``.
+    """
+    from rex.commands._helpers import _resolve_cli_user
+
+    try:
+        return _resolve_cli_user(args)
+    except ValueError as exc:
+        print(f"Error: {exc}")
+        return None
+
+
+_NO_USER_MSG = (
+    "Error: No active user for reminders.\n"
+    "Set one with: rex identify --user <id>\n"
+    "Or pass one explicitly: rex reminders ... --user <id>"
+)
+
+
 def cmd_reminders(args: argparse.Namespace) -> int:
     """Manage reminders."""
     service = _cli().get_reminder_service()
     subcommand = args.reminders_command
+
+    user_id = _resolve_reminders_user(args)
+    if user_id is None:
+        print(_NO_USER_MSG)
+        return 1
 
     if subcommand == "add":
         title = args.title
@@ -41,14 +71,6 @@ def cmd_reminders(args: argparse.Namespace) -> int:
 
         followup = bool(getattr(args, "followup", False))
 
-        try:
-            from rex.config_manager import load_config
-
-            config = load_config()
-            user_id = config.get("runtime", {}).get("user_id", "default")
-        except Exception:
-            user_id = "default"
-
         # Compatibility: service might implement create_reminder(...) or add_reminder(...)
         if hasattr(service, "create_reminder"):
             reminder = service.create_reminder(
@@ -58,7 +80,7 @@ def cmd_reminders(args: argparse.Namespace) -> int:
                 followup_enabled=followup,
             )
         else:
-            reminder = service.add_reminder(title, remind_at, follow_up=followup)
+            reminder = service.add_reminder(title, remind_at, follow_up=followup, user_id=user_id)
 
         reminder_id = getattr(reminder, "reminder_id", getattr(reminder, "id", "unknown"))
         remind_at_val = getattr(reminder, "remind_at", getattr(reminder, "remind_at", remind_at))
@@ -75,7 +97,7 @@ def cmd_reminders(args: argparse.Namespace) -> int:
 
     if subcommand == "list":
         status_filter = getattr(args, "status", None)
-        reminders = service.list_reminders(status=status_filter)
+        reminders = service.list_reminders(user_id=user_id, status=status_filter)
 
         if not reminders:
             print("No reminders found.")
@@ -118,9 +140,9 @@ def cmd_reminders(args: argparse.Namespace) -> int:
     if subcommand == "done":
         reminder_id = getattr(args, "reminder_id", None) or getattr(args, "id", None)
         if hasattr(service, "mark_done"):
-            ok = service.mark_done(reminder_id)
+            ok = service.mark_done(reminder_id, user_id)
         else:
-            ok = service.complete_reminder(reminder_id)
+            ok = service.complete_reminder(reminder_id, user_id)
         if ok:
             print(f"Marked reminder {reminder_id} as done.")
             return 0
@@ -130,9 +152,9 @@ def cmd_reminders(args: argparse.Namespace) -> int:
     if subcommand == "cancel":
         reminder_id = getattr(args, "reminder_id", None) or getattr(args, "id", None)
         if hasattr(service, "cancel_reminder"):
-            ok = service.cancel_reminder(reminder_id)
+            ok = service.cancel_reminder(reminder_id, user_id)
         else:
-            ok = service.cancel(reminder_id)
+            ok = service.cancel(reminder_id, user_id)
         if ok:
             print(f"Canceled reminder {reminder_id}.")
             return 0
@@ -263,6 +285,7 @@ def register(subparsers: argparse._SubParsersAction) -> None:
         action="store_true",
         help="Create a follow-up cue after reminder fires",
     )
+    reminders_add.add_argument("--user", type=str, help="User ID to act as (owner of the reminder)")
     reminders_add.set_defaults(func=_cli().cmd_reminders, reminders_command="add")
 
     reminders_list = reminders_subparsers.add_parser(
@@ -276,6 +299,7 @@ def register(subparsers: argparse._SubParsersAction) -> None:
         choices=["pending", "fired", "done", "canceled"],
         help="Filter by status",
     )
+    reminders_list.add_argument("--user", type=str, help="User ID whose reminders to list")
     reminders_list.set_defaults(func=_cli().cmd_reminders, reminders_command="list")
 
     reminders_done = reminders_subparsers.add_parser(
@@ -284,12 +308,18 @@ def register(subparsers: argparse._SubParsersAction) -> None:
         description="Mark a reminder as completed.",
     )
     reminders_done.add_argument("id", type=str, help="Reminder ID to mark as done")
+    reminders_done.add_argument(
+        "--user", type=str, help="User ID to act as (must own the reminder)"
+    )
     reminders_done.set_defaults(func=_cli().cmd_reminders, reminders_command="done")
 
     reminders_cancel = reminders_subparsers.add_parser(
         "cancel",
         help="Cancel a reminder",
         description="Cancel a pending reminder.",
+    )
+    reminders_cancel.add_argument(
+        "--user", type=str, help="User ID to act as (must own the reminder)"
     )
     reminders_cancel.add_argument("id", type=str, help="Reminder ID to cancel")
     reminders_cancel.set_defaults(func=_cli().cmd_reminders, reminders_command="cancel")

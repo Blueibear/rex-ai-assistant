@@ -95,10 +95,10 @@ def test_mark_done(tmp_path):
     svc = ReminderService(storage_path=tmp_path / "reminders.json")
     r = svc.create_reminder("bob", "Read book", _future())
 
-    result = svc.mark_done(r.reminder_id)
+    result = svc.mark_done(r.reminder_id, "bob")
 
     assert result is True
-    updated = svc.get_reminder(r.reminder_id)
+    updated = svc.get_reminder(r.reminder_id, "bob")
     assert updated.status == "done"
     assert updated.done_at is not None
 
@@ -110,10 +110,10 @@ def test_cancel_reminder(tmp_path):
     svc = ReminderService(storage_path=tmp_path / "reminders.json")
     r = svc.create_reminder("carol", "Meeting", _future())
 
-    result = svc.cancel_reminder(r.reminder_id)
+    result = svc.cancel_reminder(r.reminder_id, "carol")
 
     assert result is True
-    updated = svc.get_reminder(r.reminder_id)
+    updated = svc.get_reminder(r.reminder_id, "carol")
     assert updated.status == "canceled"
 
 
@@ -124,10 +124,10 @@ def test_delete_reminder(tmp_path):
     svc = ReminderService(storage_path=tmp_path / "reminders.json")
     r = svc.create_reminder("dave", "Exercise", _future())
 
-    deleted = svc.delete_reminder(r.reminder_id)
+    deleted = svc.delete_reminder(r.reminder_id, "dave")
 
     assert deleted is True
-    assert svc.get_reminder(r.reminder_id) is None
+    assert svc.get_reminder(r.reminder_id, "dave") is None
 
 
 def test_fire_due_reminders(tmp_path):
@@ -174,7 +174,7 @@ def test_persistence(tmp_path):
     r = svc1.create_reminder("user", "Persistent", _future())
 
     svc2 = ReminderService(storage_path=path)
-    loaded = svc2.get_reminder(r.reminder_id)
+    loaded = svc2.get_reminder(r.reminder_id, "user")
 
     assert loaded is not None
     assert loaded.title == "Persistent"
@@ -187,17 +187,17 @@ def test_backward_compat_aliases(tmp_path):
 
     svc = ReminderService(storage_path=tmp_path / "reminders.json")
 
-    r = svc.add_reminder("Alias test", _future())
+    r = svc.add_reminder("Alias test", _future(), user_id="alias_user")
     assert r.title == "Alias test"
 
-    got = svc.get(r.reminder_id)
+    got = svc.get(r.reminder_id, "alias_user")
     assert got is not None
 
     all_r = list(svc.all_reminders())
     assert len(all_r) == 1
 
-    svc.cancel(r.reminder_id)
-    assert svc.get(r.reminder_id).status == "canceled"
+    svc.cancel(r.reminder_id, "alias_user")
+    assert svc.get(r.reminder_id, "alias_user").status == "canceled"
 
 
 def test_get_reminder_service_singleton(tmp_path):
