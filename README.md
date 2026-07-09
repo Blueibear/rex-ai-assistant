@@ -452,6 +452,7 @@ Files under `docs/archive/` are historical development records and may intention
 - Keep secrets in `.env` or `config/credentials.json`; do not put them in `config/rex_config.json`.
 - `rex-speak-api` requires `REX_SPEAK_API_KEY`.
 - `rex-tool-server` requires `REX_TOOL_API_KEY` for tool invocation.
+- The GUI backend's log endpoints (`/api/logs/stream`, `/api/logs/download`) require a `REX_PROXY_TOKEN` Bearer token and redact home-directory paths from served log content. See [docs/configuration.md](docs/configuration.md).
 - Approval-gated high-risk actions, such as WooCommerce writes and remote PC commands, require explicit confirmation flows.
 
 ### Security baseline
