@@ -267,7 +267,7 @@ class TestAssistantCapabilityIntegration:
         assistant._ha_bridge = None
         assistant._response_cache = None
         assistant._suggestion_engine = None
-        assistant._pattern_entries = []
+        assistant._pattern_entries = {}
         assistant._user_id = "default"
         assistant._plugins = []
         assistant._transcripts_dir = __import__("pathlib").Path("/tmp/rex_test_transcripts")

@@ -1,13 +1,30 @@
 """Proactive suggestion engine — surfaces one automation suggestion per session.
 
 Workflow:
-1. Caller passes a list of detected patterns (from :func:`detect_patterns`).
+1. Caller passes a list of detected patterns (from :func:`detect_patterns`)
+   together with the ``user_id`` whose command history produced them.
 2. :meth:`SuggestionEngine.get_suggestion` returns ``(key, spoken_text)`` for
    the first eligible pattern, or ``None`` if nothing is due.
 3. The assistant speaks *spoken_text* and waits for the user to reply.
 4. On "yes" → :meth:`handle_yes` saves the automation entry.
    On "no thanks" → :meth:`handle_dismiss` records the dismissal so the same
    pattern is skipped for the next 30 days.
+
+Per-user isolation (issue #303): all session state (pending suggestion,
+one-per-session flag) and persisted dismissals are keyed by ``user_id`` so one
+user can never see, accept, or dismiss another user's suggestion.  A missing
+or invalid ``user_id`` fails closed: no suggestion is surfaced and no pending
+state is consumed.
+
+Persisted file formats:
+
+- ``dismissed_suggestions.json`` — ``{"users": {"<user_id>": {"<key>": ts}}}``.
+  The legacy flat format ``{"<key>": ts}`` predates per-user scoping and is
+  read as belonging to the ``"default"`` user (never silently shared with
+  other users).
+- ``automations.json`` — list of entries; entries now carry a ``"user_id"``
+  field recording who accepted the suggestion.  Legacy entries without the
+  field are left untouched and treated as unattributed.
 """
 
 from __future__ import annotations
@@ -24,6 +41,14 @@ _DISMISS_WINDOW_DAYS: int = 30
 _DEFAULT_DISMISSED_PATH = Path("data/dismissed_suggestions.json")
 _DEFAULT_AUTOMATIONS_PATH = Path("data/automations.json")
 
+# Top-level key of the per-user dismissed-suggestions file format.  Pattern
+# keys always contain a ":" (``"<entity_id>:<service>"``) so a bare "users"
+# key can never collide with a legacy flat entry.
+_DISMISSED_USERS_KEY = "users"
+
+# User that legacy (pre-per-user) dismissal entries are attributed to.
+_LEGACY_DISMISSED_USER = "default"
+
 # Lowercased words/phrases that count as acceptance
 _ACCEPT_WORDS: frozenset[str] = frozenset(
     {"yes", "yeah", "yep", "sure", "ok", "okay", "do it", "automate it", "please do"}
@@ -35,11 +60,14 @@ _DISMISS_WORDS: frozenset[str] = frozenset(
 
 
 class SuggestionEngine:
-    """Surfaces proactive automation suggestions, one per session.
+    """Surfaces proactive automation suggestions, one per user per session.
+
+    All stateful methods take an explicit ``user_id`` and operate only on that
+    user's slice of state, mirroring :class:`rex.followup_engine.FollowupEngine`.
 
     Args:
         dismissed_path: Path to JSON file that persists dismissed pattern keys
-            with their dismissal timestamps.  Created on first write.
+            per user with their dismissal timestamps.  Created on first write.
         automations_path: Path to JSON file that persists accepted automations.
             Created on first write.
     """
@@ -51,23 +79,69 @@ class SuggestionEngine:
     ) -> None:
         self._dismissed_path = Path(dismissed_path or _DEFAULT_DISMISSED_PATH)
         self._automations_path = Path(automations_path or _DEFAULT_AUTOMATIONS_PATH)
-        # At most one suggestion per session
-        self._suggested_this_session: bool = False
-        # Stores the active pending suggestion while waiting for user response
-        self._pending: dict[str, Any] | None = None
+        # At most one suggestion per user per session, keyed by user_id
+        self._suggested_this_session: dict[str, bool] = {}
+        # Active pending suggestion awaiting a response, keyed by user_id
+        self._pending: dict[str, dict[str, Any]] = {}
+
+    # ------------------------------------------------------------------
+    # Identity guard
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _valid_user(user_id: str | None) -> str | None:
+        """Return a validated user ID, or ``None`` to fail closed.
+
+        Missing, empty, or malformed identities must never fall through to a
+        default or another user's state (issue #303).
+        """
+        if not isinstance(user_id, str) or not user_id:
+            return None
+        # Lazy import: rex.identity loads rex.config.settings at module import
+        # time; deferring keeps this module free of config side effects.
+        from rex.identity import validate_user_id
+
+        try:
+            return validate_user_id(user_id)
+        except ValueError:
+            logger.warning("suggestions: ignoring invalid user_id %r", user_id)
+            return None
 
     # ------------------------------------------------------------------
     # Public query API
     # ------------------------------------------------------------------
 
-    @property
-    def has_pending(self) -> bool:
-        """True when a suggestion has been spoken and awaits a user response."""
-        return self._pending is not None
+    def has_pending(self, user_id: str | None) -> bool:
+        """True when a suggestion was spoken to *user_id* and awaits their response."""
+        uid = self._valid_user(user_id)
+        return uid is not None and uid in self._pending
 
-    def is_dismissed(self, key: str, window_days: int = _DISMISS_WINDOW_DAYS) -> bool:
-        """Return ``True`` if *key* was dismissed within *window_days* days."""
-        dismissed = self._load_dismissed()
+    def pending_spoken_text(self, user_id: str | None) -> str | None:
+        """Return the spoken text of *user_id*'s pending suggestion, if any."""
+        uid = self._valid_user(user_id)
+        if uid is None:
+            return None
+        pending = self._pending.get(uid)
+        if pending is None:
+            return None
+        spoken = pending.get("spoken_text")
+        return str(spoken) if spoken else None
+
+    def is_dismissed(
+        self,
+        key: str,
+        user_id: str | None,
+        window_days: int = _DISMISS_WINDOW_DAYS,
+    ) -> bool:
+        """Return ``True`` if *user_id* dismissed *key* within *window_days* days.
+
+        An invalid *user_id* fails closed by reporting the key as dismissed,
+        so nothing is surfaced to an unidentified caller.
+        """
+        uid = self._valid_user(user_id)
+        if uid is None:
+            return True
+        dismissed = self._load_dismissed(uid)
         ts = dismissed.get(key)
         if ts is None:
             return False
@@ -90,28 +164,34 @@ class SuggestionEngine:
     def get_suggestion(
         self,
         patterns: list[dict[str, Any]],
+        user_id: str | None,
     ) -> tuple[str, str] | None:
         """Return ``(key, spoken_text)`` for the first eligible pattern.
 
         Returns ``None`` when:
-        - A suggestion was already made this session.
-        - All patterns have been dismissed within the last 30 days.
+        - *user_id* is missing or invalid (fail closed).
+        - A suggestion was already made to *user_id* this session.
+        - All patterns were dismissed by *user_id* within the last 30 days.
         - *patterns* is empty.
 
-        Side effect: marks *_suggested_this_session* and sets *_pending* so that
-        a subsequent call to :meth:`handle_yes` or :meth:`handle_dismiss` knows
-        which pattern is being answered.
+        Side effect: marks *user_id* in *_suggested_this_session* and stores
+        their *_pending* entry so a subsequent :meth:`handle_yes` or
+        :meth:`handle_dismiss` for the same user knows which pattern is being
+        answered.
         """
-        if self._suggested_this_session or not patterns:
+        uid = self._valid_user(user_id)
+        if uid is None:
+            return None
+        if self._suggested_this_session.get(uid) or not patterns:
             return None
 
         for pattern in patterns:
             key = _pattern_key(pattern)
-            if self.is_dismissed(key):
+            if self.is_dismissed(key, uid):
                 continue
             spoken = _build_spoken_text(pattern)
-            self._suggested_this_session = True
-            self._pending = {
+            self._suggested_this_session[uid] = True
+            self._pending[uid] = {
                 "key": key,
                 "spoken_text": spoken,
                 "automation": pattern.get("suggested_automation", ""),
@@ -120,19 +200,22 @@ class SuggestionEngine:
 
         return None
 
-    def handle_yes(self) -> str:
-        """Accept the pending suggestion and persist the automation entry.
+    def handle_yes(self, user_id: str | None) -> str:
+        """Accept *user_id*'s pending suggestion and persist the automation entry.
 
-        Returns a confirmation string suitable for TTS.  No-op when there is no
-        pending suggestion.
+        Returns a confirmation string suitable for TTS.  No-op when *user_id*
+        is invalid or has no pending suggestion — another user's pending state
+        is never consumed.
         """
-        pending = self._pending
+        uid = self._valid_user(user_id)
+        if uid is None:
+            return "No pending suggestion to accept."
+        pending = self._pending.pop(uid, None)
         if pending is None:
             return "No pending suggestion to accept."
 
         key = pending["key"]
         automation = pending["automation"]
-        self._pending = None
 
         try:
             automations: list[dict[str, Any]] = []
@@ -144,55 +227,87 @@ class SuggestionEngine:
                 {
                     "key": key,
                     "automation": automation,
+                    "user_id": uid,
                     "created_at": time.time(),
                 }
             )
             self._automations_path.parent.mkdir(parents=True, exist_ok=True)
             self._automations_path.write_text(json.dumps(automations, indent=2), encoding="utf-8")
-            logger.info("Automation saved: %s", automation)
+            logger.info("Automation saved for user %s: %s", uid, automation)
         except Exception as exc:  # pragma: no cover - defensive I/O guard
             logger.warning("Could not save automation: %s", exc)
 
         return "Great, I've set that up for you!"
 
-    def handle_dismiss(self) -> str:
-        """Dismiss the pending suggestion for 30 days.
+    def handle_dismiss(self, user_id: str | None) -> str:
+        """Dismiss *user_id*'s pending suggestion for 30 days.
 
-        Returns a confirmation string suitable for TTS.  No-op when there is no
-        pending suggestion.
+        Returns a confirmation string suitable for TTS.  No-op when *user_id*
+        is invalid or has no pending suggestion — another user's pending state
+        is never consumed, and the dismissal only applies to *user_id*.
         """
-        pending = self._pending
+        uid = self._valid_user(user_id)
+        if uid is None:
+            return "No pending suggestion."
+        pending = self._pending.pop(uid, None)
         if pending is None:
             return "No pending suggestion."
 
         key = pending["key"]
-        self._pending = None
 
-        dismissed = self._load_dismissed()
+        dismissed = self._load_dismissed(uid)
         dismissed[key] = time.time()
-        self._save_dismissed(dismissed)
-        logger.info("Suggestion dismissed: %s", key)
+        self._save_dismissed(uid, dismissed)
+        logger.info("Suggestion dismissed by user %s: %s", uid, key)
 
         return "Got it, I won't suggest that again for a while."
+
+    def reset_session(self, user_id: str | None) -> None:
+        """Clear the one-per-session flag for *user_id* (e.g. on a new session)."""
+        uid = self._valid_user(user_id)
+        if uid is not None:
+            self._suggested_this_session.pop(uid, None)
 
     # ------------------------------------------------------------------
     # Internal helpers
     # ------------------------------------------------------------------
 
-    def _load_dismissed(self) -> dict[str, float]:
+    def _load_dismissed_all(self) -> dict[str, dict[str, float]]:
+        """Load the full per-user dismissal map, migrating the legacy format.
+
+        Legacy flat files (``{"<key>": ts}``) predate per-user scoping and are
+        attributed to the ``"default"`` user rather than shared across users.
+        """
         try:
             if self._dismissed_path.exists():
                 data = json.loads(self._dismissed_path.read_text(encoding="utf-8"))
                 if isinstance(data, dict):
-                    return {str(k): float(v) for k, v in data.items()}
+                    users = data.get(_DISMISSED_USERS_KEY)
+                    if isinstance(users, dict):
+                        return {
+                            str(user): {str(k): float(v) for k, v in entries.items()}
+                            for user, entries in users.items()
+                            if isinstance(entries, dict)
+                        }
+                    if data:
+                        legacy = {str(k): float(v) for k, v in data.items()}
+                        return {_LEGACY_DISMISSED_USER: legacy}
         except Exception as exc:
             logger.warning("Could not load dismissed suggestions: %s", exc)
         return {}
 
-    def _save_dismissed(self, dismissed: dict[str, float]) -> None:
+    def _load_dismissed(self, user_id: str) -> dict[str, float]:
+        return self._load_dismissed_all().get(user_id, {})
+
+    def _save_dismissed(self, user_id: str, dismissed: dict[str, float]) -> None:
         try:
+            all_users = self._load_dismissed_all()
+            all_users[user_id] = dismissed
             self._dismissed_path.parent.mkdir(parents=True, exist_ok=True)
-            self._dismissed_path.write_text(json.dumps(dismissed, indent=2), encoding="utf-8")
+            self._dismissed_path.write_text(
+                json.dumps({_DISMISSED_USERS_KEY: all_users}, indent=2),
+                encoding="utf-8",
+            )
         except Exception as exc:
             logger.warning("Could not save dismissed suggestions: %s", exc)
 

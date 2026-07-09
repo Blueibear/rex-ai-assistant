@@ -118,6 +118,7 @@ class IntentRouter:
         *,
         settings: Any = None,
         suggestion_engine: Any = None,
+        user_id: str | None = None,
     ) -> IntentResult:
         """Check *user_message* for recognized shortcut intents.
 
@@ -134,6 +135,10 @@ class IntentRouter:
             suggestion_engine: Optional proactive suggestion engine; intercepts
                                yes/no responses while a suggestion is pending
                                (US-018).
+            user_id:           The user this turn belongs to.  The pending
+                               suggestion intercept is scoped to this user only
+                               (issue #303); without it the intercept is skipped
+                               entirely (fail closed).
         """
         text = user_message.strip()
         if not text:
@@ -158,13 +163,21 @@ class IntentRouter:
             except Exception as exc:
                 logger.debug("Capability query check failed: %s", exc)
 
-        # Pending suggestion yes/no intercept
-        if suggestion_engine is not None and getattr(suggestion_engine, "has_pending", False):
+        # Pending suggestion yes/no intercept, scoped to the requesting user
+        # (issue #303).  Without an identified user the intercept is skipped
+        # so nobody can accept or dismiss someone else's suggestion.
+        _has_pending = False
+        if suggestion_engine is not None and user_id:
+            try:
+                _has_pending = bool(suggestion_engine.has_pending(user_id))
+            except Exception as exc:
+                logger.debug("suggestion has_pending check failed: %s", exc)
+        if _has_pending:
             if getattr(suggestion_engine, "is_accept", None) and suggestion_engine.is_accept(text):
                 try:
                     return IntentResult(
                         handled=True,
-                        response=str(suggestion_engine.handle_yes()),
+                        response=str(suggestion_engine.handle_yes(user_id)),
                         intent_type="suggestion_accept",
                     )
                 except Exception as exc:
@@ -175,7 +188,7 @@ class IntentRouter:
                 try:
                     return IntentResult(
                         handled=True,
-                        response=str(suggestion_engine.handle_dismiss()),
+                        response=str(suggestion_engine.handle_dismiss(user_id)),
                         intent_type="suggestion_dismiss",
                     )
                 except Exception as exc:

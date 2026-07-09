@@ -248,8 +248,10 @@ class Assistant:
             dismissed_path=_dismissed_path,
             automations_path=_automations_path,
         )
-        # In-memory command log for pattern detection (wall-clock timestamps)
-        self._pattern_entries: list[PatternEntry] = []
+        # In-memory command log for pattern detection (wall-clock timestamps),
+        # keyed by user_id so one user's commands never seed another user's
+        # suggestions (issue #303).
+        self._pattern_entries: dict[str, list[PatternEntry]] = {}
 
         # Response builder: cache, TTS cleaning, suggestions, followups (US-017)
         from .response.builder import ResponseBuilder
@@ -603,6 +605,7 @@ class Assistant:
             transcript,
             settings=self._settings,
             suggestion_engine=getattr(self, "_suggestion_engine", None),
+            user_id=effective_user_id,
         )
         if _intent.handled:
             # Greeting shortcuts are suppressed in multi-user voice sessions

@@ -406,6 +406,7 @@ Add a short rule here that would have prevented the mistake.
 - Direct Ruff and Black installations in CI must use the same revisions as `.pre-commit-config.yaml`; never install unpinned formatters in a required check.
 - The repository dependency security gate must audit the local project explicitly with `pip-audit --strict .`; a bare `pip-audit` audits the runner environment and is not an acceptable project gate.
 - Python releases use `release-please-config.json` plus `.release-please-manifest.json` with the `python` release strategy. Keep the manifest and `pyproject.toml` package version synchronized.
+- Session/user state on long-lived components wired into `Assistant` (engines, caches, in-memory logs) must be keyed by `user_id` in a dict, never held as plain instance attributes — one `Assistant` serves multiple identified users per request via `_begin_request`. Mirror the `FollowupEngine`/`SuggestionEngine` pattern: every stateful public method takes an explicit `user_id`, validates it via `rex.identity.validate_user_id`, and fails closed (no-op, never a default-user fallback) on missing or invalid identity.
 
 ## OpenClaw Migration Status
 

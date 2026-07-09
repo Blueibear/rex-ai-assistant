@@ -1,11 +1,12 @@
 """Tests for US-036: Surface proactive suggestions to the user.
 
 Covers:
-- At most one suggestion per session
+- At most one suggestion per user per session
 - Spoken text format
-- Accept flow (yes → automation saved)
-- Dismiss flow (no thanks → dismissal recorded, not re-suggested for 30 days)
+- Accept flow (yes → automation saved, tagged with the accepting user)
+- Dismiss flow (no thanks → dismissal recorded per user, not re-suggested for 30 days)
 - Already-dismissed pattern is skipped
+- Legacy flat dismissed-file format is attributed to the "default" user
 """
 
 from __future__ import annotations
@@ -38,6 +39,13 @@ def _make_pattern(
         "service": service,
         "start_hour": start_hour,
     }
+
+
+def _make_engine(tmp_path: Path) -> SuggestionEngine:
+    return SuggestionEngine(
+        dismissed_path=tmp_path / "dismissed.json",
+        automations_path=tmp_path / "automations.json",
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -104,12 +112,9 @@ class TestPatternKey:
 
 class TestGetSuggestion:
     def test_returns_key_and_spoken_text(self, tmp_path: Path) -> None:
-        engine = SuggestionEngine(
-            dismissed_path=tmp_path / "dismissed.json",
-            automations_path=tmp_path / "automations.json",
-        )
+        engine = _make_engine(tmp_path)
         patterns = [_make_pattern()]
-        result = engine.get_suggestion(patterns)
+        result = engine.get_suggestion(patterns, "alice")
         assert result is not None
         key, spoken = result
         assert "light.kitchen_ceiling" in key
@@ -117,31 +122,32 @@ class TestGetSuggestion:
         assert "Want me to automate that?" in spoken
 
     def test_at_most_one_suggestion_per_session(self, tmp_path: Path) -> None:
-        engine = SuggestionEngine(
-            dismissed_path=tmp_path / "dismissed.json",
-            automations_path=tmp_path / "automations.json",
-        )
+        engine = _make_engine(tmp_path)
         patterns = [_make_pattern(), _make_pattern(entity_id="light.bedroom")]
-        engine.get_suggestion(patterns)
-        # Second call in the same session must return None
-        result2 = engine.get_suggestion(patterns)
+        engine.get_suggestion(patterns, "alice")
+        # Second call in the same session must return None for the same user
+        result2 = engine.get_suggestion(patterns, "alice")
         assert result2 is None
 
     def test_empty_patterns_returns_none(self, tmp_path: Path) -> None:
-        engine = SuggestionEngine(
-            dismissed_path=tmp_path / "dismissed.json",
-            automations_path=tmp_path / "automations.json",
-        )
-        assert engine.get_suggestion([]) is None
+        engine = _make_engine(tmp_path)
+        assert engine.get_suggestion([], "alice") is None
 
     def test_sets_has_pending(self, tmp_path: Path) -> None:
-        engine = SuggestionEngine(
-            dismissed_path=tmp_path / "dismissed.json",
-            automations_path=tmp_path / "automations.json",
-        )
-        assert not engine.has_pending
-        engine.get_suggestion([_make_pattern()])
-        assert engine.has_pending
+        engine = _make_engine(tmp_path)
+        assert not engine.has_pending("alice")
+        engine.get_suggestion([_make_pattern()], "alice")
+        assert engine.has_pending("alice")
+
+    def test_missing_user_returns_none(self, tmp_path: Path) -> None:
+        engine = _make_engine(tmp_path)
+        assert engine.get_suggestion([_make_pattern()], None) is None
+        assert engine.get_suggestion([_make_pattern()], "") is None
+
+    def test_invalid_user_returns_none(self, tmp_path: Path) -> None:
+        engine = _make_engine(tmp_path)
+        assert engine.get_suggestion([_make_pattern()], "../evil") is None
+        assert not engine.has_pending("../evil")
 
 
 # ---------------------------------------------------------------------------
@@ -152,35 +158,27 @@ class TestGetSuggestion:
 class TestAcceptFlow:
     def test_yes_saves_automation(self, tmp_path: Path) -> None:
         automations_path = tmp_path / "automations.json"
-        engine = SuggestionEngine(
-            dismissed_path=tmp_path / "dismissed.json",
-            automations_path=automations_path,
-        )
+        engine = _make_engine(tmp_path)
         patterns = [_make_pattern()]
-        engine.get_suggestion(patterns)
+        engine.get_suggestion(patterns, "alice")
 
-        reply = engine.handle_yes()
+        reply = engine.handle_yes("alice")
 
         assert "set that up" in reply.lower() or "great" in reply.lower()
         assert automations_path.exists()
         saved = json.loads(automations_path.read_text())
         assert len(saved) == 1
         assert "light.kitchen_ceiling" in saved[0]["key"]
+        assert saved[0]["user_id"] == "alice"
 
     def test_yes_clears_pending(self, tmp_path: Path) -> None:
-        engine = SuggestionEngine(
-            dismissed_path=tmp_path / "dismissed.json",
-            automations_path=tmp_path / "automations.json",
-        )
-        engine.get_suggestion([_make_pattern()])
-        engine.handle_yes()
-        assert not engine.has_pending
+        engine = _make_engine(tmp_path)
+        engine.get_suggestion([_make_pattern()], "alice")
+        engine.handle_yes("alice")
+        assert not engine.has_pending("alice")
 
     def test_is_accept_recognises_yes(self, tmp_path: Path) -> None:
-        engine = SuggestionEngine(
-            dismissed_path=tmp_path / "dismissed.json",
-            automations_path=tmp_path / "automations.json",
-        )
+        engine = _make_engine(tmp_path)
         assert engine.is_accept("yes")
         assert engine.is_accept("Yeah")
         assert engine.is_accept("Sure")
@@ -195,57 +193,59 @@ class TestAcceptFlow:
 class TestDismissFlow:
     def test_dismiss_records_to_disk(self, tmp_path: Path) -> None:
         dismissed_path = tmp_path / "dismissed.json"
-        engine = SuggestionEngine(
-            dismissed_path=dismissed_path,
-            automations_path=tmp_path / "automations.json",
-        )
+        engine = _make_engine(tmp_path)
         patterns = [_make_pattern()]
-        engine.get_suggestion(patterns)
+        engine.get_suggestion(patterns, "alice")
 
-        reply = engine.handle_dismiss()
+        reply = engine.handle_dismiss("alice")
 
         assert "won't suggest" in reply.lower() or "got it" in reply.lower()
         assert dismissed_path.exists()
         data = json.loads(dismissed_path.read_text())
-        assert any("light.kitchen_ceiling" in k for k in data)
+        assert any("light.kitchen_ceiling" in k for k in data["users"]["alice"])
 
     def test_dismissed_pattern_not_re_suggested(self, tmp_path: Path) -> None:
-        dismissed_path = tmp_path / "dismissed.json"
-        engine = SuggestionEngine(
-            dismissed_path=dismissed_path,
-            automations_path=tmp_path / "automations.json",
-        )
+        engine = _make_engine(tmp_path)
         patterns = [_make_pattern()]
-        engine.get_suggestion(patterns)
-        engine.handle_dismiss()
+        engine.get_suggestion(patterns, "alice")
+        engine.handle_dismiss("alice")
 
-        # New session (reset the session flag)
-        engine._suggested_this_session = False
-        result = engine.get_suggestion(patterns)
+        # New session (reset the per-user session flag)
+        engine.reset_session("alice")
+        result = engine.get_suggestion(patterns, "alice")
         assert result is None
 
     def test_dismissed_pattern_re_suggested_after_window(self, tmp_path: Path) -> None:
         dismissed_path = tmp_path / "dismissed.json"
-        engine = SuggestionEngine(
-            dismissed_path=dismissed_path,
-            automations_path=tmp_path / "automations.json",
-        )
+        engine = _make_engine(tmp_path)
         pattern = _make_pattern()
         key = _pattern_key(pattern)
 
         # Write a dismissal timestamp 31 days in the past
         old_ts = time.time() - (31 * 86400)
         dismissed_path.parent.mkdir(parents=True, exist_ok=True)
-        dismissed_path.write_text(json.dumps({key: old_ts}))
+        dismissed_path.write_text(json.dumps({"users": {"alice": {key: old_ts}}}))
 
-        result = engine.get_suggestion([pattern])
+        result = engine.get_suggestion([pattern], "alice")
         assert result is not None
 
+    def test_legacy_flat_dismissed_file_maps_to_default_user(self, tmp_path: Path) -> None:
+        """Pre-per-user flat files belong to "default", not to everyone."""
+        dismissed_path = tmp_path / "dismissed.json"
+        engine = _make_engine(tmp_path)
+        pattern = _make_pattern()
+        key = _pattern_key(pattern)
+
+        dismissed_path.parent.mkdir(parents=True, exist_ok=True)
+        dismissed_path.write_text(json.dumps({key: time.time()}))
+
+        # The legacy dismissal suppresses the suggestion for "default" ...
+        assert engine.get_suggestion([pattern], "default") is None
+        # ... but not for other users
+        assert engine.get_suggestion([pattern], "alice") is not None
+
     def test_is_dismiss_recognises_no_thanks(self, tmp_path: Path) -> None:
-        engine = SuggestionEngine(
-            dismissed_path=tmp_path / "dismissed.json",
-            automations_path=tmp_path / "automations.json",
-        )
+        engine = _make_engine(tmp_path)
         assert engine.is_dismiss("no thanks")
         assert engine.is_dismiss("No Thanks")
         assert engine.is_dismiss("nope")
@@ -253,13 +253,10 @@ class TestDismissFlow:
         assert not engine.is_dismiss("yes")
 
     def test_dismiss_clears_pending(self, tmp_path: Path) -> None:
-        engine = SuggestionEngine(
-            dismissed_path=tmp_path / "dismissed.json",
-            automations_path=tmp_path / "automations.json",
-        )
-        engine.get_suggestion([_make_pattern()])
-        engine.handle_dismiss()
-        assert not engine.has_pending
+        engine = _make_engine(tmp_path)
+        engine.get_suggestion([_make_pattern()], "alice")
+        engine.handle_dismiss("alice")
+        assert not engine.has_pending("alice")
 
 
 # ---------------------------------------------------------------------------
@@ -303,11 +300,8 @@ class TestPatternDetectorIntegration:
             for i in range(3)
         ]
         patterns = detect_patterns(entries, min_occurrences=3, time_window_hours=1.0)
-        engine = SuggestionEngine(
-            dismissed_path=tmp_path / "dismissed.json",
-            automations_path=tmp_path / "automations.json",
-        )
-        result = engine.get_suggestion(patterns)
+        engine = _make_engine(tmp_path)
+        result = engine.get_suggestion(patterns, "alice")
         assert result is not None
         _, spoken = result
         assert "kitchen ceiling" in spoken

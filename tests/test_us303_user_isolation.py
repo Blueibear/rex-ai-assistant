@@ -47,7 +47,7 @@ def _make_assistant(user_id: str = "default", history_store=None):
     a._response_cache = None
     a._ha_bridge = None
     a._suggestion_engine = None
-    a._pattern_entries = []
+    a._pattern_entries = {}
     return a
 
 
@@ -271,3 +271,81 @@ class TestGenerateReplyAttribution:
 
         joined = " ".join(str(m.get("content", "")) for m in captured["messages"])
         assert "hunter2" not in joined
+
+
+# ---------------------------------------------------------------------------
+# Assistant.generate_reply — pending suggestion isolation end to end
+# ---------------------------------------------------------------------------
+
+
+class TestGenerateReplySuggestionIsolation:
+    """Suggestion accept/dismiss through the full generate_reply pipeline is
+    scoped to the pending suggestion's owner (issue #303)."""
+
+    @staticmethod
+    def _pattern() -> dict:
+        return {
+            "pattern": "turn_on light.kitchen_ceiling around 07:00",
+            "frequency": 5,
+            "suggested_automation": "Automate: turn_on light.kitchen_ceiling daily at 07:00",
+            "entity_id": "light.kitchen_ceiling",
+            "service": "turn_on",
+            "start_hour": 7,
+        }
+
+    def _make_assistant_with_pending(self, tmp_path, owner: str):
+        """Assistant with a real IntentRouter and a real SuggestionEngine
+        holding a pending suggestion for *owner*."""
+        from rex.actions.dispatcher import ActionResult
+        from rex.intent.router import IntentRouter
+        from rex.suggestions.engine import SuggestionEngine
+
+        a = _make_assistant(user_id="default")
+        engine = SuggestionEngine(
+            dismissed_path=tmp_path / "dismissed.json",
+            automations_path=tmp_path / "automations.json",
+        )
+        assert engine.get_suggestion([self._pattern()], owner) is not None
+        a._suggestion_engine = engine
+        a._intent_router = IntentRouter()
+
+        async def _fake_dispatch(*args, **kwargs):
+            return ActionResult(success=True, response="LLM answer")
+
+        ad = MagicMock()
+        ad.dispatch = _fake_dispatch
+        a._action_dispatcher = ad
+        a._llm = MagicMock()
+        a._llm.model_name = "m"
+        return a, engine
+
+    def test_other_users_yes_does_not_accept_pending(self, tmp_path):
+        a, engine = self._make_assistant_with_pending(tmp_path, owner="alice")
+
+        reply = asyncio.run(a.generate_reply("yes", active_user_id="bob"))
+
+        # Bob's "yes" falls through to normal dispatch instead of accepting
+        # Alice's suggestion, which remains pending and unsaved.
+        assert "set that up" not in reply.lower()
+        assert engine.has_pending("alice")
+        assert not (tmp_path / "automations.json").exists()
+
+    def test_other_users_no_does_not_dismiss_pending(self, tmp_path):
+        a, engine = self._make_assistant_with_pending(tmp_path, owner="alice")
+
+        asyncio.run(a.generate_reply("no thanks", active_user_id="bob"))
+
+        assert engine.has_pending("alice")
+        assert not (tmp_path / "dismissed.json").exists()
+
+    def test_owner_yes_accepts_pending(self, tmp_path):
+        import json
+
+        a, engine = self._make_assistant_with_pending(tmp_path, owner="alice")
+
+        reply = asyncio.run(a.generate_reply("yes", active_user_id="alice"))
+
+        assert "set that up" in reply.lower()
+        assert not engine.has_pending("alice")
+        saved = json.loads((tmp_path / "automations.json").read_text(encoding="utf-8"))
+        assert saved[0]["user_id"] == "alice"

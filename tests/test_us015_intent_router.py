@@ -234,4 +234,5 @@ async def test_generate_reply_uses_intent_router_for_greeting():
         "hello",
         settings=a._settings,
         suggestion_engine=None,
+        user_id="default",
     )
