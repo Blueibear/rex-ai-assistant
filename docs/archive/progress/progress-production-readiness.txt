@@ -1087,3 +1087,50 @@ Pre-commit Hook Validation, Python 3.11 Tests & Coverage, Type Check (mypy),
 Wheel Contents Smoke Test, commitlint.
 
 US-020 is fully complete. All acceptance criteria checked.
+
+=== 2026-07-08 — Reconciliation pass (issue #300) ===
+
+Re-audited Section 2 (Current State), Section 6 (Blocker Inventory), and
+Phase 3-4 acceptance criteria against master HEAD fde0c76. No runtime
+behavior was implemented; all edits are documentation truth updates.
+
+Verified stale and marked [RESOLVED — historical]:
+- 2.1 renderer /api fetches: zero remain in gui/src; GUI Raw API Fetch
+  Guard CI job enforces. (grep returned 0 matches.)
+- 2.2 py_modules: stale entries removed by US-014 (2026-06-23); setup.py
+  documents the removal inline.
+- 2.5 security audit findings: workflow_bridge stub fixed by 977a885
+  (US-021), replay stub fixed by 3b049cd (US-020), skills/trainer TODO
+  fixed by fde0c76 / PR #295 (US-022).
+- 2.8 CI gaps list: wheel smoke, /api/ guard, secret scan, full-tree
+  ruff, marker-scoped pytest, and tree-clean step all exist now.
+  Remaining gaps: security_audit gate (US-034), scripts/ Black
+  (US-031), skip budget (US-037), deprecated-API guard (US-058),
+  generated-artifact guard (US-035).
+
+Stories verified complete and checked:
+- US-021 (final box: checks pass — fix merged, later PRs green on top).
+- US-022 (TODO gone; tests test_skill_trainer.py/test_skills_trainer.py;
+  SURFACE-CLASSIFICATION.md line ~110 + changelog 2026-06-24; PR #295).
+- US-030 (ruff check . in CI; single pyproject exclude: archived).
+- US-032 (marker-scoped pytest in CI; markers documented in pyproject
+  with --strict-markers).
+
+Stories narrowed with per-box status (still open):
+- US-023: implementation + tests complete (rex/routes/logs.py,
+  tests/test_rr008_log_auth.py); only README doc mention missing.
+- US-024: routes + tests verified; IPC parity (devices.ts has no auth)
+  and docs/home_assistant.md endpoint-auth mention still open.
+- US-033: job exists and is green; "required for merge" needs owner
+  confirmation (branch protection not API-readable with current token).
+- US-036: python test job has tree-clean step; GUI Vitest job does not.
+
+Confirmed still accurate (no edit needed): 2.6 deprecated APIs (2x
+utcnow in rex/assistant.py, 4x get_event_loop), 2.7 SettingsPage.tsx
+still 5360 lines, 2.9 Docker placeholder healthcheck, 2.11 tracked
+files unchanged. 2.10 skip count re-verified: still 98 (an earlier recount of 99 mistakenly included a __pycache__ binary match).
+
+Cross-reference: PRD-remaining-release-readiness.md is complete except
+two Definition-of-Done boxes (base-deps clean-checkout pytest; owner
+decision on re-added sanitized fixtures profiles/james.json +
+users.json). Treat as historical evidence, not an active tracker.

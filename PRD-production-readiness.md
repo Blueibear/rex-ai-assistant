@@ -13,6 +13,9 @@
 > **Reconciliation note — 2026-06-12**
 > This PRD was reconciled against HEAD `548bf32` on branch `ralph/reconcile-production-readiness-prd` after the remaining-release-readiness workstream and final validation PRs. Completed decompositions from that workstream are marked as satisfied baseline evidence so Ralph does not repeat them. User-observed Electron GUI and product gaps from live testing have been added as explicit unchecked stories or acceptance criteria. This reconciliation did not implement runtime behavior.
 
+> **Reconciliation note — 2026-07-08 (issue #300)**
+> Re-audited Section 2 (Current State), Section 6 (Blocker Inventory), and the Phase 3–4 acceptance criteria against `master` HEAD `fde0c76`. Stale baseline claims are now marked **[RESOLVED — historical]** in place with the verifying commit or CI evidence; do not implement them again. Stories US-021, US-022, US-030, and US-032 were verified complete against current code/CI and are now checked. US-023/US-024/US-033/US-036 carry updated per-box status notes. `PRD-remaining-release-readiness.md` is complete except two Definition-of-Done boxes (a literal base-deps clean-checkout pytest run, and an owner decision on the re-added sanitized fixtures `profiles/james.json`/`users.json`) — treat it as historical evidence, not an active tracker. This reconciliation did not implement runtime behavior.
+
 ---
 
 ## 1. Executive Summary
@@ -29,21 +32,15 @@ The core AskRex principle is preserved end-to-end: Rex must never claim an actio
 
 The following facts were verified directly from the repository at the time this PRD was authored. They are baseline context, not checklist items, and are not action items by themselves.
 
-### 2.1 Renderer raw `/api/` fetches still present
-`gui/src/**` still contains direct browser-style fetches that depend on a Flask backend the packaged Electron app does NOT spawn. Confirmed call sites:
-- `gui/src/pages/AboutPage.tsx` — `fetch('/api/status')`
-- `gui/src/pages/CommandHistoryPage.tsx` — `fetch('/api/history?limit=50', ...)`
-- `gui/src/pages/DevicesPage.tsx` — `fetch('/api/devices')` and `fetch(\`/api/devices/${entityId}/command\`, ...)`
-- `gui/src/pages/QuickActionsPage.tsx` — `fetch('/api/quick-actions', ...)` (GET and POST), `fetch(\`/api/quick-actions/${id}\`, { method: 'DELETE', ... })`, `fetch(\`/api/quick-actions/${action.id}/run\`, ...)`
-- `gui/src/pages/SetupWizardPage.tsx` — `fetch('/api/setup/complete', ...)`
-- `gui/src/renderer/src/App.tsx` — `fetch('/api/setup/status')`
+### 2.1 Renderer raw `/api/` fetches — [RESOLVED — historical]
+**Re-verified 2026-07-08 on `master@fde0c76`:** zero raw `fetch('/api/...')` call sites remain anywhere under `gui/src/**` (`grep -rn "fetch('/api\|fetch(\`/api" gui/src` returns nothing). The migration to typed IPC (US-003 through US-012) is complete, and the **GUI Raw API Fetch Guard** CI job (`scripts/check_no_renderer_api_fetch.py`) runs on every PR to prevent regression. Do not re-implement this migration.
 
-`SURFACE-CLASSIFICATION.md` already states: *"All core Electron GUI functionality uses IPC bridge scripts. Renderer fetch('/api/...') calls are dead in packaged mode (file:// protocol)."* This contradicts the renderer's actual behavior, so either the renderer must be migrated to typed IPC or the packaged app must explicitly own a backend lifecycle. This PRD chooses migration to typed IPC as the production direction.
+*Historical baseline (authoring time):* `gui/src/**` contained direct browser-style fetches in `AboutPage.tsx`, `CommandHistoryPage.tsx`, `DevicesPage.tsx`, `QuickActionsPage.tsx`, `SetupWizardPage.tsx`, and `App.tsx` that depended on a Flask backend the packaged Electron app does not spawn.
 
-### 2.2 Packaging metadata
-- `pyproject.toml` declares `name = "askrex-assistant"`, `version = "0.1.0"`, `requires-python = ">=3.11,<3.12"`, and six console scripts: `rex`, `rex-config`, `rex-speak-api`, `rex-agent`, `rex-gui`, `rex-tool-server`.
-- `setup.py` still declares `py_modules = ["rex_assistant", "rex_speak_api", "llm_client", "memory_utils", "config", "audio_config", "conversation_memory"]`. Several of these names (`rex_assistant`, `memory_utils`, `audio_config`, `conversation_memory`) no longer exist at the repository root, so the wheel currently declares modules it cannot install. This is an active packaging defect.
-- `[tool.setuptools]` uses `packages = {find = {include = ["rex*"]}}`. The `bridge/` directory, root bridge wrappers, `config/` examples, and built UI assets are NOT included by default. A `pip install .` produces a Python package that is missing major runtime resources required by both the Electron packaged app and several documented surfaces.
+### 2.2 Packaging metadata — [PARTIALLY RESOLVED — see note]
+- `pyproject.toml` declares `name = "askrex-assistant"`, `requires-python = ">=3.11,<3.12"`, and six console scripts: `rex`, `rex-config`, `rex-speak-api`, `rex-agent`, `rex-gui`, `rex-tool-server`. (Version is now managed by release-please; see `.release-please-manifest.json`.)
+- **[RESOLVED — historical]** *(re-verified 2026-07-08)*: the stale `py_modules` entries (`rex_assistant`, `memory_utils`, `audio_config`, `conversation_memory`) were removed by US-014 on 2026-06-23; `setup.py` documents the removal inline and now declares only modules that exist on disk. The **Wheel Contents Smoke Test** CI job (`scripts/check_wheel_contents.py`) guards wheel contents on every PR. Do not repeat this fix.
+- Wheel resource-inclusion scope (`bridge/`, root wrappers, `config/` examples, UI assets) is governed by US-016; check that story's boxes for current status rather than this baseline text.
 
 ### 2.3 Root-level Python files
 27 `.py` files live at the repository root:
@@ -53,11 +50,13 @@ The following facts were verified directly from the repository at the time this 
 ### 2.4 Bridge layout
 Canonical bridge implementations live under `bridge/` (`bridge/rex_chat_bridge.py`, `bridge/rex_voice_bridge.py`, etc.). The repository root contains thin wrappers with the same filenames. Electron `bridgeResolver.ts` is the single source of truth for which path is resolved in dev vs packaged mode, but the relationship between root wrappers and `bridge/` canonicals is not codified by tests.
 
-### 2.5 Security audit findings
-`scripts/security_audit.py` exists (477 lines) and scans for merge markers, placeholder/incomplete code, and exposed secrets. Verified placeholder/stub markers in production-path code:
-- `rex/openclaw/workflow_bridge.py` lines 151, 169, 171 — workflow executor registration is an acknowledged stub.
-- `rex/replay.py` lines 10, 11, 36, 77, 78, 84, 89, 118-144 — replay is explicitly a stub that returns placeholder results.
-- `rex/skills/trainer.py` line 127 — `# TODO: implement {name}`.
+### 2.5 Security audit findings — [RESOLVED — historical]
+`scripts/security_audit.py` exists and scans for merge markers, placeholder/incomplete code, and exposed secrets.
+
+**Re-verified 2026-07-08 on `master@fde0c76`: all three findings below are fixed. Do not re-implement them.**
+- `rex/openclaw/workflow_bridge.py` workflow executor stub — fixed by `977a885` ("fix(openclaw): replace workflow_bridge register() stub with fail-closed behavior (US-021)"); no `stub`/`NotImplementedError`/`placeholder` markers remain.
+- `rex/replay.py` placeholder results — fixed by `3b049cd` (US-020); no `stub`/`placeholder` strings remain in the file.
+- `rex/skills/trainer.py` `# TODO: implement` — fixed by `fde0c76` (PR #295, US-022); `grep -n "TODO: implement" rex/skills/trainer.py` returns nothing.
 
 ### 2.6 Deprecated API usage
 Verified call sites:
@@ -79,13 +78,15 @@ Previously large decomposition targets are now small facades or entrypoints:
 ### 2.8 CI coverage
 `.github/workflows/ci.yml` currently runs full-repo Ruff (`ruff check --output-format=github .`), Black over `rex/ tests/ bridge/ *.py` but not `scripts/`, `python -m compileall -q rex scripts`, `mypy rex --ignore-missing-imports`, GUI typecheck, GUI build, high-severity npm audits for `gui/` and `rex/ui/`, console entrypoint smoke checks, pytest with coverage using `pytest -m "not slow and not audio and not gpu"`, integration tests, a working-tree-clean check after tests, `pip-audit` with documented ignores, pre-commit, and `detect-secrets`.
 
-`.github/workflows/electron-smoke.yml` runs an Electron package smoke test on `v*` tag pushes and PRs touching `gui/**` or `bridge/**`. There is still no wheel contents smoke test, no blocking `scripts/security_audit.py` CI check, no `scripts/` Black coverage, no skip-budget enforcement, no deprecated-API guard, no generated-artifact guard, and no raw-`/api/` fetch guard.
+`.github/workflows/electron-smoke.yml` runs an Electron package smoke test on `v*` tag pushes and PRs touching `gui/**` or `bridge/**`.
+
+**Re-verified 2026-07-08 on `master@fde0c76`:** CI now includes the **Wheel Contents Smoke Test** (US-033), the **GUI Raw API Fetch Guard** (US-003/US-011), the **Hardcoded Secret Scan**, full-tree `ruff check .` (US-030), the marker-scoped pytest run (US-032), and a "Verify tests did not modify tracked files" step in the Python test job (US-036). Still genuinely missing as of that date: a blocking `scripts/security_audit.py` check (US-034), `scripts/` in the Black command (US-031), skip-budget enforcement (US-037 — `scripts/check_skip_budget.py` does not exist), a deprecated-API guard (US-058 — `scripts/check_deprecated_apis.py` does not exist), and a generated-artifact guard (US-035).
 
 ### 2.9 Docker
 `Dockerfile` HEALTHCHECK is `python -c "import sys; sys.exit(0)"` — a placeholder that always succeeds.
 
 ### 2.10 Skipped tests
-`rg -n "@pytest.mark.skip" tests` currently yields 98 hits. Many are legitimate `skipif(<env or dep missing>)` guards, but the set is not classified, tracked, or budgeted.
+`rg -n "@pytest.mark.skip" tests` yields 98 hits *(re-verified 2026-07-08; unchanged since authoring)*. Many are legitimate `skipif(<env or dep missing>)` guards, but the set is not classified, tracked, or budgeted.
 
 ### 2.11 Tracked data and privacy files
 `git ls-files Memory/james/ Memory/cole/ profiles/james.json users.json` currently returns `profiles/james.json` and `users.json`. `Memory/james/` and `Memory/cole/` are no longer tracked. A broader `git ls-files Memory/ profiles/ users.json` also returns `Memory/README.md`, `profiles/default.example.json`, `profiles/default.json`, `profiles/james.example.json`, `profiles/james.json`, `profiles/profile.schema.json`, and `users.json`.
@@ -148,13 +149,13 @@ These principles bind every story in this PRD. They are enforced by review and b
 
 | ID | Blocker | Summary | Workstream | Priority |
 |----|---------|---------|------------|----------|
-| A | Packaged Electron runtime correctness | Renderer `/api/...` fetches are dead in packaged mode; no enforcement against regression. | Electron | P0 |
-| B | Wheel/package install truth | `pip install .` does not produce a runnable app; declared `py_modules` reference files that no longer exist. | Packaging | P0 |
-| C | `setup.py` and metadata cleanup | Stale `py_modules`, undocumented root shims, unclear console-script contract. | Packaging | P0 |
+| A | Packaged Electron runtime correctness | **[RESOLVED 2026-07-08]** Renderer `/api/...` fetches are fully migrated to typed IPC and the raw-fetch CI guard enforces against regression. | Electron | P0 |
+| B | Wheel/package install truth | **[Partially resolved]** Stale `py_modules` fixed (US-014) and wheel-contents CI smoke test added (US-033/US-015); remaining resource-inclusion scope tracked by US-016. | Packaging | P0 |
+| C | `setup.py` and metadata cleanup | **[Partially resolved]** Stale `py_modules` removed and documented inline (US-014); remaining console-script/doc contract items tracked by US-013/US-019. | Packaging | P0 |
 | D | Bridge layout and root file truth | Root wrappers vs `bridge/` canonicals not codified; docs claim wrong root file count. | Packaging | P0 |
-| E | Security audit triage | `security_audit.py` reports actionable findings; some auth gates are now fixed, but confirmation gates and audit closeout still need explicit proof. | Security | P0 |
-| F | CI must match the shipped product | CI omits wheel smoke, security_audit, scripts/ formatting, skip budget, deprecated-API guard, generated-artifact guard, and `/api/` guard. | CI | P0 |
-| G | Skipped tests and retired surfaces | 98 current `@pytest.mark.skip` hits are not classified; no skip budget; tests for retired surfaces still present. | Tests | P1 |
+| E | Security audit triage | **[Partially resolved]** The three stub findings (workflow_bridge, replay, skills/trainer) are fixed on master; logs/HA endpoint auth is implemented and tested. Remaining: confirmation gates (US-025), Twilio fail-closed proof (US-026), GUI secret redaction (US-027/028), and audit closeout (US-029). | Security | P0 |
+| F | CI must match the shipped product | **[Partially resolved]** Wheel smoke, `/api/` guard, secret scan, full-tree ruff, and tree-clean check are in CI. Remaining: security_audit gate (US-034), `scripts/` Black (US-031), skip budget (US-037), deprecated-API guard (US-058), generated-artifact guard (US-035). | CI | P0 |
+| G | Skipped tests and retired surfaces | 98 current `@pytest.mark.skip` hits *(re-verified 2026-07-08)* are not classified; no skip budget; tests for retired surfaces still present. | Tests | P1 |
 | H | Docker healthcheck truth | Healthcheck is a no-op; Docker's support tier is undocumented. | Packaging | P1 |
 | I | Runtime truth and docs consistency | README, INSTALL, RUNNING, `docs/UI_SURFACES.md`, `SURFACE-CLASSIFICATION.md`, `INTEGRATIONS_STATUS.md`, and `CLAUDE.md` disagree about what is shippable. | Docs | P0 |
 | J | Voice reliability and production voice path | Wake word reliability not measured; Hold-to-Talk not defined as production path; voice pipeline lacks structured logs and latency budgets. | Voice | P0 |
@@ -954,7 +955,7 @@ python scripts/security_audit.py
 - [x] A test covers both branches.
 - [x] `python scripts/security_audit.py` no longer flags this file (or the inventory in US-001 marks it as `dev-only-documented` with a follow-up story).
 - [x] `docs/openclaw-migration-status.md` is updated.
-- [ ] All relevant GitHub checks pass.
+- [x] All relevant GitHub checks pass. *(Verified 2026-07-08: the fix `977a885` is merged to `master`; subsequent PRs #295/#297 ran the full check suite green on trees containing it.)*
 
 **Validation commands:**
 ```bash
@@ -980,10 +981,10 @@ python scripts/security_audit.py
 **Implementation notes:** The `# TODO: implement {name}` marker at line 127 must be removed. If the trainer is not on the production path, gate it behind an explicit `developer-only` flag and document it in `SURFACE-CLASSIFICATION.md`. If it is on the production path, implement the minimum honest behavior.
 
 **Acceptance Criteria:**
-- [ ] `grep -n "TODO: implement" rex/skills/trainer.py` returns nothing on reachable paths.
-- [ ] A test confirms the chosen behavior (works honestly, OR raises a clear `NotImplementedError` behind a flag).
-- [ ] `SURFACE-CLASSIFICATION.md` is updated.
-- [ ] All relevant GitHub checks pass.
+- [x] `grep -n "TODO: implement" rex/skills/trainer.py` returns nothing on reachable paths. *(Verified 2026-07-08 on `master@fde0c76`: zero matches.)*
+- [x] A test confirms the chosen behavior (works honestly, OR raises a clear `NotImplementedError` behind a flag). *(`tests/test_skill_trainer.py` and `tests/test_skills_trainer.py` cover the honest-scaffold behavior.)*
+- [x] `SURFACE-CLASSIFICATION.md` is updated. *(Line ~110 classifies `rex.skills.trainer` as shippable with honest-stub semantics; changelog entry dated 2026-06-24 cites US-022.)*
+- [x] All relevant GitHub checks pass. *(Delivered by PR #295, merged as `fde0c76` with checks green.)*
 
 **Validation commands:**
 ```bash
@@ -999,19 +1000,19 @@ python scripts/security_audit.py
 **Workstream:** Security
 **Description:** As an operator, I want `/api/logs/*` endpoints to reject unauthenticated requests.
 
-**Reconciliation status (2026-06-12):** Partially satisfied by current code. `rex/routes/logs.py` calls `_require_auth()` for both `/api/logs/stream` and `/api/logs/download`, and `tests/test_rr008_log_auth.py` covers unauthenticated, invalid-token, authenticated, missing-file, existing-file, and home-path-redaction cases. This story remains open because the acceptance criteria still require matching documentation updates and current validation in this workstream before the story can be checked off.
+**Reconciliation status (2026-07-08):** Implementation and tests verified complete on `master@fde0c76`: `rex/routes/logs.py` requires a Bearer token via `_require_auth()` for both `/api/logs/stream` and `/api/logs/download` and redacts home-directory paths; `tests/test_rr008_log_auth.py` covers 401-without-token for both routes, authenticated success, and redaction. **Only the README documentation box remains open** — `docs/configuration.md` documents `REX_PROXY_TOKEN` but `README.md` does not mention the logs-endpoint auth requirement.
 
 **Files/areas likely involved:**
 - `rex/gui_app.py` (or the route file)
-- `tests/test_logs_auth.py` (new or updated)
+- `tests/test_rr008_log_auth.py` (delivered; the originally planned name was `tests/test_logs_auth.py`)
 
 **Acceptance Criteria:**
-- [ ] Unauthenticated GET on `/api/logs/download` returns HTTP 401.
-- [ ] Authenticated GET with a valid token still works.
-- [ ] A negative test (`pytest tests/test_logs_auth.py::test_unauth_logs_returns_401 -q`) asserts the 401.
-- [ ] Log output redacts home-directory paths (`/Users/<name>`, `C:\Users\<name>`) before being sent in any response.
-- [ ] `docs/configuration.md` and `README.md` document the auth requirement.
-- [ ] All relevant GitHub checks pass.
+- [x] Unauthenticated GET on `/api/logs/download` returns HTTP 401. *(Verified: `rex/routes/logs.py` `_require_auth()`; `tests/test_rr008_log_auth.py`.)*
+- [x] Authenticated GET with a valid token still works. *(Covered by `tests/test_rr008_log_auth.py`.)*
+- [x] A negative test asserts the 401 (delivered as `tests/test_rr008_log_auth.py`, e.g. `test_stream_without_token_returns_401`, rather than the originally planned `tests/test_logs_auth.py` name).
+- [x] Log output redacts home-directory paths (`/Users/<name>`, `C:\Users\<name>`) before being sent in any response. *(`_redact_log_line` in `rex/routes/_helpers.py`; covered by `tests/test_rr008_log_auth.py`.)*
+- [ ] `docs/configuration.md` and `README.md` document the auth requirement. *(2026-07-08: `docs/configuration.md` documents `REX_PROXY_TOKEN`; `README.md` still missing the mention.)*
+- [ ] All relevant GitHub checks pass. *(Check when the README update lands.)*
 
 **Validation commands:**
 ```bash
@@ -1028,7 +1029,7 @@ pytest tests/test_logs_auth.py -q
 **Workstream:** Security / Home Assistant
 **Description:** As an operator, I want HA admin endpoints to require authentication.
 
-**Reconciliation status (2026-06-12):** Partially satisfied by current code. `rex/routes/ha.py` requires auth for `/api/ha/test`, `/api/ha/save`, and `/api/devices/<entity_id>/command`; `tests/test_rr009_ha_test_auth.py`, `tests/test_us059_ha_setup.py`, and `tests/test_us060_devices.py` include 401 coverage for these paths. This story remains open until IPC parity, docs, and validation are proven in this workstream.
+**Reconciliation status (2026-07-08, supersedes 2026-06-12):** Route auth and route tests remain verified on `master@fde0c76` (`rex/routes/ha.py` + `tests/test_rr009_ha_test_auth.py` et al.). Still open: `gui/src/main/handlers/devices.ts` contains no auth/token enforcement (IPC parity box), and `docs/home_assistant.md` documents the HA long-lived token but not the Rex-endpoint auth requirement.
 
 **Files/areas likely involved:**
 - `rex/gui_app.py` route handlers for HA
@@ -1190,16 +1191,16 @@ python scripts/security_audit.py
 **Workstream:** CI
 **Description:** As a maintainer, I want CI to lint the full repository, not just `rex/`, `tests/`, `bridge/`, and `*.py` at the root.
 
-**Reconciliation status (2026-06-12):** Partially satisfied. `.github/workflows/ci.yml` currently runs `ruff check --output-format=github .`; the story remains open until excludes and required-check evidence are recorded in this workstream.
+**Reconciliation status (2026-07-08, supersedes 2026-06-12):** Complete. `.github/workflows/ci.yml` line 43 runs `ruff check --output-format=github .`; `pyproject.toml` `[tool.ruff]` excludes exactly one path (`archived` — retired, unmaintained files); the Lint & Format Check job is green on `master@fde0c76` and every recent PR.
 
 **Files/areas likely involved:**
 - `.github/workflows/ci.yml`
 - `pyproject.toml` `[tool.ruff]`
 
 **Acceptance Criteria:**
-- [ ] CI invokes `ruff check .` (excluding `archived/`) and fails on any error.
-- [ ] `pyproject.toml` excludes are reviewed and minimized.
-- [ ] All relevant GitHub checks pass.
+- [x] CI invokes `ruff check .` (excluding `archived/`) and fails on any error.
+- [x] `pyproject.toml` excludes are reviewed and minimized. *(Single entry: `archived`.)*
+- [x] All relevant GitHub checks pass. *(Lint & Format Check green on master and recent PRs, 2026-07-08.)*
 
 **Validation commands:**
 ```bash
@@ -1237,16 +1238,16 @@ black --check --diff rex/ tests/ bridge/ scripts/ *.py
 **Workstream:** CI
 **Description:** As a maintainer, I want CI test scope to match the documented marker policy.
 
-**Reconciliation status (2026-06-12):** Partially satisfied. `.github/workflows/ci.yml` currently runs `pytest -m "not slow and not audio and not gpu"` with coverage, but marker docs and required-check evidence still need to be proven in this workstream.
+**Reconciliation status (2026-07-08, supersedes 2026-06-12):** Complete. The CI test job runs `pytest -m "not slow and not audio and not gpu" --cov=rex --cov-fail-under=75 ...` with `--strict-markers`; every excluded marker is declared with an explanatory description in `pyproject.toml` `[tool.pytest.ini_options].markers` (`slow`, `audio`, `gpu` each state why they need special environments); the job is green on `master@fde0c76`.
 
 **Files/areas likely involved:**
 - `.github/workflows/ci.yml`
 - `pyproject.toml` `[tool.pytest.ini_options]`
 
 **Acceptance Criteria:**
-- [ ] CI runs `pytest -m "not slow and not audio and not gpu"`.
-- [ ] Marker docs list which markers are excluded and why.
-- [ ] All relevant GitHub checks pass.
+- [x] CI runs `pytest -m "not slow and not audio and not gpu"`.
+- [x] Marker docs list which markers are excluded and why. *(`pyproject.toml` markers section, enforced by `--strict-markers`.)*
+- [x] All relevant GitHub checks pass. *(Python 3.11 Tests & Coverage green on master and recent PRs, 2026-07-08.)*
 
 **Validation commands:**
 ```bash
@@ -1261,13 +1262,15 @@ pytest -m "not slow and not audio and not gpu" -q
 **Workstream:** CI / Packaging
 **Description:** As a maintainer, I want CI to run `scripts/check_wheel_contents.py` as a blocking gate.
 
+**Reconciliation status (2026-07-08):** The **Wheel Contents Smoke Test** job exists in `.github/workflows/ci.yml` (installs `build`, runs `scripts/check_wheel_contents.py`, which builds the wheel and validates contents) and runs green on every recent PR. The only unproven box is "required for merge": branch-protection settings are not readable with the current token (`gh api .../branches/master/protection` → 403), so required-check status needs owner confirmation in the GitHub UI.
+
 **Files/areas likely involved:**
 - `.github/workflows/ci.yml`
 
 **Acceptance Criteria:**
-- [ ] A `wheel-smoke` job runs `python -m build` and `python scripts/check_wheel_contents.py`.
-- [ ] Job is required for merge.
-- [ ] All relevant GitHub checks pass.
+- [x] A wheel-smoke job runs the wheel build and `python scripts/check_wheel_contents.py`. *(Verified 2026-07-08: "Wheel Contents Smoke Test" job in ci.yml.)*
+- [ ] Job is required for merge. *(Owner must confirm in branch-protection settings; not API-readable with the current token.)*
+- [ ] All relevant GitHub checks pass. *(Check together with the box above.)*
 
 **Validation commands:**
 ```bash
@@ -1328,7 +1331,7 @@ python scripts/check_no_generated_artifacts.py
 **Workstream:** CI
 **Description:** As a maintainer, I want CI to fail if a test modified a tracked file.
 
-**Reconciliation status (2026-06-12):** Partially satisfied. The `tests` job currently has a "Verify tests did not modify tracked files" step using `git status --porcelain -- ':!.coverage' ':!coverage.xml' ':!htmlcov/'`; this story remains open until the "every job that runs tests" scope and required-check evidence are verified.
+**Reconciliation status (2026-07-08, supersedes 2026-06-12):** The Python 3.11 test job's "Verify tests did not modify tracked files" step remains in place and green. Still open: the GUI Vitest job has no equivalent tree-clean step, so the "every job that runs tests" box is not yet satisfied as written.
 
 **Files/areas likely involved:**
 - `.github/workflows/ci.yml` (the existing "Verify tests did not modify tracked files" step — promote to all relevant jobs)
