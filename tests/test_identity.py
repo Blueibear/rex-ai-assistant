@@ -17,11 +17,15 @@ import pytest
 from rex.identity import (
     _load_session,
     clear_session_user,
+    create_user_profile,
     get_session_user,
+    get_user_profile,
     list_known_users,
     require_active_user,
     resolve_active_user,
     set_session_user,
+    update_user_preferences,
+    validate_user_id,
 )
 
 # ---------------------------------------------------------------
@@ -299,3 +303,53 @@ class TestIdentityCLI:
         with patch("rex.identity.list_known_users", return_value=[]):
             result = cmd_identify(args)
             assert result == 1
+
+
+# ---------------------------------------------------------------
+# User ID safety tests
+# ---------------------------------------------------------------
+
+
+class TestUserIdSafety:
+    @pytest.mark.parametrize(
+        "user_id",
+        ["", ".", "..", "../alice", "alice/bob", r"alice\bob", " alice", "alice "],
+    )
+    def test_rejects_filesystem_unsafe_ids(self, user_id):
+        with pytest.raises(ValueError, match="Invalid user_id"):
+            validate_user_id(user_id)
+
+    @pytest.mark.parametrize("user_id", ["alice", "alice-2", "alice_2", "alice.smith"])
+    def test_accepts_common_safe_ids(self, user_id):
+        assert validate_user_id(user_id) == user_id
+
+    def test_create_profile_cannot_escape_memory_directory(self, tmp_path: Path):
+        memory_dir = tmp_path / "Memory"
+        with pytest.raises(ValueError, match="Invalid user_id"):
+            create_user_profile("..", "Outside", memory_dir=memory_dir)
+        assert not (tmp_path / "core.json").exists()
+
+    def test_profile_reads_and_updates_reject_traversal(self, tmp_path: Path):
+        memory_dir = tmp_path / "Memory"
+        outside = tmp_path / "core.json"
+        outside.write_text(json.dumps({"name": "Outside"}), encoding="utf-8")
+
+        with pytest.raises(ValueError, match="Invalid user_id"):
+            get_user_profile("..", memory_dir=memory_dir)
+        with pytest.raises(ValueError, match="Invalid user_id"):
+            update_user_preferences("..", {"theme": "dark"}, memory_dir=memory_dir)
+
+        assert json.loads(outside.read_text(encoding="utf-8")) == {"name": "Outside"}
+
+    def test_explicit_invalid_user_does_not_fall_back_to_session(self, session_dir):
+        set_session_user("alice")
+        with pytest.raises(ValueError, match="Invalid user_id"):
+            resolve_active_user("..")
+
+    def test_invalid_session_user_fails_closed(self, tmp_path: Path):
+        session_file = tmp_path / "rex-ai" / "session.json"
+        session_file.parent.mkdir(parents=True, exist_ok=True)
+        session_file.write_text(json.dumps({"active_user": ".."}), encoding="utf-8")
+
+        with patch("rex.identity._session_state_path", return_value=session_file):
+            assert resolve_active_user(config={"runtime": {"active_user": "alice"}}) is None

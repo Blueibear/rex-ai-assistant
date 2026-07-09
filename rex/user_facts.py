@@ -16,6 +16,8 @@ import json
 import logging
 from pathlib import Path
 
+from rex.identity import validate_user_id
+
 logger = logging.getLogger(__name__)
 
 # Memory/ is at the repo root (same directory as rex/).
@@ -23,10 +25,15 @@ _MEMORY_ROOT = Path(__file__).parent.parent / "Memory"
 
 
 def _facts_path(user: str, memory_root: Path | None = None) -> Path:
+    """Return the facts file for a validated user ID.
+
+    User IDs are also used by the profile/session identity layer. Reusing its
+    validator prevents ambiguous filename sanitization where distinct IDs such
+    as ``alice/bob`` and ``alice_bob`` could map to the same facts file.
+    """
     root = memory_root or _MEMORY_ROOT
     root.mkdir(parents=True, exist_ok=True)
-    # Sanitise user key to a safe filename component.
-    safe = "".join(c if c.isalnum() or c in "-_." else "_" for c in user)
+    safe = validate_user_id(user)
     return root / f"{safe}_facts.json"
 
 
