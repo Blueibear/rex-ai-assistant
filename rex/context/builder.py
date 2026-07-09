@@ -8,6 +8,7 @@ Extracted from ``rex.assistant.Assistant._build_prompt``,
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
@@ -71,10 +72,15 @@ class ContextBuilder:
     """Assembles LLM context from history, user profile, and personality.
 
     Args:
-        settings:        App config/settings object (``AppConfig`` or ``Settings``).
-        history:         Mutable reference to the in-memory conversation history list.
-        user_id:         Default user/session identifier.
-        followup_engine: Optional follow-up engine for ``format_followups()``.
+        settings:         App config/settings object (``AppConfig`` or ``Settings``).
+        history:          Mutable reference to the in-memory conversation history list.
+        user_id:          Default user/session identifier.
+        followup_engine:  Optional follow-up engine for ``format_followups()``.
+        history_provider: Optional zero-arg callable returning the current
+                          history list.  When given it takes precedence over
+                          *history*, so the builder always reads the caller's
+                          live (per-user) history instead of a snapshot taken
+                          at construction time (issue #303).
     """
 
     def __init__(
@@ -84,11 +90,19 @@ class ContextBuilder:
         user_id: str,
         *,
         followup_engine: Any = None,
+        history_provider: Callable[[], list] | None = None,
     ) -> None:
         self._settings = settings
         self._history = history
         self._user_id = user_id
         self._followup_engine = followup_engine
+        self._history_provider = history_provider
+
+    def _current_history(self) -> list:
+        """Return the live history list (provider-backed when configured)."""
+        if self._history_provider is not None:
+            return self._history_provider()
+        return self._history
 
     # ------------------------------------------------------------------
     # Primary entry point
@@ -297,7 +311,7 @@ class ContextBuilder:
         if voice_mode:
             messages.append({"role": "system", "content": _VOICE_CONCISE_INSTRUCTION})
 
-        for turn in self._history[-4:]:
+        for turn in self._current_history()[-4:]:
             speaker = str(turn.speaker).strip().lower()
             role = "assistant" if speaker in {"assistant", "rex"} else "user"
             messages.append({"role": role, "content": turn.text})
@@ -338,7 +352,7 @@ class ContextBuilder:
         if tool_context:
             history_lines.append(tool_context)
 
-        history_lines += [f"{turn.speaker}: {turn.text}" for turn in self._history[-4:]]
+        history_lines += [f"{turn.speaker}: {turn.text}" for turn in self._current_history()[-4:]]
         history_lines.append(f"user: {user_message}")
 
         if voice_mode:
