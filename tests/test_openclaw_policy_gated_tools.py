@@ -29,19 +29,34 @@ class TestEmailTool:
         assert "email" in TOOL_DESCRIPTION.lower()
 
     def test_send_email_calls_service(self):
-        """send_email delegates to EmailService.send with correct kwargs."""
+        """send_email delegates to EmailService.send as the dispatching user."""
         from rex.openclaw.tools.email_tool import send_email
 
         mock_service = MagicMock()
         mock_service.send.return_value = {"ok": True, "message_id": "msg-1", "error": None}
 
         with patch("rex.openclaw.tools.email_tool._get_email_service", return_value=mock_service):
-            result = send_email("alice@example.com", "Hello", "Hi Alice!")
+            result = send_email("alice@example.com", "Hello", "Hi Alice!", _user_id="alice")
 
         mock_service.send.assert_called_once_with(
-            to="alice@example.com", subject="Hello", body="Hi Alice!"
+            to="alice@example.com",
+            subject="Hello",
+            body="Hi Alice!",
+            account_id=None,
+            user_id="alice",
         )
         assert result == {"ok": True, "message_id": "msg-1", "error": None}
+
+    def test_send_email_fails_closed_without_user(self):
+        """send_email without _user_id is refused before any service access."""
+        from rex.openclaw.tools.email_tool import send_email
+
+        with patch("rex.openclaw.tools.email_tool._get_email_service") as get_svc:
+            result = send_email("alice@example.com", "Hello", "Hi!")
+
+        assert result["ok"] is False
+        assert "identity" in result["error"].lower()
+        get_svc.assert_not_called()
 
     def test_send_email_to_list(self):
         """send_email accepts a list of recipients."""
@@ -51,10 +66,14 @@ class TestEmailTool:
         mock_service.send.return_value = {"ok": True, "message_id": "msg-2", "error": None}
 
         with patch("rex.openclaw.tools.email_tool._get_email_service", return_value=mock_service):
-            result = send_email(["a@x.com", "b@x.com"], "Sub", "Body")
+            result = send_email(["a@x.com", "b@x.com"], "Sub", "Body", _user_id="alice")
 
         mock_service.send.assert_called_once_with(
-            to=["a@x.com", "b@x.com"], subject="Sub", body="Body"
+            to=["a@x.com", "b@x.com"],
+            subject="Sub",
+            body="Body",
+            account_id=None,
+            user_id="alice",
         )
         assert result["ok"] is True
 
@@ -66,7 +85,9 @@ class TestEmailTool:
         mock_service.send.return_value = {"ok": True, "message_id": None, "error": None}
 
         with patch("rex.openclaw.tools.email_tool._get_email_service", return_value=mock_service):
-            result = send_email("x@example.com", "S", "B", context={"location": "London"})
+            result = send_email(
+                "x@example.com", "S", "B", context={"location": "London"}, _user_id="alice"
+            )
 
         assert result["ok"] is True
 

@@ -51,6 +51,18 @@ class EmailSummary(BaseModel):
 
 ## Using the Email Service
 
+### Per-User Ownership (required)
+
+Every operation that reads or mutates email data requires an explicit,
+validated `user_id`. Missing, blank, malformed, or traversal-style
+identities fail closed (`PermissionError`) **before** any account or
+credential lookup. There is no fallback to `default`, to the active user,
+to the global default account, or to another user's backend or credential.
+
+Single-user setups select the legacy profile explicitly with
+`user_id="default"` (or `rex identify --user default` / `--user default`
+on the CLI).
+
 ### Getting the Email Service Instance
 
 ```python
@@ -59,11 +71,15 @@ from rex.email_service import get_email_service
 email_service = get_email_service()
 ```
 
+The returned service enforces per-user account ownership internally;
+backends are resolved lazily per validated user and authorized account,
+and a backend resolved for one user is never reused for another.
+
 ### Connecting to Email
 
 ```python
-# Connect (loads credentials and initializes)
-if email_service.connect():
+# Connect the requesting user's authorized backend
+if email_service.connect("default"):
     print("Connected to email service")
 else:
     print("Failed to connect")
@@ -72,8 +88,8 @@ else:
 ### Fetching Unread Emails
 
 ```python
-# Fetch up to 10 unread emails
-unread = email_service.fetch_unread(limit=10)
+# Fetch up to 10 unread emails for one user
+unread = email_service.fetch_unread(limit=10, user_id="default")
 
 for email in unread:
     print(f"{email.id}: {email.subject}")
@@ -109,26 +125,30 @@ print(f"Category: {category}")
 ### Marking Emails as Read
 
 ```python
-email_service.mark_as_read(email_id='email-123')
+email_service.mark_as_read('email-123', user_id="default")
 ```
 
 ### Summarizing Emails
 
 ```python
-summary = email_service.summarize(email_id='email-123')
+summary = email_service.summarize('email-123', user_id="default")
 print(summary)
 ```
 
 ## CLI Commands
+
+Every `rex email` subcommand runs as one validated user. The user comes
+from `--user <id>`, the `rex identify` session, or `runtime.active_user`
+in config; without one the command fails closed with instructions.
 
 ### Fetch Unread Emails
 
 Display unread emails with categorization:
 
 ```bash
-rex email unread
-rex email unread --limit 5
-rex email unread -v  # Verbose output with importance scores
+rex email unread --user james
+rex email unread --user james --limit 5
+rex email unread --user james -v  # Verbose output with importance scores
 ```
 
 ## Configuration
@@ -201,13 +221,24 @@ initialize_scheduler_system(start_scheduler=True)
 
 This creates a job that:
 - Runs every 10 minutes (configurable)
-- Fetches unread emails
-- Categorizes them
-- Publishes an `email.unread` event
+- Iterates the explicitly configured account owners, each in an isolated
+  owner context (one owner's failure never falls through to another)
+- Fetches and categorizes each owner's unread email as that owner
+- Publishes a per-owner `email.unread.user.<user_id>` event with the
+  message payload, plus a safe envelope (count/user only) on the shared
+  `email.unread` topic
+
+If no owners are configured, the job does not touch real email (fail
+closed).
 
 ## Event Integration
 
-Subscribe to email events to trigger actions:
+Private email fields (subjects, senders, snippets) are published only on
+user-scoped topics — `email.unread.user.<user_id>` — so a consumer acting
+for one user cannot observe another user's payload. The shared
+`email.unread` topic carries only `{count, user_id, account_id}`.
+
+Subscribe to a user's email events to trigger actions:
 
 ```python
 from rex.event_bus import get_event_bus
@@ -220,7 +251,7 @@ def handle_new_emails(event):
         if email['category'] == 'important':
             print(f"⚠️  Important: {email['subject']}")
 
-event_bus.subscribe('email.unread', handle_new_emails)
+event_bus.subscribe('email.unread.user.james', handle_new_emails)
 ```
 
 ## Example: Email Notification Workflow
@@ -248,8 +279,8 @@ def email_notifier(event):
             print(f"    From: {email['from_addr']}")
             print()
 
-# Subscribe to email events
-event_bus.subscribe('email.unread', email_notifier)
+# Subscribe to this user's email events (private payloads are user-scoped)
+event_bus.subscribe('email.unread.user.james', email_notifier)
 
 print("Email notification system active")
 ```
@@ -260,21 +291,63 @@ print("Email notification system active")
 from rex.email_service import get_email_service
 
 email_service = get_email_service()
-email_service.connect()
+email_service.connect("james")
 
-unread = email_service.fetch_unread()
+unread = email_service.fetch_unread(user_id="james")
 
 for email in unread:
     # Check for vacation auto-replies
     if 'out of office' in email.subject.lower() or 'vacation' in email.snippet.lower():
         print(f"Auto-reply detected from {email.from_addr}")
         # Mark as read automatically
-        email_service.mark_as_read(email.id)
+        email_service.mark_as_read(email.id, user_id="james")
 ```
 
 ## Multi-Account Configuration
 
-Rex supports multiple email accounts per user. Accounts are configured in `config/rex_config.json` under the `email` key.
+Rex supports multiple email accounts per user. Account **definitions**
+(non-secret connection metadata) live in `config/rex_config.json` under the
+`email` key; account **ownership** is assigned per user under the `users`
+key.
+
+### Ownership Model
+
+- `email.accounts` is the canonical list of account definitions
+  (host/port/address/`credential_ref`). It grants no access by itself.
+- `users.{user_id}.email_accounts` is the authoritative authorization map:
+  a user may use only the accounts assigned to them there, and each
+  `account_id` must reference a real `email.accounts` definition.
+- `users.{user_id}.default_email_account_id` selects that user's default
+  account (it must be one of their own accounts).
+- Credential lookup happens only after ownership validation, and only with
+  the authorized account definition's own `credential_ref`.
+- Unauthorized and nonexistent accounts are indistinguishable to callers.
+
+### Legacy Accounts (single-user configs)
+
+`email.accounts` entries not assigned to any user belong **only** to the
+distinct `default` profile. They are never shared with, or silently
+reassigned to, named users — a named user gets email access only through an
+explicit `users.{user_id}.email_accounts` assignment. The legacy
+`email.default_account_id` applies only to the `default` profile, and the
+legacy global `GMAIL_ACCESS_TOKEN` environment behaviour (GUI inbox) is
+likewise `default`-profile-only.
+
+To assign an existing account to a named user, add (no secrets involved —
+credentials stay in the credential manager):
+
+```json
+{
+  "users": {
+    "james": {
+      "email_accounts": [
+        {"account_id": "personal", "backend": "imap", "credentials_key": "email:personal"}
+      ],
+      "default_email_account_id": "personal"
+    }
+  }
+}
+```
 
 ### Configuration Format
 
@@ -350,34 +423,45 @@ Then configure the credential mapping to point `email:personal` to `EMAIL_PERSON
 
 ### Account Selection (Routing)
 
-When sending or reading email, accounts are selected using this precedence:
+Accounts are always selected **within the requesting user's authorized
+set**, using this precedence:
 
-1. **Explicit** `account_id` argument (highest priority)
-2. **Default** from `email.default_account_id`
-3. **Fallback** to first account in the list
+1. **Explicit** `account_id` argument (after ownership validation — a
+   foreign or nonexistent account is rejected with a generic error)
+2. That user's `users.{user_id}.default_email_account_id`
+3. The legacy `email.default_account_id` — only for the explicit `default`
+   profile
+4. The first account assigned to that user (deterministic, config order)
+5. No authorized account: the operation fails closed / reports
+   not-configured — never another user's account
 
-If no accounts are configured, the stub backend is used automatically.
+If no accounts are configured anywhere, the stub backend is used
+automatically for offline development.
 
 ### CLI Commands
 
 ```bash
-# List configured accounts
-rex email accounts list
+# List your own configured accounts (only yours are shown)
+rex email accounts list --user james
 
-# Set the default account
-rex email accounts set-active --account-id work
+# Set your default account (must be one of your own accounts;
+# never changes another user's routing)
+rex email accounts set-active --account-id work --user james
 
-# Test account connectivity
-rex email test-connection --account-id personal
+# Test connectivity for one of your accounts
+rex email test-connection --account-id personal --user james
 
-# Send an email via a specific account
+# Send an email via a specific account you own
 rex email send --account-id work --to recipient@example.com \
-  --subject "Hello" --body "Message body"
+  --subject "Hello" --body "Message body" --user james
 ```
 
 ### Notification Account Selection
 
-Notifications that use the email channel can specify which account to use via the `email_account_id` metadata key:
+Notifications that use the email channel must name the owning user via the
+`email_user_id` metadata key (delivery is skipped otherwise — it never
+falls back to another user's account), and may pick one of that user's
+accounts with `email_account_id`:
 
 ```python
 notification = NotificationRequest(
@@ -387,12 +471,14 @@ notification = NotificationRequest(
     channel_preferences=["email"],
     metadata={
         "to_email": "admin@example.com",
-        "email_account_id": "work",  # Use the work account
+        "email_user_id": "james",     # Owner whose account sends the email
+        "email_account_id": "work",   # One of that user's accounts (optional)
     },
 )
 ```
 
-If `email_account_id` is not set, the default account routing rules apply.
+If `email_account_id` is not set, the owner's per-user default routing
+rules apply.
 
 ## Security Considerations
 

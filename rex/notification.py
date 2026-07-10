@@ -411,25 +411,38 @@ class Notifier:
         """Send notification via email.
 
         Always dispatches through ``EmailService.send()`` so the real SMTP
-        backend is used when configured.  When no recipient is provided in
-        notification metadata the call is skipped with a warning.
+        backend is used when configured.  When no recipient or owner is
+        provided in notification metadata the call is skipped with a warning
+        — delivery never falls back to another user's account.
 
         On send failure the error is logged and re-raised so the caller can
         record the notification as failed rather than silently dropping it.
 
         Metadata keys:
-            ``to_email``        — recipient address (required for delivery).
-            ``email_account_id`` — route through a specific account (optional).
+            ``to_email``         — recipient address (required for delivery).
+            ``email_user_id``    — owning user whose account sends the email
+                                   (required for delivery; fail closed).
+            ``email_account_id`` — route through a specific account owned by
+                                   that user (optional).
         """
         try:
             service = get_email_service()
 
             to_email = notification.metadata.get("to_email")
             account_id = notification.metadata.get("email_account_id")
+            user_id = notification.metadata.get("email_user_id")
 
             if not to_email:
                 logger.warning(
                     "[EMAIL] No recipient address configured for notification %r; skipping",
+                    notification.title,
+                )
+                return
+
+            if not user_id:
+                logger.warning(
+                    "[EMAIL] No owning user (email_user_id) for notification %r; "
+                    "skipping (email delivery requires an explicit owner)",
                     notification.title,
                 )
                 return
@@ -439,6 +452,7 @@ class Notifier:
                 subject=notification.title,
                 body=notification.body,
                 account_id=account_id,
+                user_id=user_id,
             )
             if result.get("ok"):
                 logger.info(
@@ -547,9 +561,10 @@ class Notifier:
             if not queue.notifications:
                 continue
 
-            # Create digest summary — propagate to_email and email_account_id
-            # from the first queued notification that carries them so the
-            # digest delivery goes through EmailService correctly.
+            # Create digest summary — propagate to_email, email_account_id,
+            # and the owning email_user_id from the first queued notification
+            # that carries a recipient so the digest delivery goes through
+            # EmailService as the correct owner.
             summary = self._create_digest_summary(queue.notifications)
             digest_meta: dict = {}
             for queued in queue.notifications:
@@ -557,6 +572,8 @@ class Notifier:
                     digest_meta["to_email"] = queued.metadata["to_email"]
                     if queued.metadata.get("email_account_id"):
                         digest_meta["email_account_id"] = queued.metadata["email_account_id"]
+                    if queued.metadata.get("email_user_id"):
+                        digest_meta["email_user_id"] = queued.metadata["email_user_id"]
                     break
             digest_notification = NotificationRequest(
                 priority="normal",
@@ -618,8 +635,13 @@ class Notifier:
 
             bus = EventBridge()
 
-            # Subscribe to email events
-            bus.subscribe("email.unread", self._on_email_unread)
+            # Subscribe to user-scoped email events.  The shared
+            # "email.unread" topic carries only a safe envelope (no private
+            # fields); full payloads are published per owner on
+            # "email.unread.user.<user_id>", so a wildcard subscription with
+            # a prefix filter is used here (this is a trusted system
+            # component, not a user surface).
+            bus.subscribe("*", self._on_any_event)
 
             # Subscribe to calendar events
             bus.subscribe("calendar.update", self._on_calendar_update)
@@ -628,11 +650,18 @@ class Notifier:
         except Exception as e:
             logger.warning(f"Failed to subscribe to events: {e}")
 
+    def _on_any_event(self, event) -> None:
+        """Route user-scoped email events to the email handler."""
+        event_type = getattr(event, "event_type", "")
+        if isinstance(event_type, str) and event_type.startswith("email.unread.user."):
+            self._on_email_unread(event)
+
     def _on_email_unread(self, event) -> None:
-        """Handle email.unread events."""
+        """Handle user-scoped email.unread events."""
         try:
             payload = event.payload if hasattr(event, "payload") else event
-            emails = payload.get("emails", [])
+            emails = payload.get("emails", []) or payload.get("messages", [])
+            user_id = payload.get("user_id")
 
             # Check for high-importance emails
             for email in emails:
@@ -644,7 +673,7 @@ class Notifier:
                         body=f"From: {email.get('from_addr', 'Unknown')}\n"
                         f"Subject: {email.get('subject', 'No subject')}",
                         channel_preferences=["sms", "email", "dashboard"],
-                        metadata={"email_id": email.get("id")},
+                        metadata={"email_id": email.get("id"), "user_id": user_id},
                     )
                     self.send(notification)
         except Exception as e:

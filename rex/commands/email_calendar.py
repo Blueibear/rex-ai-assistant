@@ -23,26 +23,65 @@ def _cli():
     return cli
 
 
+_NO_USER_MSG = (
+    "Error: No active user for email.\n"
+    "Set one with: rex identify --user <id>\n"
+    "Or pass one explicitly: rex email ... --user <id>"
+)
+
+
+def _resolve_email_user(args: argparse.Namespace) -> str | None:
+    """Resolve the requesting user for email commands, failing closed.
+
+    Uses ``--user`` when given, otherwise the standard identity chain
+    (``rex identify`` session state, then ``runtime.active_user`` /
+    ``runtime.user_id`` in config). Never silently falls back to the
+    ``default`` profile — single-user setups select it explicitly with
+    ``--user default`` or ``rex identify --user default``.
+    """
+    try:
+        user = _cli()._resolve_cli_user(args)
+        return str(user) if user else None
+    except ValueError as exc:
+        print(f"Error: {exc}")
+        return None
+
+
 def cmd_email(args: argparse.Namespace) -> int:
-    """Manage email."""
+    """Manage email.  Every subcommand runs as one validated user."""
     from rex.assistant_errors import IntegrationNotConfiguredError
 
-    _ = _cli()._resolve_cli_user(args)
+    user = _resolve_email_user(args)
+    if not user:
+        print(_NO_USER_MSG)
+        return 1
+
+    subcommand = args.email_command
+
+    if subcommand == "accounts":
+        return _cmd_email_accounts(args, user)
+
+    if subcommand == "test-connection":
+        return _cmd_email_test_connection(args, user)
+
     try:
         email_service = _cli().get_email_service()
     except IntegrationNotConfiguredError:
         print("Email integration not configured. Set IMAP/SMTP credentials in config.")
         return 1
-    subcommand = args.email_command
 
     if subcommand == "unread":
         if not email_service.connected:
-            if not email_service.connect():
+            if not email_service.connect(user):
                 print("Error: Failed to connect to email service")
                 return 1
 
         limit = getattr(args, "limit", None) or 10
-        unread = email_service.fetch_unread(limit=limit)
+        try:
+            unread = email_service.fetch_unread(limit=limit, user_id=user)
+        except PermissionError as exc:
+            print(f"Error: {exc}")
+            return 1
         print("Unread Email Summary")
         print("=" * 80)
         print()
@@ -68,38 +107,34 @@ def cmd_email(args: argparse.Namespace) -> int:
         print(f"Total: {len(unread)} unread emails")
         return 0
 
-    if subcommand == "accounts":
-        return _cmd_email_accounts(args)
-
     if subcommand == "send":
-        return _cmd_email_send(args)
-
-    if subcommand == "test-connection":
-        return _cmd_email_test_connection(args)
+        return _cmd_email_send(args, user)
 
     print("Unknown email subcommand. Use 'rex email --help'")
     return 1
 
 
-def _cmd_email_accounts(args: argparse.Namespace) -> int:
-    """Handle 'rex email accounts' subcommands."""
+def _cmd_email_accounts(args: argparse.Namespace, user: str) -> int:
+    """Handle 'rex email accounts' subcommands for one validated user."""
     accounts_cmd = getattr(args, "accounts_command", "list")
+    resolver = _cli()._load_email_resolver_safe()
 
     if accounts_cmd == "list":
-        email_config = _cli()._load_email_config_safe()
-        if not email_config or not email_config.accounts:
-            print("No email accounts configured.")
+        accounts = [] if resolver is None else resolver.accounts_for_user(user)
+        if resolver is None or not accounts:
+            print(f"No email accounts configured for user '{user}'.")
             print()
-            print("To configure accounts, add an 'email' section to config/rex_config.json.")
+            print("To configure accounts, add an 'email' section to config/rex_config.json")
+            print(f"and assign them to this user under users.{user}.email_accounts.")
             print("See docs/email.md for details.")
             return 0
 
-        print("Email Accounts")
+        print(f"Email Accounts for user '{user}'")
         print("=" * 60)
         print()
 
-        default_id = email_config.default_account_id
-        for acct in email_config.accounts:
+        default_id = resolver.default_account_id_for_user(user)
+        for acct in accounts:
             is_default = " (default)" if acct.id == default_id else ""
             print(f"  {acct.id}{is_default}")
             if acct.label:
@@ -110,7 +145,7 @@ def _cmd_email_accounts(args: argparse.Namespace) -> int:
             print(f"    Cred:    {acct.credential_ref}")
             print()
 
-        print(f"Total: {len(email_config.accounts)} account(s)")
+        print(f"Total: {len(accounts)} account(s)")
         return 0
 
     if accounts_cmd == "set-active":
@@ -119,17 +154,21 @@ def _cmd_email_accounts(args: argparse.Namespace) -> int:
             print("Error: --account-id is required")
             return 1
 
-        email_config = _cli()._load_email_config_safe()
-        if not email_config:
+        if resolver is None:
             print("Error: No email configuration found")
             return 1
 
-        ids = email_config.list_account_ids()
-        if account_id not in ids:
-            print(f"Error: Account '{account_id}' not found. Available: {', '.join(ids)}")
+        owned = resolver.account_ids_for_user(user)
+        if account_id not in owned:
+            # Foreign and nonexistent accounts are indistinguishable; only
+            # the requesting user's own accounts are ever revealed.
+            print(f"Error: Account '{account_id}' is not available for user '{user}'.")
+            if owned:
+                print(f"Available: {', '.join(owned)}")
             return 1
 
-        # Update the config file
+        # Update only this user's default; never another user's routing and
+        # never the legacy global default.
         try:
             import json as _json
 
@@ -139,11 +178,14 @@ def _cmd_email_accounts(args: argparse.Namespace) -> int:
             else:
                 config_data = {}
 
-            if "email" not in config_data:
-                config_data["email"] = {}
-            config_data["email"]["default_account_id"] = account_id
+            users_block = config_data.setdefault("users", {})
+            user_entry = users_block.setdefault(user, {})
+            if not isinstance(user_entry, dict):
+                print("Error: Invalid users section in config")
+                return 1
+            user_entry["default_email_account_id"] = account_id
             config_path.write_text(_json.dumps(config_data, indent=2) + "\n", encoding="utf-8")
-            print(f"Default email account set to '{account_id}'")
+            print(f"Default email account for user '{user}' set to '{account_id}'")
             return 0
         except Exception as exc:
             print(f"Error updating config: {exc}")
@@ -153,8 +195,8 @@ def _cmd_email_accounts(args: argparse.Namespace) -> int:
     return 1
 
 
-def _cmd_email_send(args: argparse.Namespace) -> int:
-    """Handle 'rex email send'."""
+def _cmd_email_send(args: argparse.Namespace, user: str) -> int:
+    """Handle 'rex email send' for one validated user."""
     to = getattr(args, "to", None)
     subject = getattr(args, "subject", None)
     body = getattr(args, "body", None)
@@ -172,16 +214,21 @@ def _cmd_email_send(args: argparse.Namespace) -> int:
         print("Email integration not configured. Set IMAP/SMTP credentials in config.")
         return 1
     if not email_service.connected:
-        if not email_service.connect():
+        if not email_service.connect(user):
             print("Error: Failed to connect to email service")
             return 1
 
-    result = email_service.send(
-        to=to,
-        subject=subject,
-        body=body,
-        account_id=account_id,
-    )
+    try:
+        result = email_service.send(
+            to=to,
+            subject=subject,
+            body=body,
+            account_id=account_id,
+            user_id=user,
+        )
+    except PermissionError as exc:
+        print(f"Error: {exc}")
+        return 1
 
     if result.get("ok"):
         msg_id = result.get("message_id") or "(stub)"
@@ -192,27 +239,35 @@ def _cmd_email_send(args: argparse.Namespace) -> int:
     return 1
 
 
-def _cmd_email_test_connection(args: argparse.Namespace) -> int:
-    """Handle 'rex email test-connection'."""
+def _cmd_email_test_connection(args: argparse.Namespace, user: str) -> int:
+    """Handle 'rex email test-connection' for one validated user."""
     account_id = getattr(args, "account_id", None)
 
-    email_config = _cli()._load_email_config_safe()
-    if not email_config or not email_config.accounts:
+    resolver = _cli()._load_email_resolver_safe()
+    if resolver is None or not resolver.has_configured_accounts():
         print("No email accounts configured. Using stub backend.")
         print("Connection test: OK (stub mode)")
         return 0
 
-    acct = email_config.get_account(account_id)
+    owned = resolver.account_ids_for_user(user)
+    try:
+        resolved_id = resolver.resolve_account_id(user, account_id)
+    except PermissionError:
+        resolved_id = None
+    acct = resolver.get_account_definition(resolved_id) if resolved_id else None
     if acct is None:
-        available = ", ".join(email_config.list_account_ids())
-        print(f"Error: Account not found. Available: {available}")
+        # Only the requesting user's own accounts are ever revealed.
+        if owned:
+            print(f"Error: Account not available. Available for user '{user}': {', '.join(owned)}")
+        else:
+            print(f"Error: No email accounts configured for user '{user}'.")
         return 1
 
     print(f"Testing connection for account '{acct.id}' ({acct.address})...")
     print(f"  IMAP: {acct.imap.host}:{acct.imap.port}")
     print(f"  SMTP: {acct.smtp.host}:{acct.smtp.port}")
 
-    # Check credentials
+    # Check credentials (only this account's own credential_ref is consulted)
     try:
         from rex.credentials import get_credential_manager
 
@@ -232,14 +287,10 @@ def _cmd_email_test_connection(args: argparse.Namespace) -> int:
 
     # Try IMAP connect
     try:
-        from rex.email_backends.account_router import resolve_backend
+        from rex.email_backends.account_router import build_backend_for_account
 
-        backend, _ = resolve_backend(
-            email_config,
-            account_id=acct.id,
-            credential_getter=cm.get_token,
-        )
-        if backend.connect():
+        backend = build_backend_for_account(acct, credential_getter=cm.get_token)
+        if backend is not None and backend.connect():
             print("  IMAP connection: OK")
             backend.disconnect()
         else:
@@ -369,6 +420,9 @@ def register(subparsers: argparse._SubParsersAction) -> None:
     email_unread.add_argument(
         "-v", "--verbose", action="store_true", help="Show detailed email information"
     )
+    email_unread.add_argument(
+        "--user", type=str, default=None, help="User context for this command"
+    )
     email_unread.set_defaults(func=_cli().cmd_email, email_command="unread")
 
     # email accounts
@@ -385,7 +439,10 @@ def register(subparsers: argparse._SubParsersAction) -> None:
 
     email_accounts_list = email_accounts_sub.add_parser(
         "list",
-        help="List configured email accounts",
+        help="List the selected user's email accounts",
+    )
+    email_accounts_list.add_argument(
+        "--user", type=str, default=None, help="User context for this command"
     )
     email_accounts_list.set_defaults(
         func=cmd_email, email_command="accounts", accounts_command="list"
@@ -393,13 +450,16 @@ def register(subparsers: argparse._SubParsersAction) -> None:
 
     email_accounts_set_active = email_accounts_sub.add_parser(
         "set-active",
-        help="Set the default email account",
+        help="Set the selected user's default email account",
     )
     email_accounts_set_active.add_argument(
         "--account-id",
         type=str,
         required=True,
-        help="Account ID to set as default",
+        help="Account ID to set as this user's default",
+    )
+    email_accounts_set_active.add_argument(
+        "--user", type=str, default=None, help="User context for this command"
     )
     email_accounts_set_active.set_defaults(
         func=cmd_email, email_command="accounts", accounts_command="set-active"
@@ -419,6 +479,7 @@ def register(subparsers: argparse._SubParsersAction) -> None:
     email_send.add_argument("--subject", type=str, required=True, help="Email subject")
     email_send.add_argument("--body", type=str, required=True, help="Email body text")
     email_send.add_argument("--account-id", type=str, default=None, help="Account ID to send from")
+    email_send.add_argument("--user", type=str, default=None, help="User context for this command")
     email_send.set_defaults(func=_cli().cmd_email, email_command="send")
 
     # email test-connection
@@ -428,6 +489,9 @@ def register(subparsers: argparse._SubParsersAction) -> None:
         description="Verify IMAP/SMTP connectivity for a configured account.",
     )
     email_test_conn.add_argument("--account-id", type=str, default=None, help="Account ID to test")
+    email_test_conn.add_argument(
+        "--user", type=str, default=None, help="User context for this command"
+    )
     email_test_conn.set_defaults(func=_cli().cmd_email, email_command="test-connection")
 
     email_parser.set_defaults(func=_cli().cmd_email, email_command="unread")

@@ -43,27 +43,49 @@ def resolve_backend(
         logger.info("No email accounts configured; using stub backend")
         return StubEmailBackend(fixture_path=stub_fixture), None
 
+    backend = build_backend_for_account(
+        account,
+        credential_getter=credential_getter,
+    )
+    if backend is None:
+        return StubEmailBackend(fixture_path=stub_fixture), None
+    return backend, account
+
+
+def build_backend_for_account(
+    account: EmailAccountConfig,
+    credential_getter: object | None = None,
+) -> EmailBackend | None:
+    """Build a real backend for one already-authorized account definition.
+
+    Ownership must be validated by the caller (``rex.email_accounts``) before
+    this is invoked.  The credential lookup uses only the account's own
+    ``credential_ref`` — callers can never supply an arbitrary reference.
+
+    Returns:
+        A connected-capable ``ImapSmtpEmailBackend``, or ``None`` when no
+        usable credential is available for the account.
+    """
     cred_token = _get_credential(account.credential_ref, credential_getter)
     if cred_token is None:
         logger.warning(
-            "No credential found for ref '%s' (account '%s'); " "falling back to stub backend",
+            "No credential found for ref '%s' (account '%s')",
             account.credential_ref,
             account.id,
         )
-        return StubEmailBackend(fixture_path=stub_fixture), None
+        return None
 
     username, password = _parse_credential_token(cred_token, account)
     if not username or not password:
         logger.warning(
-            "Credential for '%s' could not be parsed into username:password; "
-            "falling back to stub backend",
+            "Credential for '%s' could not be parsed into username:password",
             account.credential_ref,
         )
-        return StubEmailBackend(fixture_path=stub_fixture), None
+        return None
 
     from rex.email_backends.imap_smtp import ImapSmtpEmailBackend
 
-    backend = ImapSmtpEmailBackend(
+    return ImapSmtpEmailBackend(
         imap_host=account.imap.host,
         imap_port=account.imap.port,
         smtp_host=account.smtp.host,
@@ -72,7 +94,6 @@ def resolve_backend(
         password=password,
         use_starttls=account.smtp.starttls,
     )
-    return backend, account
 
 
 def _get_credential(
@@ -104,4 +125,4 @@ def _parse_credential_token(
     return account.address, token.strip()
 
 
-__all__ = ["resolve_backend"]
+__all__ = ["build_backend_for_account", "resolve_backend"]

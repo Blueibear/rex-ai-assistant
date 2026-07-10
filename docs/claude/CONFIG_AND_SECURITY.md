@@ -352,6 +352,7 @@ Deprecated flat-field aliases that currently emit `DeprecationWarning`:
 | `email_accounts` | `email.accounts` | json-only | runtime | `[]` |
 | `email_default_account_id` | `email.default_account_id` | json-only | runtime | `""` |
 | `user_email_accounts` | `users.{id}.email_accounts` | json-only | runtime | `{}` |
+| `user_default_email_accounts` | `users.{id}.default_email_account_id` | json-only | runtime | `{}` |
 | `calendar_provider` | `calendar.provider` | json-only | runtime | `"none"` |
 
 #### Conversational Follow-ups (`conversation.followups.*` in rex_config.json)

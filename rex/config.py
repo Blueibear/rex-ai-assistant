@@ -350,6 +350,10 @@ class AppConfig:
     # Keyed by user_id; each value is the list of email accounts for that user.
     user_email_accounts: Dict[str, List[UserEmailAccount]] = field(default_factory=dict)
 
+    # Per-user default email account selection (issue #303).
+    # Keyed by user_id; value is the account_id of that user's default account.
+    user_default_email_accounts: Dict[str, str] = field(default_factory=dict)
+
     # Location and weather
     default_location: Optional[str] = None
     default_timezone: Optional[str] = None
@@ -836,6 +840,24 @@ def _parse_user_email_accounts(
     return result
 
 
+def _parse_user_default_email_accounts(users_block: object) -> Dict[str, str]:
+    """Parse ``users.{user_id}.default_email_account_id`` into a per-user map.
+
+    Each user's default may only reference an account assigned to that user;
+    ownership is enforced at resolution time by ``rex.email_accounts``.
+    """
+    result: Dict[str, str] = {}
+    if not isinstance(users_block, dict):
+        return result
+    for user_id, user_data in users_block.items():
+        if not isinstance(user_data, dict):
+            continue
+        default_id = user_data.get("default_email_account_id")
+        if isinstance(default_id, str) and default_id.strip():
+            result[str(user_id)] = default_id.strip()
+    return result
+
+
 def _parse_model_routing(raw: object) -> ModelRoutingConfig:
     """Parse ``model_routing`` block from JSON config."""
     if not isinstance(raw, dict):
@@ -1081,6 +1103,10 @@ def build_app_config(json_config: dict) -> AppConfig:
         user_email_accounts=_parse_user_email_accounts(
             _get_nested(json_config, "users", {}),
             _get_nested(json_config, "email.accounts", []),
+        ),
+        # Per-user default email account selection (issue #303)
+        user_default_email_accounts=_parse_user_default_email_accounts(
+            _get_nested(json_config, "users", {}),
         ),
         # History persistence
         persist_history=bool(_get_nested(json_config, "runtime.persist_history", True)),

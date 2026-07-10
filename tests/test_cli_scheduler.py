@@ -62,7 +62,7 @@ def test_cli_email_unread(capsys, monkeypatch):
 
     reset_services()
     monkeypatch.setattr("rex.cli.get_email_service", lambda: EmailService())
-    args = Namespace(email_command="unread")
+    args = Namespace(email_command="unread", user="default")
     assert cmd_email(args) == 0
     output = capsys.readouterr().out
     assert "Unread Email Summary" in output

@@ -121,17 +121,29 @@ def _handle_web_search(args: dict[str, Any]) -> str:
 
 
 def _handle_send_email(args: dict[str, Any]) -> str:
-    """Send an email via EmailService.  Accepts {to, subject, body}."""
+    """Send an email via EmailService.  Accepts {to, subject, body, _user_id}.
+
+    Requires a validated requesting user (``_user_id`` or ``user_id`` in
+    *args*); fails closed before any account or credential resolution.
+    """
     to: str = str(args.get("to") or "").strip()
     subject: str = str(args.get("subject") or "(no subject)").strip()
     body: str = str(args.get("body") or "").strip()
+    user_id = args.get("_user_id") or args.get("user_id")
 
     if not to:
         return "[send_email error: 'to' address is required]"
 
+    from rex.email_accounts import require_user_id
+
+    try:
+        validated_user = require_user_id(user_id)
+    except PermissionError:
+        return "[send_email error: a valid user identity is required]"
+
     try:
         svc = EmailService()
-        result = svc.send(to=to, subject=subject, body=body)
+        result = svc.send(to=to, subject=subject, body=body, user_id=validated_user)
     except Exception as exc:
         logger.warning("send_email failed: %s", exc)
         return f"[send_email error: {exc}]"

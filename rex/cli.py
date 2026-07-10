@@ -87,6 +87,7 @@ from rex.commands._epilog import CLI_EPILOG  # noqa: E402
 from rex.commands._helpers import (  # noqa: E402,F401
     _get_version,
     _load_email_config_safe,
+    _load_email_resolver_safe,
     _parse_datetime_strict,
     _parse_ttl,
     _resolve_cli_user,
