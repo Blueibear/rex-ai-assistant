@@ -171,19 +171,49 @@ def create_blueprint() -> Blueprint:
 
     @bp.route("/api/email/inbox", methods=["GET"])
     def _email_inbox() -> Any:
-        """Return inbox messages from the configured email provider."""
+        """Return inbox messages for the resolved requesting user only.
+
+        Identity comes from an explicit ``?user=`` query parameter or the
+        standard identity chain; without a valid user the request fails
+        closed (no global-credential fallback for named users).
+        """
         from flask import jsonify, request
 
-        from rex.config import load_config
-        from rex.integrations.email_service import EmailService
+        from rex.identity import resolve_active_user
+        from rex.integrations.email_service import create_email_service_for_user
+
+        no_user_error = (
+            "No active user for email. Set one with 'rex identify --user <id>' "
+            "or pass an explicit ?user= parameter."
+        )
 
         try:
-            cfg = load_config()
-        except Exception:
-            return jsonify({"ok": True, "messages": [], "configured": False}), 200
+            from rex.config_manager import load_config as _load_raw_config
 
-        provider = getattr(cfg, "email_provider", "none") or "none"
-        if str(provider).lower() == "outlook":
+            raw_config = _load_raw_config()
+        except Exception:
+            raw_config = {}
+
+        explicit = str(request.args.get("user") or "").strip() or None
+        try:
+            user_id = resolve_active_user(explicit, config=raw_config)
+        except ValueError:
+            user_id = None
+        if not user_id:
+            return (
+                jsonify({"ok": False, "messages": [], "configured": False, "error": no_user_error}),
+                403,
+            )
+
+        try:
+            svc, provider = create_email_service_for_user(user_id, raw_config)
+        except PermissionError:
+            return (
+                jsonify({"ok": False, "messages": [], "configured": False, "error": no_user_error}),
+                403,
+            )
+
+        if provider == "outlook":
             return (
                 jsonify(
                     {
@@ -200,7 +230,8 @@ def create_blueprint() -> Blueprint:
                 501,
             )
 
-        svc = EmailService(email_provider=provider)
+        if svc is None:
+            return jsonify({"ok": True, "messages": [], "configured": False}), 200
 
         try:
             limit = int(request.args.get("limit", 50))
@@ -208,7 +239,7 @@ def create_blueprint() -> Blueprint:
             limit = 50
 
         messages = svc.list_inbox(limit=limit)
-        configured = provider != "none"
+        configured = True
 
         def _msg_to_dict(m: Any) -> dict:
             return {

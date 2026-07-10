@@ -25,13 +25,15 @@ def test_config_loads_email_and_calendar_provider_selection() -> None:
 
 
 def test_email_bridge_reports_outlook_as_unsupported(monkeypatch) -> None:
+    import rex.config_manager
+
     monkeypatch.setattr(
-        rex.config,
+        rex.config_manager,
         "load_config",
-        lambda: SimpleNamespace(email_provider="outlook"),
+        lambda *a, **k: {"email": {"provider": "outlook"}},
     )
 
-    result = rex_email_bridge._handle_list(10)
+    result = rex_email_bridge._handle_list("default", 10)
 
     assert result["ok"] is False
     assert result["configured"] is True

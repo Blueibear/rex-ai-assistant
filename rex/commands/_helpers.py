@@ -31,6 +31,16 @@ def _load_email_config_safe():
         return None
 
 
+def _load_email_resolver_safe():
+    """Load the per-user EmailAccountResolver, returning None on failure."""
+    try:
+        from rex.email_accounts import EmailAccountResolver
+
+        return EmailAccountResolver.load()
+    except Exception:
+        return None
+
+
 def _resolve_cli_user(args: argparse.Namespace) -> str | None:
     """Resolve active user context for commands that accept ``--user``."""
     from rex.identity import resolve_active_user

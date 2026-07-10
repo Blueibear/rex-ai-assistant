@@ -166,7 +166,7 @@ class TestEmailCLI:
         mock_email_service.connect.return_value = True
         mock_email_service.fetch_unread.return_value = []
 
-        args = MagicMock(email_command="unread", limit=10, verbose=False, user=None)
+        args = MagicMock(email_command="unread", limit=10, verbose=False, user="default")
         result = cmd_email(args)
 
         assert result == 0
@@ -190,7 +190,7 @@ class TestEmailCLI:
         mock_email_service.fetch_unread.return_value = [email1]
         mock_email_service.categorize.return_value = "important"
 
-        args = MagicMock(email_command="unread", limit=10, verbose=False, user=None)
+        args = MagicMock(email_command="unread", limit=10, verbose=False, user="default")
         result = cmd_email(args)
 
         assert result == 0
@@ -217,7 +217,7 @@ class TestEmailCLI:
         mock_email_service.fetch_unread.return_value = [email]
         mock_email_service.categorize.return_value = "general"
 
-        args = MagicMock(email_command="unread", limit=10, verbose=True, user=None)
+        args = MagicMock(email_command="unread", limit=10, verbose=True, user="default")
         result = cmd_email(args)
 
         assert result == 0
@@ -229,7 +229,7 @@ class TestEmailCLI:
         """Test email command when connection fails."""
         mock_email_service.connect.return_value = False
 
-        args = MagicMock(email_command="unread", limit=10, verbose=False, user=None)
+        args = MagicMock(email_command="unread", limit=10, verbose=False, user="default")
         result = cmd_email(args)
 
         assert result == 1
@@ -241,14 +241,14 @@ class TestEmailCLI:
         mock_email_service.connect.return_value = True
         mock_email_service.fetch_unread.return_value = []
 
-        args = MagicMock(email_command="unread", limit=5, verbose=False, user=None)
+        args = MagicMock(email_command="unread", limit=5, verbose=False, user="default")
         cmd_email(args)
 
-        mock_email_service.fetch_unread.assert_called_once_with(limit=5)
+        mock_email_service.fetch_unread.assert_called_once_with(limit=5, user_id="default")
 
     def test_email_unknown_command(self, mock_email_service, capsys):
         """Test unknown email subcommand."""
-        args = MagicMock(email_command="unknown", user=None)
+        args = MagicMock(email_command="unknown", user="default")
         result = cmd_email(args)
 
         assert result == 1

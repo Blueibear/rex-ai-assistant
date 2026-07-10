@@ -62,13 +62,14 @@ def test_email_service_has_no_hardcoded_mock_data() -> None:
 
 
 def test_get_email_service_raises_when_not_configured() -> None:
-    """get_email_service() raises IntegrationNotConfiguredError when no credentials."""
+    """get_email_service() raises IntegrationNotConfiguredError when no accounts."""
+    import rex.config_manager as config_manager
     import rex.email_service as svc_mod
 
     original = svc_mod._email_service
     try:
         svc_mod._email_service = None
-        with patch.object(EmailService, "_resolve_backend_from_config", return_value=(None, None)):
+        with patch.object(config_manager, "load_config", return_value={}):
             with pytest.raises(IntegrationNotConfiguredError):
                 svc_mod.get_email_service()
     finally:
@@ -76,15 +77,19 @@ def test_get_email_service_raises_when_not_configured() -> None:
 
 
 def test_create_configured_raises_when_no_backend() -> None:
-    """_create_configured_email_service() raises when no backend resolved."""
-    with patch.object(EmailService, "_resolve_backend_from_config", return_value=(None, None)):
+    """_create_configured_email_service() raises when no accounts configured."""
+    import rex.config_manager as config_manager
+
+    with patch.object(config_manager, "load_config", return_value={}):
         with pytest.raises(IntegrationNotConfiguredError):
             _create_configured_email_service()
 
 
 def test_create_configured_error_message_mentions_email() -> None:
     """IntegrationNotConfiguredError message references email."""
-    with patch.object(EmailService, "_resolve_backend_from_config", return_value=(None, None)):
+    import rex.config_manager as config_manager
+
+    with patch.object(config_manager, "load_config", return_value={}):
         with pytest.raises(IntegrationNotConfiguredError, match="Email"):
             _create_configured_email_service()
 
@@ -95,28 +100,39 @@ def test_create_configured_error_message_mentions_email() -> None:
 
 
 def test_get_email_service_returns_service_when_configured() -> None:
-    """get_email_service() returns EmailService with a real backend when configured."""
+    """get_email_service() returns an owner-enforcing EmailService when configured."""
+    import rex.config_manager as config_manager
     import rex.email_service as svc_mod
 
-    mock_backend = MagicMock()
+    raw_config = {
+        "email": {
+            "default_account_id": "personal",
+            "accounts": [
+                {
+                    "id": "personal",
+                    "address": "you@example.com",
+                    "imap": {"host": "imap.example.com"},
+                    "smtp": {"host": "smtp.example.com"},
+                    "credential_ref": "email:personal",
+                }
+            ],
+        }
+    }
     original = svc_mod._email_service
     try:
         svc_mod._email_service = None
-        with patch.object(
-            EmailService,
-            "_resolve_backend_from_config",
-            return_value=(mock_backend, None),
-        ):
+        with patch.object(config_manager, "load_config", return_value=raw_config):
             service = svc_mod.get_email_service()
         assert service is not None
         assert isinstance(service, EmailService)
-        assert service.active_backend is mock_backend
+        # Backends are resolved lazily per user; nothing is pre-bound.
+        assert service.active_backend is None
     finally:
         svc_mod._email_service = original
 
 
 def test_configured_service_uses_real_backend_for_fetch() -> None:
-    """EmailService delegates fetch_unread to the configured backend."""
+    """EmailService delegates fetch_unread to the bound backend for its owner."""
     from datetime import UTC, datetime
 
     from rex.email_backends.base import EmailEnvelope
@@ -137,7 +153,7 @@ def test_configured_service_uses_real_backend_for_fetch() -> None:
     service = EmailService(backend=mock_backend)
     service.connected = True
 
-    results = service.fetch_unread(limit=5)
+    results = service.fetch_unread(limit=5, user_id="default")
     assert len(results) == 1
     assert results[0].id == "real-001"
     mock_backend.fetch_unread.assert_called_once_with(limit=5)

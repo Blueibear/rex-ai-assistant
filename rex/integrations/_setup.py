@@ -23,29 +23,61 @@ def setup_email_job() -> ScheduledJob:
     event_bus = get_event_bus()
 
     def check_email(job: ScheduledJob) -> None:
-        """Check for unread emails and publish event."""
+        """Check unread email per configured owner and publish scoped events.
+
+        Each owner is processed in an isolated context: one owner's failure
+        never falls through to another owner's account.  Private email
+        fields are published only on the owner-scoped topic; the shared
+        ``email.unread`` topic carries a safe envelope (count/user/account).
+        """
         logger.info("Running scheduled email check")
-        email_service = get_email_service()
         try:
-            if not email_service.connected:
-                email_service.connect()
-            unread_emails = email_service.fetch_unread(limit=10)
-            if unread_emails:
-                for email in unread_emails:
-                    email.category = email_service.categorize(email)
-                event = Event(
-                    event_type="email.unread",
-                    payload={
-                        "count": len(unread_emails),
-                        "emails": [email.model_dump() for email in unread_emails],
-                    },
-                )
-                event_bus.publish(event)
-                logger.info(f"Published email.unread event with {len(unread_emails)} emails")
-            else:
-                logger.debug("No unread emails found")
+            from rex.email_accounts import EmailAccountResolver
+
+            owners = EmailAccountResolver.load().configured_user_ids()
         except Exception as e:
-            logger.error(f"Error checking emails: {e}", exc_info=True)
+            logger.error(f"Error resolving email owners: {e}", exc_info=True)
+            return
+        if not owners:
+            logger.debug("No email account owners configured; skipping scheduled email check")
+            return
+
+        try:
+            email_service = get_email_service()
+        except Exception as e:
+            logger.debug(f"Email service unavailable for scheduled check: {e}")
+            return
+
+        for owner in owners:
+            try:
+                unread_emails = email_service.fetch_unread(limit=10, user_id=owner)
+                if unread_emails:
+                    for email in unread_emails:
+                        email.category = email_service.categorize(email)
+                    event_bus.publish(
+                        Event(
+                            event_type=f"email.unread.user.{owner}",
+                            payload={
+                                "count": len(unread_emails),
+                                "user_id": owner,
+                                "emails": [email.model_dump() for email in unread_emails],
+                            },
+                        )
+                    )
+                    event_bus.publish(
+                        Event(
+                            event_type="email.unread",
+                            payload={"count": len(unread_emails), "user_id": owner},
+                        )
+                    )
+                    logger.info(
+                        f"Published email.unread event with {len(unread_emails)} emails "
+                        f"for user {owner}"
+                    )
+                else:
+                    logger.debug(f"No unread emails found for user {owner}")
+            except Exception as e:
+                logger.error(f"Error checking emails for user {owner}: {e}", exc_info=True)
 
     scheduler.register_callback("check_email", check_email)
     job = scheduler.add_job(

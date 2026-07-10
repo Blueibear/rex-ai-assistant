@@ -44,7 +44,7 @@ class TestEmailServiceBackend:
         svc = EmailService(mock_data_file=mock_emails_file)
         assert svc.active_backend is None
         assert svc.connect() is True
-        unread = svc.fetch_unread()
+        unread = svc.fetch_unread(user_id="default")
         assert len(unread) == 1
 
     def test_set_backend(self, mock_emails_file):
@@ -77,7 +77,7 @@ class TestEmailServiceBackend:
 
         svc = EmailService(mock_data_file=mock_emails_file, backend=mock_backend)
         svc.connect()
-        result = svc.fetch_unread()
+        result = svc.fetch_unread(user_id="default")
 
         assert len(result) == 1
         assert isinstance(result[0], EmailSummary)
@@ -91,7 +91,7 @@ class TestEmailServiceBackend:
 
         svc = EmailService(mock_data_file=mock_emails_file, backend=mock_backend)
         svc.connect()
-        assert svc.mark_as_read("msg-1") is True
+        assert svc.mark_as_read("msg-1", user_id="default") is True
         mock_backend.mark_as_read.assert_called_once_with("msg-1")
 
     def test_send_with_backend(self, mock_emails_file):
@@ -105,6 +105,7 @@ class TestEmailServiceBackend:
             to="recipient@y.com",
             subject="Test Send",
             body="Hello via backend",
+            user_id="default",
         )
         assert result["ok"] is True
         assert result["message_id"] == "sent-1"
@@ -118,6 +119,7 @@ class TestEmailServiceBackend:
             to="recipient@y.com",
             subject="Stub Send",
             body="Logged only",
+            user_id="default",
         )
         assert result["ok"] is True
         assert result["error"] is None
@@ -133,6 +135,7 @@ class TestEmailServiceBackend:
             to=["a@b.com", "c@d.com"],
             subject="Multi",
             body="Multi-recipient",
+            user_id="default",
         )
         assert result["ok"] is True
         call_kwargs = mock_backend.send.call_args[1]
@@ -145,7 +148,7 @@ class TestEmailServiceBackend:
 
         svc = EmailService(mock_data_file=mock_emails_file, backend=mock_backend)
         svc.connect()
-        result = svc.send(to="x@y.com", subject="Fail", body="Oops")
+        result = svc.send(to="x@y.com", subject="Fail", body="Oops", user_id="default")
         assert result["ok"] is False
         assert "relay denied" in result["error"]
 
@@ -157,13 +160,13 @@ class TestEmailServiceStubBackend:
         backend = StubEmailBackend(fixture_path=mock_emails_file)
         svc = EmailService(backend=backend)
         assert svc.connect() is True
-        unread = svc.fetch_unread()
+        unread = svc.fetch_unread(user_id="default")
         assert len(unread) == 1
 
     def test_stub_send_through_service(self, mock_emails_file):
         backend = StubEmailBackend(fixture_path=mock_emails_file)
         svc = EmailService(backend=backend)
         svc.connect()
-        result = svc.send(to="x@y.com", subject="Hi", body="Hello")
+        result = svc.send(to="x@y.com", subject="Hi", body="Hello", user_id="default")
         assert result["ok"] is True
         assert len(backend.sent_messages) == 1

@@ -166,10 +166,17 @@ class TestSendEmail:
         with patch("rex.local_tool_executor.EmailService", return_value=mock_svc):
             result = execute_tool(
                 "send_email",
-                {"to": "alice@example.com", "subject": "Hi", "body": "Hello"},
+                {
+                    "to": "alice@example.com",
+                    "subject": "Hi",
+                    "body": "Hello",
+                    "_user_id": "default",
+                },
             )
         assert result == "Email sent"
-        mock_svc.send.assert_called_once_with(to="alice@example.com", subject="Hi", body="Hello")
+        mock_svc.send.assert_called_once_with(
+            to="alice@example.com", subject="Hi", body="Hello", user_id="default"
+        )
 
     def test_returns_error_string_on_failure(self):
         """EmailService.send() returning ok=False → error string."""
@@ -178,10 +185,26 @@ class TestSendEmail:
         with patch("rex.local_tool_executor.EmailService", return_value=mock_svc):
             result = execute_tool(
                 "send_email",
-                {"to": "alice@example.com", "subject": "Hi", "body": "Hello"},
+                {
+                    "to": "alice@example.com",
+                    "subject": "Hi",
+                    "body": "Hello",
+                    "_user_id": "default",
+                },
             )
         assert "[send_email error:" in result
         assert "Auth failed" in result
+
+    def test_missing_user_fails_closed(self):
+        """send_email without a requesting user is refused before service use."""
+        with patch("rex.local_tool_executor.EmailService") as svc_cls:
+            result = execute_tool(
+                "send_email",
+                {"to": "alice@example.com", "subject": "Hi", "body": "Hello"},
+            )
+        assert "[send_email error:" in result
+        assert "identity" in result.lower()
+        svc_cls.assert_not_called()
 
     def test_missing_to_returns_error(self):
         result = execute_tool("send_email", {"subject": "Hi", "body": "Hello"})
@@ -193,7 +216,10 @@ class TestSendEmail:
         with patch(
             "rex.local_tool_executor.EmailService", side_effect=RuntimeError("no connection")
         ):
-            result = execute_tool("send_email", {"to": "a@b.com", "subject": "s", "body": "b"})
+            result = execute_tool(
+                "send_email",
+                {"to": "a@b.com", "subject": "s", "body": "b", "_user_id": "default"},
+            )
         assert "[send_email error:" in result
         assert isinstance(result, str)
 
@@ -201,7 +227,7 @@ class TestSendEmail:
         mock_svc = MagicMock()
         mock_svc.send.return_value = {"ok": True, "message_id": None, "error": None}
         with patch("rex.local_tool_executor.EmailService", return_value=mock_svc):
-            execute_tool("send_email", {"to": "a@b.com", "body": "b"})
+            execute_tool("send_email", {"to": "a@b.com", "body": "b", "_user_id": "default"})
         call_kwargs = mock_svc.send.call_args.kwargs
         assert call_kwargs["subject"] == "(no subject)"
 

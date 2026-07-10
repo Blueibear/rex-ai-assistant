@@ -104,12 +104,15 @@ def test_check_account_access_raises_for_foreign_account():
         svc._check_account_access("alice", "personal")  # Bob's account
 
 
-def test_check_account_access_no_op_when_no_scoping():
-    """When user_email_accounts is empty (no scoping), all access is allowed."""
+def test_check_account_access_denies_when_no_scoping_configured():
+    """An empty user_email_accounts map means no access — never allow-all."""
+    import pytest
+
     from rex.email_service import EmailService
 
     svc = EmailService()  # no user_email_accounts
-    svc._check_account_access("alice", "any-account")  # should not raise
+    with pytest.raises(PermissionError):
+        svc._check_account_access("alice", "any-account")
 
 
 # ---------------------------------------------------------------------------
@@ -150,12 +153,13 @@ def test_send_allows_own_account():
     assert result.get("ok") is True
 
 
-def test_send_without_user_id_skips_ownership_check():
-    """send() without user_id does not enforce ownership (backwards compat)."""
+def test_send_without_user_id_fails_closed():
+    """send() without a user identity is refused before any account routing."""
+    import pytest
+
     svc = _make_service({"alice": [_make_account("work", "alice")]})
-    # No user_id — should not raise even with an account_id that belongs to alice
-    result = svc.send(to="x@y.com", subject="s", body="b", account_id="work")
-    assert result.get("ok") is True
+    with pytest.raises(PermissionError):
+        svc.send(to="x@y.com", subject="s", body="b", account_id="work")
 
 
 # ---------------------------------------------------------------------------

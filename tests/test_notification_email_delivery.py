@@ -33,6 +33,7 @@ def _make_notification(
     body: str = "Alert body",
     to_email: str | None = "user@example.com",
     account_id: str | None = None,
+    user_id: str | None = "default",
     priority: str = "normal",
     channel: str = "email",
 ) -> NotificationRequest:
@@ -41,6 +42,8 @@ def _make_notification(
         meta["to_email"] = to_email
     if account_id is not None:
         meta["email_account_id"] = account_id
+    if user_id is not None:
+        meta["email_user_id"] = user_id
     return NotificationRequest(
         title=title,
         body=body,
@@ -76,6 +79,7 @@ class TestSendToEmail:
             subject="Test alert",
             body="Alert body",
             account_id=None,
+            user_id="default",
         )
 
     def test_passes_account_id_to_send(self, tmp_path):
@@ -88,6 +92,17 @@ class TestSendToEmail:
 
         _, kwargs = mock_svc.send.call_args
         assert kwargs["account_id"] == "work"
+
+    def test_no_send_when_owner_missing(self, tmp_path):
+        """Delivery without an owning user is skipped — fail closed."""
+        notifier = _make_notifier(tmp_path)
+        notification = _make_notification(user_id=None)
+        mock_svc = _stub_email_service()
+
+        with patch("rex.notification.get_email_service", return_value=mock_svc):
+            notifier._send_to_email(notification)
+
+        mock_svc.send.assert_not_called()
 
     def test_no_send_when_to_email_missing(self, tmp_path):
         notifier = _make_notifier(tmp_path)
@@ -155,7 +170,7 @@ class TestDigestFlushEmailDelivery:
             body="Nothing urgent",
             priority="digest",
             channel_preferences=["email"],
-            metadata={"to_email": "user@example.com"},
+            metadata={"to_email": "user@example.com", "email_user_id": "default"},
         )
         notifier._queue_digest(digest_notif)
 
@@ -176,7 +191,7 @@ class TestDigestFlushEmailDelivery:
             body="Body",
             priority="digest",
             channel_preferences=["email"],
-            metadata={"to_email": "admin@example.com"},
+            metadata={"to_email": "admin@example.com", "email_user_id": "default"},
         )
         notifier._queue_digest(digest_notif)
 

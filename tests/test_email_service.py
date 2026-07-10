@@ -120,7 +120,7 @@ def test_email_triage_publishes_events() -> None:
     )
 
     service = EmailService(bus, mock_messages=[message])  # type: ignore[call-arg]
-    triaged = service.triage_unread()  # type: ignore[attr-defined]
+    triaged = service.triage_unread(user_id="default")  # type: ignore[attr-defined]
 
     assert triaged[0]["category"] == "finance"
     assert events, "Expected at least one published event"
@@ -244,7 +244,7 @@ def test_connect_loads_mock_data(email_service: EmailService) -> None:
 )
 def test_fetch_unread(email_service: EmailService) -> None:
     email_service.connect()  # type: ignore[attr-defined]
-    unread = email_service.fetch_unread()  # type: ignore[attr-defined]
+    unread = email_service.fetch_unread(user_id="default")  # type: ignore[attr-defined]
 
     assert len(unread) == 2
     assert all("unread" in email.labels for email in unread)
@@ -256,7 +256,7 @@ def test_fetch_unread(email_service: EmailService) -> None:
 )
 def test_fetch_unread_with_limit(email_service: EmailService) -> None:
     email_service.connect()  # type: ignore[attr-defined]
-    unread = email_service.fetch_unread(limit=1)  # type: ignore[attr-defined]
+    unread = email_service.fetch_unread(limit=1, user_id="default")  # type: ignore[attr-defined]
     assert len(unread) == 1
 
 
@@ -266,7 +266,7 @@ def test_fetch_unread_with_limit(email_service: EmailService) -> None:
 )
 def test_fetch_unread_not_connected() -> None:
     service = EmailService(mock_data_file=Path("/nonexistent"))  # type: ignore[call-arg]
-    unread = service.fetch_unread()  # type: ignore[attr-defined]
+    unread = service.fetch_unread(user_id="default")  # type: ignore[attr-defined]
     assert unread == []
 
 
@@ -276,13 +276,13 @@ def test_fetch_unread_not_connected() -> None:
 )
 def test_mark_as_read(email_service: EmailService) -> None:
     email_service.connect()  # type: ignore[attr-defined]
-    unread = email_service.fetch_unread()  # type: ignore[attr-defined]
+    unread = email_service.fetch_unread(user_id="default")  # type: ignore[attr-defined]
     email_id = unread[0].id
 
-    result = email_service.mark_as_read(email_id)  # type: ignore[attr-defined]
+    result = email_service.mark_as_read(email_id, user_id="default")  # type: ignore[attr-defined]
     assert result is True
 
-    unread_after = email_service.fetch_unread()  # type: ignore[attr-defined]
+    unread_after = email_service.fetch_unread(user_id="default")  # type: ignore[attr-defined]
     assert len(unread_after) == len(unread) - 1
     assert email_id not in [e.id for e in unread_after]
 
@@ -293,7 +293,7 @@ def test_mark_as_read(email_service: EmailService) -> None:
 )
 def test_mark_as_read_nonexistent(email_service: EmailService) -> None:
     email_service.connect()  # type: ignore[attr-defined]
-    assert email_service.mark_as_read("nonexistent-id") is False  # type: ignore[attr-defined]
+    assert email_service.mark_as_read("nonexistent-id", user_id="default") is False  # type: ignore[attr-defined]
 
 
 @pytest.mark.skipif(
@@ -302,7 +302,7 @@ def test_mark_as_read_nonexistent(email_service: EmailService) -> None:
 )
 def test_mark_as_read_not_connected() -> None:
     service = EmailService(mock_data_file=Path("/nonexistent"))  # type: ignore[call-arg]
-    assert service.mark_as_read("email-1") is False  # type: ignore[attr-defined]
+    assert service.mark_as_read("email-1", user_id="default") is False  # type: ignore[attr-defined]
 
 
 @pytest.mark.skipif(
@@ -420,7 +420,7 @@ def test_categorize_general(email_service: EmailService) -> None:
 )
 def test_summarize(email_service: EmailService) -> None:
     email_service.connect()  # type: ignore[attr-defined]
-    summary = email_service.summarize("email-1")  # type: ignore[attr-defined]
+    summary = email_service.summarize("email-1", user_id="default")  # type: ignore[attr-defined]
 
     assert "boss@company.com" in summary
     assert "URGENT: Project deadline" in summary
@@ -433,7 +433,7 @@ def test_summarize(email_service: EmailService) -> None:
 )
 def test_summarize_nonexistent(email_service: EmailService) -> None:
     email_service.connect()  # type: ignore[attr-defined]
-    summary = email_service.summarize("nonexistent")  # type: ignore[attr-defined]
+    summary = email_service.summarize("nonexistent", user_id="default")  # type: ignore[attr-defined]
     assert "not found" in summary.lower()
 
 
@@ -443,7 +443,7 @@ def test_summarize_nonexistent(email_service: EmailService) -> None:
 )
 def test_summarize_not_connected() -> None:
     service = EmailService(mock_data_file=Path("/nonexistent"))  # type: ignore[call-arg]
-    summary = service.summarize("email-1")  # type: ignore[attr-defined]
+    summary = service.summarize("email-1", user_id="default")  # type: ignore[attr-defined]
     assert "not connected" in summary.lower()
 
 

@@ -45,34 +45,61 @@ def send_email(
     subject: str = "",
     body: str = "",
     context: dict[str, Any] | None = None,
+    account_id: str | None = None,
     **kwargs: Any,
 ) -> dict[str, Any]:
-    """Send an email via Rex's EmailService.
+    """Send an email via Rex's EmailService as the dispatching user.
 
-    Delegates to :func:`rex.email_service.get_email_service().send`.  In
-    stub mode (no backend configured) the email is logged and a success
-    response is returned without actually sending.
+    Delegates to :func:`rex.email_service.get_email_service().send`.  The
+    dispatcher-injected ``_user_id`` is required and validated **before** any
+    backend or credential resolution; missing or invalid identity fails
+    closed.  An optional ``account_id`` routes through a specific account
+    only after ownership validation — a named user can never fall back to
+    the global default or first configured account.
 
     .. note::
         This tool is policy-gated (MEDIUM risk).  Callers are responsible
         for obtaining policy approval before invoking this function.
 
     Args:
-        to:      Recipient address or list of addresses.
-        subject: Email subject line.
-        body:    Plain-text message body.
-        context: Optional ambient context dict (unused; reserved for future
-            timezone / locale injection).
-        **kwargs: Absorbs dispatcher-injected keys such as ``transcript``
+        to:         Recipient address or list of addresses.
+        subject:    Email subject line.
+        body:       Plain-text message body.
+        context:    Optional ambient context dict (unused; reserved for
+            future timezone / locale injection).
+        account_id: Optional explicit account to send from (must belong to
+            the requesting user).
+        **kwargs:   Absorbs dispatcher-injected keys such as ``transcript``
             and ``_user_id`` without raising TypeError.
 
     Returns:
         A dict with keys ``ok`` (bool), ``message_id`` (str|None), and
         ``error`` (str|None).
     """
-    user_id: str | None = kwargs.get("_user_id")
+    from rex.email_accounts import require_user_id
+
+    try:
+        user_id = require_user_id(kwargs.get("_user_id"))
+    except PermissionError as exc:
+        logger.warning("send_email tool refused: %s", exc)
+        return {
+            "ok": False,
+            "message_id": None,
+            "error": "send_email requires a valid user identity",
+        }
+
     service = _get_email_service()
-    send_kwargs: dict[str, Any] = {"to": to, "subject": subject, "body": body}
-    if user_id is not None:
-        send_kwargs["user_id"] = user_id
-    return service.send(**send_kwargs)
+    # Audit metadata: requesting user and selected account only — never
+    # credentials or message bodies.
+    logger.info("send_email tool: user=%s account=%s", user_id, account_id or "(default)")
+    try:
+        return service.send(
+            to=to,
+            subject=subject,
+            body=body,
+            account_id=account_id,
+            user_id=user_id,
+        )
+    except PermissionError as exc:
+        logger.warning("send_email tool refused for user=%s: %s", user_id, exc)
+        return {"ok": False, "message_id": None, "error": str(exc)}

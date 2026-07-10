@@ -36,7 +36,7 @@ class TestNotificationEmailChannel:
             title="Test Alert",
             body="Something happened",
             channel_preferences=["email"],
-            metadata={"to_email": "user@example.com"},
+            metadata={"to_email": "user@example.com", "email_user_id": "default"},
         )
 
         with patch("rex.email_service.get_email_service", return_value=mock_service):
@@ -47,6 +47,7 @@ class TestNotificationEmailChannel:
             subject="Test Alert",
             body="Something happened",
             account_id=None,
+            user_id="default",
         )
 
     def test_email_channel_with_account_id(self, notifier):
@@ -63,6 +64,7 @@ class TestNotificationEmailChannel:
             metadata={
                 "to_email": "user@example.com",
                 "email_account_id": "work",
+                "email_user_id": "default",
             },
         )
 
@@ -74,6 +76,7 @@ class TestNotificationEmailChannel:
             subject="Alert",
             body="Body",
             account_id="work",
+            user_id="default",
         )
 
     def test_email_channel_stub_mode_no_backend(self, notifier):
@@ -111,6 +114,24 @@ class TestNotificationEmailChannel:
 
         mock_service.send.assert_not_called()
 
+    def test_email_channel_no_owner_fails_closed(self, notifier):
+        """Without email_user_id, delivery is skipped — never another user's account."""
+        mock_service = MagicMock()
+        mock_service.active_backend = MagicMock()
+
+        notif = NotificationRequest(
+            priority="normal",
+            title="No Owner",
+            body="Body",
+            channel_preferences=["email"],
+            metadata={"to_email": "user@example.com"},  # no email_user_id
+        )
+
+        with patch("rex.email_service.get_email_service", return_value=mock_service):
+            notifier._send_to_email(notif)
+
+        mock_service.send.assert_not_called()
+
     def test_email_channel_send_failure_raises(self, notifier):
         """When send() returns ok=False, RuntimeError is raised."""
         mock_service = MagicMock()
@@ -122,7 +143,7 @@ class TestNotificationEmailChannel:
             title="Fail",
             body="Oops",
             channel_preferences=["email"],
-            metadata={"to_email": "user@example.com"},
+            metadata={"to_email": "user@example.com", "email_user_id": "default"},
         )
 
         with patch("rex.email_service.get_email_service", return_value=mock_service):
@@ -140,7 +161,7 @@ class TestNotificationEmailChannel:
             title="Urgent",
             body="Do something",
             channel_preferences=["email", "dashboard"],
-            metadata={"to_email": "admin@example.com"},
+            metadata={"to_email": "admin@example.com", "email_user_id": "default"},
         )
 
         with patch("rex.email_service.get_email_service", return_value=mock_service):

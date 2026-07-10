@@ -2,16 +2,36 @@
 
 Reads a JSON command from stdin and writes a JSON response to stdout.
 
+Every command operates on behalf of a resolved user identity (US-303
+per-user isolation):
+
+- An explicit ``"user"`` field in the payload takes precedence (it is
+  validated; malformed IDs fail closed).
+- Otherwise the active user is resolved through the standard identity
+  chain (``rex identify`` session state, then ``runtime.active_user`` /
+  ``runtime.user_id`` in ``config/rex_config.json``).
+- If no user can be resolved, the command fails closed with an error.
+  Single-user setups keep working by explicitly selecting the ``default``
+  profile (``rex identify --user default`` or ``"user": "default"``).
+
+Provider routing is per-user: a ``gmail`` account assigned to the user in
+``users.{id}.email_accounts`` is served with that user's own token; the
+legacy global ``email.provider`` + ``GMAIL_ACCESS_TOKEN`` path applies only
+to the explicit ``default`` profile.  Named users never inherit the global
+credentials.  Credential references and secrets are never returned to the
+renderer.
+
 Commands:
-  {"command": "list", "limit": 20}
+  {"command": "list", "limit": 20, "user"?: "<user_id>"}
     -> {"ok": true, "messages": [...], "configured": bool}
 
 Message format (GUI):
   {id, thread_id, subject, sender, recipients, body_text, received_at,
    labels, is_read, priority}
 
-When no email provider is configured, returns {"ok": true, "messages": [],
-"configured": false} so the GUI can show an empty-state prompt.
+When the resolved user has no email provider configured, returns
+{"ok": true, "messages": [], "configured": false} so the GUI can show an
+empty-state prompt.
 """
 
 from __future__ import annotations
@@ -27,6 +47,33 @@ OUTLOOK_EMAIL_UNSUPPORTED = (
     "only store app credentials; Rex cannot read Outlook mail until Microsoft "
     "Graph OAuth token support is added."
 )
+
+_NO_USER_ERROR = (
+    "No active user for email. Set one with 'rex identify --user <id>' "
+    "or include a 'user' field in the request."
+)
+
+
+def _resolve_user(payload: dict[str, Any]) -> str | None:
+    """Resolve the requesting user, failing closed on missing/invalid identity.
+
+    Never falls back to ``"default"`` or any other profile implicitly.
+    """
+    from rex.identity import resolve_active_user
+
+    explicit = str(payload.get("user") or "").strip() or None
+    try:
+        config: dict[str, Any] | None
+        try:
+            from rex.config_manager import load_config
+
+            config = load_config()
+        except Exception:
+            config = None
+        return resolve_active_user(explicit, config=config)
+    except ValueError:
+        # Malformed explicit user ID: fail closed, no fallback.
+        return None
 
 
 def _msg_to_gui(msg: Any) -> dict[str, Any]:
@@ -44,28 +91,25 @@ def _msg_to_gui(msg: Any) -> dict[str, Any]:
     }
 
 
-def _handle_list(limit: int) -> dict[str, Any]:
-    from rex.config import load_config
-    from rex.integrations.email_service import EmailService
+def _handle_list(user_id: str, limit: int) -> dict[str, Any]:
+    from rex.integrations.email_service import create_email_service_for_user
 
-    cfg = load_config()
-    provider = getattr(cfg, "email_provider", "none") or "none"
-    if str(provider).lower() == "outlook":
+    svc, provider = create_email_service_for_user(user_id)
+    if provider == "outlook":
         return {
             "ok": False,
             "error": OUTLOOK_EMAIL_UNSUPPORTED,
             "messages": [],
             "configured": True,
         }
-
-    svc = EmailService(email_provider=provider)
+    if svc is None:
+        return {"ok": True, "messages": [], "configured": False}
 
     messages = svc.list_inbox(limit=limit)
-    configured = provider != "none"
     return {
         "ok": True,
         "messages": [_msg_to_gui(m) for m in messages],
-        "configured": configured,
+        "configured": True,
     }
 
 
@@ -78,11 +122,26 @@ def main() -> None:
         sys.exit(1)
 
     try:
-        if command == "list":
+        user_id = _resolve_user(payload)
+        if not user_id:
+            result = {
+                "ok": False,
+                "error": _NO_USER_ERROR,
+                "messages": [],
+                "configured": False,
+            }
+        elif command == "list":
             limit = int(payload.get("limit") or 20)
-            result = _handle_list(limit)
+            result = _handle_list(user_id, limit)
         else:
             result = {"ok": False, "error": f"Unknown command: {command!r}"}
+    except PermissionError:
+        result = {
+            "ok": False,
+            "error": _NO_USER_ERROR,
+            "messages": [],
+            "configured": False,
+        }
     except Exception as exc:
         result = bridge_error_response(exc)
 

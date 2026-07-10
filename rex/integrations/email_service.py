@@ -101,10 +101,17 @@ class EmailService:
     Args:
         email_provider: One of ``"none"``, ``"gmail"``, or ``"outlook"``.
             Defaults to ``"none"`` (stub mode).
+        access_token: OAuth access token for the live provider.  When set,
+            it is used instead of the legacy ``GMAIL_ACCESS_TOKEN``
+            environment variable.  Callers acting for a named user must
+            resolve and pass that user's own token (see
+            ``rex.email_accounts``); the environment fallback is
+            legacy-``default``-profile behaviour only.
     """
 
-    def __init__(self, email_provider: str = "none") -> None:
+    def __init__(self, email_provider: str = "none", access_token: str | None = None) -> None:
         self._provider = email_provider.lower()
+        self._access_token = access_token
         logger.debug("EmailService initialised with provider=%s", self._provider)
 
     # ------------------------------------------------------------------
@@ -204,7 +211,7 @@ class EmailService:
     # ------------------------------------------------------------------
 
     def _gmail_headers(self) -> dict[str, str]:
-        token = os.environ.get("GMAIL_ACCESS_TOKEN", "")
+        token = self._access_token or os.environ.get("GMAIL_ACCESS_TOKEN", "")
         return {"Authorization": f"Bearer {token}", "Accept": "application/json"}
 
     def _gmail_list_inbox(self, limit: int) -> list[EmailMessage]:
@@ -378,7 +385,80 @@ class EmailService:
 
 
 # ---------------------------------------------------------------------------
+# Per-user construction (issue #303)
+# ---------------------------------------------------------------------------
+
+
+def create_email_service_for_user(
+    user_id: str, raw_config: dict | None = None
+) -> tuple[EmailService | None, str]:
+    """Build the inbox EmailService for one validated user, failing closed.
+
+    Provider selection is per-user via ``rex.email_accounts``:
+
+    - A ``gmail``-backend account assigned to the user is served with that
+      user's own token (read from the environment variable named by the
+      entry's ``credentials_key``).
+    - The legacy global ``email.provider`` + ``GMAIL_ACCESS_TOKEN`` path is
+      available only to the explicit ``default`` profile.  Named users never
+      inherit the global credentials.
+
+    Returns:
+        ``(service_or_None, provider)`` where *provider* is one of
+        ``"none"``, ``"gmail"``, or ``"outlook"``.  ``service`` is ``None``
+        when the user has no usable provider (or the provider is
+        unsupported).
+
+    Raises:
+        PermissionError: On missing or invalid *user_id* (fail closed,
+            before any credential is read).
+    """
+    from rex.email_accounts import DEFAULT_PROFILE, EmailAccountResolver, require_user_id
+
+    validated = require_user_id(user_id)
+
+    if raw_config is None:
+        try:
+            from rex.config_manager import load_config
+
+            raw_config = load_config()
+        except Exception:
+            raw_config = {}
+
+    resolver = EmailAccountResolver.from_raw_config(raw_config)
+    entry = resolver.provider_entry_for_user(validated)
+    if entry is not None:
+        backend = getattr(entry, "backend", "")
+        if backend == "outlook":
+            return None, "outlook"
+        credentials_key = getattr(entry, "credentials_key", "") or ""
+        token = os.environ.get(credentials_key, "") if credentials_key else ""
+        if not token:
+            logger.warning(
+                "Gmail account %r for user %r has no token under credentials key %r",
+                getattr(entry, "account_id", ""),
+                validated,
+                credentials_key,
+            )
+            return None, "none"
+        return EmailService(email_provider="gmail", access_token=token), "gmail"
+
+    if validated == DEFAULT_PROFILE:
+        email_section = raw_config.get("email")
+        provider = ""
+        if isinstance(email_section, dict):
+            provider = str(email_section.get("provider") or "none").lower()
+        if provider == "outlook":
+            return None, "outlook"
+        if provider == "gmail":
+            # Legacy default-profile behaviour: global env token.
+            return EmailService(email_provider="gmail"), "gmail"
+
+    return None, "none"
+
+
+# ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
 
-__all__ = ["EmailService"]
+__all__ = ["EmailService", "create_email_service_for_user"]
