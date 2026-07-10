@@ -37,7 +37,7 @@ ALICE_CRED_REF = "email:alice-work"
 BOB_CRED_REF = "email:bob-personal"
 
 # Marker substrings used to detect credential leakage in any output.
-SECRET_MARKER = "s3cr3t-p4ss"
+SECRET_MARKER = "s3cr3t-p4ss"  # pragma: allowlist secret
 
 
 # ---------------------------------------------------------------------------
