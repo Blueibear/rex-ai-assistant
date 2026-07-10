@@ -4,6 +4,9 @@ from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
 
+import pytest
+
+import rex.memory
 from rex.memory import (
     LongTermMemory,
     MemoryEntry,
@@ -17,6 +20,15 @@ from rex.memory import (
     set_long_term_memory,
     set_working_memory,
 )
+
+
+@pytest.fixture(autouse=True)
+def _isolated_registries(tmp_path, monkeypatch):
+    """Keep per-user registries and the data dir isolated from the real ones."""
+    monkeypatch.setattr(rex.memory, "_DATA_DIR", tmp_path / "memdata")
+    monkeypatch.setattr(rex.memory, "_working_memories", {})
+    monkeypatch.setattr(rex.memory, "_long_term_memories", {})
+
 
 # =============================================================================
 # WorkingMemory Tests
@@ -408,24 +420,24 @@ class TestLongTermMemory:
 
 
 class TestSingletonPattern:
-    """Tests for the global singleton instances."""
+    """Tests for the per-user instance registry."""
 
     def test_get_and_set_working_memory(self, tmp_path):
-        """Test get/set working memory singleton."""
+        """Test get/set working memory for one user."""
         storage = tmp_path / "wm.json"
         wm = WorkingMemory(storage_path=storage)
-        set_working_memory(wm)
+        set_working_memory(wm, user_id="alice")
 
-        retrieved = get_working_memory()
+        retrieved = get_working_memory(user_id="alice")
         assert retrieved is wm
 
     def test_get_and_set_long_term_memory(self, tmp_path):
-        """Test get/set long-term memory singleton."""
+        """Test get/set long-term memory for one user."""
         storage = tmp_path / "ltm.json"
         ltm = LongTermMemory(storage_path=storage)
-        set_long_term_memory(ltm)
+        set_long_term_memory(ltm, user_id="alice")
 
-        retrieved = get_long_term_memory()
+        retrieved = get_long_term_memory(user_id="alice")
         assert retrieved is ltm
 
 
@@ -436,9 +448,9 @@ class TestConvenienceFunctions:
         """Test adding a user preference."""
         storage = tmp_path / "ltm.json"
         ltm = LongTermMemory(storage_path=storage)
-        set_long_term_memory(ltm)
+        set_long_term_memory(ltm, user_id="alice")
 
-        entry = add_user_preference("theme", "dark")
+        entry = add_user_preference("theme", "dark", user_id="alice")
         assert entry.category == "user_preferences"
         assert entry.content == {"theme": "dark"}
 
@@ -446,38 +458,38 @@ class TestConvenienceFunctions:
         """Test getting user preferences."""
         storage = tmp_path / "ltm.json"
         ltm = LongTermMemory(storage_path=storage)
-        set_long_term_memory(ltm)
+        set_long_term_memory(ltm, user_id="alice")
 
-        add_user_preference("theme", "dark")
-        add_user_preference("language", "en")
+        add_user_preference("theme", "dark", user_id="alice")
+        add_user_preference("language", "en", user_id="alice")
 
-        prefs = get_user_preferences()
+        prefs = get_user_preferences(user_id="alice")
         assert len(prefs) == 2
 
-        prefs = get_user_preferences("theme")
+        prefs = get_user_preferences("theme", user_id="alice")
         assert len(prefs) == 1
 
     def test_remember_context(self, tmp_path):
         """Test remember_context adds to working memory."""
         storage = tmp_path / "wm.json"
         wm = WorkingMemory(storage_path=storage)
-        set_working_memory(wm)
+        set_working_memory(wm, user_id="alice")
 
-        remember_context("User asked about weather")
-        recent = get_recent_context(1)
+        remember_context("User asked about weather", user_id="alice")
+        recent = get_recent_context(1, user_id="alice")
         assert recent[0] == "User asked about weather"
 
     def test_get_recent_context(self, tmp_path):
         """Test get_recent_context retrieves from working memory."""
         storage = tmp_path / "wm.json"
         wm = WorkingMemory(storage_path=storage)
-        set_working_memory(wm)
+        set_working_memory(wm, user_id="alice")
 
         wm.add_entry("Context 1")
         wm.add_entry("Context 2")
         wm.add_entry("Context 3")
 
-        recent = get_recent_context(2)
+        recent = get_recent_context(2, user_id="alice")
         assert len(recent) == 2
         assert recent == ["Context 2", "Context 3"]
 

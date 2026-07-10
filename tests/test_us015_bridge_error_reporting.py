@@ -136,7 +136,7 @@ class TestMemoriesBridgeTraceback:
         import rex_memories_bridge
 
         with patch.object(rex_memories_bridge, "_handle_list", side_effect=OSError("disk full")):
-            result = _run_main("rex_memories_bridge", '{"command": "list"}')
+            result = _run_main("rex_memories_bridge", '{"command": "list", "user": "default"}')
 
         assert result["ok"] is False
         assert "disk full" in result["error"]

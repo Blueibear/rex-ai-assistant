@@ -59,16 +59,46 @@ def cmd_remember(args: argparse.Namespace) -> int:
     return 0
 
 
+def _resolve_memory_user(args: argparse.Namespace) -> str | None:
+    """Resolve the requesting user for memory commands, failing closed.
+
+    Uses ``--user`` when given, otherwise the standard identity chain
+    (``rex identify`` session state, then ``runtime.active_user`` /
+    ``runtime.user_id`` in config). Never silently falls back to the
+    ``default`` profile — single-user setups select it explicitly with
+    ``--user default`` or ``rex identify --user default``.
+    """
+    from rex.commands._helpers import _resolve_cli_user
+
+    try:
+        return _resolve_cli_user(args)
+    except ValueError as exc:
+        print(f"Error: {exc}")
+        return None
+
+
+_NO_USER_MSG = (
+    "Error: No active user for memory.\n"
+    "Set one with: rex identify --user <id>\n"
+    "Or pass one explicitly: rex memory ... --user <id>"
+)
+
+
 def cmd_memory(args: argparse.Namespace) -> int:
-    """Manage working and long-term memory."""
+    """Manage the requesting user's working and long-term memory."""
     import json
 
     from rex.memory import get_long_term_memory, get_working_memory
 
     subcommand = args.memory_command
 
+    user_id = _resolve_memory_user(args)
+    if user_id is None:
+        print(_NO_USER_MSG)
+        return 1
+
     if subcommand == "recent":
-        wm = get_working_memory()
+        wm = get_working_memory(user_id=user_id)
         n = int(getattr(args, "count", 10))
         entries = wm.get_recent_with_timestamps(n)
 
@@ -76,7 +106,7 @@ def cmd_memory(args: argparse.Namespace) -> int:
             print("No working memory entries.")
             return 0
 
-        print("Recent Working Memory")
+        print(f"Recent Working Memory (user: {user_id})")
         print("=" * 60)
         print()
 
@@ -91,7 +121,7 @@ def cmd_memory(args: argparse.Namespace) -> int:
         return 0
 
     if subcommand == "add":
-        ltm = get_long_term_memory()
+        ltm = get_long_term_memory(user_id=user_id)
         category = args.category
         try:
             content = json.loads(args.content)
@@ -121,7 +151,7 @@ def cmd_memory(args: argparse.Namespace) -> int:
         return 0
 
     if subcommand == "search":
-        ltm = get_long_term_memory()
+        ltm = get_long_term_memory(user_id=user_id)
         keyword = args.keyword
         category = args.category
         show_sensitive = args.show_sensitive
@@ -136,7 +166,7 @@ def cmd_memory(args: argparse.Namespace) -> int:
             print("No matching memory entries found.")
             return 0
 
-        print("Long-Term Memory Search Results")
+        print(f"Long-Term Memory Search Results (user: {user_id})")
         print("=" * 60)
         print()
 
@@ -159,7 +189,7 @@ def cmd_memory(args: argparse.Namespace) -> int:
         return 0
 
     if subcommand == "forget":
-        ltm = get_long_term_memory()
+        ltm = get_long_term_memory(user_id=user_id)
         entry_id = args.entry_id
         if ltm.forget(entry_id):
             print(f"Deleted memory entry: {entry_id}")
@@ -168,23 +198,23 @@ def cmd_memory(args: argparse.Namespace) -> int:
         return 1
 
     if subcommand == "clear":
-        wm = get_working_memory()
+        wm = get_working_memory(user_id=user_id)
         count = len(wm)
         wm.clear()
         print(f"Cleared {count} working memory entries.")
         return 0
 
     if subcommand == "retention":
-        ltm = get_long_term_memory()
+        ltm = get_long_term_memory(user_id=user_id)
         deleted = ltm.run_retention_policy()
         print(f"Retention policy deleted {deleted} expired entries.")
         return 0
 
     if subcommand == "stats":
-        wm = get_working_memory()
-        ltm = get_long_term_memory()
+        wm = get_working_memory(user_id=user_id)
+        ltm = get_long_term_memory(user_id=user_id)
 
-        print("Memory Statistics")
+        print(f"Memory Statistics (user: {user_id})")
         print("=" * 60)
         print()
         print(f"Working Memory: {len(wm)} entries")
@@ -379,6 +409,7 @@ def register(subparsers: argparse._SubParsersAction) -> None:
     memory_recent.add_argument(
         "--show-sensitive", action="store_true", help="No-op (kept for compatibility)"
     )
+    memory_recent.add_argument("--user", type=str, help="User ID whose memory to read")
     memory_recent.set_defaults(func=_cli().cmd_memory, memory_command="recent")
 
     memory_add = memory_subparsers.add_parser(
@@ -396,6 +427,7 @@ def register(subparsers: argparse._SubParsersAction) -> None:
     memory_add.add_argument(
         "--sensitive", action="store_true", help="Mark this entry as containing sensitive data"
     )
+    memory_add.add_argument("--user", type=str, help="User ID to act as (owner of the entry)")
     memory_add.set_defaults(func=_cli().cmd_memory, memory_command="add")
 
     memory_search = memory_subparsers.add_parser(
@@ -410,6 +442,7 @@ def register(subparsers: argparse._SubParsersAction) -> None:
     memory_search.add_argument(
         "--show-sensitive", action="store_true", help="Show content of sensitive entries"
     )
+    memory_search.add_argument("--user", type=str, help="User ID whose memory to search")
     memory_search.set_defaults(func=_cli().cmd_memory, memory_command="search")
 
     memory_forget = memory_subparsers.add_parser(
@@ -418,6 +451,7 @@ def register(subparsers: argparse._SubParsersAction) -> None:
         description="Delete a specific entry from long-term memory.",
     )
     memory_forget.add_argument("entry_id", type=str, help="ID of the entry to delete")
+    memory_forget.add_argument("--user", type=str, help="User ID to act as (must own the entry)")
     memory_forget.set_defaults(func=_cli().cmd_memory, memory_command="forget")
 
     memory_clear = memory_subparsers.add_parser(
@@ -425,6 +459,7 @@ def register(subparsers: argparse._SubParsersAction) -> None:
         help="Clear all working memory",
         description="Remove all entries from working memory.",
     )
+    memory_clear.add_argument("--user", type=str, help="User ID whose working memory to clear")
     memory_clear.set_defaults(func=_cli().cmd_memory, memory_command="clear")
 
     memory_retention = memory_subparsers.add_parser(
@@ -432,6 +467,7 @@ def register(subparsers: argparse._SubParsersAction) -> None:
         help="Run retention policy",
         description="Delete all expired entries from long-term memory.",
     )
+    memory_retention.add_argument("--user", type=str, help="User ID whose memory retention to run")
     memory_retention.set_defaults(func=_cli().cmd_memory, memory_command="retention")
 
     memory_stats = memory_subparsers.add_parser(
@@ -439,6 +475,7 @@ def register(subparsers: argparse._SubParsersAction) -> None:
         help="Show memory statistics",
         description="Display statistics about working and long-term memory.",
     )
+    memory_stats.add_argument("--user", type=str, help="User ID whose statistics to show")
     memory_stats.set_defaults(func=_cli().cmd_memory, memory_command="stats")
 
     memory_parser.set_defaults(func=_cli().cmd_memory, memory_command="stats")

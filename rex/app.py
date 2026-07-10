@@ -20,7 +20,7 @@ import time
 from rex.audio.speaker_discovery import start_smart_speaker_discovery
 from rex.credentials import get_credential_manager
 from rex.logging_utils import _LEVEL_NAMES, configure_logging
-from rex.memory import get_long_term_memory, get_working_memory
+from rex.memory import memory_store_metrics
 from rex.service_supervisor import ServiceSupervisor
 from rex.services import initialize_services
 
@@ -186,9 +186,9 @@ def main(argv: list[str] | None = None) -> int:
         if "memory_store" in services_to_manage:
 
             def start_memory_store():
-                get_working_memory()
-                get_long_term_memory()
-                logger.info("Memory store initialized")
+                # Per-user stores load lazily on first authenticated access
+                # (US-303 isolation); there is no global store to pre-warm.
+                logger.info("Memory store initialized (per-user stores load lazily)")
 
             def stop_memory_store():
                 logger.info("Memory store shutdown complete")
@@ -197,12 +197,7 @@ def main(argv: list[str] | None = None) -> int:
                 return True
 
             def memory_metrics():
-                wm = get_working_memory()
-                ltm = get_long_term_memory()
-                return {
-                    "working_memory": wm.stats(),
-                    "long_term_memory": ltm.stats(),
-                }
+                return memory_store_metrics()
 
             _supervisor.register_service(
                 name="memory_store",
