@@ -120,9 +120,9 @@ class TestMemoriesBridgeJsonIO:
         mock_ltm.search.return_value = []
         with patch.dict(
             "sys.modules",
-            {"rex.memory": MagicMock(get_long_term_memory=lambda: mock_ltm)},
+            {"rex.memory": MagicMock(get_long_term_memory=lambda **kwargs: mock_ltm)},
         ):
-            result = _run_main(MEMORIES_MODULE, '{"action": "list"}')
+            result = _run_main(MEMORIES_MODULE, '{"action": "list", "user": "default"}')
         assert isinstance(result, dict)
         assert "memories" in result or "error" in result
 
@@ -131,9 +131,9 @@ class TestMemoriesBridgeJsonIO:
         mock_ltm.search.return_value = []
         with patch.dict(
             "sys.modules",
-            {"rex.memory": MagicMock(get_long_term_memory=lambda: mock_ltm)},
+            {"rex.memory": MagicMock(get_long_term_memory=lambda **kwargs: mock_ltm)},
         ):
-            result = _run_main(MEMORIES_MODULE, '{"command": "list"}')
+            result = _run_main(MEMORIES_MODULE, '{"command": "list", "user": "default"}')
         assert isinstance(result, dict)
         assert "memories" in result or "error" in result
 

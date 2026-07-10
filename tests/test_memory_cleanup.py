@@ -6,12 +6,24 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from unittest.mock import MagicMock
 
+import pytest
+
+import rex.memory
 from rex.memory import (
     LongTermMemory,
     MemoryEntry,
     schedule_memory_cleanup,
     set_long_term_memory,
 )
+
+
+@pytest.fixture(autouse=True)
+def _isolated_registries(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    """Keep per-user registries and the data dir isolated from the real ones."""
+    monkeypatch.setattr(rex.memory, "_DATA_DIR", tmp_path / "memdata")
+    monkeypatch.setattr(rex.memory, "_working_memories", {})
+    monkeypatch.setattr(rex.memory, "_long_term_memories", {})
+
 
 # =============================================================================
 # Expired Memory Removal
@@ -115,7 +127,7 @@ class TestScheduledCleanup:
         assert kwargs["schedule"] == "interval:3600"
 
     def test_cleanup_callback_calls_compact(self, tmp_path: Path) -> None:
-        """The registered callback invokes compact() on the global LTM."""
+        """The registered callback compacts each registered user's LTM."""
         storage = tmp_path / "ltm.json"
         ltm = LongTermMemory(storage_path=storage)
 
@@ -127,7 +139,7 @@ class TestScheduledCleanup:
             expires_at=past,
         )
         ltm._entries[entry.entry_id] = entry
-        set_long_term_memory(ltm)
+        set_long_term_memory(ltm, user_id="alice")
 
         # Capture the callback that gets registered
         captured_callback = None

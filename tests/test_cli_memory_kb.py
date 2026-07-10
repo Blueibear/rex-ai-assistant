@@ -7,6 +7,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
+import rex.memory
 from rex.cli import _parse_ttl, cmd_kb, cmd_memory, main
 from rex.knowledge_base import KnowledgeBase, set_knowledge_base
 from rex.memory import (
@@ -15,6 +16,15 @@ from rex.memory import (
     set_long_term_memory,
     set_working_memory,
 )
+
+
+@pytest.fixture(autouse=True)
+def _isolated_registries(tmp_path, monkeypatch):
+    """Keep per-user registries and the data dir isolated from the real ones."""
+    monkeypatch.setattr(rex.memory, "_DATA_DIR", tmp_path / "memdata")
+    monkeypatch.setattr(rex.memory, "_working_memories", {})
+    monkeypatch.setattr(rex.memory, "_long_term_memories", {})
+
 
 # =============================================================================
 # TTL Parsing Tests
@@ -79,9 +89,10 @@ class TestMemoryCLI:
         wm = WorkingMemory(storage_path=storage)
         wm.add_entry("Entry 1")
         wm.add_entry("Entry 2")
-        set_working_memory(wm)
+        set_working_memory(wm, user_id="alice")
 
         args = MagicMock()
+        args.user = "alice"
         args.memory_command = "recent"
         args.count = 5
 
@@ -96,9 +107,10 @@ class TestMemoryCLI:
         """Test 'rex memory recent' with no entries."""
         storage = tmp_path / "wm.json"
         wm = WorkingMemory(storage_path=storage)
-        set_working_memory(wm)
+        set_working_memory(wm, user_id="alice")
 
         args = MagicMock()
+        args.user = "alice"
         args.memory_command = "recent"
         args.count = 5
 
@@ -112,9 +124,10 @@ class TestMemoryCLI:
         """Test 'rex memory add' command."""
         storage = tmp_path / "ltm.json"
         ltm = LongTermMemory(storage_path=storage)
-        set_long_term_memory(ltm)
+        set_long_term_memory(ltm, user_id="alice")
 
         args = MagicMock()
+        args.user = "alice"
         args.memory_command = "add"
         args.category = "test"
         args.content = '{"key": "value"}'
@@ -132,9 +145,10 @@ class TestMemoryCLI:
         """Test 'rex memory add' with TTL."""
         storage = tmp_path / "ltm.json"
         ltm = LongTermMemory(storage_path=storage)
-        set_long_term_memory(ltm)
+        set_long_term_memory(ltm, user_id="alice")
 
         args = MagicMock()
+        args.user = "alice"
         args.memory_command = "add"
         args.category = "temp"
         args.content = '{"temp": true}'
@@ -153,9 +167,10 @@ class TestMemoryCLI:
         """Test 'rex memory add' with sensitive flag."""
         storage = tmp_path / "ltm.json"
         ltm = LongTermMemory(storage_path=storage)
-        set_long_term_memory(ltm)
+        set_long_term_memory(ltm, user_id="alice")
 
         args = MagicMock()
+        args.user = "alice"
         args.memory_command = "add"
         args.category = "secrets"
         args.content = '{"api_key": "secret"}'
@@ -173,9 +188,10 @@ class TestMemoryCLI:
         """Test 'rex memory add' with invalid JSON."""
         storage = tmp_path / "ltm.json"
         ltm = LongTermMemory(storage_path=storage)
-        set_long_term_memory(ltm)
+        set_long_term_memory(ltm, user_id="alice")
 
         args = MagicMock()
+        args.user = "alice"
         args.memory_command = "add"
         args.category = "test"
         args.content = "not valid json"
@@ -192,9 +208,10 @@ class TestMemoryCLI:
         """Test 'rex memory add' with invalid TTL."""
         storage = tmp_path / "ltm.json"
         ltm = LongTermMemory(storage_path=storage)
-        set_long_term_memory(ltm)
+        set_long_term_memory(ltm, user_id="alice")
 
         args = MagicMock()
+        args.user = "alice"
         args.memory_command = "add"
         args.category = "test"
         args.content = '{"key": "value"}'
@@ -212,9 +229,10 @@ class TestMemoryCLI:
         storage = tmp_path / "ltm.json"
         ltm = LongTermMemory(storage_path=storage)
         ltm.add_entry(category="facts", content={"topic": "weather"})
-        set_long_term_memory(ltm)
+        set_long_term_memory(ltm, user_id="alice")
 
         args = MagicMock()
+        args.user = "alice"
         args.memory_command = "search"
         args.keyword = "weather"
         args.category = None
@@ -232,9 +250,10 @@ class TestMemoryCLI:
         ltm = LongTermMemory(storage_path=storage)
         ltm.add_entry(category="preferences", content={"theme": "dark"})
         ltm.add_entry(category="facts", content={"fact": "test"})
-        set_long_term_memory(ltm)
+        set_long_term_memory(ltm, user_id="alice")
 
         args = MagicMock()
+        args.user = "alice"
         args.memory_command = "search"
         args.keyword = None
         args.category = "preferences"
@@ -256,9 +275,10 @@ class TestMemoryCLI:
             content={"password": "secret123"},
             sensitive=True,
         )
-        set_long_term_memory(ltm)
+        set_long_term_memory(ltm, user_id="alice")
 
         args = MagicMock()
+        args.user = "alice"
         args.memory_command = "search"
         args.keyword = "password"
         args.category = None
@@ -280,9 +300,10 @@ class TestMemoryCLI:
             content={"password": "secret123"},
             sensitive=True,
         )
-        set_long_term_memory(ltm)
+        set_long_term_memory(ltm, user_id="alice")
 
         args = MagicMock()
+        args.user = "alice"
         args.memory_command = "search"
         args.keyword = "password"
         args.category = None
@@ -299,9 +320,10 @@ class TestMemoryCLI:
         storage = tmp_path / "ltm.json"
         ltm = LongTermMemory(storage_path=storage)
         entry = ltm.add_entry(category="temp", content={"temp": True})
-        set_long_term_memory(ltm)
+        set_long_term_memory(ltm, user_id="alice")
 
         args = MagicMock()
+        args.user = "alice"
         args.memory_command = "forget"
         args.entry_id = entry.entry_id
 
@@ -315,9 +337,10 @@ class TestMemoryCLI:
         """Test 'rex memory forget' with non-existent entry."""
         storage = tmp_path / "ltm.json"
         ltm = LongTermMemory(storage_path=storage)
-        set_long_term_memory(ltm)
+        set_long_term_memory(ltm, user_id="alice")
 
         args = MagicMock()
+        args.user = "alice"
         args.memory_command = "forget"
         args.entry_id = "nonexistent"
 
@@ -333,9 +356,10 @@ class TestMemoryCLI:
         wm = WorkingMemory(storage_path=storage)
         wm.add_entry("Entry 1")
         wm.add_entry("Entry 2")
-        set_working_memory(wm)
+        set_working_memory(wm, user_id="alice")
 
         args = MagicMock()
+        args.user = "alice"
         args.memory_command = "clear"
 
         result = cmd_memory(args)
@@ -349,9 +373,10 @@ class TestMemoryCLI:
         """Test 'rex memory retention' command."""
         storage = tmp_path / "ltm.json"
         ltm = LongTermMemory(storage_path=storage)
-        set_long_term_memory(ltm)
+        set_long_term_memory(ltm, user_id="alice")
 
         args = MagicMock()
+        args.user = "alice"
         args.memory_command = "retention"
 
         result = cmd_memory(args)
@@ -368,10 +393,11 @@ class TestMemoryCLI:
         ltm = LongTermMemory(storage_path=ltm_storage)
         wm.add_entry("Working memory entry")
         ltm.add_entry(category="facts", content={"fact": 1})
-        set_working_memory(wm)
-        set_long_term_memory(ltm)
+        set_working_memory(wm, user_id="alice")
+        set_long_term_memory(ltm, user_id="alice")
 
         args = MagicMock()
+        args.user = "alice"
         args.memory_command = "stats"
 
         result = cmd_memory(args)
