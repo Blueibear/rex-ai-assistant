@@ -49,6 +49,87 @@ class CalendarEvent(BaseModel):
     all_day: bool = False         # Whether this is an all-day event
 ```
 
+## Per-User Account Ownership (issue #303)
+
+Every calendar operation runs under **one explicit, validated user
+identity**.  Account authorization and routing are handled by
+`rex.calendar_accounts.CalendarAccountResolver`:
+
+- `calendar.accounts` in `config/rex_config.json` is the canonical
+  non-secret account list (provider, ICS source, `credential_ref` — an
+  environment-variable *name*, never a secret value).
+- `users.{user_id}.calendar_accounts` assigns account IDs to users.  A named
+  user can only ever use accounts explicitly assigned to them.
+- `users.{user_id}.default_calendar_account_id` selects that user's default
+  account (must reference an account the user owns).
+- Missing, blank, malformed, or traversal-style user IDs fail closed before
+  any account or credential lookup.
+- Unauthorized and nonexistent account IDs produce the same generic error,
+  so users cannot enumerate other users' accounts.
+- Backends and event stores are cached per `(user_id, account_id)`; a
+  backend created for one user is never reused for another.
+
+### Legacy policy
+
+The pre-#303 global configuration keeps working **for the explicit
+`default` profile only**:
+
+- `calendar.backend = "ics"` + `calendar.ics.source` is synthesized into a
+  reserved legacy account owned by the `default` profile.
+- `calendar.provider = "google"` + the `GOOGLE_CALENDAR_ACCESS_TOKEN`
+  environment variable serve only the `default` profile.
+- Named users (e.g. `james`, `cole`) are **never** automatically assigned to
+  legacy accounts or legacy environment tokens — not even via an explicit
+  `users.{user}.calendar_accounts` entry pointing at a legacy account ID.
+
+### Assigning calendar accounts to named users
+
+Administrators assign accounts explicitly in `config/rex_config.json`:
+
+```json
+{
+  "calendar": {
+    "accounts": [
+      {
+        "id": "james-work",
+        "label": "James work calendar",
+        "provider": "ics",
+        "ics": {"source": "https://example.com/james.ics", "url_timeout": 15}
+      },
+      {
+        "id": "cole-google",
+        "label": "Cole Google calendar",
+        "provider": "google",
+        "credential_ref": "GOOGLE_CALENDAR_TOKEN_COLE"
+      }
+    ]
+  },
+  "users": {
+    "james": {
+      "calendar_accounts": [{"account_id": "james-work"}],
+      "default_calendar_account_id": "james-work"
+    },
+    "cole": {
+      "calendar_accounts": [{"account_id": "cole-google"}]
+    }
+  }
+}
+```
+
+For provider accounts (`google`), put the token itself in `.env` under the
+variable named by `credential_ref` (e.g. `GOOGLE_CALENDAR_TOKEN_COLE=...`).
+Credential *references* are config; credential *values* are secrets and
+belong in `.env` only.  CLI output, API responses, events, and error
+messages never echo credential references or token values.
+
+Routing order for a request by user U:
+
+1. Explicit account ID (after ownership validation)
+2. `users.U.default_calendar_account_id`
+3. Legacy global default — `default` profile only
+4. First account assigned to U (config order)
+5. Fail closed: not-configured result (never another user's account)
+
 ## Using the Calendar Service
 
 ### Getting the Calendar Service Instance
@@ -62,8 +143,8 @@ calendar_service = get_calendar_service()
 ### Connecting to Calendar
 
 ```python
-# Connect (loads credentials and initializes)
-if calendar_service.connect():
+# Connect for one validated user (loads that user's events)
+if calendar_service.connect(user_id="james"):
     print("Connected to calendar service")
 else:
     print("Failed to connect")
@@ -76,10 +157,10 @@ else:
 ```python
 from datetime import datetime, timedelta
 
-# Get events for the next 7 days
+# Get events for the next 7 days (requesting user's own events only)
 start = datetime.now()
 end = start + timedelta(days=7)
-events = calendar_service.get_events(start, end)
+events = calendar_service.get_events(start, end, user_id="james")
 
 for event in events:
     print(f"{event.title}: {event.start_time}")
@@ -89,10 +170,10 @@ for event in events:
 
 ```python
 # Get events in the next 7 days
-events = calendar_service.get_upcoming_events(days=7)
+events = calendar_service.get_upcoming_events(days=7, user_id="james")
 
 # Get events in the next 14 days
-events = calendar_service.get_upcoming_events(days=14)
+events = calendar_service.get_upcoming_events(days=14, user_id="james")
 ```
 
 ### Creating Events
@@ -164,9 +245,14 @@ if event1.overlaps_with(event2):
 
 ## CLI Commands
 
+Every calendar subcommand resolves one validated user (from `--user`, the
+`rex identify` session, or `runtime.active_user`) and fails closed with an
+actionable message when no user can be resolved.  Single-user setups select
+the legacy profile explicitly: `rex identify --user default`.
+
 ### Show Upcoming Events
 
-Display upcoming calendar events:
+Display upcoming calendar events for the resolved user only:
 
 ```bash
 rex calendar upcoming
@@ -176,12 +262,27 @@ rex calendar upcoming -v                 # Verbose with descriptions
 rex calendar upcoming --user cole        # Override active user context
 ```
 
-### Test Backend Connection
+### Manage Calendar Accounts
 
-Verify the configured calendar backend:
+List the resolved user's own accounts (never another user's) and set the
+per-user default:
+
+```bash
+rex calendar accounts list --user james
+rex calendar accounts set-active --account-id james-work --user james
+```
+
+`set-active` writes only `users.james.default_calendar_account_id`; it
+never modifies another user's routing or the legacy global default.
+
+### Test Account Connection
+
+Verify the resolved user's own calendar account (foreign accounts cannot be
+tested):
 
 ```bash
 rex calendar test-connection
+rex calendar test-connection --account-id james-work --user james
 ```
 
 ## Configuration
@@ -279,8 +380,15 @@ initialize_scheduler_system(start_scheduler=True)
 
 This creates a job that:
 - Runs every hour (configurable)
-- Fetches upcoming events (next 7 days)
-- Publishes a `calendar.update` event
+- Iterates configured calendar owners; each owner runs in an isolated
+  context (one owner's failure never falls through to another's account)
+- Fetches upcoming events (next 7 days) per owner
+- Publishes a **safe envelope** (`{count, user_id}`) on the shared
+  `calendar.update` topic and the full event payload only on the
+  owner-scoped `calendar.update.user.<user_id>` topic
+
+Private event fields (titles, attendees, locations, descriptions,
+conferencing links) are never published on shared topics.
 
 ## Event Integration
 
@@ -292,7 +400,10 @@ from rex.event_bus import get_event_bus
 event_bus = get_event_bus()
 
 def handle_calendar_update(event):
-    events = event.payload['events']
+    # Full payloads are published only on the owner-scoped topic
+    # calendar.update.user.<user_id>; the shared calendar.update topic
+    # carries a safe envelope ({count, user_id}) without event details.
+    events = event.payload.get('events', [])
     print(f"Calendar updated: {len(events)} upcoming events")
 
     # Check for events today
@@ -352,13 +463,13 @@ print("Daily agenda system active")
 from rex.calendar_service import get_calendar_service
 
 calendar_service = get_calendar_service()
-calendar_service.connect()
+calendar_service.connect(user_id="james")
 
 # Get upcoming events
-events = calendar_service.get_upcoming_events(days=7)
+events = calendar_service.get_upcoming_events(days=7, user_id="james")
 
 # Check for conflicts
-conflicts = calendar_service.find_conflicts(events)
+conflicts = calendar_service.find_conflicts(events, user_id="james")
 
 if conflicts:
     print(f"⚠️  Warning: {len(conflicts)} scheduling conflict(s) detected!")
@@ -377,12 +488,12 @@ from datetime import datetime, timedelta
 from rex.calendar_service import get_calendar_service
 
 calendar_service = get_calendar_service()
-calendar_service.connect()
+calendar_service.connect(user_id="james")
 
 # Get events in the next hour
 now = datetime.now()
 soon = now + timedelta(hours=1)
-upcoming = calendar_service.get_events(now, soon)
+upcoming = calendar_service.get_events(now, soon, user_id="james")
 
 for event in upcoming:
     # Send reminder for meetings with multiple attendees

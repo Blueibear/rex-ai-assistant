@@ -1,12 +1,10 @@
 from __future__ import annotations
 
 from pathlib import Path
-from types import SimpleNamespace
 
 import rex_calendar_bridge
 import rex_email_bridge
 
-import rex.config
 from rex.config import build_app_config
 
 REPO = Path(__file__).parent.parent
@@ -41,13 +39,17 @@ def test_email_bridge_reports_outlook_as_unsupported(monkeypatch) -> None:
 
 
 def test_calendar_bridge_reports_outlook_list_as_unsupported(monkeypatch) -> None:
+    import rex.config_manager
+
     monkeypatch.setattr(
-        rex.config,
+        rex.config_manager,
         "load_config",
-        lambda: SimpleNamespace(calendar_provider="outlook"),
+        lambda *a, **k: {"calendar": {"provider": "outlook"}},
     )
 
-    result = rex_calendar_bridge._handle_list("", "")
+    # Legacy global provider config serves only the explicit default profile
+    # (issue #303); the honest "unsupported" answer is preserved for it.
+    result = rex_calendar_bridge._handle_list("default", "", "")
 
     assert result["ok"] is False
     assert result["configured"] is True
@@ -55,18 +57,21 @@ def test_calendar_bridge_reports_outlook_list_as_unsupported(monkeypatch) -> Non
 
 
 def test_calendar_bridge_reports_outlook_create_as_unsupported(monkeypatch) -> None:
+    import rex.config_manager
+
     monkeypatch.setattr(
-        rex.config,
+        rex.config_manager,
         "load_config",
-        lambda: SimpleNamespace(calendar_provider="outlook"),
+        lambda *a, **k: {"calendar": {"provider": "outlook"}},
     )
 
     result = rex_calendar_bridge._handle_create(
+        "default",
         {
             "title": "Doctor appointment",
             "start": "2026-04-22T10:00:00+00:00",
             "end": "2026-04-22T11:00:00+00:00",
-        }
+        },
     )
 
     assert result["ok"] is False

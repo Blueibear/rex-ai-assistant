@@ -9,12 +9,17 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from rex.calendar_accounts import DEFAULT_PROFILE
 from rex.calendar_backends.base import CalendarBackend
 from rex.calendar_service import CalendarEvent, CalendarService
 
 
 class StubCalendarBackend(CalendarBackend):
-    """Read events from the existing JSON mock store."""
+    """Read events from the existing JSON mock store.
+
+    This legacy backend serves the single-user global configuration, which
+    belongs to the explicit ``default`` profile only (issue #303).
+    """
 
     def __init__(
         self,
@@ -25,16 +30,17 @@ class StubCalendarBackend(CalendarBackend):
         self._inner = CalendarService(
             mock_data_path=mock_data_path,
             mock_events=mock_events,
+            owner_user_id=DEFAULT_PROFILE,
         )
         self._connected = False
 
     def connect(self) -> bool:
-        ok = self._inner.connect()
+        ok = self._inner.connect(user_id=DEFAULT_PROFILE)
         self._connected = ok
         return ok
 
     def fetch_events(self) -> list[CalendarEvent]:
-        return self._inner.get_all_events()
+        return self._inner.get_all_events(user_id=DEFAULT_PROFILE)
 
     def disconnect(self) -> None:
         self._connected = False

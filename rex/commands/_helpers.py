@@ -41,6 +41,16 @@ def _load_email_resolver_safe():
         return None
 
 
+def _load_calendar_resolver_safe():
+    """Load the per-user CalendarAccountResolver, returning None on failure."""
+    try:
+        from rex.calendar_accounts import CalendarAccountResolver
+
+        return CalendarAccountResolver.load()
+    except Exception:
+        return None
+
+
 def _resolve_cli_user(args: argparse.Namespace) -> str | None:
     """Resolve active user context for commands that accept ``--user``."""
     from rex.identity import resolve_active_user

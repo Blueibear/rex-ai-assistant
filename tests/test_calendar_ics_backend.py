@@ -407,7 +407,8 @@ class TestCalendarServiceICSIntegration:
             svc = get_calendar_service(config=config)
             assert isinstance(svc, CalendarService)
             assert svc.connected is True
-            events = svc.get_all_events()
+            # Legacy global ICS config belongs to the explicit default profile.
+            events = svc.get_all_events(user_id="default")
             assert len(events) == 4
         finally:
             set_calendar_service(None)
@@ -433,7 +434,7 @@ class TestCalendarServiceICSIntegration:
             # Query a range that includes Team Standup (2026-02-20 14:00 UTC)
             start = datetime(2026, 2, 20, 0, 0, tzinfo=UTC)
             end = datetime(2026, 2, 21, 0, 0, tzinfo=UTC)
-            day_events = svc.get_events(start, end)
+            day_events = svc.get_events(start, end, user_id="default")
             titles = [e.title for e in day_events]
             assert "Team Standup" in titles
             assert "1-on-1 with Manager" in titles

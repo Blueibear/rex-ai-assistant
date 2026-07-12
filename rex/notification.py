@@ -635,26 +635,27 @@ class Notifier:
 
             bus = EventBridge()
 
-            # Subscribe to user-scoped email events.  The shared
-            # "email.unread" topic carries only a safe envelope (no private
-            # fields); full payloads are published per owner on
-            # "email.unread.user.<user_id>", so a wildcard subscription with
-            # a prefix filter is used here (this is a trusted system
-            # component, not a user surface).
+            # Subscribe to user-scoped email and calendar events.  The
+            # shared "email.unread" / "calendar.update" topics carry only a
+            # safe envelope (no private fields); full payloads are published
+            # per owner on "<topic>.user.<user_id>", so a wildcard
+            # subscription with a prefix filter is used here (this is a
+            # trusted system component, not a user surface).
             bus.subscribe("*", self._on_any_event)
-
-            # Subscribe to calendar events
-            bus.subscribe("calendar.update", self._on_calendar_update)
 
             logger.info("Notification system subscribed to event bus events")
         except Exception as e:
             logger.warning(f"Failed to subscribe to events: {e}")
 
     def _on_any_event(self, event) -> None:
-        """Route user-scoped email events to the email handler."""
+        """Route user-scoped email and calendar events to their handlers."""
         event_type = getattr(event, "event_type", "")
-        if isinstance(event_type, str) and event_type.startswith("email.unread.user."):
+        if not isinstance(event_type, str):
+            return
+        if event_type.startswith("email.unread.user."):
             self._on_email_unread(event)
+        elif event_type.startswith("calendar.update.user."):
+            self._on_calendar_update(event)
 
     def _on_email_unread(self, event) -> None:
         """Handle user-scoped email.unread events."""
@@ -680,10 +681,11 @@ class Notifier:
             logger.error(f"Error handling email.unread event: {e}")
 
     def _on_calendar_update(self, event) -> None:
-        """Handle calendar.update events."""
+        """Handle user-scoped calendar.update events."""
         try:
             payload = event.payload if hasattr(event, "payload") else event
             events = payload.get("events", [])
+            user_id = payload.get("user_id")
 
             # Notify about upcoming events (within 15 minutes)
             now = _utc_now()
@@ -702,7 +704,7 @@ class Notifier:
                         body=f"{cal_event.get('title', 'Event')} "
                         f"starts at {start_time.strftime('%I:%M %p')}",
                         channel_preferences=["dashboard", "ha_tts"],
-                        metadata={"event_id": cal_event.get("event_id")},
+                        metadata={"event_id": cal_event.get("event_id"), "user_id": user_id},
                     )
                     self.send(notification)
         except Exception as e:

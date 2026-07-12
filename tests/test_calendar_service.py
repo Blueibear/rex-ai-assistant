@@ -162,13 +162,14 @@ def test_calendar_conflict_detection_and_publish() -> None:
         end_time=start + timedelta(hours=1, minutes=30),
     )
 
-    conflicts = service.detect_conflicts(new_event)  # type: ignore[attr-defined]
+    conflicts = service.detect_conflicts(new_event, user_id="default")  # type: ignore[attr-defined]
     assert conflicts == [existing]
 
     created = service.create_event(
         "Planning",
         start + timedelta(days=1),
         start + timedelta(days=1, hours=1),
+        user_id="default",
     )
 
     assert created.title == "Planning"
@@ -594,18 +595,20 @@ def test_mock_events_mode_does_not_write_to_disk(tmp_path: Path) -> None:
 
     service = CalendarService(bus, mock_events=[seed])
 
-    # Mutate: create, update, delete
+    # Mutate: create, update, delete (as the owning default profile)
     created = service.create_event(
         "New",
         start + timedelta(days=1),
         start + timedelta(days=1, hours=1),
+        user_id="default",
     )
-    service.update_event(created.event_id, {"title": "Renamed"})
-    service.delete_event(created.event_id)
+    service.update_event(created.event_id, {"title": "Renamed"}, user_id="default")
+    service.delete_event(created.event_id, user_id="default")
 
-    # The repo seed file must not have been created or modified
-    # The key assertion: _storage_path is None in mock_events mode
-    assert service._storage_path is None
+    # The repo seed file must not have been created or modified.
+    # The key assertion: in-memory stores have no storage path.
+    stores = list(service._stores.values())
+    assert stores and all(store.storage_path is None for store in stores)
 
 
 def test_explicit_path_writes_only_to_that_path(tmp_path: Path) -> None:
@@ -614,19 +617,20 @@ def test_explicit_path_writes_only_to_that_path(tmp_path: Path) -> None:
     cal_file.write_text("[]", encoding="utf-8")
 
     service = CalendarService(mock_data_path=cal_file)
-    service.connect()
+    service.connect(user_id="default")
 
     start = datetime(2024, 6, 1, 10, 0, tzinfo=UTC)
     service.create_event(
         "Meeting",
         start,
         start + timedelta(hours=1),
+        user_id="default",
     )
 
     # Written to the explicit path
     data = json.loads(cal_file.read_text(encoding="utf-8"))
     assert any(e["title"] == "Meeting" for e in data["events"])
 
-    # Repo seed file untouched
-    assert service._storage_path == cal_file
-    assert service._seed_path == cal_file
+    # The owner's store is backed by exactly the explicit path
+    store = service._stores[("default", "")]
+    assert store.storage_path == cal_file

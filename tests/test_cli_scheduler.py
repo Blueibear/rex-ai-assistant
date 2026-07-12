@@ -73,7 +73,7 @@ def test_cli_calendar_upcoming(capsys, monkeypatch):
 
     reset_services()
     monkeypatch.setattr("rex.cli.get_calendar_service", lambda: CalendarService())
-    args = Namespace(calendar_command="upcoming")
+    args = Namespace(calendar_command="upcoming", user="default")
     assert cmd_calendar(args) == 0
     output = capsys.readouterr().out
     assert "Upcoming Events" in output

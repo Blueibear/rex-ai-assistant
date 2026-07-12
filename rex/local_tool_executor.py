@@ -154,12 +154,26 @@ def _handle_send_email(args: dict[str, Any]) -> str:
 
 
 def _handle_calendar_create_event(args: dict[str, Any]) -> str:
-    """Create a calendar event via CalendarService.  Accepts {title, start, end}."""
+    """Create a calendar event via CalendarService.
+
+    Accepts ``{title, start, end, _user_id}``.  Requires a validated
+    requesting user (``_user_id`` or ``user_id`` in *args*); fails closed
+    before any account or credential resolution, and creates the event only
+    in that user's own calendar store.
+    """
     from datetime import datetime, timedelta
 
     title: str = str(args.get("title") or args.get("summary") or "New Event").strip()
     start_raw: str = str(args.get("start") or "").strip()
     end_raw: str = str(args.get("end") or "").strip()
+    user_id = args.get("_user_id") or args.get("user_id")
+
+    from rex.calendar_accounts import require_user_id
+
+    try:
+        validated_user = require_user_id(user_id)
+    except PermissionError:
+        return "[calendar error: a valid user identity is required]"
 
     # Parse start time (ISO format); default to now + 1 hour if missing
     now = datetime.now(tz=UTC)
@@ -176,7 +190,9 @@ def _handle_calendar_create_event(args: dict[str, Any]) -> str:
 
     try:
         svc = CalendarService()
-        event = svc.create_event(title=title, start_time=start_dt, end_time=end_dt)
+        event = svc.create_event(
+            title=title, start_time=start_dt, end_time=end_dt, user_id=validated_user
+        )
     except Exception as exc:
         logger.warning("calendar_create_event failed: %s", exc)
         return f"[calendar error: {exc}]"

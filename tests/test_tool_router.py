@@ -251,6 +251,7 @@ class TestCalendarCreateEvent:
                     "title": "Team Meeting",
                     "start": "2026-04-01T10:00:00",
                     "end": "2026-04-01T11:00:00",
+                    "_user_id": "default",
                 },
             )
         assert "Calendar event created" in result
@@ -268,14 +269,16 @@ class TestCalendarCreateEvent:
         mock_svc = MagicMock()
         mock_svc.create_event.return_value = fake_event
         with patch("rex.local_tool_executor.CalendarService", return_value=mock_svc):
-            result = execute_tool("calendar_create_event", {"title": "Standup"})
+            result = execute_tool(
+                "calendar_create_event", {"title": "Standup", "_user_id": "default"}
+            )
         assert "Calendar event created" in result
 
     def test_exception_degraded_gracefully(self):
         with patch("rex.local_tool_executor.CalendarService", side_effect=RuntimeError("db error")):
             result = execute_tool(
                 "calendar_create_event",
-                {"title": "Broken", "start": "2026-04-01T10:00:00"},
+                {"title": "Broken", "start": "2026-04-01T10:00:00", "_user_id": "default"},
             )
         assert "[calendar error:" in result
         assert isinstance(result, str)
@@ -292,7 +295,9 @@ class TestCalendarCreateEvent:
         mock_svc = MagicMock()
         mock_svc.create_event.return_value = fake_event
         with patch("rex.local_tool_executor.CalendarService", return_value=mock_svc):
-            result = execute_tool("calendar_create_event", {"summary": "Weekly Sync"})
+            result = execute_tool(
+                "calendar_create_event", {"summary": "Weekly Sync", "_user_id": "default"}
+            )
         assert "Calendar event created" in result
 
 

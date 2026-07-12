@@ -31,7 +31,7 @@ def _make_service(tmp_path: Path) -> CalendarService:
     """Create an isolated CalendarService backed by a temp file."""
     cal_file = tmp_path / "calendar.json"
     svc = CalendarService(mock_data_path=cal_file)
-    svc.connect()
+    svc.connect(user_id="default")
     return svc
 
 
@@ -60,41 +60,51 @@ def reset_calendar_service():
 class TestEventsRetrieved:
     def test_connect_returns_true(self, tmp_path):
         svc = CalendarService(mock_data_path=tmp_path / "cal.json")
-        assert svc.connect() is True
+        assert svc.connect(user_id="default") is True
 
     def test_get_all_events_returns_list(self, tmp_path):
         svc = _make_service(tmp_path)
-        events = svc.get_all_events()
+        events = svc.get_all_events(user_id="default")
         assert isinstance(events, list)
 
     def test_get_events_in_range(self, tmp_path):
         svc = _make_service(tmp_path)
         now = _now()
-        svc.create_event("Future meeting", now + timedelta(hours=1), now + timedelta(hours=2))
-        events = svc.get_events(now, now + timedelta(hours=3))
+        svc.create_event(
+            "Future meeting", now + timedelta(hours=1), now + timedelta(hours=2), user_id="default"
+        )
+        events = svc.get_events(now, now + timedelta(hours=3), user_id="default")
         assert len(events) >= 1
         assert any(e.title == "Future meeting" for e in events)
 
     def test_list_upcoming_returns_future_events(self, tmp_path):
         svc = _make_service(tmp_path)
         now = _now()
-        svc.create_event("Soon", now + timedelta(hours=1), now + timedelta(hours=2))
-        upcoming = svc.list_upcoming(horizon_hours=48)
+        svc.create_event(
+            "Soon", now + timedelta(hours=1), now + timedelta(hours=2), user_id="default"
+        )
+        upcoming = svc.list_upcoming(horizon_hours=48, user_id="default")
         assert any(e.title == "Soon" for e in upcoming)
 
     def test_list_upcoming_excludes_past_events(self, tmp_path):
         svc = _make_service(tmp_path)
         now = _now()
-        svc.create_event("Old", now - timedelta(hours=10), now - timedelta(hours=9))
-        upcoming = svc.list_upcoming(horizon_hours=1)
+        svc.create_event(
+            "Old", now - timedelta(hours=10), now - timedelta(hours=9), user_id="default"
+        )
+        upcoming = svc.list_upcoming(horizon_hours=1, user_id="default")
         assert not any(e.title == "Old" for e in upcoming)
 
     def test_events_sorted_by_start_time(self, tmp_path):
         svc = _make_service(tmp_path)
         now = _now()
-        svc.create_event("Second", now + timedelta(hours=5), now + timedelta(hours=6))
-        svc.create_event("First", now + timedelta(hours=1), now + timedelta(hours=2))
-        events = svc.get_events(now, now + timedelta(hours=10))
+        svc.create_event(
+            "Second", now + timedelta(hours=5), now + timedelta(hours=6), user_id="default"
+        )
+        svc.create_event(
+            "First", now + timedelta(hours=1), now + timedelta(hours=2), user_id="default"
+        )
+        events = svc.get_events(now, now + timedelta(hours=10), user_id="default")
         starts = [e.start_time for e in events]
         assert starts == sorted(starts)
 
@@ -113,15 +123,20 @@ class TestEventsRetrieved:
         }
         cal_file.write_text(json.dumps(data), encoding="utf-8")
         svc = CalendarService(mock_data_path=cal_file)
-        svc.connect()
-        events = svc.get_all_events()
+        svc.connect(user_id="default")
+        events = svc.get_all_events(user_id="default")
         assert any(e.title == "Loaded Event" for e in events)
 
     def test_get_upcoming_events_by_days(self, tmp_path):
         svc = _make_service(tmp_path)
         now = _now()
-        svc.create_event("Next week", now + timedelta(days=3), now + timedelta(days=3, hours=1))
-        events = svc.get_upcoming_events(days=7)
+        svc.create_event(
+            "Next week",
+            now + timedelta(days=3),
+            now + timedelta(days=3, hours=1),
+            user_id="default",
+        )
+        events = svc.get_upcoming_events(days=7, user_id="default")
         assert any(e.title == "Next week" for e in events)
 
 
@@ -134,28 +149,36 @@ class TestEventsCreated:
     def test_create_event_returns_calendar_event(self, tmp_path):
         svc = _make_service(tmp_path)
         now = _now()
-        event = svc.create_event("Test Event", now + timedelta(hours=1), now + timedelta(hours=2))
+        event = svc.create_event(
+            "Test Event", now + timedelta(hours=1), now + timedelta(hours=2), user_id="default"
+        )
         assert isinstance(event, CalendarEvent)
         assert event.title == "Test Event"
 
     def test_created_event_has_unique_id(self, tmp_path):
         svc = _make_service(tmp_path)
         now = _now()
-        e1 = svc.create_event("A", now + timedelta(hours=1), now + timedelta(hours=2))
-        e2 = svc.create_event("B", now + timedelta(hours=3), now + timedelta(hours=4))
+        e1 = svc.create_event(
+            "A", now + timedelta(hours=1), now + timedelta(hours=2), user_id="default"
+        )
+        e2 = svc.create_event(
+            "B", now + timedelta(hours=3), now + timedelta(hours=4), user_id="default"
+        )
         assert e1.event_id != e2.event_id
 
     def test_created_event_persists_to_disk(self, tmp_path):
         cal_file = tmp_path / "cal.json"
         svc = CalendarService(mock_data_path=cal_file)
-        svc.connect()
+        svc.connect(user_id="default")
         now = _now()
-        svc.create_event("Persist me", now + timedelta(hours=1), now + timedelta(hours=2))
+        svc.create_event(
+            "Persist me", now + timedelta(hours=1), now + timedelta(hours=2), user_id="default"
+        )
 
         # New instance reads the same file
         svc2 = CalendarService(mock_data_path=cal_file)
-        svc2.connect()
-        events = svc2.get_all_events()
+        svc2.connect(user_id="default")
+        events = svc2.get_all_events(user_id="default")
         assert any(e.title == "Persist me" for e in events)
 
     def test_create_event_with_optional_fields(self, tmp_path):
@@ -165,6 +188,7 @@ class TestEventsCreated:
             "Detailed",
             now + timedelta(hours=1),
             now + timedelta(hours=2),
+            user_id="default",
             location="Room B",
             attendees=["alice@example.com"],
             description="Important meeting",
@@ -181,14 +205,17 @@ class TestEventsCreated:
             now.replace(hour=0, minute=0, second=0, microsecond=0),
             now.replace(hour=23, minute=59, second=59, microsecond=0),
             all_day=True,
+            user_id="default",
         )
         assert event.all_day is True
 
     def test_created_event_retrievable_via_get_events(self, tmp_path):
         svc = _make_service(tmp_path)
         now = _now()
-        event = svc.create_event("Retrievable", now + timedelta(hours=1), now + timedelta(hours=2))
-        events = svc.get_events(now, now + timedelta(hours=3))
+        event = svc.create_event(
+            "Retrievable", now + timedelta(hours=1), now + timedelta(hours=2), user_id="default"
+        )
+        events = svc.get_events(now, now + timedelta(hours=3), user_id="default")
         ids = [e.event_id for e in events]
         assert event.event_id in ids
 
@@ -202,14 +229,15 @@ class TestEventsCreated:
             )
         ]
         svc = CalendarService(mock_events=initial)
-        svc.connect()
+        svc.connect(user_id="default")
         new_event = svc.create_event(
             "New In Memory",
             now + timedelta(hours=3),
             now + timedelta(hours=4),
+            user_id="default",
         )
         assert new_event.title == "New In Memory"
-        all_events = svc.get_all_events()
+        all_events = svc.get_all_events(user_id="default")
         assert len(all_events) == 2
 
 
@@ -225,7 +253,7 @@ class TestErrorsHandled:
         svc = CalendarService(mock_data_path=cal_file)
         # Do not call connect(); _events is None
         now = _now()
-        events = svc.get_events(now, now + timedelta(hours=1))
+        events = svc.get_events(now, now + timedelta(hours=1), user_id="default")
         assert events == []
 
     def test_connect_with_invalid_json_returns_false(self, tmp_path):
@@ -233,19 +261,19 @@ class TestErrorsHandled:
         cal_file = tmp_path / "bad.json"
         cal_file.write_text("{not valid json", encoding="utf-8")
         svc = CalendarService(mock_data_path=cal_file)
-        result = svc.connect()
+        result = svc.connect(user_id="default")
         # May return False due to JSON error, or True with empty list — either is safe
         assert isinstance(result, bool)
 
     def test_delete_nonexistent_event_returns_false(self, tmp_path):
         svc = _make_service(tmp_path)
-        result = svc.delete_event("nonexistent-id-xyz")
+        result = svc.delete_event("nonexistent-id-xyz", user_id="default")
         assert result is False
 
     def test_update_nonexistent_event_returns_none(self, tmp_path):
         svc = _make_service(tmp_path)
         _now()
-        result = svc.update_event("nonexistent-id-xyz", {"title": "New Title"})
+        result = svc.update_event("nonexistent-id-xyz", {"title": "New Title"}, user_id="default")
         assert result is None
 
     def test_calendar_event_start_after_end_stored_as_is(self, tmp_path):
@@ -253,7 +281,9 @@ class TestErrorsHandled:
         svc = _make_service(tmp_path)
         now = _now()
         # Reversed times — should not raise
-        event = svc.create_event("Reversed", now + timedelta(hours=2), now + timedelta(hours=1))
+        event = svc.create_event(
+            "Reversed", now + timedelta(hours=2), now + timedelta(hours=1), user_id="default"
+        )
         assert event.title == "Reversed"
 
     def test_get_calendar_service_raises_when_unconfigured(self, tmp_path):
@@ -280,5 +310,5 @@ class TestErrorsHandled:
 
     def test_list_past_events_handled_safely(self, tmp_path):
         svc = _make_service(tmp_path)
-        result = svc.list_past_events(lookback_hours=24)
+        result = svc.list_past_events(lookback_hours=24, user_id="default")
         assert isinstance(result, list)

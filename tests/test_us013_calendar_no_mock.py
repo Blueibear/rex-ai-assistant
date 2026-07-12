@@ -34,28 +34,28 @@ class TestNoHardcodedFakeEvents:
     def test_new_service_with_no_file_returns_empty_list(self, tmp_path):
         """CalendarService with a non-existent path returns [] — no fake events."""
         svc = CalendarService(mock_data_path=tmp_path / "does_not_exist.json")
-        svc.connect()
-        events = svc.get_all_events()
+        svc.connect(user_id="default")
+        events = svc.get_all_events(user_id="default")
         assert events == []
 
     def test_default_mode_no_seed_file_returns_empty(self, monkeypatch, tmp_path):
         """Without any seed file or runtime file, _load_events returns []."""
         svc = CalendarService(mock_data_path=tmp_path / "missing.json")
-        events = svc.get_all_events()
+        events = svc.get_all_events(user_id="default")
         assert events == []
 
     def test_no_product_sync_event_in_default_state(self, tmp_path):
         """'Product sync' hardcoded event must not appear in any default state."""
         svc = CalendarService(mock_data_path=tmp_path / "empty.json")
-        svc.connect()
-        titles = [e.title for e in svc.get_all_events()]
+        svc.connect(user_id="default")
+        titles = [e.title for e in svc.get_all_events(user_id="default")]
         assert "Product sync" not in titles
 
     def test_no_checkin_event_in_default_state(self, tmp_path):
         """'1:1 check-in' hardcoded event must not appear in any default state."""
         svc = CalendarService(mock_data_path=tmp_path / "empty.json")
-        svc.connect()
-        titles = [e.title for e in svc.get_all_events()]
+        svc.connect(user_id="default")
+        titles = [e.title for e in svc.get_all_events(user_id="default")]
         assert "1:1 check-in" not in titles
 
 
@@ -87,8 +87,8 @@ class TestConfiguredPath:
             end_time=now + timedelta(hours=2),
         )
         svc = CalendarService(mock_events=[real_event])
-        svc.connect()
-        events = svc.get_all_events()
+        svc.connect(user_id="default")
+        events = svc.get_all_events(user_id="default")
         assert len(events) == 1
         assert events[0].title == "Real Meeting"
 
@@ -114,8 +114,8 @@ class TestConfiguredPath:
             encoding="utf-8",
         )
         svc = CalendarService(mock_data_path=cal_file)
-        svc.connect()
-        events = svc.get_all_events()
+        svc.connect(user_id="default")
+        events = svc.get_all_events(user_id="default")
         assert len(events) == 1
         assert events[0].title == "File Event"
 

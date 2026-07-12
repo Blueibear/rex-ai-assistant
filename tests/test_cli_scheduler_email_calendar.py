@@ -277,7 +277,7 @@ class TestCalendarCLI:
         mock_calendar_service.get_upcoming_events.return_value = []
 
         args = MagicMock(
-            calendar_command="upcoming", days=7, conflicts=False, verbose=False, user=None
+            calendar_command="upcoming", days=7, conflicts=False, verbose=False, user="default"
         )
         result = cmd_calendar(args)
 
@@ -306,7 +306,7 @@ class TestCalendarCLI:
         mock_calendar_service.get_upcoming_events.return_value = [event]
 
         args = MagicMock(
-            calendar_command="upcoming", days=7, conflicts=False, verbose=False, user=None
+            calendar_command="upcoming", days=7, conflicts=False, verbose=False, user="default"
         )
         result = cmd_calendar(args)
 
@@ -337,7 +337,7 @@ class TestCalendarCLI:
         mock_calendar_service.get_upcoming_events.return_value = [event]
 
         args = MagicMock(
-            calendar_command="upcoming", days=7, conflicts=False, verbose=True, user=None
+            calendar_command="upcoming", days=7, conflicts=False, verbose=True, user="default"
         )
         result = cmd_calendar(args)
 
@@ -363,7 +363,7 @@ class TestCalendarCLI:
         mock_calendar_service.get_upcoming_events.return_value = [event]
 
         args = MagicMock(
-            calendar_command="upcoming", days=7, conflicts=False, verbose=False, user=None
+            calendar_command="upcoming", days=7, conflicts=False, verbose=False, user="default"
         )
         result = cmd_calendar(args)
 
@@ -398,7 +398,7 @@ class TestCalendarCLI:
         mock_calendar_service.find_conflicts.return_value = [(event1, event2)]
 
         args = MagicMock(
-            calendar_command="upcoming", days=7, conflicts=True, verbose=False, user=None
+            calendar_command="upcoming", days=7, conflicts=True, verbose=False, user="default"
         )
         result = cmd_calendar(args)
 
@@ -414,18 +414,20 @@ class TestCalendarCLI:
         mock_calendar_service.get_upcoming_events.return_value = []
 
         args = MagicMock(
-            calendar_command="upcoming", days=14, conflicts=False, verbose=False, user=None
+            calendar_command="upcoming", days=14, conflicts=False, verbose=False, user="default"
         )
         cmd_calendar(args)
 
-        mock_calendar_service.get_upcoming_events.assert_called_once_with(days=14)
+        mock_calendar_service.get_upcoming_events.assert_called_once_with(
+            days=14, user_id="default"
+        )
 
     def test_calendar_upcoming_connection_failure(self, mock_calendar_service, capsys):
         """Test calendar command when connection fails."""
         mock_calendar_service.connect.return_value = False
 
         args = MagicMock(
-            calendar_command="upcoming", days=7, conflicts=False, verbose=False, user=None
+            calendar_command="upcoming", days=7, conflicts=False, verbose=False, user="default"
         )
         result = cmd_calendar(args)
 
@@ -435,7 +437,7 @@ class TestCalendarCLI:
 
     def test_calendar_unknown_command(self, mock_calendar_service, capsys):
         """Test unknown calendar subcommand."""
-        args = MagicMock(calendar_command="unknown", user=None)
+        args = MagicMock(calendar_command="unknown", user="default")
         result = cmd_calendar(args)
 
         assert result == 1
