@@ -7,6 +7,18 @@
   - All documentation, badges, and clone URLs updated to `https://github.com/Blueibear/AskRex-Assistant`.
   - See `docs/BRANDING.md` for the full canonical naming ruleset.
 
+## [1.4.1](https://github.com/Blueibear/AskRex-Assistant/compare/askrex-assistant-v1.4.0...askrex-assistant-v1.4.1) (2026-07-12)
+
+
+### Bug Fixes
+
+* **calendar:** enforce per-user account ownership and credential routing ([#318](https://github.com/Blueibear/AskRex-Assistant/issues/318)) ([b3d8888](https://github.com/Blueibear/AskRex-Assistant/commit/b3d8888cebd2b00401037b827f29295d977b5fda)), closes [#303](https://github.com/Blueibear/AskRex-Assistant/issues/303)
+* **email:** enforce per-user account ownership and credential routing ([#316](https://github.com/Blueibear/AskRex-Assistant/issues/316)) ([bcf4c65](https://github.com/Blueibear/AskRex-Assistant/commit/bcf4c657521e4b3772a19dfd6f7c8de1f0f2491e))
+* **identity:** fail closed on unsafe user IDs ([#319](https://github.com/Blueibear/AskRex-Assistant/issues/319)) ([1f589cb](https://github.com/Blueibear/AskRex-Assistant/commit/1f589cb9bcaf893b20e65699ee4ff786c4212c38))
+* **memory:** enforce per-user isolation for working and long-term memory ([#315](https://github.com/Blueibear/AskRex-Assistant/issues/315)) ([032eba0](https://github.com/Blueibear/AskRex-Assistant/commit/032eba04611ca76efc0adc7d6e56f8b623cf998a))
+* **reminders:** enforce per-user ownership for reminders and scheduled firing ([#314](https://github.com/Blueibear/AskRex-Assistant/issues/314)) ([bf5a315](https://github.com/Blueibear/AskRex-Assistant/commit/bf5a31555d477314063758d099862bb75215d518))
+* **suggestions:** isolate SuggestionEngine pending state per user ([#312](https://github.com/Blueibear/AskRex-Assistant/issues/312)) ([080add0](https://github.com/Blueibear/AskRex-Assistant/commit/080add085e92506e515a6a9acf69e0ec5655c60d))
+
 ## [1.4.0](https://github.com/Blueibear/AskRex-Assistant/compare/askrex-assistant-v1.3.0...askrex-assistant-v1.4.0) (2026-07-09)
 
 
