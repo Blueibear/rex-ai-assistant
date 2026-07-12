@@ -305,23 +305,64 @@ def _cmd_email_test_connection(args: argparse.Namespace, user: str) -> int:
     return 0
 
 
+_NO_CALENDAR_USER_MSG = (
+    "Error: No active user for calendar.\n"
+    "Set one with: rex identify --user <id>\n"
+    "Or pass one explicitly: rex calendar ... --user <id>"
+)
+
+
+def _resolve_calendar_user(args: argparse.Namespace) -> str | None:
+    """Resolve the requesting user for calendar commands, failing closed.
+
+    Uses ``--user`` when given, otherwise the standard identity chain.
+    Never silently falls back to the ``default`` profile — single-user
+    setups select it explicitly with ``--user default`` or
+    ``rex identify --user default``.
+    """
+    try:
+        user = _cli()._resolve_cli_user(args)
+        return str(user) if user else None
+    except ValueError as exc:
+        print(f"Error: {exc}")
+        return None
+
+
 def cmd_calendar(args: argparse.Namespace) -> int:
-    """Manage calendar."""
-    _ = _cli()._resolve_cli_user(args)
-    calendar_service = _cli().get_calendar_service()
+    """Manage calendar.  Every subcommand runs as one validated user."""
+    from rex.assistant_errors import IntegrationNotConfiguredError
+
+    user = _resolve_calendar_user(args)
+    if not user:
+        print(_NO_CALENDAR_USER_MSG)
+        return 1
+
     subcommand = args.calendar_command
 
+    if subcommand == "accounts":
+        return _cmd_calendar_accounts(args, user)
+
     if subcommand == "test-connection":
-        return _cmd_calendar_test_connection()
+        return _cmd_calendar_test_connection(args, user)
 
     if subcommand == "upcoming":
+        try:
+            calendar_service = _cli().get_calendar_service()
+        except IntegrationNotConfiguredError:
+            print("Calendar integration not configured. Add a calendar account in config.")
+            return 1
+
         if not calendar_service.connected:
-            if not calendar_service.connect():
+            if not calendar_service.connect(user):
                 print("Error: Failed to connect to calendar service")
                 return 1
 
         days = getattr(args, "days", None) or 7
-        events = calendar_service.get_upcoming_events(days=days)
+        try:
+            events = calendar_service.get_upcoming_events(days=days, user_id=user)
+        except PermissionError as exc:
+            print(f"Error: {exc}")
+            return 1
 
         print(f"Upcoming Events (next {days} days)")
         print("=" * 80)
@@ -355,7 +396,7 @@ def cmd_calendar(args: argparse.Namespace) -> int:
         print(f"Total: {len(events)} events")
 
         if getattr(args, "conflicts", False):
-            conflicts = calendar_service.find_conflicts(events)
+            conflicts = calendar_service.find_conflicts(events, user_id=user)
             if conflicts:
                 print()
                 print("Conflicts Detected:")
@@ -369,24 +410,150 @@ def cmd_calendar(args: argparse.Namespace) -> int:
     return 1
 
 
-def _cmd_calendar_test_connection() -> int:
-    """Verify calendar backend configuration."""
-    from rex.calendar_backends.factory import create_calendar_backend
+def _cmd_calendar_accounts(args: argparse.Namespace, user: str) -> int:
+    """Handle 'rex calendar accounts' subcommands for one validated user."""
+    accounts_cmd = getattr(args, "accounts_command", "list")
+    resolver = _cli()._load_calendar_resolver_safe()
 
-    backend = create_calendar_backend()
-    ok, message = backend.test_connection()
-    name = backend.backend_name
+    if accounts_cmd == "list":
+        accounts = [] if resolver is None else resolver.accounts_for_user(user)
+        if resolver is None or not accounts:
+            print(f"No calendar accounts configured for user '{user}'.")
+            print()
+            print("To configure accounts, add a 'calendar' section to config/rex_config.json")
+            print(f"and assign them to this user under users.{user}.calendar_accounts.")
+            print("See docs/calendar.md for details.")
+            return 0
 
-    if ok:
-        print(f"Calendar backend '{name}': OK")
-        if message:
-            print(f"  {message}")
+        print(f"Calendar Accounts for user '{user}'")
+        print("=" * 60)
+        print()
+
+        default_id = resolver.default_account_id_for_user(user)
+        for acct in accounts:
+            is_default = " (default)" if acct.id == default_id else ""
+            print(f"  {acct.id}{is_default}")
+            if acct.label:
+                print(f"    Label:    {acct.label}")
+            print(f"    Provider: {acct.provider}")
+            if acct.provider == "ics" and acct.ics_source:
+                print(f"    Source:   {acct.ics_source}")
+            print()
+
+        print(f"Total: {len(accounts)} account(s)")
         return 0
-    else:
-        print(f"Calendar backend '{name}': FAILED")
+
+    if accounts_cmd == "set-active":
+        account_id = getattr(args, "account_id", None)
+        if not account_id:
+            print("Error: --account-id is required")
+            return 1
+
+        if resolver is None:
+            print("Error: No calendar configuration found")
+            return 1
+
+        owned = resolver.account_ids_for_user(user)
+        if account_id not in owned:
+            # Foreign and nonexistent accounts are indistinguishable; only
+            # the requesting user's own accounts are ever revealed.
+            print(f"Error: Account '{account_id}' is not available for user '{user}'.")
+            if owned:
+                print(f"Available: {', '.join(owned)}")
+            return 1
+
+        # Update only this user's default; never another user's routing and
+        # never the legacy global default.
+        try:
+            import json as _json
+
+            config_path = Path("config/rex_config.json")
+            if config_path.exists():
+                config_data = _json.loads(config_path.read_text(encoding="utf-8"))
+            else:
+                config_data = {}
+
+            users_block = config_data.setdefault("users", {})
+            user_entry = users_block.setdefault(user, {})
+            if not isinstance(user_entry, dict):
+                print("Error: Invalid users section in config")
+                return 1
+            user_entry["default_calendar_account_id"] = account_id
+            config_path.write_text(_json.dumps(config_data, indent=2) + "\n", encoding="utf-8")
+            print(f"Default calendar account for user '{user}' set to '{account_id}'")
+            return 0
+        except Exception as exc:
+            print(f"Error updating config: {exc}")
+            return 1
+
+    print("Unknown accounts subcommand. Use 'rex calendar accounts --help'")
+    return 1
+
+
+def _cmd_calendar_test_connection(args: argparse.Namespace, user: str) -> int:
+    """Verify calendar configuration for one validated user's own account."""
+    account_id = getattr(args, "account_id", None)
+
+    resolver = _cli()._load_calendar_resolver_safe()
+    if resolver is None or not resolver.has_configured_accounts():
+        print("No calendar accounts configured. Using stub backend.")
+        print("Connection test: OK (stub mode)")
+        return 0
+
+    owned = resolver.account_ids_for_user(user)
+    try:
+        resolved_id = resolver.resolve_account_id(user, account_id)
+    except PermissionError:
+        resolved_id = None
+    acct = resolver.get_account_definition(resolved_id) if resolved_id else None
+    if acct is None:
+        # Only the requesting user's own accounts are ever revealed.
+        if owned:
+            print(f"Error: Account not available. Available for user '{user}': {', '.join(owned)}")
+        else:
+            print(f"Error: No calendar accounts configured for user '{user}'.")
+        return 1
+
+    print(f"Testing connection for calendar account '{acct.id}' (provider: {acct.provider})...")
+
+    if acct.provider == "ics":
+        from rex.calendar_backends.ics_backend import ICSCalendarBackend
+
+        backend = ICSCalendarBackend(source=acct.ics_source, url_timeout=acct.ics_url_timeout)
+        ok, message = backend.test_connection()
+        if ok:
+            print("Calendar backend 'ics': OK")
+            if message:
+                print(f"  {message}")
+            return 0
+        print("Calendar backend 'ics': FAILED")
         if message:
             print(f"  {message}")
         return 1
+
+    if acct.provider == "stub":
+        print("Calendar backend 'stub': OK")
+        return 0
+
+    if acct.provider == "google":
+        # Check token presence only — never print the credential reference
+        # or its value.
+        import os
+
+        token = os.environ.get(acct.credential_ref, "") if acct.credential_ref else ""
+        if not token:
+            print("  Credential: NOT FOUND")
+            print()
+            print("Error: No credentials available for this account.")
+            print("Set this account's token environment variable (see docs/calendar.md).")
+            return 1
+        print("  Credential: available")
+        print()
+        print("Connection test passed.")
+        return 0
+
+    print(f"Calendar provider '{acct.provider}' is not supported for connection tests.")
+    return 1
 
 
 def register(subparsers: argparse._SubParsersAction) -> None:
@@ -528,12 +695,65 @@ def register(subparsers: argparse._SubParsersAction) -> None:
     calendar_upcoming.add_argument(
         "-v", "--verbose", action="store_true", help="Show detailed event information"
     )
+    calendar_upcoming.add_argument(
+        "--user", type=str, default=None, help="User context for this command"
+    )
     calendar_upcoming.set_defaults(func=_cli().cmd_calendar, calendar_command="upcoming")
+
+    # calendar accounts
+    calendar_accounts = calendar_subparsers.add_parser(
+        "accounts",
+        help="Manage calendar accounts",
+        description="List and manage configured calendar accounts.",
+    )
+    calendar_accounts_sub = calendar_accounts.add_subparsers(
+        title="accounts commands",
+        dest="accounts_command",
+        metavar="COMMAND",
+    )
+
+    calendar_accounts_list = calendar_accounts_sub.add_parser(
+        "list",
+        help="List the selected user's calendar accounts",
+    )
+    calendar_accounts_list.add_argument(
+        "--user", type=str, default=None, help="User context for this command"
+    )
+    calendar_accounts_list.set_defaults(
+        func=cmd_calendar, calendar_command="accounts", accounts_command="list"
+    )
+
+    calendar_accounts_set_active = calendar_accounts_sub.add_parser(
+        "set-active",
+        help="Set the selected user's default calendar account",
+    )
+    calendar_accounts_set_active.add_argument(
+        "--account-id",
+        type=str,
+        required=True,
+        help="Account ID to set as this user's default",
+    )
+    calendar_accounts_set_active.add_argument(
+        "--user", type=str, default=None, help="User context for this command"
+    )
+    calendar_accounts_set_active.set_defaults(
+        func=cmd_calendar, calendar_command="accounts", accounts_command="set-active"
+    )
+
+    calendar_accounts.set_defaults(
+        func=_cli().cmd_calendar, calendar_command="accounts", accounts_command="list"
+    )
 
     calendar_test_conn = calendar_subparsers.add_parser(
         "test-connection",
-        help="Verify calendar backend configuration",
-        description="Check that the configured calendar backend can connect and parse events.",
+        help="Verify calendar account configuration",
+        description="Check that the selected user's calendar account can connect and parse events.",
+    )
+    calendar_test_conn.add_argument(
+        "--account-id", type=str, default=None, help="Account ID to test"
+    )
+    calendar_test_conn.add_argument(
+        "--user", type=str, default=None, help="User context for this command"
     )
     calendar_test_conn.set_defaults(func=_cli().cmd_calendar, calendar_command="test-connection")
 

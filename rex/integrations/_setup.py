@@ -97,21 +97,56 @@ def setup_calendar_job() -> ScheduledJob:
     event_bus = get_event_bus()
 
     def sync_calendar(job: ScheduledJob) -> None:
-        """Sync calendar and publish event."""
+        """Sync calendars per configured owner and publish scoped events.
+
+        Each owner is processed in an isolated context: one owner's failure
+        never falls through to another owner's account.  Private event
+        fields are published only on the owner-scoped topic; the shared
+        ``calendar.update`` topic carries a safe envelope (count/user).
+        """
         logger.info("Running scheduled calendar sync")
         try:
-            calendar_service = get_calendar_service()
-            if not calendar_service.connected:
-                calendar_service.connect()
-            events = calendar_service.get_upcoming_events(days=7)
-            event = Event(
-                event_type="calendar.update",
-                payload={"count": len(events), "events": [e.model_dump() for e in events]},  # type: ignore[attr-defined]
-            )
-            event_bus.publish(event)
-            logger.info(f"Published calendar.update event with {len(events)} events")
+            from rex.calendar_accounts import CalendarAccountResolver
+
+            owners = CalendarAccountResolver.load().configured_user_ids()
         except Exception as e:
-            logger.error(f"Error syncing calendar: {e}", exc_info=True)
+            logger.error(f"Error resolving calendar owners: {e}", exc_info=True)
+            return
+        if not owners:
+            logger.debug("No calendar account owners configured; skipping scheduled sync")
+            return
+
+        try:
+            calendar_service = get_calendar_service()
+        except Exception as e:
+            logger.debug(f"Calendar service unavailable for scheduled sync: {e}")
+            return
+
+        for owner in owners:
+            try:
+                events = calendar_service.get_upcoming_events(days=7, user_id=owner)
+                event_bus.publish(
+                    Event(
+                        event_type=f"calendar.update.user.{owner}",
+                        payload={
+                            "count": len(events),
+                            "user_id": owner,
+                            "events": [e.to_summary() for e in events],
+                        },
+                    )
+                )
+                event_bus.publish(
+                    Event(
+                        event_type="calendar.update",
+                        payload={"count": len(events), "user_id": owner},
+                    )
+                )
+                logger.info(
+                    f"Published calendar.update event with {len(events)} events "
+                    f"for user {owner}"
+                )
+            except Exception as e:
+                logger.error(f"Error syncing calendar for user {owner}: {e}", exc_info=True)
 
     scheduler.register_callback("sync_calendar", sync_calendar)
     job = scheduler.add_job(

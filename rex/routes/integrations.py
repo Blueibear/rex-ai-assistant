@@ -100,21 +100,51 @@ def create_blueprint() -> Blueprint:
 
     @bp.route("/api/calendar/events", methods=["GET"])
     def _calendar_events() -> Any:
-        """Return calendar events from the configured provider."""
+        """Return calendar events for the resolved requesting user only.
+
+        Identity comes from an explicit ``?user=`` query parameter or the
+        standard identity chain; without a valid user the request fails
+        closed (no global-credential fallback for named users).
+        """
         from datetime import UTC, datetime, timedelta
 
         from flask import jsonify, request
 
-        from rex.config import load_config
-        from rex.integrations.calendar_service import CalendarService
+        from rex.identity import resolve_active_user
+        from rex.integrations.calendar_service import create_calendar_service_for_user
+
+        no_user_error = (
+            "No active user for calendar. Set one with 'rex identify --user <id>' "
+            "or pass an explicit ?user= parameter."
+        )
 
         try:
-            cfg = load_config()
-        except Exception:
-            return jsonify({"ok": True, "events": [], "configured": False}), 200
+            from rex.config_manager import load_config as _load_raw_config
 
-        provider = getattr(cfg, "calendar_provider", "none") or "none"
-        if str(provider).lower() == "outlook":
+            raw_config = _load_raw_config()
+        except Exception:
+            raw_config = {}
+
+        explicit = str(request.args.get("user") or "").strip() or None
+        try:
+            user_id = resolve_active_user(explicit, config=raw_config)
+        except ValueError:
+            user_id = None
+        if not user_id:
+            return (
+                jsonify({"ok": False, "events": [], "configured": False, "error": no_user_error}),
+                403,
+            )
+
+        try:
+            svc, provider = create_calendar_service_for_user(user_id, raw_config)
+        except PermissionError:
+            return (
+                jsonify({"ok": False, "events": [], "configured": False, "error": no_user_error}),
+                403,
+            )
+
+        if provider == "outlook":
             return (
                 jsonify(
                     {
@@ -131,7 +161,8 @@ def create_blueprint() -> Blueprint:
                 501,
             )
 
-        svc = CalendarService(calendar_provider=provider)
+        if svc is None:
+            return jsonify({"ok": True, "events": [], "configured": False}), 200
 
         try:
             start_str = request.args.get("start", "")
@@ -143,7 +174,7 @@ def create_blueprint() -> Blueprint:
             end = start + timedelta(days=30)
 
         events = svc.get_events(start, end)
-        configured = provider != "none"
+        configured = True
 
         def _event_to_dict(e: Any) -> dict:
             return {

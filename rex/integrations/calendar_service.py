@@ -137,10 +137,16 @@ class CalendarService:
     Args:
         calendar_provider: One of ``"none"`` or ``"google"``.
             Defaults to ``"none"`` (stub mode).
+        access_token: Explicit OAuth access token *value* for the provider
+            API.  When omitted, the legacy global environment token is used —
+            that path serves only the explicit ``default`` profile (issue
+            #303); named users must be constructed via
+            :func:`create_calendar_service_for_user` with their own token.
     """
 
-    def __init__(self, calendar_provider: str = "none") -> None:
+    def __init__(self, calendar_provider: str = "none", access_token: str | None = None) -> None:
         self._provider = calendar_provider.lower()
+        self._access_token = access_token
         logger.debug("CalendarService initialised with provider=%s", self._provider)
 
     # ------------------------------------------------------------------
@@ -243,7 +249,10 @@ class CalendarService:
     def _google_headers(self) -> dict[str, str]:
         import os
 
-        token = os.environ.get("GOOGLE_CALENDAR_ACCESS_TOKEN", "")
+        token = self._access_token
+        if token is None:
+            # Legacy global env token — default profile only (issue #303).
+            token = os.environ.get("GOOGLE_CALENDAR_ACCESS_TOKEN", "")
         return {"Authorization": f"Bearer {token}", "Accept": "application/json"}
 
     def _google_get_events(self, start: datetime, end: datetime) -> list[CalendarEvent]:
@@ -270,9 +279,11 @@ class CalendarService:
             parsed = [self._parse_google_event(item) for item in data.get("items", [])]
             return [e for e in parsed if e is not None and isinstance(e, CalendarEvent)]
         except Exception as exc:  # noqa: BLE001
+            # Fail closed: never substitute stub/fallback data for a live
+            # provider failure (issue #303 — stub data must stay isolated
+            # and provider errors must not be masked).
             logger.error("Google Calendar get_events failed: %s", exc)
-            events = _build_stub_events()
-            return [e for e in events if e.start < end and e.end > start]
+            return []
 
     def _google_create_event(self, event_data: EventData) -> CalendarEvent:
         try:
@@ -414,7 +425,81 @@ class CalendarService:
 
 
 # ---------------------------------------------------------------------------
+# Per-user construction (issue #303)
+# ---------------------------------------------------------------------------
+
+
+def create_calendar_service_for_user(
+    user_id: str, raw_config: dict | None = None
+) -> tuple[CalendarService | None, str]:
+    """Build the provider-API CalendarService for one validated user.
+
+    Provider selection is per-user via ``rex.calendar_accounts``:
+
+    - A ``google``-provider account assigned to the user is served with that
+      user's own token (read from the environment variable named by the
+      account's ``credential_ref``).
+    - The legacy global ``calendar.provider`` + ``GOOGLE_CALENDAR_ACCESS_TOKEN``
+      path is available only to the explicit ``default`` profile.  Named
+      users never inherit the global credentials.
+
+    Returns:
+        ``(service_or_None, provider)`` where *provider* is one of
+        ``"none"``, ``"google"``, or ``"outlook"``.  ``service`` is ``None``
+        when the user has no usable provider (or the provider is
+        unsupported).
+
+    Raises:
+        PermissionError: On missing or invalid *user_id* (fail closed,
+            before any credential is read).
+    """
+    import os
+
+    from rex.calendar_accounts import (
+        DEFAULT_PROFILE,
+        CalendarAccountResolver,
+        require_user_id,
+    )
+
+    validated = require_user_id(user_id)
+
+    if raw_config is None:
+        try:
+            from rex.config_manager import load_config
+
+            raw_config = load_config()
+        except Exception:
+            raw_config = {}
+
+    resolver = CalendarAccountResolver.from_raw_config(raw_config)
+    account = resolver.provider_account_for_user(validated)
+    if account is not None:
+        if account.provider == "outlook":
+            return None, "outlook"
+        if account.legacy:
+            # Legacy global provider config: default profile only, using the
+            # legacy environment token.
+            if validated != DEFAULT_PROFILE:
+                return None, "none"
+            return CalendarService(calendar_provider="google"), "google"
+        credential_ref = account.credential_ref or ""
+        token = os.environ.get(credential_ref, "") if credential_ref else ""
+        if not token:
+            # Audit metadata only: account and user.  Credential references
+            # are never logged (issue #303 legacy policy).
+            logger.warning(
+                "Calendar account %r for user %r has no token configured",
+                account.id,
+                validated,
+            )
+            return None, "none"
+        return CalendarService(calendar_provider="google", access_token=token), "google"
+
+    return None, "none"
+
+
+# ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
 
-__all__ = ["CalendarService"]
+__all__ = ["CalendarService", "create_calendar_service_for_user"]

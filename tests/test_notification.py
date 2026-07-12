@@ -276,13 +276,13 @@ def test_notifier_event_subscription():
         notifier = Notifier()
         notifier.setup_event_subscriptions()
 
-        # Should subscribe to user-scoped email events (wildcard with a
-        # prefix filter) and calendar events via EventBridge
-        assert mock_bridge.subscribe.call_count == 2
+        # Should subscribe once via a wildcard: user-scoped email and
+        # calendar topics are routed through the prefix filter in
+        # _on_any_event (shared topics carry only safe envelopes).
+        assert mock_bridge.subscribe.call_count == 1
         calls = mock_bridge.subscribe.call_args_list
         event_types = [call[0][0] for call in calls]
-        assert "*" in event_types
-        assert "calendar.update" in event_types
+        assert event_types == ["*"]
 
 
 def test_notifier_email_unread_handler(notifier):

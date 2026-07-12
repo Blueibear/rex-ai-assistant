@@ -1,8 +1,25 @@
 """
 Calendar service module for Rex AI Assistant.
 
-Provides calendar integration with read/write capabilities using mock data.
-A real calendar API integration (Google Calendar, Outlook, etc.) can be added later.
+Provides calendar integration with read/write capabilities using per-user
+stores (stub/mock data or an ICS backend resolved per authorized account).
+
+Per-user isolation (issue #303):
+- Every operation that reads or mutates calendar data requires an explicit,
+  validated ``user_id``.  Missing, blank, malformed, or traversal-style
+  identities fail closed (``CalendarIdentityError``) before any account or
+  credential lookup.
+- Account selection is restricted to the requesting user's authorized
+  accounts via :class:`rex.calendar_accounts.CalendarAccountResolver`;
+  explicit foreign or nonexistent accounts raise the generic
+  ``CalendarAccountAccessError`` (indistinguishable to the caller).
+- Backends are cached per ``(user_id, account_id)``; a backend resolved for
+  one user is never reused for another.
+- Stub/mock mode keeps a separate mutable event store per user so one
+  user's create/update/delete never alters another user's view.
+- Private event fields (titles, attendees, locations, descriptions) are
+  published only on user-scoped topics (``{topic}.user.{user_id}``); shared
+  topics carry a safe envelope (user_id, count, success) only.
 """
 
 from __future__ import annotations
@@ -18,24 +35,38 @@ from pathlib import Path
 from typing import Any
 
 from rex.assistant_errors import IntegrationNotConfiguredError
+from rex.calendar_accounts import (
+    ACCOUNT_UNAVAILABLE_MSG,
+    DEFAULT_PROFILE,
+    CalendarAccountAccessError,
+    CalendarAccountDefinition,
+    CalendarAccountResolver,
+    require_user_id,
+)
 from rex.openclaw.event_bus import EventBus
 
 logger = logging.getLogger(__name__)
 
 _REPO_SEED_PATH = Path("data/mock_calendar.json")
 
+_NOT_CONFIGURED_FOR_USER_MSG = "Calendar: not configured"
 
-def _runtime_calendar_path() -> Path:
-    """Return a writable runtime path for calendar persistence.
+
+def _runtime_calendar_path(user_id: str) -> Path:
+    """Return a writable per-user runtime path for calendar persistence.
 
     Uses OS-appropriate app data directories so the repo's
-    data/mock_calendar.json is never modified at runtime.
+    data/mock_calendar.json is never modified at runtime.  The legacy
+    single-user file (``rex-ai/calendar.json``) is preserved for the
+    ``default`` profile only; named users get isolated per-user files.
     """
     if os.name == "nt":
         base = Path(os.environ.get("LOCALAPPDATA", str(Path.home() / "AppData" / "Local")))
     else:
         base = Path(os.environ.get("XDG_DATA_HOME", str(Path.home() / ".local" / "share")))
-    return base / "rex-ai" / "calendar.json"
+    if user_id == DEFAULT_PROFILE:
+        return base / "rex-ai" / "calendar.json"
+    return base / "rex-ai" / "calendar" / f"{user_id}.json"
 
 
 class _NoOpEventBus:
@@ -116,22 +147,41 @@ class CalendarEvent:
         return self.start_time < other.end_time and self.end_time > other.start_time
 
 
+class _EventStore:
+    """One user's isolated mutable event list, optionally disk-backed."""
+
+    __slots__ = ("account_id", "events", "storage_path")
+
+    def __init__(
+        self,
+        events: list[CalendarEvent],
+        storage_path: Path | None,
+        account_id: str | None,
+    ) -> None:
+        self.events = events
+        self.storage_path = storage_path
+        self.account_id = account_id
+
+
 class CalendarService:
     """
-    Read/write calendar service backed by mock data.
-
-    Supports:
-    - Loading from mock file (two formats supported)
-    - Creating, updating, deleting events
-    - Listing upcoming events
-    - Getting events in a time range
-    - Conflict detection
+    Read/write calendar service with per-user isolated stores.
 
     Storage modes:
-    - mock_events provided: in-memory only, no disk writes.
-    - mock_data_path provided: read/write to that path (tests use tmp_path).
-    - Neither provided: read seed from data/mock_calendar.json, write to a
-      user-specific runtime directory so tracked repo files are never modified.
+    - ``mock_events`` provided: in-memory only, no disk writes.  The events
+      belong to ``owner_user_id`` (default: the ``default`` profile); other
+      users see their own empty isolated stores.
+    - ``mock_data_path`` provided: read/write to that path (tests use
+      tmp_path) for ``owner_user_id`` only; other users get isolated
+      in-memory stores.
+    - Neither provided: accounts are resolved per validated user via
+      :class:`CalendarAccountResolver`.  Users whose resolved account is an
+      ICS source get a read-seeded in-memory store; stub users get an
+      isolated per-user runtime file seeded from ``data/mock_calendar.json``.
+      When real accounts are configured, a user with no authorized account
+      fails closed (reads return ``[]``, writes raise
+      :class:`IntegrationNotConfiguredError`) — never another user's
+      account.
     """
 
     def __init__(
@@ -140,50 +190,274 @@ class CalendarService:
         *,
         mock_data_path: Path | str | None = None,
         mock_events: list[CalendarEvent] | None = None,
+        owner_user_id: str = DEFAULT_PROFILE,
+        account_resolver: CalendarAccountResolver | None = None,
     ) -> None:
         self._event_bus = event_bus if event_bus is not None else _NoOpEventBus()
+        self._owner = require_user_id(owner_user_id)
 
-        if mock_events is not None:
-            # In-memory mode: caller supplied events, never touch disk.
-            self._seed_path: Path | None = None
-            self._storage_path: Path | None = None
-            self._events: list[CalendarEvent] | None = list(mock_events)
-        elif mock_data_path is not None:
-            # Explicit path: read and write to the caller-supplied location.
-            p = Path(mock_data_path)
-            self._seed_path = p
-            self._storage_path = p
-            self._events = None
-        else:
-            # Default mode: seed from repo fixture, persist to runtime dir.
-            self._seed_path = _REPO_SEED_PATH
-            self._storage_path = _runtime_calendar_path()
-            self._events = None
+        self._mock_events: list[CalendarEvent] | None = (
+            list(mock_events) if mock_events is not None else None
+        )
+        self._mock_data_path: Path | None = Path(mock_data_path) if mock_data_path else None
+
+        # Per-user isolated stores, keyed by (user_id, account_id or "").
+        self._stores: dict[tuple[str, str], _EventStore] = {}
+        # ICS backends cached per (user_id, account_id).  A backend created
+        # for one user is never served to another.
+        self._user_backends: dict[tuple[str, str], Any] = {}
+
+        # Injected authorization/routing resolver (tests/embedding only; the
+        # production path loads lazily so config changes — including account
+        # revocations — are picked up without a restart).
+        self._injected_resolver = account_resolver
+        self._resolver_cache: CalendarAccountResolver | None = None
+        self._resolver_stamp: int | None = None
 
         self.connected = False
 
-    def connect(self) -> bool:
-        """
-        Connect to calendar service.
+    # ------------------------------------------------------------------
+    # Resolver / store plumbing
+    # ------------------------------------------------------------------
 
-        For mock mode, this loads mock data. Always returns True unless a hard failure occurs.
+    def _get_resolver(self) -> CalendarAccountResolver:
+        """Return the account resolver, refreshing when the config changes.
+
+        Authorization is re-checked on every operation, so cached stores and
+        backends never outlive their owner's assignment.
+        """
+        if self._injected_resolver is not None:
+            return self._injected_resolver
+
+        from rex import calendar_accounts as _calendar_accounts
+
+        stamp = _calendar_accounts.config_stamp()
+        if self._resolver_cache is None or stamp != self._resolver_stamp:
+            self._resolver_cache = CalendarAccountResolver.load()
+            self._resolver_stamp = stamp
+        return self._resolver_cache
+
+    def _seeded_stub_events(self, user_id: str) -> tuple[list[CalendarEvent], Path | None]:
+        """Load a user's stub store from disk (runtime file, then repo seed)."""
+        storage_path = _runtime_calendar_path(user_id)
+        for path in (storage_path, _REPO_SEED_PATH):
+            if path is not None and path.exists():
+                try:
+                    return self._load_mock_events(path), storage_path
+                except Exception as exc:
+                    logger.warning("Failed to load calendar data from %s: %s", path, exc)
+        return [], storage_path
+
+    def _get_store(
+        self,
+        user_id: str,
+        account_id: str | None = None,
+    ) -> _EventStore | None:
+        """Return *user_id*'s isolated store, after ownership validation.
+
+        Returns ``None`` when real accounts are configured but none is
+        available/usable for this user (documented not-configured result —
+        callers fail closed, never through another user's account).
+
+        Raises:
+            CalendarIdentityError: On missing or invalid identity.
+            CalendarAccountAccessError: When *account_id* is explicitly
+                requested but not available to this user.
+        """
+        validated = require_user_id(user_id)
+
+        # In-memory / explicit-path modes are bound to exactly one owner.
+        if self._mock_events is not None or self._mock_data_path is not None:
+            if account_id:
+                # No configured accounts exist in these modes; unauthorized
+                # and nonexistent are indistinguishable.
+                raise CalendarAccountAccessError(
+                    ACCOUNT_UNAVAILABLE_MSG.format(account_id=account_id, user_id=validated)
+                )
+            key = (validated, "")
+            store = self._stores.get(key)
+            if store is None:
+                if validated == self._owner:
+                    if self._mock_events is not None:
+                        store = _EventStore(list(self._mock_events), None, None)
+                    else:
+                        events: list[CalendarEvent] = []
+                        assert self._mock_data_path is not None
+                        if self._mock_data_path.exists():
+                            try:
+                                events = self._load_mock_events(self._mock_data_path)
+                            except Exception as exc:
+                                logger.warning(
+                                    "Failed to load calendar data from %s: %s",
+                                    self._mock_data_path,
+                                    exc,
+                                )
+                        store = _EventStore(events, self._mock_data_path, None)
+                else:
+                    # Isolated empty in-memory store for any other user.
+                    store = _EventStore([], None, None)
+                self._stores[key] = store
+            return store
+
+        resolver = self._get_resolver()
+        if not resolver.has_configured_accounts():
+            # Pure stub mode: isolated per-user disk store.
+            if account_id:
+                raise CalendarAccountAccessError(
+                    ACCOUNT_UNAVAILABLE_MSG.format(account_id=account_id, user_id=validated)
+                )
+            key = (validated, "")
+            store = self._stores.get(key)
+            if store is None:
+                events, storage_path = self._seeded_stub_events(validated)
+                store = _EventStore(events, storage_path, None)
+                self._stores[key] = store
+            return store
+
+        # Accounts are configured: ownership check before anything else.
+        definition = resolver.resolve_account(validated, account_id)
+        if definition is None:
+            logger.warning("No usable calendar account for user %r", validated)
+            return None
+
+        if definition.provider == "ics":
+            return self._ics_store(validated, definition)
+        if definition.provider == "stub":
+            key = (validated, definition.id)
+            store = self._stores.get(key)
+            if store is None:
+                events, storage_path = self._seeded_stub_events(validated)
+                store = _EventStore(events, storage_path, definition.id)
+                self._stores[key] = store
+            return store
+
+        # google/outlook accounts are served by the provider-API surface
+        # (rex.integrations.calendar_service), not this store-backed service.
+        logger.warning(
+            "Calendar account for user %r uses provider %r, which this surface " "does not serve",
+            validated,
+            definition.provider,
+        )
+        return None
+
+    def _ics_store(self, user_id: str, definition: CalendarAccountDefinition) -> _EventStore | None:
+        """Return the user's store seeded from their authorized ICS source."""
+        key = (user_id, definition.id)
+        store = self._stores.get(key)
+        if store is not None:
+            return store
+
+        backend = self._user_backends.get(key)
+        if backend is None:
+            from rex.calendar_backends.ics_backend import ICSCalendarBackend
+
+            backend = ICSCalendarBackend(
+                source=definition.ics_source,
+                url_timeout=definition.ics_url_timeout,
+            )
+            if not backend.connect():
+                logger.warning("ICS calendar backend failed to connect for user %r", user_id)
+                return None
+            self._user_backends[key] = backend
+
+        events = list(backend.fetch_events())
+        store = _EventStore(events, None, definition.id)
+        self._stores[key] = store
+        return store
+
+    # ------------------------------------------------------------------
+    # Event publishing
+    # ------------------------------------------------------------------
+
+    def _publish(self, topic: str, payload: dict[str, Any]) -> None:
+        try:
+            self._event_bus.publish(topic, payload)
+        except Exception as exc:
+            logger.debug("EventBus publish failed for %s: %s", topic, exc)
+
+    def _publish_user_event(
+        self,
+        topic: str,
+        user_id: str,
+        shared_payload: dict[str, Any],
+        private_payload: dict[str, Any] | None = None,
+    ) -> None:
+        """Publish a safe envelope on the shared topic and the full payload
+        on the owner's user-scoped topic.
+
+        The shared topic must never carry private event fields (titles,
+        attendees, locations, descriptions); those go only to
+        ``{topic}.user.{user_id}``.
+        """
+        self._publish(topic, shared_payload)
+        if private_payload is not None:
+            self._publish(f"{topic}.user.{user_id}", private_payload)
+
+    # ------------------------------------------------------------------
+    # Connection
+    # ------------------------------------------------------------------
+
+    def connect(self, user_id: str | None = None) -> bool:
+        """
+        Connect the calendar service for one validated user.
+
+        Loads that user's isolated events.  Fails closed (returns ``False``)
+        on missing/invalid identity or when no account is available to the
+        user.
         """
         try:
-            self._events = self._load_events()
-            self.connected = True
-            logger.info("Calendar service connected (local storage)")
-            self._event_bus.publish(
-                "calendar.connected", {"connected": True, "count": len(self._events)}
-            )
-            return True
-        except Exception as e:
-            logger.error("Failed to connect calendar service: %s", e, exc_info=True)
-            self.connected = False
-            self._event_bus.publish("calendar.connected", {"connected": False, "error": str(e)})
+            validated = require_user_id(user_id)
+        except PermissionError:
+            logger.warning("Calendar connect refused: a valid user identity is required")
             return False
 
-    def list_upcoming(self, *, horizon_hours: int = 72) -> list[CalendarEvent]:
-        events = self._load_events()
+        try:
+            store = self._get_store(validated)
+        except PermissionError:
+            return False
+        except Exception as exc:
+            logger.error("Failed to connect calendar service: %s", exc, exc_info=True)
+            self._publish(
+                "calendar.connected",
+                {"connected": False, "user_id": validated, "error": str(exc)},
+            )
+            return False
+
+        if store is None:
+            self._publish(
+                "calendar.connected",
+                {"connected": False, "user_id": validated},
+            )
+            return False
+
+        self.connected = True
+        logger.info("Calendar service connected (local storage) for user %s", validated)
+        self._publish(
+            "calendar.connected",
+            {"connected": True, "count": len(store.events), "user_id": validated},
+        )
+        return True
+
+    # ------------------------------------------------------------------
+    # Read operations
+    # ------------------------------------------------------------------
+
+    def _events_for(self, user_id: str, account_id: str | None = None) -> list[CalendarEvent]:
+        """Return a copy of the requesting user's events (fail closed to [])."""
+        store = self._get_store(user_id, account_id)
+        if store is None:
+            return []
+        return list(store.events)
+
+    def list_upcoming(
+        self,
+        *,
+        horizon_hours: int = 72,
+        user_id: str | None = None,
+        account_id: str | None = None,
+    ) -> list[CalendarEvent]:
+        validated = require_user_id(user_id)
+        events = self._events_for(validated, account_id)
         now = datetime.now(UTC)
         horizon = now + timedelta(hours=horizon_hours)
 
@@ -193,44 +467,106 @@ class CalendarService:
         ]
         upcoming.sort(key=lambda e: e.start_time)
 
-        self._event_bus.publish(
+        self._publish_user_event(
             "calendar.upcoming",
-            {"count": len(upcoming), "events": [e.to_summary() for e in upcoming]},
+            validated,
+            {"count": len(upcoming), "user_id": validated},
+            {
+                "count": len(upcoming),
+                "user_id": validated,
+                "events": [e.to_summary() for e in upcoming],
+            },
         )
         return upcoming
 
-    def refresh_upcoming(self) -> list[CalendarEvent]:
-        return self.list_upcoming()
+    def refresh_upcoming(
+        self, *, user_id: str | None = None, account_id: str | None = None
+    ) -> list[CalendarEvent]:
+        return self.list_upcoming(user_id=user_id, account_id=account_id)
 
-    def get_events(self, start: datetime, end: datetime) -> list[CalendarEvent]:
+    def get_events(
+        self,
+        start: datetime,
+        end: datetime,
+        *,
+        user_id: str | None = None,
+        account_id: str | None = None,
+    ) -> list[CalendarEvent]:
         """
-        Get calendar events that overlap a time range.
+        Get the requesting user's calendar events that overlap a time range.
         """
-        if not self.connected and self._events is None:
-            logger.warning("Calendar service not connected; returning empty list")
-            return []
+        validated = require_user_id(user_id)
 
         start_utc = _ensure_aware_utc(start)
         end_utc = _ensure_aware_utc(end)
 
-        events = self._load_events()
+        events = self._events_for(validated, account_id)
         result = [e for e in events if e.start_time < end_utc and e.end_time > start_utc]
         result.sort(key=lambda e: e.start_time)
 
-        self._event_bus.publish(
+        self._publish_user_event(
             "calendar.range",
-            {"count": len(result), "start": start_utc.isoformat(), "end": end_utc.isoformat()},
+            validated,
+            {
+                "count": len(result),
+                "user_id": validated,
+                "start": start_utc.isoformat(),
+                "end": end_utc.isoformat(),
+            },
         )
         return result
 
-    def list_past_events(self, *, lookback_hours: int = 72) -> list[CalendarEvent]:
-        """Return events that ended within the lookback window."""
+    def list_past_events(
+        self, *, lookback_hours: int = 72, user_id: str | None = None
+    ) -> list[CalendarEvent]:
+        """Return the user's events that ended within the lookback window."""
         now = datetime.now(UTC)
         start = now - timedelta(hours=lookback_hours)
-        events = self.get_events(start, now)
+        events = self.get_events(start, now, user_id=user_id)
         past_events = [event for event in events if event.end_time <= now]
         past_events.sort(key=lambda e: e.end_time)
         return past_events
+
+    def get_upcoming_events(
+        self, days: int = 7, *, user_id: str | None = None
+    ) -> list[CalendarEvent]:
+        now = datetime.now(UTC)
+        end = now + timedelta(days=days)
+        return self.get_events(now, end, user_id=user_id)
+
+    def get_all_events(self, *, user_id: str | None = None) -> list[CalendarEvent]:
+        validated = require_user_id(user_id)
+        return self._events_for(validated)
+
+    def get_past_events(
+        self,
+        hours: int = 72,
+        *,
+        now: datetime | None = None,
+        user_id: str | None = None,
+    ) -> list[CalendarEvent]:
+        """Get the user's events that ended within the specified time window.
+
+        Args:
+            hours: Look back this many hours for ended events.
+            now: Current time (defaults to UTC now).
+            user_id: Requesting user (required).
+
+        Returns:
+            List of events that ended within the window, sorted by end_time.
+        """
+        validated = require_user_id(user_id)
+        check_time = now or datetime.now(UTC)
+        window_start = check_time - timedelta(hours=hours)
+
+        events = self._events_for(validated)
+        past_events = [e for e in events if e.end_time <= check_time and e.end_time >= window_start]
+        past_events.sort(key=lambda e: e.end_time, reverse=True)
+        return past_events
+
+    # ------------------------------------------------------------------
+    # Write operations
+    # ------------------------------------------------------------------
 
     def create_event(
         self,
@@ -242,13 +578,24 @@ class CalendarService:
         attendees: Iterable[str] | None = None,
         description: str | None = None,
         all_day: bool = False,
+        user_id: str | None = None,
+        account_id: str | None = None,
     ) -> CalendarEvent:
         """
-        Create a new calendar event and persist it to mock storage.
+        Create a new calendar event in the requesting user's store.
+
+        Raises:
+            CalendarIdentityError: On missing or invalid identity.
+            CalendarAccountAccessError: When *account_id* is not available
+                to this user (unauthorized or nonexistent).
+            IntegrationNotConfiguredError: When accounts are configured but
+                none is available to this user (fail closed — never another
+                user's account).
         """
-        if not self.connected and self._events is None:
-            # Allow creation even if connect() was not explicitly called
-            self.connect()
+        validated = require_user_id(user_id)
+        store = self._get_store(validated, account_id)
+        if store is None:
+            raise IntegrationNotConfiguredError(_NOT_CONFIGURED_FOR_USER_MSG)
 
         event = CalendarEvent(
             event_id=str(uuid.uuid4()),
@@ -261,21 +608,35 @@ class CalendarService:
             all_day=all_day,
         )
 
-        events = self._load_events()
-        events.append(event)
-        events.sort(key=lambda e: e.start_time)
-        self._events = events
-        self._save_events(events)
+        store.events.append(event)
+        store.events.sort(key=lambda e: e.start_time)
+        self._save_store(store)
 
-        self._event_bus.publish("calendar.created", event.to_summary())
+        self._publish_user_event(
+            "calendar.created",
+            validated,
+            {"user_id": validated, "created": True},
+            {"user_id": validated, "created": True, "event": event.to_summary()},
+        )
         return event
 
-    def update_event(self, event_id: str, updates: dict[str, Any]) -> CalendarEvent | None:
+    def update_event(
+        self,
+        event_id: str,
+        updates: dict[str, Any],
+        *,
+        user_id: str | None = None,
+    ) -> CalendarEvent | None:
         """
-        Update an existing calendar event by id.
+        Update an event by id within the requesting user's store only.
         """
-        events = self._load_events()
-        for i, event in enumerate(events):
+        validated = require_user_id(user_id)
+        store = self._get_store(validated)
+        if store is None:
+            logger.warning("Calendar update refused: no account for user %r", validated)
+            return None
+
+        for i, event in enumerate(store.events):
             if event.event_id != event_id:
                 continue
 
@@ -297,40 +658,69 @@ class CalendarService:
                 if isinstance(att, (list, tuple)):
                     event.attendees = [str(a) for a in att]
 
-            events[i] = event
-            events.sort(key=lambda e: e.start_time)
-            self._events = events
-            self._save_events(events)
+            store.events[i] = event
+            store.events.sort(key=lambda e: e.start_time)
+            self._save_store(store)
 
-            self._event_bus.publish("calendar.updated", {"event": event.to_summary()})
+            self._publish_user_event(
+                "calendar.updated",
+                validated,
+                {"user_id": validated, "updated": True},
+                {"user_id": validated, "updated": True, "event": event.to_summary()},
+            )
             return event
 
         logger.warning("Event not found for update: %s", event_id)
-        self._event_bus.publish("calendar.updated", {"event_id": event_id, "updated": False})
+        self._publish_user_event(
+            "calendar.updated",
+            validated,
+            {"user_id": validated, "updated": False},
+        )
         return None
 
-    def delete_event(self, event_id: str) -> bool:
+    def delete_event(self, event_id: str, *, user_id: str | None = None) -> bool:
         """
-        Delete an event by id.
+        Delete an event by id within the requesting user's store only.
         """
-        events = self._load_events()
-        new_events = [e for e in events if e.event_id != event_id]
-        if len(new_events) == len(events):
-            logger.warning("Event not found for delete: %s", event_id)
-            self._event_bus.publish("calendar.deleted", {"event_id": event_id, "deleted": False})
+        validated = require_user_id(user_id)
+        store = self._get_store(validated)
+        if store is None:
+            logger.warning("Calendar delete refused: no account for user %r", validated)
             return False
 
-        self._events = new_events
-        self._save_events(new_events)
-        self._event_bus.publish("calendar.deleted", {"event_id": event_id, "deleted": True})
+        new_events = [e for e in store.events if e.event_id != event_id]
+        if len(new_events) == len(store.events):
+            logger.warning("Event not found for delete: %s", event_id)
+            self._publish_user_event(
+                "calendar.deleted",
+                validated,
+                {"user_id": validated, "deleted": False},
+            )
+            return False
+
+        store.events[:] = new_events
+        self._save_store(store)
+        self._publish_user_event(
+            "calendar.deleted",
+            validated,
+            {"user_id": validated, "deleted": True},
+            {"user_id": validated, "deleted": True, "event_id": event_id},
+        )
         return True
 
-    def detect_conflicts(self, event: CalendarEvent) -> list[CalendarEvent]:
+    # ------------------------------------------------------------------
+    # Conflict detection
+    # ------------------------------------------------------------------
+
+    def detect_conflicts(
+        self, event: CalendarEvent, *, user_id: str | None = None
+    ) -> list[CalendarEvent]:
         """
-        Detect conflicts between the provided event and existing events.
+        Detect conflicts between the provided event and the user's events.
         """
+        validated = require_user_id(user_id)
         conflicts: list[CalendarEvent] = []
-        for existing in self._load_events():
+        for existing in self._events_for(validated):
             if existing.event_id == event.event_id:
                 continue
             if existing.overlaps_with(event):
@@ -340,11 +730,14 @@ class CalendarService:
     def find_conflicts(
         self,
         events: list[CalendarEvent] | None = None,
+        *,
+        user_id: str | None = None,
     ) -> list[tuple[CalendarEvent, CalendarEvent]]:
         """
-        Find overlapping event pairs.
+        Find overlapping event pairs within the user's events.
         """
-        events_to_check = list(events) if events is not None else self._load_events()
+        validated = require_user_id(user_id)
+        events_to_check = list(events) if events is not None else self._events_for(validated)
         events_to_check.sort(key=lambda e: e.start_time)
 
         conflicts: list[tuple[CalendarEvent, CalendarEvent]] = []
@@ -354,27 +747,9 @@ class CalendarService:
                     conflicts.append((e1, e2))
         return conflicts
 
-    def get_upcoming_events(self, days: int = 7) -> list[CalendarEvent]:
-        now = datetime.now(UTC)
-        end = now + timedelta(days=days)
-        return self.get_events(now, end)
-
-    def get_all_events(self) -> list[CalendarEvent]:
-        return self._load_events()
-
-    def _load_events(self) -> list[CalendarEvent]:
-        if self._events is not None:
-            return list(self._events)
-
-        # Try storage path first (runtime copy), then seed path
-        for path in (self._storage_path, self._seed_path):
-            if path is not None and path.exists():
-                events = self._load_mock_events(path)
-                self._events = list(events)
-                return list(events)
-
-        self._events = []
-        return []
+    # ------------------------------------------------------------------
+    # Persistence helpers
+    # ------------------------------------------------------------------
 
     def _load_mock_events(self, path: Path) -> list[CalendarEvent]:
         """
@@ -439,45 +814,24 @@ class CalendarService:
         events.sort(key=lambda e: e.start_time)
         return events
 
-    def _save_events(self, events: list[CalendarEvent]) -> None:
-        """Persist events to storage.
+    def _save_store(self, store: _EventStore) -> None:
+        """Persist a store to its own path (no-op for in-memory stores).
 
-        Writes only to ``_storage_path``.  When the service was created with
-        ``mock_events`` (in-memory mode), ``_storage_path`` is ``None`` and
-        this method is a no-op — the repo seed file is never modified.
+        The repo seed file is never modified.
         """
-        if self._storage_path is None:
+        if store.storage_path is None:
             return
 
         try:
-            self._storage_path.parent.mkdir(parents=True, exist_ok=True)
-            data = {"events": [e.to_summary() for e in events]}
-            self._storage_path.write_text(json.dumps(data, indent=2), encoding="utf-8")
-        except Exception as e:
-            logger.error("Failed to save mock calendar data: %s", e, exc_info=True)
+            store.storage_path.parent.mkdir(parents=True, exist_ok=True)
+            data = {"events": [e.to_summary() for e in store.events]}
+            store.storage_path.write_text(json.dumps(data, indent=2), encoding="utf-8")
+        except Exception as exc:
+            logger.error("Failed to save calendar data: %s", exc, exc_info=True)
 
-    def get_past_events(
-        self,
-        hours: int = 72,
-        *,
-        now: datetime | None = None,
-    ) -> list[CalendarEvent]:
-        """Get events that ended within the specified time window.
-
-        Args:
-            hours: Look back this many hours for ended events.
-            now: Current time (defaults to UTC now).
-
-        Returns:
-            List of events that ended within the window, sorted by end_time.
-        """
-        check_time = now or datetime.now(UTC)
-        window_start = check_time - timedelta(hours=hours)
-
-        events = self._load_events()
-        past_events = [e for e in events if e.end_time <= check_time and e.end_time >= window_start]
-        past_events.sort(key=lambda e: e.end_time, reverse=True)
-        return past_events
+    # ------------------------------------------------------------------
+    # Follow-up cues
+    # ------------------------------------------------------------------
 
     def generate_followup_cues(
         self,
@@ -487,7 +841,7 @@ class CalendarService:
         expire_hours: int = 168,
         now: datetime | None = None,
     ) -> int:
-        """Generate follow-up cues from recent past calendar events.
+        """Generate follow-up cues from the user's recent past events.
 
         Creates cues for events that have ended within the lookback window.
         Skips:
@@ -496,7 +850,7 @@ class CalendarService:
         - Events with 'no-followup' in metadata/description
 
         Args:
-            user_id: User ID to create cues for.
+            user_id: User ID whose events are read and whose cues are created.
             lookback_hours: Only consider events ended within this many hours.
             expire_hours: Hours until the cue expires.
             now: Current time (defaults to UTC now).
@@ -504,6 +858,7 @@ class CalendarService:
         Returns:
             Number of cues created.
         """
+        validated = require_user_id(user_id)
         try:
             from rex.cue_store import get_cue_store
         except ImportError:
@@ -511,13 +866,13 @@ class CalendarService:
             return 0
 
         check_time = now or datetime.now(UTC)
-        past_events = self.get_past_events(hours=lookback_hours, now=check_time)
+        past_events = self.get_past_events(hours=lookback_hours, now=check_time, user_id=validated)
         cue_store = get_cue_store()
 
         created_count = 0
         for event in past_events:
             # Skip if cue already exists for this event
-            if cue_store.has_cue_for_source(user_id, "calendar", event.event_id):
+            if cue_store.has_cue_for_source(validated, "calendar", event.event_id):
                 continue
 
             # Skip all-day events that look like holidays
@@ -531,7 +886,7 @@ class CalendarService:
             # Create the cue
             prompt = f"How did '{event.title}' go?"
             cue_store.add_cue(
-                user_id=user_id,
+                user_id=validated,
                 source_type="calendar",
                 source_id=event.event_id,
                 title=event.title,
@@ -617,70 +972,51 @@ def get_calendar_service(
 ) -> CalendarService:
     """Get the global calendar service instance.
 
-    When ``config`` contains ``calendar.backend = "ics"``, the service is
-    backed by an :class:`~rex.calendar_backends.ics_backend.ICSCalendarBackend`.
-    Otherwise the existing stub/mock behaviour is used.
+    The returned service enforces per-user account ownership internally;
+    every operation requires a validated ``user_id``.  Accounts come from
+    ``calendar.accounts`` plus the legacy global calendar configuration
+    (``calendar.backend = "ics"`` / ``calendar.provider``), which is usable
+    only by the explicit ``default`` profile.
+
+    Raises:
+        IntegrationNotConfiguredError: when no calendar accounts are
+            configured at all.
     """
     global _calendar_service
     if _calendar_service is not None:
         return _calendar_service
 
-    # Determine backend from config
-    backend_name = "stub"
-    cal_cfg: dict = {}
-    if config:
-        cal_cfg = config.get("calendar", {})
-        backend_name = cal_cfg.get("backend", "stub")
-
-    if not config:
-        # Try loading from disk
-        try:
-            _config_path = Path("config/rex_config.json")
-            project_root = Path(__file__).resolve().parent.parent
-            cfg_file = project_root / _config_path
-            if cfg_file.exists():
-                import json as _json
-
-                disk_config = _json.loads(cfg_file.read_text(encoding="utf-8"))
-                cal_cfg = disk_config.get("calendar", {})
-                backend_name = cal_cfg.get("backend", "stub")
-        except Exception:
-            pass
-
-    if backend_name == "ics":
-        _calendar_service = _create_ics_backed_service(cal_cfg, event_bus)
+    if config is not None:
+        resolver = CalendarAccountResolver.from_raw_config(config)
+        injected: CalendarAccountResolver | None = resolver
     else:
+        resolver = CalendarAccountResolver.load()
+        # No resolver is injected: the service reloads it when the config
+        # file changes, so account revocations take effect in long-lived
+        # processes without a restart.
+        injected = None
+
+    if not resolver.has_configured_accounts():
         raise IntegrationNotConfiguredError("Calendar: not configured")
 
+    service = CalendarService(event_bus=event_bus, account_resolver=injected)
+
+    # Legacy compatibility: when the default profile resolves to an ICS
+    # account, connect it eagerly so misconfigured sources fail fast (the
+    # pre-#303 behaviour).
+    try:
+        default_definition = resolver.resolve_account(DEFAULT_PROFILE)
+    except PermissionError:
+        default_definition = None
+    if default_definition is not None and default_definition.provider == "ics":
+        if not service.connect(user_id=DEFAULT_PROFILE):
+            raise IntegrationNotConfiguredError("Calendar ICS backend failed to connect")
+
+    _calendar_service = service
     return _calendar_service
 
 
-def _create_ics_backed_service(
-    cal_cfg: dict,
-    event_bus: EventBus | None = None,
-) -> CalendarService:
-    """Create a CalendarService whose events come from an ICS backend."""
-    from rex.calendar_backends.ics_backend import ICSCalendarBackend
-
-    ics_cfg = cal_cfg.get("ics", {})
-    source = ics_cfg.get("source", "")
-    url_timeout = int(ics_cfg.get("url_timeout", 15))
-
-    if not source:
-        raise IntegrationNotConfiguredError("Calendar: not configured")
-
-    backend = ICSCalendarBackend(source=source, url_timeout=url_timeout)
-    ok = backend.connect()
-    if not ok:
-        raise IntegrationNotConfiguredError("Calendar ICS backend failed to connect")
-
-    events = backend.fetch_events()
-    svc = CalendarService(event_bus=event_bus, mock_events=events)
-    svc.connected = True
-    return svc
-
-
-def set_calendar_service(service: CalendarService) -> None:
+def set_calendar_service(service: CalendarService | None) -> None:
     """Set the global calendar service instance (for testing)."""
     global _calendar_service
     _calendar_service = service

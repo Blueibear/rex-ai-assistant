@@ -86,6 +86,7 @@ from rex.commands._epilog import CLI_EPILOG  # noqa: E402
 # ---------------------------------------------------------------------------
 from rex.commands._helpers import (  # noqa: E402,F401
     _get_version,
+    _load_calendar_resolver_safe,
     _load_email_config_safe,
     _load_email_resolver_safe,
     _parse_datetime_strict,
@@ -123,6 +124,7 @@ from rex.commands.dashboard import (  # noqa: E402,F401
 )
 from rex.commands.devtools import cmd_browser, cmd_code, cmd_gh, cmd_os  # noqa: E402,F401
 from rex.commands.email_calendar import (  # noqa: E402,F401
+    _cmd_calendar_accounts,
     _cmd_calendar_test_connection,
     _cmd_email_accounts,
     _cmd_email_send,

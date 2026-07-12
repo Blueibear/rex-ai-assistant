@@ -75,7 +75,7 @@ class TestMockNeverLoadedInProduction:
             )
         ]
         svc = CalendarService(mock_events=events)
-        svc.connect()
+        svc.connect(user_id="default")
         assert svc.connected
 
     def test_get_calendar_service_never_returns_mock_without_config(self):

@@ -66,7 +66,7 @@ def initialize_services(
 
     # Register scheduler handlers
     scheduler.register_handler("email_triage", lambda job: _run_email_triage(email))
-    scheduler.register_handler("calendar_sync", lambda job: calendar.refresh_upcoming())  # type: ignore[arg-type]
+    scheduler.register_handler("calendar_sync", lambda job: _run_calendar_sync(calendar))
     scheduler.register_handler("flush_digests", lambda job: notifier.flush_digests())  # type: ignore[arg-type]
     scheduler.register_handler(
         "check_escalations", lambda job: _check_escalations(notifier, escalation_manager)
@@ -129,6 +129,42 @@ def _run_email_triage(email: EmailService) -> None:
             email.triage_unread(user_id=owner)
         except Exception as exc:
             logger.warning("Scheduled email triage failed for user %r: %s", owner, exc)
+
+
+def _calendar_sync_owners() -> list[str]:
+    """Return the owners scheduled calendar sync runs for.
+
+    Owners are users with explicit calendar account assignments (plus the
+    ``default`` profile for legacy/unassigned accounts).  When nothing is
+    configured, the legacy job runs only as the distinct ``default`` profile
+    — stub-only, never another user's real calendar.
+    """
+    try:
+        from rex.calendar_accounts import DEFAULT_PROFILE, CalendarAccountResolver
+
+        owners = CalendarAccountResolver.load().configured_user_ids()
+        return owners or [DEFAULT_PROFILE]
+    except Exception as exc:
+        import logging
+
+        logging.getLogger(__name__).warning("Failed to resolve calendar sync owners: %s", exc)
+        return []
+
+
+def _run_calendar_sync(calendar: CalendarService) -> None:
+    """Run scheduled calendar sync per owner, in isolated owner contexts.
+
+    One owner's failure is logged and never falls through to (or exposes)
+    another owner's account.
+    """
+    import logging
+
+    logger = logging.getLogger(__name__)
+    for owner in _calendar_sync_owners():
+        try:
+            calendar.refresh_upcoming(user_id=owner)
+        except Exception as exc:
+            logger.warning("Scheduled calendar sync failed for user %r: %s", owner, exc)
 
 
 def _check_escalations(notifier: Notifier, escalation_manager: EscalationManager) -> None:

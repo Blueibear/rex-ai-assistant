@@ -175,11 +175,12 @@ class TestCalendarTool:
         with patch(
             "rex.openclaw.tools.calendar_tool._get_calendar_service", return_value=mock_service
         ):
-            result = calendar_create("Meeting", start, end)
+            result = calendar_create("Meeting", start, end, _user_id="default")
 
         mock_service.create_event.assert_called_once()
         call_kwargs = mock_service.create_event.call_args
         assert call_kwargs.kwargs["title"] == "Meeting"
+        assert call_kwargs.kwargs["user_id"] == "default"
         assert isinstance(call_kwargs.kwargs["start_time"], datetime)
         assert isinstance(call_kwargs.kwargs["end_time"], datetime)
         assert result["ok"] is True
@@ -200,7 +201,7 @@ class TestCalendarTool:
         with patch(
             "rex.openclaw.tools.calendar_tool._get_calendar_service", return_value=mock_service
         ):
-            result = calendar_create("Standup", start_dt, end_dt)
+            result = calendar_create("Standup", start_dt, end_dt, _user_id="default")
 
         assert result["ok"] is True
         assert result["title"] == "Standup"
@@ -216,7 +217,7 @@ class TestCalendarTool:
         with patch(
             "rex.openclaw.tools.calendar_tool._get_calendar_service", return_value=mock_service
         ):
-            calendar_create("X", "2026-04-01T10:00:00", "2026-04-01T11:00:00")
+            calendar_create("X", "2026-04-01T10:00:00", "2026-04-01T11:00:00", _user_id="default")
 
         start_arg = mock_service.create_event.call_args.kwargs["start_time"]
         assert start_arg.tzinfo is not None
@@ -238,6 +239,7 @@ class TestCalendarTool:
                 "2026-05-01T17:00:00",
                 location="London HQ",
                 description="Annual offsite",
+                _user_id="default",
             )
 
         kwargs = mock_service.create_event.call_args.kwargs

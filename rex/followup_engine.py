@@ -218,7 +218,17 @@ class FollowupEngine:
             if not hasattr(calendar, "get_events"):
                 return
 
-            events = calendar.get_events(start, now)
+            try:
+                events = calendar.get_events(start, now, user_id=user_id)
+            except TypeError:
+                # Calendar objects that do not accept a user scope cannot
+                # prove ownership of their events: fail closed rather than
+                # attributing shared events to this user.
+                logger.debug(
+                    "Calendar service does not accept user-scoped queries; "
+                    "skipping cue generation"
+                )
+                return
             for event in events:
                 end_time = getattr(event, "end_time", None)
                 title = getattr(event, "title", None)
