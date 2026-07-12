@@ -268,51 +268,14 @@ class CalendarService:
 
         # In-memory / explicit-path modes are bound to exactly one owner.
         if self._mock_events is not None or self._mock_data_path is not None:
-            if account_id:
-                # No configured accounts exist in these modes; unauthorized
-                # and nonexistent are indistinguishable.
-                raise CalendarAccountAccessError(
-                    ACCOUNT_UNAVAILABLE_MSG.format(account_id=account_id, user_id=validated)
-                )
-            key = (validated, "")
-            store = self._stores.get(key)
-            if store is None:
-                if validated == self._owner:
-                    if self._mock_events is not None:
-                        store = _EventStore(list(self._mock_events), None, None)
-                    else:
-                        events: list[CalendarEvent] = []
-                        assert self._mock_data_path is not None
-                        if self._mock_data_path.exists():
-                            try:
-                                events = self._load_mock_events(self._mock_data_path)
-                            except Exception as exc:
-                                logger.warning(
-                                    "Failed to load calendar data from %s: %s",
-                                    self._mock_data_path,
-                                    exc,
-                                )
-                        store = _EventStore(events, self._mock_data_path, None)
-                else:
-                    # Isolated empty in-memory store for any other user.
-                    store = _EventStore([], None, None)
-                self._stores[key] = store
-            return store
+            self._reject_explicit_account(validated, account_id)
+            return self._owner_bound_store(validated)
 
         resolver = self._get_resolver()
         if not resolver.has_configured_accounts():
             # Pure stub mode: isolated per-user disk store.
-            if account_id:
-                raise CalendarAccountAccessError(
-                    ACCOUNT_UNAVAILABLE_MSG.format(account_id=account_id, user_id=validated)
-                )
-            key = (validated, "")
-            store = self._stores.get(key)
-            if store is None:
-                events, storage_path = self._seeded_stub_events(validated)
-                store = _EventStore(events, storage_path, None)
-                self._stores[key] = store
-            return store
+            self._reject_explicit_account(validated, account_id)
+            return self._stub_disk_store(validated, None)
 
         # Accounts are configured: ownership check before anything else.
         definition = resolver.resolve_account(validated, account_id)
@@ -323,22 +286,69 @@ class CalendarService:
         if definition.provider == "ics":
             return self._ics_store(validated, definition)
         if definition.provider == "stub":
-            key = (validated, definition.id)
-            store = self._stores.get(key)
-            if store is None:
-                events, storage_path = self._seeded_stub_events(validated)
-                store = _EventStore(events, storage_path, definition.id)
-                self._stores[key] = store
-            return store
+            return self._stub_disk_store(validated, definition.id)
 
         # google/outlook accounts are served by the provider-API surface
         # (rex.integrations.calendar_service), not this store-backed service.
         logger.warning(
-            "Calendar account for user %r uses provider %r, which this surface " "does not serve",
+            "Calendar account for user %r uses provider %r, which this surface does not serve",
             validated,
             definition.provider,
         )
         return None
+
+    @staticmethod
+    def _reject_explicit_account(validated: str, account_id: str | None) -> None:
+        """Reject explicit account selection where no accounts exist.
+
+        Unauthorized and nonexistent accounts are indistinguishable.
+        """
+        if account_id:
+            raise CalendarAccountAccessError(
+                ACCOUNT_UNAVAILABLE_MSG.format(account_id=account_id, user_id=validated)
+            )
+
+    def _owner_bound_store(self, validated: str) -> _EventStore:
+        """Store for in-memory / explicit-path modes (owner-bound).
+
+        The configured owner gets the injected events or path; any other
+        user gets an isolated empty in-memory store.
+        """
+        key = (validated, "")
+        store = self._stores.get(key)
+        if store is not None:
+            return store
+
+        if validated != self._owner:
+            # Isolated empty in-memory store for any other user.
+            store = _EventStore([], None, None)
+        elif self._mock_events is not None:
+            store = _EventStore(list(self._mock_events), None, None)
+        else:
+            events: list[CalendarEvent] = []
+            assert self._mock_data_path is not None
+            if self._mock_data_path.exists():
+                try:
+                    events = self._load_mock_events(self._mock_data_path)
+                except Exception as exc:
+                    logger.warning(
+                        "Failed to load calendar data from %s: %s",
+                        self._mock_data_path,
+                        exc,
+                    )
+            store = _EventStore(events, self._mock_data_path, None)
+        self._stores[key] = store
+        return store
+
+    def _stub_disk_store(self, validated: str, account_id: str | None) -> _EventStore:
+        """The user's isolated, disk-backed stub store."""
+        key = (validated, account_id or "")
+        store = self._stores.get(key)
+        if store is None:
+            events, storage_path = self._seeded_stub_events(validated)
+            store = _EventStore(events, storage_path, account_id)
+            self._stores[key] = store
+        return store
 
     def _ics_store(self, user_id: str, definition: CalendarAccountDefinition) -> _EventStore | None:
         """Return the user's store seeded from their authorized ICS source."""

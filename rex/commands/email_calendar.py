@@ -416,78 +416,88 @@ def _cmd_calendar_accounts(args: argparse.Namespace, user: str) -> int:
     resolver = _cli()._load_calendar_resolver_safe()
 
     if accounts_cmd == "list":
-        accounts = [] if resolver is None else resolver.accounts_for_user(user)
-        if resolver is None or not accounts:
-            print(f"No calendar accounts configured for user '{user}'.")
-            print()
-            print("To configure accounts, add a 'calendar' section to config/rex_config.json")
-            print(f"and assign them to this user under users.{user}.calendar_accounts.")
-            print("See docs/calendar.md for details.")
-            return 0
-
-        print(f"Calendar Accounts for user '{user}'")
-        print("=" * 60)
-        print()
-
-        default_id = resolver.default_account_id_for_user(user)
-        for acct in accounts:
-            is_default = " (default)" if acct.id == default_id else ""
-            print(f"  {acct.id}{is_default}")
-            if acct.label:
-                print(f"    Label:    {acct.label}")
-            print(f"    Provider: {acct.provider}")
-            if acct.provider == "ics" and acct.ics_source:
-                print(f"    Source:   {acct.ics_source}")
-            print()
-
-        print(f"Total: {len(accounts)} account(s)")
-        return 0
+        return _cmd_calendar_accounts_list(resolver, user)
 
     if accounts_cmd == "set-active":
-        account_id = getattr(args, "account_id", None)
-        if not account_id:
-            print("Error: --account-id is required")
-            return 1
-
-        if resolver is None:
-            print("Error: No calendar configuration found")
-            return 1
-
-        owned = resolver.account_ids_for_user(user)
-        if account_id not in owned:
-            # Foreign and nonexistent accounts are indistinguishable; only
-            # the requesting user's own accounts are ever revealed.
-            print(f"Error: Account '{account_id}' is not available for user '{user}'.")
-            if owned:
-                print(f"Available: {', '.join(owned)}")
-            return 1
-
-        # Update only this user's default; never another user's routing and
-        # never the legacy global default.
-        try:
-            import json as _json
-
-            config_path = Path("config/rex_config.json")
-            if config_path.exists():
-                config_data = _json.loads(config_path.read_text(encoding="utf-8"))
-            else:
-                config_data = {}
-
-            users_block = config_data.setdefault("users", {})
-            user_entry = users_block.setdefault(user, {})
-            if not isinstance(user_entry, dict):
-                print("Error: Invalid users section in config")
-                return 1
-            user_entry["default_calendar_account_id"] = account_id
-            config_path.write_text(_json.dumps(config_data, indent=2) + "\n", encoding="utf-8")
-            print(f"Default calendar account for user '{user}' set to '{account_id}'")
-            return 0
-        except Exception as exc:
-            print(f"Error updating config: {exc}")
-            return 1
+        return _cmd_calendar_accounts_set_active(args, resolver, user)
 
     print("Unknown accounts subcommand. Use 'rex calendar accounts --help'")
     return 1
+
+
+def _cmd_calendar_accounts_list(resolver, user: str) -> int:
+    """List the selected user's own calendar accounts (never foreign ones)."""
+    accounts = [] if resolver is None else resolver.accounts_for_user(user)
+    if resolver is None or not accounts:
+        print(f"No calendar accounts configured for user '{user}'.")
+        print()
+        print("To configure accounts, add a 'calendar' section to config/rex_config.json")
+        print(f"and assign them to this user under users.{user}.calendar_accounts.")
+        print("See docs/calendar.md for details.")
+        return 0
+
+    print(f"Calendar Accounts for user '{user}'")
+    print("=" * 60)
+    print()
+
+    default_id = resolver.default_account_id_for_user(user)
+    for acct in accounts:
+        is_default = " (default)" if acct.id == default_id else ""
+        print(f"  {acct.id}{is_default}")
+        if acct.label:
+            print(f"    Label:    {acct.label}")
+        print(f"    Provider: {acct.provider}")
+        if acct.provider == "ics" and acct.ics_source:
+            print(f"    Source:   {acct.ics_source}")
+        print()
+
+    print(f"Total: {len(accounts)} account(s)")
+    return 0
+
+
+def _cmd_calendar_accounts_set_active(args: argparse.Namespace, resolver, user: str) -> int:
+    """Set the selected user's default calendar account (that user only)."""
+    account_id = getattr(args, "account_id", None)
+    if not account_id:
+        print("Error: --account-id is required")
+        return 1
+
+    if resolver is None:
+        print("Error: No calendar configuration found")
+        return 1
+
+    owned = resolver.account_ids_for_user(user)
+    if account_id not in owned:
+        # Foreign and nonexistent accounts are indistinguishable; only
+        # the requesting user's own accounts are ever revealed.
+        print(f"Error: Account '{account_id}' is not available for user '{user}'.")
+        if owned:
+            print(f"Available: {', '.join(owned)}")
+        return 1
+
+    # Update only this user's default; never another user's routing and
+    # never the legacy global default.
+    try:
+        import json as _json
+
+        config_path = Path("config/rex_config.json")
+        if config_path.exists():
+            config_data = _json.loads(config_path.read_text(encoding="utf-8"))
+        else:
+            config_data = {}
+
+        users_block = config_data.setdefault("users", {})
+        user_entry = users_block.setdefault(user, {})
+        if not isinstance(user_entry, dict):
+            print("Error: Invalid users section in config")
+            return 1
+        user_entry["default_calendar_account_id"] = account_id
+        config_path.write_text(_json.dumps(config_data, indent=2) + "\n", encoding="utf-8")
+        print(f"Default calendar account for user '{user}' set to '{account_id}'")
+        return 0
+    except Exception as exc:
+        print(f"Error updating config: {exc}")
+        return 1
 
 
 def _cmd_calendar_test_connection(args: argparse.Namespace, user: str) -> int:
