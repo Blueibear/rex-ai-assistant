@@ -29,25 +29,14 @@ _PYTHON_EXE = resolve_python()
 _REPO_ROOT = repo_root()
 
 
-def _resolve_user_id() -> str:
-    """Return the active user ID, falling back to config then 'default'."""
+def _resolve_user_id() -> str | None:
+    """Return a deliberately selected user ID, or ``None`` when missing."""
     try:
-        from rex.config import load_config
-
-        config = load_config()
-        runtime = getattr(config, "_raw", None)
-        if runtime is None:
-            # Try to get the user from config attributes directly
-            uid = getattr(config, "user_id", None) or getattr(config, "default_user", None)
-            if uid and str(uid) != "default":
-                return str(uid)
-        # Use rex.identity resolution chain
         from rex.identity import resolve_active_user
 
-        user = resolve_active_user()
-        return user if user else "default"
+        return resolve_active_user()
     except Exception:
-        return "default"
+        return None
 
 
 def _get_quick_actions(user_id: str) -> list[dict[str, Any]]:
@@ -76,6 +65,8 @@ def main() -> None:
     user_id = _resolve_user_id()
 
     try:
+        if user_id is None:
+            raise PermissionError("A valid active user is required for quick actions.")
         if command == "list":
             actions = _get_quick_actions(user_id)
             sys.stdout.write(json.dumps({"ok": True, "quick_actions": actions}))

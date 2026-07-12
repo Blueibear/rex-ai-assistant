@@ -11,6 +11,7 @@ from pathlib import Path
 
 from .assistant_errors import ConfigurationError
 from .config import load_config, settings
+from .identity import validate_user_id
 from .placeholder_voice import (
     DEFAULT_PLACEHOLDER_RELATIVE_PATH,
     ensure_placeholder_voice,
@@ -24,24 +25,9 @@ HISTORY_META = "history_meta.json"
 MAX_PATH_DEPTH = 10  # Maximum directory traversal depth
 
 
-def _sanitize_user_key(user_key: str) -> str:
-    """Sanitize user key to prevent path traversal attacks."""
-    if not user_key or not isinstance(user_key, str):
-        raise ConfigurationError("User key must be a non-empty string.")
-
-    # Remove any path separators and parent directory references
-    sanitized = user_key.strip().replace("..", "").replace("/", "").replace("\\", "")
-
-    # Only allow alphanumeric, dash, underscore
-    if not all(c.isalnum() or c in "-_" for c in sanitized):
-        raise ConfigurationError(
-            f"Invalid user key '{user_key}': must contain only alphanumeric, dash, or underscore."
-        )
-
-    if not sanitized:
-        raise ConfigurationError("User key cannot be empty after sanitization.")
-
-    return sanitized.lower()
+def _validate_user_key(user_key: str) -> str:
+    """Return a canonical user ID; never transform an unsafe identity."""
+    return validate_user_id(user_key)
 
 
 def _validate_path_within(path: Path, base: Path, *, max_depth: int = MAX_PATH_DEPTH) -> Path:
@@ -68,14 +54,14 @@ def _ensure_directory(path: Path) -> None:
 
 
 def _history_path(user_key: str, memory_root: Path) -> Path:
-    sanitized_key = _sanitize_user_key(user_key)
+    sanitized_key = _validate_user_key(user_key)
     user_dir = memory_root / sanitized_key
     _validate_path_within(user_dir, memory_root)
     return user_dir / HISTORY_FILENAME
 
 
 def _metadata_path(user_key: str, memory_root: Path) -> Path:
-    sanitized_key = _sanitize_user_key(user_key)
+    sanitized_key = _validate_user_key(user_key)
     user_dir = memory_root / sanitized_key
     _validate_path_within(user_dir, memory_root)
     return user_dir / HISTORY_META
@@ -91,7 +77,10 @@ def load_users_map(users_path: str | Path = USERS_PATH) -> dict[str, str]:
     mapping: dict[str, str] = {}
     for email, user in data.items():
         if isinstance(email, str) and isinstance(user, str):
-            mapping[email.lower()] = user.lower()
+            try:
+                mapping[email.lower()] = validate_user_id(user)
+            except ValueError:
+                continue
     return mapping
 
 
@@ -102,34 +91,33 @@ def resolve_user_key(
     memory_root: str | Path = MEMORY_ROOT,
     profiles: dict[str, dict] | None = None,
 ) -> str | None:
-    if not identifier:
+    if not isinstance(identifier, str) or not identifier:
         return None
 
-    key = identifier.strip().lower()
-    if profiles and key in profiles:
-        return key
+    try:
+        direct_id = validate_user_id(identifier)
+    except ValueError:
+        direct_id = None
+    if direct_id is not None:
+        if profiles and direct_id in profiles:
+            return direct_id
+        if direct_id in users_map.values():
+            return direct_id
+        if Path(memory_root, direct_id).is_dir():
+            return direct_id
 
-    if key in users_map.values():
-        return key
-
-    mapped = users_map.get(key)
+    mapped = users_map.get(identifier.casefold())
     if mapped:
-        return mapped
-
-    if profiles:
-        for candidate, profile in profiles.items():
-            name = profile.get("name") if isinstance(profile, dict) else None
-            if isinstance(name, str) and name.strip().lower() == key:
-                return candidate
-
-    if Path(memory_root, key).is_dir():
-        return key
+        try:
+            return validate_user_id(mapped)
+        except ValueError:
+            return None
 
     return None
 
 
 def load_memory_profile(user_key: str, memory_root: str | Path = MEMORY_ROOT) -> dict:
-    sanitized_key = _sanitize_user_key(user_key)
+    sanitized_key = _validate_user_key(user_key)
     memory_root_path = Path(memory_root)
     core_path = memory_root_path / sanitized_key / "core.json"
 
@@ -165,8 +153,8 @@ def load_all_profiles(memory_root: str | Path = MEMORY_ROOT) -> dict[str, dict]:
 
         # Validate entry name is safe
         try:
-            sanitized = _sanitize_user_key(entry)
-        except ConfigurationError:
+            sanitized = _validate_user_key(entry)
+        except ValueError:
             # Skip directories with invalid names
             continue
 
@@ -281,7 +269,7 @@ def append_history_entry(
     if "role" not in entry or "text" not in entry:
         raise ConfigurationError("History entries require 'role' and 'text' fields.")
 
-    sanitized_key = _sanitize_user_key(user_key)
+    sanitized_key = _validate_user_key(user_key)
     memory_root_path = Path(memory_root)
     user_dir = memory_root_path / sanitized_key
     _validate_path_within(user_dir, memory_root_path)
@@ -339,7 +327,7 @@ def export_transcript(
     if not cfg.transcripts_enabled:
         raise ConfigurationError("Transcript export is disabled in configuration.")
 
-    sanitized_key = _sanitize_user_key(user_key)
+    sanitized_key = _validate_user_key(user_key)
     transcripts_base = Path(transcripts_dir or cfg.transcripts_dir)
     transcripts_root = transcripts_base / sanitized_key
     _validate_path_within(transcripts_root, transcripts_base)

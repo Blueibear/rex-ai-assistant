@@ -14,6 +14,8 @@ import threading
 from datetime import UTC, datetime
 from pathlib import Path
 
+from rex.identity import validate_user_id
+
 logger = logging.getLogger(__name__)
 
 _DEFAULT_DB_PATH = Path("data/history.db")
@@ -78,6 +80,7 @@ class HistoryStore:
             content:   Message text.
             timestamp: When the turn occurred.  Stored as UTC ISO-8601.
         """
+        user_id = validate_user_id(user_id)
         ts = timestamp.astimezone(UTC).isoformat()
         with self._lock:
             with self._connect() as conn:
@@ -97,6 +100,7 @@ class HistoryStore:
             List of dicts with keys ``id``, ``user_id``, ``role``,
             ``content``, ``timestamp``.
         """
+        user_id = validate_user_id(user_id)
         with self._lock:
             with self._connect() as conn:
                 cursor = conn.execute(
@@ -121,6 +125,7 @@ class HistoryStore:
         Args:
             user_id: Identifier for the user/session whose history to clear.
         """
+        user_id = validate_user_id(user_id)
         with self._lock:
             with self._connect() as conn:
                 conn.execute("DELETE FROM turns WHERE user_id = ?", (user_id,))
@@ -137,6 +142,7 @@ class HistoryStore:
         """
         from datetime import timedelta
 
+        user_id = validate_user_id(user_id)
         cutoff = datetime.now(UTC) - timedelta(days=keep_days)
         cutoff_ts = cutoff.isoformat()
         with self._lock:

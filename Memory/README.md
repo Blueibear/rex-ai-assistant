@@ -14,6 +14,31 @@ Memory/<user_id>/
     history_meta.json  # History metadata (generated at runtime)
 ```
 
+## User ID security policy
+
+User IDs are authorization keys, not display strings. Every profile, memory,
+history, voice embedding, credential, cache, database, and event access must
+validate the supplied ID with `rex.identity.validate_user_id` before using it.
+
+Allowed IDs are 1–64 ASCII letters, digits, dots, underscores, and hyphens,
+beginning with a letter or digit. IDs are not trimmed, lowercased, slugified,
+or otherwise repaired: an invalid ID is rejected rather than being mapped to a
+different profile.
+
+For cross-platform safety, Windows reserved device names are rejected
+case-insensitively: `CON`, `PRN`, `AUX`, `NUL`, `CLOCK$`, `COM1`–`COM9`, and
+`LPT1`–`LPT9`. An extension or trailing spaces/periods does not make those
+names safe; for example, `con.txt`, `NUL.json`, and `COM1...` are invalid.
+
+`default` is a valid, distinct profile only when a caller explicitly selects
+or resolves it through a trusted path. Missing or invalid identity never
+falls back to `default`, `rex`, a recent user, or a display/speaker label.
+
+Existing data under an ID that is now invalid is preserved but never opened,
+renamed, or reassigned automatically. Migrate it manually to a newly chosen,
+valid ID using an administrative process that keeps private data and secrets
+under the owner’s control.
+
 ## Policy — Do NOT Commit Memory Profile Subdirectories
 
 Memory profile files are **generated at runtime** by AskRex and contain personal

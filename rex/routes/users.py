@@ -198,6 +198,12 @@ def _register_avatar_routes(bp: Blueprint, avatar_dir: Path) -> None:
         if err:
             return err
         assert user is not None
+        from rex.identity import validate_user_id
+
+        try:
+            user_id = validate_user_id(user["id"])
+        except ValueError:
+            return jsonify({"error": "invalid user identity"}), 400
 
         if "file" not in request.files:
             return jsonify({"error": "no file uploaded"}), 400
@@ -219,7 +225,7 @@ def _register_avatar_routes(bp: Blueprint, avatar_dir: Path) -> None:
         img = img.resize(_AVATAR_SIZE, Image.Resampling.LANCZOS)
 
         avatar_dir.mkdir(parents=True, exist_ok=True)
-        avatar_path = avatar_dir / f"{user['id']}.jpg"
+        avatar_path = avatar_dir / f"{user_id}.jpg"
         buf = io.BytesIO()
         img.save(buf, format="JPEG", quality=85)
         avatar_path.write_bytes(buf.getvalue())
@@ -235,7 +241,13 @@ def _register_avatar_routes(bp: Blueprint, avatar_dir: Path) -> None:
 
         user, _ = _require_auth()
         if user is not None:
-            avatar_path = avatar_dir / f"{user['id']}.jpg"
+            from rex.identity import validate_user_id
+
+            try:
+                user_id = validate_user_id(user["id"])
+            except ValueError:
+                return Response(_DEFAULT_AVATAR_SVG, mimetype="image/svg+xml")
+            avatar_path = avatar_dir / f"{user_id}.jpg"
             if avatar_path.is_file():
                 return send_file(str(avatar_path), mimetype="image/jpeg")
 

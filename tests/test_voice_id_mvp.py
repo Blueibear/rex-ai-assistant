@@ -271,7 +271,7 @@ class TestEnrollment:
         store = EmbeddingsStore(tmp_path)
         vector = SyntheticEmbeddingBackend(dim=4).embed(b"x")
 
-        with pytest.raises(ValueError, match="simple name"):
+        with pytest.raises(ValueError, match="Invalid user_id"):
             store.save(
                 "../evil", VoiceEmbedding(vector=vector, model_id="synthetic", sample_count=1)
             )

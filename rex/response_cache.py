@@ -18,6 +18,8 @@ import time
 from dataclasses import dataclass
 from threading import Lock
 
+from rex.identity import validate_user_id
+
 logger = logging.getLogger(__name__)
 
 # Patterns that indicate a time-sensitive query — bypass cache on match.
@@ -128,13 +130,16 @@ class ResponseCache:
     def get(self, message: str, *, user_id: str | None = None) -> str | None:
         """Return a cached response for *message*, or None on miss/bypass/expiry.
 
-        Entries are partitioned by *user_id*: a response stored for one user
-        is never returned for another.  ``None`` is its own partition.
+        Entries are partitioned by a validated *user_id*: a response stored
+        for one user is never returned for another. ``None`` is reserved for
+        callers that deliberately use the non-private shared cache.
         """
         if _should_bypass(message):
             logger.debug("[cache] bypass: %r", message[:60])
             return None
 
+        if user_id is not None:
+            user_id = validate_user_id(user_id)
         key = (user_id, _normalize(message))
         now = time.monotonic()
 
@@ -170,6 +175,8 @@ class ResponseCache:
         if _should_bypass(message):
             return
 
+        if user_id is not None:
+            user_id = validate_user_id(user_id)
         key = (user_id, _normalize(message))
         expires_at = time.monotonic() + self._ttl
 

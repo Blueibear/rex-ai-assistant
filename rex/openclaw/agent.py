@@ -28,6 +28,7 @@ from collections.abc import Generator
 from typing import Any
 
 from rex.config import AppConfig, load_config
+from rex.identity import validate_user_id
 from rex.llm_client import LanguageModel
 from rex.openclaw.errors import OpenClawAPIError, OpenClawAuthError, OpenClawConnectionError
 from rex.openclaw.http_client import get_openclaw_client, stream_sentences
@@ -220,6 +221,8 @@ class RexAgent:
         """
         if not prompt or not prompt.strip():
             raise ValueError("prompt must not be empty")
+        if user_key is not None:
+            user_key = validate_user_id(user_key)
 
         messages: list[dict[str, str]] = [
             {"role": "system", "content": self.system_prompt},
@@ -289,6 +292,8 @@ class RexAgent:
         """
         if not prompt or not prompt.strip():
             raise ValueError("prompt must not be empty")
+        if user_key is not None:
+            user_key = validate_user_id(user_key)
 
         messages: list[dict[str, str]] = [
             {"role": "system", "content": self.system_prompt},

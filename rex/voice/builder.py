@@ -391,7 +391,7 @@ def build_voice_loop(
 
 
 def _resolve_voice_reference() -> str | None:
-    """Resolve voice reference for the default user.
+    """Resolve the selected user's voice reference.
 
     Returns:
         Path to voice sample file, or None if not configured
@@ -400,12 +400,13 @@ def _resolve_voice_reference() -> str | None:
         users_map = load_users_map()
         profiles = load_all_profiles()
 
-        # Get default user
-        default_user = _vl().settings.default_user or _vl().settings.user_id or "default"
-        user_key = resolve_user_key(default_user, users_map, profiles=profiles)
+        active_user = _vl().settings.default_user
+        if not active_user:
+            return None
+        user_key = resolve_user_key(active_user, users_map, profiles=profiles)
 
         if not user_key:
-            user_key = default_user
+            return None
 
         # Load profile and extract voice reference
         if user_key in profiles:

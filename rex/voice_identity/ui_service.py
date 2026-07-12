@@ -9,8 +9,8 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from rex.config import load_config
 from rex.config_manager import load_config as load_json_config
+from rex.identity import resolve_active_user, validate_user_id
 from rex.voice_identity.embeddings_store import EmbeddingsStore
 from rex.voice_identity.optional_deps import get_embedding_backend
 
@@ -18,11 +18,9 @@ _DEFAULT_MEMORY_DIR = Path(__file__).resolve().parents[2] / "Memory"
 _NPY_FILENAME = "voice_embedding.npy"
 
 
-def get_active_user_id() -> str:
+def get_active_user_id() -> str | None:
     """Return the active runtime user ID for UI enrollment flows."""
-    config = load_config()
-    active_user = getattr(config, "default_user", None) or getattr(config, "user_id", None)
-    return str(active_user or "default")
+    return resolve_active_user(config=load_json_config())
 
 
 def list_enrollments(*, base_dir: Path | str | None = None) -> list[dict[str, Any]]:
@@ -82,6 +80,7 @@ def enroll_from_samples(
 
 def delete_enrollment(user_id: str, *, base_dir: Path | str | None = None) -> bool:
     """Delete enrollment artifacts for *user_id*."""
+    user_id = validate_user_id(user_id)
     resolved_base_dir = _resolve_base_dir(base_dir)
     store = EmbeddingsStore(resolved_base_dir)
     deleted_json = store.delete(user_id)

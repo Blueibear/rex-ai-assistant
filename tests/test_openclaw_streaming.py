@@ -96,7 +96,7 @@ class TestRespondStream:
         )
 
         with patch("rex.openclaw.agent.get_openclaw_client", return_value=mock_client):
-            result = list(agent.respond_stream("What time is it?"))
+            result = list(agent.respond_stream("What time is it?", user_key="james"))
 
         assert result == ["It is 3pm.", "The weather is sunny."]
 
@@ -108,7 +108,7 @@ class TestRespondStream:
         mock_client.post_stream.return_value = iter(["Done."])
 
         with patch("rex.openclaw.agent.get_openclaw_client", return_value=mock_client):
-            list(agent.respond_stream("Hello"))
+            list(agent.respond_stream("Hello", user_key="james"))
 
         payload = mock_client.post_stream.call_args.kwargs["json"]
         assert payload["stream"] is True
@@ -123,7 +123,7 @@ class TestRespondStream:
         )
 
         with patch("rex.openclaw.agent.get_openclaw_client", return_value=mock_client):
-            result = list(agent.respond_stream("Hello"))
+            result = list(agent.respond_stream("Hello", user_key="james"))
 
         assert result == ["local fallback"]
 

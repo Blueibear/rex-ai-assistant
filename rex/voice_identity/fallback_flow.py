@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import logging
 
-from rex.identity import resolve_active_user, set_session_user
+from rex.identity import resolve_active_user, set_session_user, validate_user_id
 from rex.voice_identity.types import RecognitionDecision, RecognitionResult
 
 logger = logging.getLogger(__name__)
@@ -48,13 +48,18 @@ def resolve_speaker_identity(
         The resolved user ID, or ``None`` if no user could be determined.
     """
     if result.decision == RecognitionDecision.RECOGNIZED and result.best_user_id:
+        try:
+            user_id = validate_user_id(result.best_user_id)
+        except ValueError:
+            logger.warning("Voice recognition returned an invalid user identity")
+            return None
         logger.info(
             "Speaker recognized as %s (score=%.3f)",
-            result.best_user_id,
+            user_id,
             result.score,
         )
-        set_session_user(result.best_user_id)
-        return result.best_user_id
+        set_session_user(user_id)
+        return user_id
 
     if result.decision == RecognitionDecision.REVIEW and result.best_user_id:
         # Check whether the existing identity chain already agrees

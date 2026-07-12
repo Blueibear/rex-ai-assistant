@@ -5,7 +5,7 @@ Verifies that IdentityAdapter correctly bridges Rex's identity system:
 - resolve_user priority chain
 - build_session produces the expected keys and reflects set_user
 - clear_user resets session state
-- get_openclaw_user_key returns consistent, non-empty values
+- get_openclaw_user_key requires an explicitly resolved identity
 """
 
 from __future__ import annotations
@@ -266,17 +266,13 @@ class TestGetOpenClawUserKey:
             result = adapter.get_openclaw_user_key()
         assert result == "session_user"
 
-    def test_falls_back_to_config_user_id(self) -> None:
-        adapter = IdentityAdapter(config={"user_id": "cfg_user"})
-        with patch("rex.openclaw.identity_adapter.resolve_active_user", return_value=None):
-            result = adapter.get_openclaw_user_key()
-        assert result == "cfg_user"
-
-    def test_falls_back_to_rex_default_when_no_user(self) -> None:
+    def test_missing_identity_fails_closed(self) -> None:
         adapter = _adapter()
         with patch("rex.openclaw.identity_adapter.resolve_active_user", return_value=None):
-            result = adapter.get_openclaw_user_key()
-        assert result == "rex"
+            import pytest
+
+            with pytest.raises(PermissionError, match="identity"):
+                adapter.get_openclaw_user_key()
 
     def test_returns_consistent_value_for_same_user(self) -> None:
         adapter = _adapter()
@@ -285,8 +281,10 @@ class TestGetOpenClawUserKey:
             key2 = adapter.get_openclaw_user_key()
         assert key1 == key2 == "james"
 
-    def test_never_returns_empty_string(self) -> None:
+    def test_never_substitutes_a_placeholder_identity(self) -> None:
         adapter = _adapter()
         with patch("rex.openclaw.identity_adapter.resolve_active_user", return_value=None):
-            result = adapter.get_openclaw_user_key()
-        assert result != ""
+            import pytest
+
+            with pytest.raises(PermissionError, match="identity"):
+                adapter.get_openclaw_user_key()

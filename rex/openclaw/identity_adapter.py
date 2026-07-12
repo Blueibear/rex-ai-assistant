@@ -128,7 +128,8 @@ class IdentityAdapter:
         accumulated correctly across multiple voice turns.
 
         Priority: *explicit_user* → session state → config active_user →
-        config user_id → ``"rex"`` (safe default).
+        config user_id. Missing identity fails closed; OpenClaw must not be
+        given an implicit private-user key.
 
         Args:
             explicit_user: Optional override (e.g. from a ``--user`` flag).
@@ -140,8 +141,7 @@ class IdentityAdapter:
         resolved = resolve_active_user(explicit_user, config=self._config)
         if resolved:
             return resolved
-        user_id = self._config.get("user_id") if self._config else None
-        return str(user_id) if user_id else "rex"
+        raise PermissionError("A valid user identity is required for OpenClaw access.")
 
     # ------------------------------------------------------------------
     # OpenClaw session context

@@ -48,6 +48,19 @@ def _chat_response(content: str) -> dict:
 
 
 class TestRespondHttpPath:
+    def test_missing_identity_fails_before_openclaw_request(self):
+        config = _make_config()
+        agent = _make_agent(config)
+        mock_client = MagicMock()
+
+        with patch("rex.openclaw.agent.get_openclaw_client", return_value=mock_client):
+            import pytest
+
+            with pytest.raises(PermissionError, match="identity"):
+                agent.respond("Hello?")
+
+        mock_client.post.assert_not_called()
+
     def test_posts_to_chat_completions_when_gateway_configured(self):
         """respond() POSTs to /v1/chat/completions when gateway and flag are set."""
         config = _make_config()
@@ -57,7 +70,7 @@ class TestRespondHttpPath:
         mock_client.post.return_value = _chat_response("OpenClaw reply")
 
         with patch("rex.openclaw.agent.get_openclaw_client", return_value=mock_client):
-            result = agent.respond("Hello?")
+            result = agent.respond("Hello?", user_key="james")
 
         mock_client.post.assert_called_once()
         (path,) = mock_client.post.call_args.args
@@ -73,7 +86,7 @@ class TestRespondHttpPath:
         mock_client.post.return_value = _chat_response("reply")
 
         with patch("rex.openclaw.agent.get_openclaw_client", return_value=mock_client):
-            agent.respond("Test prompt")
+            agent.respond("Test prompt", user_key="james")
 
         payload = mock_client.post.call_args.kwargs["json"]
         assert payload["model"] == "openclaw:main"
@@ -87,15 +100,16 @@ class TestRespondHttpPath:
         mock_client.post.return_value = _chat_response("reply")
 
         with patch("rex.openclaw.agent.get_openclaw_client", return_value=mock_client):
-            agent.respond("My question")
+            agent.respond("My question", user_key="james")
 
         payload = mock_client.post.call_args.kwargs["json"]
         messages = payload["messages"]
         roles = [m["role"] for m in messages]
         assert "system" in roles
         assert "user" in roles
-        user_content = next(m["content"] for m in messages if m["role"] == "user")
-        assert "My question" in user_content
+        assert any(
+            "My question" in message["content"] for message in messages if message["role"] == "user"
+        )
 
     def test_payload_contains_user_field_when_user_key_provided(self):
         """When user_key is given, the POST payload includes a 'user' field."""
@@ -139,7 +153,7 @@ class TestRespondHttpPath:
         mock_client.post.return_value = _chat_response("OpenClaw reply")
 
         with patch("rex.openclaw.agent.get_openclaw_client", return_value=mock_client):
-            agent.respond("Question")
+            agent.respond("Question", user_key="james")
 
         agent.llm.generate.assert_not_called()
 
@@ -159,7 +173,7 @@ class TestRespondHttpFallback:
         mock_client.post.side_effect = OpenClawAPIError(500, "internal server error")
 
         with patch("rex.openclaw.agent.get_openclaw_client", return_value=mock_client):
-            result = agent.respond("Test prompt")
+            result = agent.respond("Test prompt", user_key="james")
 
         agent.llm.generate.assert_called_once()
         assert result == "local fallback reply"
@@ -173,7 +187,7 @@ class TestRespondHttpFallback:
         mock_client.post.return_value = {"unexpected": "shape"}  # missing 'choices'
 
         with patch("rex.openclaw.agent.get_openclaw_client", return_value=mock_client):
-            result = agent.respond("Prompt")
+            result = agent.respond("Prompt", user_key="james")
 
         agent.llm.generate.assert_called_once()
         assert result == "local result"

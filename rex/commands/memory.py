@@ -28,7 +28,10 @@ def cmd_remember(args: argparse.Namespace) -> int:
     """Store or display a remembered fact for the active user."""
     from rex.user_facts import recall_all, store
 
-    user = getattr(args, "user", None) or "default"
+    user = _resolve_memory_user(args)
+    if user is None:
+        print(_NO_USER_MSG)
+        return 1
     fact_text: str | None = getattr(args, "fact", None)
 
     if fact_text:
