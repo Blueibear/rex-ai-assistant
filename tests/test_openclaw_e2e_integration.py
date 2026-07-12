@@ -100,7 +100,7 @@ class TestTextModeE2E:
         mock_client = _mock_client(_chat_response("The time is 3 pm."))
 
         with patch("rex.openclaw.agent.get_openclaw_client", return_value=mock_client):
-            reply = agent.respond("What time is it?")
+            reply = agent.respond("What time is it?", user_key="james")
 
         assert reply == "The time is 3 pm."
         mock_client.post.assert_called_once()
@@ -130,7 +130,7 @@ class TestTextModeE2E:
         mock_client = _mock_client()
 
         with patch("rex.openclaw.agent.get_openclaw_client", return_value=mock_client):
-            agent.respond("Hi")
+            agent.respond("Hi", user_key="james")
 
         messages = mock_client.post.call_args.kwargs["json"]["messages"]
         assert messages[0]["role"] == "system"
@@ -176,7 +176,7 @@ class TestToolCallE2E:
         with patch("rex.openclaw.agent.get_openclaw_client", return_value=chat_client):
             # Simulate re-calling OpenClaw with the tool result embedded in the prompt.
             tool_result_text = f"Tool returned: {result['result']}"
-            reply = agent.respond(tool_result_text)
+            reply = agent.respond(tool_result_text, user_key="james")
 
         assert reply == follow_up_msg
 
@@ -229,7 +229,7 @@ class TestVoiceBridgeE2E:
         """Empty transcript returns empty string with no HTTP call."""
         cfg = _config()
         agent = RexAgent(llm=_mock_llm(), config=cfg, system_prompt="You are Rex.")
-        bridge = VoiceBridge(agent=agent)
+        bridge = VoiceBridge(agent=agent, user_key="james")
         mock_client = _mock_client()
 
         with patch("rex.openclaw.agent.get_openclaw_client", return_value=mock_client):
@@ -242,7 +242,7 @@ class TestVoiceBridgeE2E:
         """voice_mode=True is accepted without error."""
         cfg = _config()
         agent = RexAgent(llm=_mock_llm(), config=cfg, system_prompt="You are Rex.")
-        bridge = VoiceBridge(agent=agent)
+        bridge = VoiceBridge(agent=agent, user_key="james")
         mock_client = _mock_client(_chat_response("Roger that."))
 
         with patch("rex.openclaw.agent.get_openclaw_client", return_value=mock_client):
@@ -332,7 +332,7 @@ class TestFallbackE2E:
         error_client = _mock_client(post_side_effect=OpenClawAPIError(500, "internal error"))
 
         with patch("rex.openclaw.agent.get_openclaw_client", return_value=error_client):
-            reply = agent.respond("What is the weather?")
+            reply = agent.respond("What is the weather?", user_key="james")
 
         assert reply == "local fallback answer"
         local_llm.generate.assert_called_once()
@@ -349,7 +349,7 @@ class TestFallbackE2E:
         )
 
         with patch("rex.openclaw.agent.get_openclaw_client", return_value=error_client):
-            reply = agent.respond("Hello?")
+            reply = agent.respond("Hello?", user_key="james")
 
         assert reply == "fallback on connection error"
         local_llm.generate.assert_called_once()

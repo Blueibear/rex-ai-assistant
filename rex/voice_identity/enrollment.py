@@ -16,6 +16,7 @@ from pathlib import Path
 
 import numpy as np
 
+from rex.identity import validate_user_id
 from rex.voice_identity.embedding_backends import SyntheticEmbeddingBackend
 from rex.voice_identity.embeddings_store import EmbeddingsStore
 from rex.voice_identity.types import VoiceEmbedding
@@ -58,6 +59,7 @@ def enroll_user(
         ValueError: If fewer than :data:`_MIN_SAMPLES` audio samples are
             provided.
     """
+    user_id = validate_user_id(user_id)
     if len(audio_samples) < _MIN_SAMPLES:
         raise ValueError(
             f"enroll_user requires at least {_MIN_SAMPLES} audio samples; "

@@ -17,8 +17,9 @@ from __future__ import annotations
 import json
 import logging
 from datetime import UTC, datetime
-from pathlib import Path, PurePath
+from pathlib import Path
 
+from rex.identity import validate_user_id
 from rex.voice_identity.types import VoiceEmbedding
 
 logger = logging.getLogger(__name__)
@@ -94,7 +95,10 @@ class EmbeddingsStore:
         users: list[str] = []
         for entry in sorted(self._base_dir.iterdir()):
             if entry.is_dir() and (entry / _FILENAME).exists():
-                users.append(entry.name)
+                try:
+                    users.append(validate_user_id(entry.name))
+                except ValueError:
+                    logger.warning("Ignoring embedding stored under an invalid user ID")
         return users
 
     def load_all(self) -> dict[str, VoiceEmbedding]:
@@ -112,17 +116,4 @@ class EmbeddingsStore:
 
     def _path_for(self, user_id: str) -> Path:
         """Return the JSON file path for a given user."""
-        if not isinstance(user_id, str):
-            raise ValueError("user_id must be a string")
-
-        candidate = user_id.strip()
-        if not candidate:
-            raise ValueError("user_id must not be empty")
-
-        parts = PurePath(candidate).parts
-        if len(parts) != 1 or parts[0] != candidate:
-            raise ValueError("user_id must be a simple name without path separators")
-        if candidate in {".", ".."}:
-            raise ValueError("user_id must not be '.' or '..'")
-
-        return self._base_dir / candidate / _FILENAME
+        return self._base_dir / validate_user_id(user_id) / _FILENAME

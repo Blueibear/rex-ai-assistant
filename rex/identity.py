@@ -30,6 +30,15 @@ from .config import settings
 logger = logging.getLogger(__name__)
 
 _USER_ID_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$")
+_WINDOWS_RESERVED_DEVICE_NAMES = {
+    "con",
+    "prn",
+    "aux",
+    "nul",
+    "clock$",
+    *(f"com{number}" for number in range(1, 10)),
+    *(f"lpt{number}" for number in range(1, 10)),
+}
 
 
 def validate_user_id(user_id: str) -> str:
@@ -46,6 +55,13 @@ def validate_user_id(user_id: str) -> str:
     if not isinstance(user_id, str) or not _USER_ID_PATTERN.fullmatch(user_id):
         raise ValueError(f"Invalid user_id: {user_id!r}")
     if user_id in {".", ".."}:
+        raise ValueError(f"Invalid user_id: {user_id!r}")
+    # Windows strips trailing spaces/periods and treats the portion before an
+    # extension as a device name. Apply that rule everywhere so a profile is
+    # never portable on one OS but unsafe on another.
+    normalized = user_id.rstrip(" .")
+    device_stem = normalized.split(".", 1)[0].rstrip(" .").casefold()
+    if device_stem in _WINDOWS_RESERVED_DEVICE_NAMES:
         raise ValueError(f"Invalid user_id: {user_id!r}")
     return user_id
 
@@ -117,7 +133,7 @@ def _save_session(data: dict) -> None:
 def get_session_user() -> str | None:
     """Return the active user from session state, or None."""
     session = _load_session()
-    return session.get("active_user")
+    return _validated_candidate(session.get("active_user"), source="session")
 
 
 def set_session_user(user_id: str) -> None:
@@ -158,7 +174,7 @@ def resolve_active_user(
         return validate_user_id(explicit_user)
 
     # 2. Session state. Invalid persisted state fails closed.
-    session_user = get_session_user()
+    session_user = _load_session().get("active_user")
     if session_user:
         return _validated_candidate(session_user, source="session")
 

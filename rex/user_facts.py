@@ -31,9 +31,9 @@ def _facts_path(user: str, memory_root: Path | None = None) -> Path:
     validator prevents ambiguous filename sanitization where distinct IDs such
     as ``alice/bob`` and ``alice_bob`` could map to the same facts file.
     """
+    safe = validate_user_id(user)
     root = memory_root or _MEMORY_ROOT
     root.mkdir(parents=True, exist_ok=True)
-    safe = validate_user_id(user)
     return root / f"{safe}_facts.json"
 
 

@@ -60,6 +60,7 @@ def _runtime_calendar_path(user_id: str) -> Path:
     single-user file (``rex-ai/calendar.json``) is preserved for the
     ``default`` profile only; named users get isolated per-user files.
     """
+    user_id = require_user_id(user_id)
     if os.name == "nt":
         base = Path(os.environ.get("LOCALAPPDATA", str(Path.home() / "AppData" / "Local")))
     else:
