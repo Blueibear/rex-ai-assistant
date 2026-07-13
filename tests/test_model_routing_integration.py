@@ -90,6 +90,7 @@ def _make_assistant(monkeypatch, settings_obj, llm, *, available_models: set[str
     a = assistant_module.Assistant(
         settings_obj=settings_obj,
         transcripts_dir="transcripts",
+        user_id="default",
     )
 
     # If no specific available_models given, mark all routing targets as available

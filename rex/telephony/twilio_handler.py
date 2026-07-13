@@ -396,9 +396,12 @@ def _generate_reply(text: str) -> str:
 
         from rex.assistant import Assistant
         from rex.config import load_config
+        from rex.identity import resolve_entrypoint_user_id
 
         cfg = load_config()
-        assistant = Assistant(settings_obj=cfg)
+        # Deliberate single-user profile selection (issue #303): Assistant no
+        # longer invents an identity when user_id is omitted.
+        assistant = Assistant(settings_obj=cfg, user_id=resolve_entrypoint_user_id(cfg))
         loop = asyncio.new_event_loop()
         try:
             reply: str = loop.run_until_complete(assistant.generate_reply(text))

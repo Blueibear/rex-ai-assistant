@@ -222,8 +222,18 @@ class TestBuild:
         engine = MagicMock()
         engine.format_followups.return_value = "Did you mean X?"
         rb = _make_builder(followup_engine=engine)
-        result = rb.build(_make_action_result("ok"), _make_context())
+        result = rb.build(_make_action_result("ok"), _make_context(), user_id="alice")
         assert result.followups == ["Did you mean X?"]
+        engine.format_followups.assert_called_once_with("alice")
+
+    def test_followups_empty_without_user_id(self):
+        # Fail closed: no user identity means no cue state is read (#303)
+        engine = MagicMock()
+        engine.format_followups.return_value = "Did you mean X?"
+        rb = _make_builder(followup_engine=engine)
+        result = rb.build(_make_action_result("ok"), _make_context())
+        assert result.followups == []
+        engine.format_followups.assert_not_called()
 
     def test_followups_empty_when_engine_returns_none(self):
         engine = MagicMock()
@@ -254,10 +264,10 @@ class TestAssistantUsesResponseBuilder:
         a._settings.persist_history = False
         a._settings.followups_enabled = False
         a._settings.model_routing = None
+        a._user_id = "default"
         a._history = []
         a._history_limit = 50
         a._plugins = []
-        a._user_id = "default"
         a._history_store = None
         a._followup_engine = None
         a._pending_followup = None

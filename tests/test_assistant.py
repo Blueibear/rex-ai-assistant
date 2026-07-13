@@ -51,7 +51,9 @@ def test_assistant_generates_reply(monkeypatch, tmp_path):
     monkeypatch.setattr(assistant_module, "LanguageModel", DummyLanguageModel)
 
     plugin_spec = assistant_module.PluginSpec(name="dummy", plugin=DummyPlugin())
-    assistant = assistant_module.Assistant(plugins=[plugin_spec], transcripts_dir=tmp_path)
+    assistant = assistant_module.Assistant(
+        plugins=[plugin_spec], transcripts_dir=tmp_path, user_id="default"
+    )
 
     reply = asyncio.run(_run_assistant(assistant))
 
@@ -72,7 +74,7 @@ def test_build_prompt_contains_date_and_time(monkeypatch, tmp_path):
 
     monkeypatch.setattr(assistant_module, "LanguageModel", DummyLanguageModel)
 
-    asst = assistant_module.Assistant(transcripts_dir=tmp_path)
+    asst = assistant_module.Assistant(transcripts_dir=tmp_path, user_id="default")
     prompt = asst._build_prompt("hello")
 
     # Prompt should start with "Current date and time: YYYY-MM-DD HH:MM <tz>"
@@ -105,7 +107,9 @@ def test_build_prompt_contains_location_when_configured(monkeypatch, tmp_path):
         default_location="Dallas, TX",
         default_timezone="America/Chicago",
     )
-    asst = assistant_module.Assistant(transcripts_dir=tmp_path, settings_obj=settings_with_location)
+    asst = assistant_module.Assistant(
+        transcripts_dir=tmp_path, settings_obj=settings_with_location, user_id="default"
+    )
     prompt = asst._build_prompt("hello")
 
     assert "User location: Dallas, TX" in prompt
@@ -125,7 +129,7 @@ def test_build_prompt_contains_tool_instructions(monkeypatch, tmp_path):
 
     monkeypatch.setattr(assistant_module, "LanguageModel", DummyLanguageModel)
 
-    asst = assistant_module.Assistant(transcripts_dir=tmp_path)
+    asst = assistant_module.Assistant(transcripts_dir=tmp_path, user_id="default")
     prompt = asst._build_prompt("What time is it in Dallas?")
 
     assert "TOOL_REQUEST" in prompt
@@ -153,7 +157,9 @@ def test_build_tool_context_with_settings(monkeypatch, tmp_path):
         default_location="Dallas, TX",
         default_timezone="America/Chicago",
     )
-    asst = assistant_module.Assistant(transcripts_dir=tmp_path, settings_obj=settings_with_location)
+    asst = assistant_module.Assistant(
+        transcripts_dir=tmp_path, settings_obj=settings_with_location, user_id="default"
+    )
     ctx = asst._build_tool_context()
 
     assert ctx["location"] == "Dallas, TX"
@@ -182,7 +188,7 @@ def test_followup_injected_at_most_once_with_concurrent_calls(monkeypatch, tmp_p
 
     monkeypatch.setattr(assistant_module, "LanguageModel", DummyLanguageModel)
 
-    asst = assistant_module.Assistant(transcripts_dir=tmp_path)
+    asst = assistant_module.Assistant(transcripts_dir=tmp_path, user_id="default")
     # Manually set a pending followup to simulate engine output
     asst._pending_followup = "How can I help you today?"
 
@@ -222,7 +228,7 @@ def test_history_store_saves_turns(monkeypatch, tmp_path):
         persist_history=True,
         history_db_path=db_path,
     )
-    asst = assistant_module.Assistant(transcripts_dir=tmp_path, settings_obj=cfg)
+    asst = assistant_module.Assistant(transcripts_dir=tmp_path, settings_obj=cfg, user_id="default")
 
     asyncio.run(asst.generate_reply("hello"))
 
@@ -254,7 +260,7 @@ def test_history_store_preloads_on_startup(monkeypatch, tmp_path):
         persist_history=True,
         history_db_path=db_path,
     )
-    asst = assistant_module.Assistant(transcripts_dir=tmp_path, settings_obj=cfg)
+    asst = assistant_module.Assistant(transcripts_dir=tmp_path, settings_obj=cfg, user_id="default")
 
     history = asst.history()
     speakers = [t.speaker for t in history]
@@ -289,7 +295,7 @@ def test_history_pruned_on_startup(monkeypatch, tmp_path):
         history_retention_days=30,
     )
     # Cancel the daily timer immediately after startup so it doesn't linger
-    asst = assistant_module.Assistant(transcripts_dir=tmp_path, settings_obj=cfg)
+    asst = assistant_module.Assistant(transcripts_dir=tmp_path, settings_obj=cfg, user_id="default")
     if asst._prune_timer is not None:
         asst._prune_timer.cancel()
 
@@ -319,7 +325,7 @@ def test_prune_idempotent_via_assistant(monkeypatch, tmp_path):
         history_db_path=db_path,
         history_retention_days=30,
     )
-    asst = assistant_module.Assistant(transcripts_dir=tmp_path, settings_obj=cfg)
+    asst = assistant_module.Assistant(transcripts_dir=tmp_path, settings_obj=cfg, user_id="default")
     if asst._prune_timer is not None:
         asst._prune_timer.cancel()
 
@@ -340,7 +346,7 @@ def test_history_not_persisted_when_disabled(monkeypatch, tmp_path):
         persist_history=False,
         history_db_path=db_path,
     )
-    asst = assistant_module.Assistant(transcripts_dir=tmp_path, settings_obj=cfg)
+    asst = assistant_module.Assistant(transcripts_dir=tmp_path, settings_obj=cfg, user_id="default")
 
     asyncio.run(asst.generate_reply("hello"))
 
@@ -370,7 +376,7 @@ def test_chat_tool_request_routes_time_now(monkeypatch, tmp_path):
 
     monkeypatch.setattr(assistant_module, "LanguageModel", DummyLanguageModel)
 
-    asst = assistant_module.Assistant(transcripts_dir=tmp_path)
+    asst = assistant_module.Assistant(transcripts_dir=tmp_path, user_id="default")
     reply = asyncio.run(asst.generate_reply("Please check the clock for Dallas."))
 
     assert call_count == 2, "LLM should be called twice: once for tool request, once with result"
@@ -391,7 +397,7 @@ def test_generate_reply_freeform_uses_structured_messages(monkeypatch, tmp_path)
 
     monkeypatch.setattr(assistant_module, "LanguageModel", DummyLanguageModel)
 
-    asst = assistant_module.Assistant(transcripts_dir=tmp_path)
+    asst = assistant_module.Assistant(transcripts_dir=tmp_path, user_id="default")
     reply = asyncio.run(asst.generate_reply("Tell me something simple."))
 
     assert reply == "normal reply"
@@ -423,7 +429,7 @@ def test_stream_reply_freeform_uses_structured_messages(monkeypatch, tmp_path):
 
     monkeypatch.setattr(assistant_module, "LanguageModel", DummyLanguageModel)
 
-    asst = assistant_module.Assistant(transcripts_dir=tmp_path)
+    asst = assistant_module.Assistant(transcripts_dir=tmp_path, user_id="default")
 
     async def collect():
         return [chunk async for chunk in asst.stream_reply("Tell me something simple.")]
@@ -458,7 +464,7 @@ def test_generate_reply_direct_conversation_bypasses_llm(monkeypatch, tmp_path, 
 
     monkeypatch.setattr(assistant_module, "LanguageModel", BlockingLanguageModel)
 
-    asst = assistant_module.Assistant(transcripts_dir=tmp_path)
+    asst = assistant_module.Assistant(transcripts_dir=tmp_path, user_id="default")
 
     assert asyncio.run(asst.generate_reply(query)) == expected
 
@@ -476,7 +482,7 @@ def test_stream_reply_direct_conversation_bypasses_llm(monkeypatch, tmp_path):
 
     monkeypatch.setattr(assistant_module, "LanguageModel", BlockingLanguageModel)
 
-    asst = assistant_module.Assistant(transcripts_dir=tmp_path)
+    asst = assistant_module.Assistant(transcripts_dir=tmp_path, user_id="default")
 
     async def collect():
         return [chunk async for chunk in asst.stream_reply("hello")]
@@ -497,7 +503,7 @@ def test_generate_reply_direct_recipe_bypasses_shopping_and_llm(monkeypatch, tmp
 
     monkeypatch.setattr(assistant_module, "LanguageModel", BlockingLanguageModel)
 
-    asst = assistant_module.Assistant(transcripts_dir=tmp_path)
+    asst = assistant_module.Assistant(transcripts_dir=tmp_path, user_id="default")
 
     reply = asyncio.run(asst.generate_reply("I need a chocolate cake recipe"))
 
@@ -518,7 +524,7 @@ def test_stream_reply_direct_recipe_bypasses_llm(monkeypatch, tmp_path):
 
     monkeypatch.setattr(assistant_module, "LanguageModel", BlockingLanguageModel)
 
-    asst = assistant_module.Assistant(transcripts_dir=tmp_path)
+    asst = assistant_module.Assistant(transcripts_dir=tmp_path, user_id="default")
 
     async def collect():
         return [
@@ -545,7 +551,7 @@ def test_generate_reply_suppresses_unverified_action_claim(monkeypatch, tmp_path
 
     monkeypatch.setattr(assistant_module, "LanguageModel", ClaimingLanguageModel)
 
-    asst = assistant_module.Assistant(transcripts_dir=tmp_path)
+    asst = assistant_module.Assistant(transcripts_dir=tmp_path, user_id="default")
 
     reply = asyncio.run(asst.generate_reply("Tell me something useful"))
 
@@ -566,7 +572,7 @@ def test_generate_reply_creator_question_bypasses_action_guard(monkeypatch, tmp_
 
     monkeypatch.setattr(assistant_module, "LanguageModel", BlockingLanguageModel)
 
-    asst = assistant_module.Assistant(transcripts_dir=tmp_path)
+    asst = assistant_module.Assistant(transcripts_dir=tmp_path, user_id="default")
 
     reply = asyncio.run(asst.generate_reply("Who created you?"))
 
@@ -587,7 +593,7 @@ def test_generate_reply_biographical_created_text_is_not_action_claim(monkeypatc
 
     monkeypatch.setattr(assistant_module, "LanguageModel", OriginLanguageModel)
 
-    asst = assistant_module.Assistant(transcripts_dir=tmp_path)
+    asst = assistant_module.Assistant(transcripts_dir=tmp_path, user_id="default")
 
     reply = asyncio.run(asst.generate_reply("Tell me about your origin."))
 
@@ -623,7 +629,7 @@ def test_stream_reply_buffers_tool_request_until_resolved(monkeypatch, tmp_path)
 
     monkeypatch.setattr("rex.openclaw.tool_executor.execute_tool", fake_execute_tool)
 
-    asst = assistant_module.Assistant(transcripts_dir=tmp_path)
+    asst = assistant_module.Assistant(transcripts_dir=tmp_path, user_id="default")
 
     async def collect():
         return [chunk async for chunk in asst.stream_reply("Use the time tool for New York.")]
@@ -647,7 +653,7 @@ def test_stream_reply_suppresses_unverified_action_claim(monkeypatch, tmp_path):
 
     monkeypatch.setattr(assistant_module, "LanguageModel", ClaimingStreamLanguageModel)
 
-    asst = assistant_module.Assistant(transcripts_dir=tmp_path)
+    asst = assistant_module.Assistant(transcripts_dir=tmp_path, user_id="default")
 
     async def collect():
         return [chunk async for chunk in asst.stream_reply("Tell me something useful")]
@@ -682,7 +688,7 @@ def test_generate_reply_direct_time_query_bypasses_llm(monkeypatch, tmp_path):
         default_location="Dallas, TX",
         default_timezone="America/Chicago",
     )
-    asst = assistant_module.Assistant(transcripts_dir=tmp_path, settings_obj=cfg)
+    asst = assistant_module.Assistant(transcripts_dir=tmp_path, settings_obj=cfg, user_id="default")
 
     reply = asyncio.run(asst.generate_reply("What time is it?"))
 
@@ -725,7 +731,7 @@ def test_generate_reply_direct_time_query_uses_requested_city(
         default_location="Dallas, TX",
         default_timezone="America/Chicago",
     )
-    asst = assistant_module.Assistant(transcripts_dir=tmp_path, settings_obj=cfg)
+    asst = assistant_module.Assistant(transcripts_dir=tmp_path, settings_obj=cfg, user_id="default")
 
     reply = asyncio.run(asst.generate_reply(query))
 
@@ -769,7 +775,7 @@ def test_generate_reply_direct_day_date_query_bypasses_llm(monkeypatch, tmp_path
         default_location="Dallas, TX",
         default_timezone="America/Chicago",
     )
-    asst = assistant_module.Assistant(transcripts_dir=tmp_path, settings_obj=cfg)
+    asst = assistant_module.Assistant(transcripts_dir=tmp_path, settings_obj=cfg, user_id="default")
 
     reply = asyncio.run(asst.generate_reply(query))
 
@@ -799,7 +805,7 @@ def test_stream_reply_direct_time_query_bypasses_llm(monkeypatch, tmp_path):
         default_location="Dallas, TX",
         default_timezone="America/Chicago",
     )
-    asst = assistant_module.Assistant(transcripts_dir=tmp_path, settings_obj=cfg)
+    asst = assistant_module.Assistant(transcripts_dir=tmp_path, settings_obj=cfg, user_id="default")
 
     async def collect():
         return [chunk async for chunk in asst.stream_reply("What time is it?")]
@@ -839,7 +845,7 @@ def test_stream_reply_direct_time_query_uses_requested_city(
         default_location="Dallas, TX",
         default_timezone="America/Chicago",
     )
-    asst = assistant_module.Assistant(transcripts_dir=tmp_path, settings_obj=cfg)
+    asst = assistant_module.Assistant(transcripts_dir=tmp_path, settings_obj=cfg, user_id="default")
 
     async def collect():
         return [chunk async for chunk in asst.stream_reply(query)]
@@ -875,7 +881,7 @@ def test_stream_reply_direct_day_date_query_bypasses_llm(monkeypatch, tmp_path, 
         default_location="Dallas, TX",
         default_timezone="America/Chicago",
     )
-    asst = assistant_module.Assistant(transcripts_dir=tmp_path, settings_obj=cfg)
+    asst = assistant_module.Assistant(transcripts_dir=tmp_path, settings_obj=cfg, user_id="default")
 
     async def collect():
         return [chunk async for chunk in asst.stream_reply(query)]

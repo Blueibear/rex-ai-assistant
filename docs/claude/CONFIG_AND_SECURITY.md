@@ -144,6 +144,28 @@ Do not present public exposure as the default.
 - Home Assistant TTS notification channel is optional and disabled by default.
 - OpenClaw integration is HTTP-based, not an imported Python package.
 
+## Assistant Identity Binding (issue #303)
+
+- `rex.assistant.Assistant` never invents a user identity. Constructing it
+  without `user_id` yields an *unbound* instance: no `"default"` fallback, no
+  implicit `settings.user_id` inheritance, and no user-scoped reads or writes
+  during construction (history preload, follow-up session, cache, credentials).
+- Private request paths (intent shortcuts, response cache, early returns,
+  history reads/writes, context construction, tool/action dispatch, streaming,
+  completion recording) require an explicit validated identity — the bound
+  constructor `user_id` or a per-request `active_user_id` — and fail closed
+  with `rex.assistant_errors.IdentityRequiredError` otherwise. Invalid IDs
+  raise `ValueError` from `rex.identity.validate_user_id` and are never
+  sanitized.
+- Caller migration: code that previously relied on `Assistant()` implicitly
+  acting as the `default` profile must either pass `Assistant(user_id="default")`
+  explicitly, resolve the intended profile with
+  `rex.identity.resolve_entrypoint_user_id(settings, explicit_user=...)`
+  (priority: explicit flag > `rex identify` session > `runtime.user_id` >
+  explicit `"default"`), or supply `active_user_id` on each request.
+- `user_id="default"` remains a valid explicit profile; legacy data owned by
+  the `default` profile is not migrated, renamed, or reassigned.
+
 ## Security Checks
 
 ```bash

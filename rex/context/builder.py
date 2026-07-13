@@ -74,23 +74,27 @@ class ContextBuilder:
     Args:
         settings:         App config/settings object (``AppConfig`` or ``Settings``).
         history:          Mutable reference to the in-memory conversation history list.
-        user_id:          Default user/session identifier.
+        user_id:          Default user/session identifier, or ``None`` when the
+                          owning assistant is identity-unbound (issue #303); a
+                          per-request ``active_user_id`` is then required for
+                          user-scoped context.
         followup_engine:  Optional follow-up engine for ``format_followups()``.
-        history_provider: Optional zero-arg callable returning the current
-                          history list.  When given it takes precedence over
-                          *history*, so the builder always reads the caller's
-                          live (per-user) history instead of a snapshot taken
-                          at construction time (issue #303).
+        history_provider: Optional callable returning the current history list.
+                          When given it takes precedence over *history*, so the
+                          builder always reads the caller's live (per-user)
+                          history instead of a snapshot taken at construction
+                          time (issue #303).  Providers may optionally accept
+                          the effective user ID as a single argument.
     """
 
     def __init__(
         self,
         settings: Any,
         history: list,
-        user_id: str,
+        user_id: str | None,
         *,
         followup_engine: Any = None,
-        history_provider: Callable[[], list] | None = None,
+        history_provider: Callable[..., list] | None = None,
     ) -> None:
         self._settings = settings
         self._history = history
@@ -98,10 +102,18 @@ class ContextBuilder:
         self._followup_engine = followup_engine
         self._history_provider = history_provider
 
-    def _current_history(self) -> list:
-        """Return the live history list (provider-backed when configured)."""
+    def _current_history(self, user_id: str | None = None) -> list:
+        """Return the live history list (provider-backed when configured).
+
+        *user_id* is the effective request user; identity-aware providers
+        receive it so per-request identities never route through shared
+        mutable state (issue #303).  Zero-arg legacy providers keep working.
+        """
         if self._history_provider is not None:
-            return self._history_provider()
+            try:
+                return self._history_provider(user_id)
+            except TypeError:
+                return self._history_provider()
         return self._history
 
     # ------------------------------------------------------------------
@@ -128,7 +140,7 @@ class ContextBuilder:
             A populated :class:`ContextPackage`.
         """
         system_prompt = self.build_system_context()
-        session_id = active_user_id or self._user_id
+        session_id = active_user_id or self._user_id or ""
         user_facts = self._get_user_facts(active_user_id)
 
         messages = self._build_messages(
@@ -200,8 +212,13 @@ class ContextBuilder:
     # ------------------------------------------------------------------
 
     def _get_user_facts(self, user_id: str | None) -> dict:
-        """Return raw user facts dict for the given user_id."""
+        """Return raw user facts dict for the given user_id.
+
+        Without any identity no private facts are read (fail closed, #303).
+        """
         uid = user_id or self._user_id
+        if not uid:
+            return {}
         try:
             from rex.user_facts import recall_all
 
@@ -299,10 +316,13 @@ class ContextBuilder:
         if tool_context:
             messages.append({"role": "system", "content": tool_context})
 
+        # Follow-up cues are user-private: only surface the effective user's
+        # cues, and none at all without an identity (fail closed, #303).
         engine = self._followup_engine
-        if engine and hasattr(engine, "format_followups"):
+        effective_user = active_user_id or self._user_id
+        if engine and effective_user and hasattr(engine, "format_followups"):
             try:
-                followups = engine.format_followups()
+                followups = engine.format_followups(effective_user)
                 if followups:
                     messages.append({"role": "system", "content": str(followups)})
             except Exception as exc:
@@ -311,7 +331,9 @@ class ContextBuilder:
         if voice_mode:
             messages.append({"role": "system", "content": _VOICE_CONCISE_INSTRUCTION})
 
-        for turn in self._current_history()[-4:]:
+        # Pass only the per-request override: identity-aware providers resolve
+        # the fallback against the owner's live bound identity themselves.
+        for turn in self._current_history(active_user_id)[-4:]:
             speaker = str(turn.speaker).strip().lower()
             role = "assistant" if speaker in {"assistant", "rex"} else "user"
             messages.append({"role": role, "content": turn.text})
@@ -352,16 +374,23 @@ class ContextBuilder:
         if tool_context:
             history_lines.append(tool_context)
 
-        history_lines += [f"{turn.speaker}: {turn.text}" for turn in self._current_history()[-4:]]
+        effective_user = active_user_id or self._user_id
+        # Pass only the per-request override: identity-aware providers resolve
+        # the fallback against the owner's live bound identity themselves.
+        history_lines += [
+            f"{turn.speaker}: {turn.text}" for turn in self._current_history(active_user_id)[-4:]
+        ]
         history_lines.append(f"user: {user_message}")
 
         if voice_mode:
             history_lines.append(_VOICE_CONCISE_INSTRUCTION)
 
+        # Follow-up cues are user-private: only surface the effective user's
+        # cues, and none at all without an identity (fail closed, #303).
         engine = self._followup_engine
-        if engine and hasattr(engine, "format_followups"):
+        if engine and effective_user and hasattr(engine, "format_followups"):
             try:
-                followups = engine.format_followups()
+                followups = engine.format_followups(effective_user)
                 if followups:
                     history_lines.append(str(followups))
             except Exception as exc:

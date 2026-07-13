@@ -258,6 +258,7 @@ class TestAssistantCapabilityIntegration:
             },
         )()
         assistant._llm = _FakeLLM()
+        assistant._user_id = "default"
         assistant._history = []
         assistant._history_limit = 20
         assistant._history_store = None

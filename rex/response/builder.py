@@ -130,7 +130,7 @@ class ResponseBuilder:
         text = action_result.response
         tts_text = _clean_for_tts(text)
         suggestions = self._get_suggestions(user_id)
-        followups = self._get_followups()
+        followups = self._get_followups(user_id)
 
         # Cache PUT: store result so identical future queries skip the LLM.
         if self._cache is not None and transcript:
@@ -168,15 +168,19 @@ class ResponseBuilder:
             logger.debug("Failed to get suggestions from engine: %s", exc)
         return []
 
-    def _get_followups(self) -> list[str]:
-        """Return formatted follow-up prompts from the follow-up engine."""
+    def _get_followups(self, user_id: str | None = None) -> list[str]:
+        """Return *user_id*'s formatted follow-up prompts from the engine.
+
+        Follow-up cues are per-user (issue #303); without a *user_id* no
+        cue state is read (fail closed).
+        """
         engine = self._followup_engine
-        if engine is None:
+        if engine is None or not user_id:
             return []
         if not hasattr(engine, "format_followups"):
             return []
         try:
-            followups_text = engine.format_followups()
+            followups_text = engine.format_followups(user_id)
             if followups_text:
                 return [str(followups_text)]
         except Exception as exc:

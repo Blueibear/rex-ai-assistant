@@ -185,11 +185,11 @@ class TestVoiceLoopToolRouting:
         assistant = Assistant.__new__(Assistant)
         assistant._settings = None
         assistant._llm = MagicMock()
+        assistant._user_id = "test"
         assistant._history = []
         assistant._history_limit = 50
         assistant._plugins = []
         assistant._transcripts_dir = Path("transcripts")
-        assistant._user_id = "test"
         assistant._followup_engine = None
         assistant._pending_followup = None
         assistant._followup_injected = False

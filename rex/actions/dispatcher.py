@@ -94,7 +94,7 @@ class ActionDispatcher:
         suggestion_engine: Any = None,
         pattern_entries: dict | None = None,
         build_tool_context_fn: Callable[[], dict] | None = None,
-        model_call_fn_builder: Callable[[str], Any] | None = None,
+        model_call_fn_builder: Callable[..., Any] | None = None,
         run_plugins_fn: Callable[..., Awaitable[list[str]]] | None = None,
     ) -> None:
         self._context_builder = context_builder
@@ -127,7 +127,7 @@ class ActionDispatcher:
         *,
         voice_mode: bool = False,
         active_user_id: str | None = None,
-        user_id: str = "default",
+        user_id: str | None = None,
         loop: asyncio.AbstractEventLoop | None = None,
     ) -> ActionResult:
         """Dispatch *transcript* through all action layers and return an :class:`ActionResult`.
@@ -142,15 +142,33 @@ class ActionDispatcher:
                             so that pre-LLM handlers can pattern-match against it.)
             voice_mode:     Append the voice-concise instruction to the LLM prompt.
             active_user_id: Per-request user override for multi-user scenarios.
-            user_id:        Default session user ID.
+            user_id:        Explicit session user ID.  At least one of
+                            *active_user_id* / *user_id* is required: user-scoped
+                            handlers and tools fail closed without an identity
+                            (issue #303); a missing identity never becomes
+                            ``"default"``.
             loop:           Running event loop; obtained via ``asyncio.get_running_loop()`` when
                             *None*.
 
         Returns:
             :class:`ActionResult` with ``success=True`` and the final response string.
+
+        Raises:
+            IdentityRequiredError: When neither *active_user_id* nor *user_id*
+                is provided.
+            ValueError: When the provided identity fails canonical validation.
         """
+        from rex.assistant_errors import IdentityRequiredError
+        from rex.identity import validate_user_id
+
         _loop = loop or asyncio.get_running_loop()
         effective_user = active_user_id or user_id
+        if effective_user is None:
+            raise IdentityRequiredError(
+                "No user identity is bound for this operation. "
+                "Pass user_id or active_user_id to dispatch()."
+            )
+        effective_user = validate_user_id(effective_user)
 
         # 1. Skill training: intercept natural-language skill creation before LLM
         if self._skill_trainer is not None and self._skill_registry is not None:
@@ -303,11 +321,14 @@ class ActionDispatcher:
             tool_context_dict: dict = (
                 self._build_tool_context_fn() if self._build_tool_context_fn else {}
             )
-            model_call_fn = (
-                self._model_call_fn_builder(transcript)
-                if self._model_call_fn_builder is not None
-                else None
-            )
+            model_call_fn = None
+            if self._model_call_fn_builder is not None:
+                try:
+                    # Identity-aware builders receive the request user so tool
+                    # re-prompts read the same user's history (issue #303).
+                    model_call_fn = self._model_call_fn_builder(transcript, user_id=effective_user)
+                except TypeError:
+                    model_call_fn = self._model_call_fn_builder(transcript)
             completion = await self._result_handler.process(
                 transcript,
                 completion,

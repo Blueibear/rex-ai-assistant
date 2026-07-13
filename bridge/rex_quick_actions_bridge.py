@@ -128,7 +128,9 @@ def main() -> None:
                 configure_logging()
                 initialize_services()
                 plugin_specs = load_plugins()
-                assistant = Assistant()
+                # Run the action as the already-resolved bridge user (issue
+                # #303): Assistant no longer invents an identity on its own.
+                assistant = Assistant(user_id=user_id)
                 try:
                     reply = asyncio.run(assistant.generate_reply(command_text))
                     sys.stdout.write(json.dumps({"status": "attempted", "detail": str(reply)}))

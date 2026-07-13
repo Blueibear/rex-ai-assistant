@@ -224,6 +224,46 @@ def require_active_user(
     raise SystemExit(msg)
 
 
+def resolve_entrypoint_user_id(
+    settings_obj: object | None = None,
+    *,
+    explicit_user: str | None = None,
+) -> str:
+    """Return the profile a first-party single-user entrypoint binds to.
+
+    ``Assistant`` no longer invents an identity when none is supplied (issue
+    #303), so entrypoints that intentionally serve one configured profile
+    resolve it here — outside the assistant — and pass it explicitly to
+    ``Assistant(user_id=...)``.
+
+    Priority:
+    1. ``explicit_user`` (e.g. a ``--user`` flag) — validated, caller errors
+       do not fall back to another profile.
+    2. The session/config active user (``rex identify`` chain).
+    3. ``settings_obj.user_id`` (``runtime.user_id``) — validated.
+    4. The explicit ``"default"`` profile.
+
+    The final ``"default"`` is a deliberate selection of the profile named
+    ``default`` by a trusted first-party entrypoint, not an automatic
+    assistant-side fallback.
+
+    Raises:
+        ValueError: If an explicit or configured user ID fails validation.
+    """
+    if explicit_user:
+        return validate_user_id(explicit_user)
+
+    session_user = resolve_active_user()
+    if session_user:
+        return session_user
+
+    configured = getattr(settings_obj, "user_id", None) if settings_obj is not None else None
+    if isinstance(configured, str) and configured:
+        return validate_user_id(configured)
+
+    return "default"
+
+
 def list_known_users() -> list[dict]:
     """Return info about known users from Memory/ profiles.
 
@@ -387,6 +427,7 @@ __all__ = [
     "list_known_users",
     "require_active_user",
     "resolve_active_user",
+    "resolve_entrypoint_user_id",
     "set_session_user",
     "update_user_preferences",
     "validate_user_id",

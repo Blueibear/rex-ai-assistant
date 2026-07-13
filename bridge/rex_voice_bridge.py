@@ -297,10 +297,17 @@ def _run_stub_loop() -> None:
     try:
         from rex import settings as rex_settings  # type: ignore[import]
         from rex.assistant import Assistant  # type: ignore[import]
+        from rex.identity import resolve_entrypoint_user_id  # type: ignore[import]
         from rex.services import initialize_services  # type: ignore[import]
 
         initialize_services()
-        assistant = Assistant(history_limit=rex_settings.max_memory_items, plugins=[])
+        # Deliberate single-user profile selection (issue #303): Assistant no
+        # longer invents an identity when user_id is omitted.
+        assistant = Assistant(
+            history_limit=rex_settings.max_memory_items,
+            plugins=[],
+            user_id=resolve_entrypoint_user_id(rex_settings),
+        )
         has_backend = True
     except Exception:
         has_backend = False
@@ -497,8 +504,16 @@ async def _run_real_loop() -> None:
     emit({"type": "status", "status": "loading_plugins"})
     plugin_specs = load_plugins()
     emit({"type": "status", "status": "creating_assistant"})
+    from rex.identity import resolve_entrypoint_user_id  # type: ignore[import]
+
+    # Deliberate single-user profile selection (issue #303): Assistant no
+    # longer invents an identity when user_id is omitted.
     assistant = _DeferredAssistant(
-        lambda: Assistant(history_limit=active_settings.max_memory_items, plugins=plugin_specs)
+        lambda: Assistant(
+            history_limit=active_settings.max_memory_items,
+            plugins=plugin_specs,
+            user_id=resolve_entrypoint_user_id(active_settings),
+        )
     )
 
     emit({"type": "status", "status": "initializing_microphone"})
