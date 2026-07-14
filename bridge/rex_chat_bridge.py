@@ -31,6 +31,7 @@ def main() -> None:
     async def run() -> str:
         from rex import settings  # type: ignore[import]
         from rex.assistant import Assistant  # type: ignore[import]
+        from rex.identity import resolve_entrypoint_user_id  # type: ignore[import]
         from rex.logging_utils import configure_logging  # type: ignore[import]
         from rex.plugins import load_plugins, shutdown_plugins  # type: ignore[import]
         from rex.services import initialize_services  # type: ignore[import]
@@ -38,7 +39,13 @@ def main() -> None:
         configure_logging()
         initialize_services()
         plugin_specs = load_plugins()
-        assistant = Assistant(history_limit=settings.max_memory_items, plugins=plugin_specs)
+        # Deliberate single-user profile selection (issue #303): Assistant no
+        # longer invents an identity when user_id is omitted.
+        assistant = Assistant(
+            history_limit=settings.max_memory_items,
+            plugins=plugin_specs,
+            user_id=resolve_entrypoint_user_id(settings),
+        )
         try:
             reply = await assistant.generate_reply(message)
             return str(reply)

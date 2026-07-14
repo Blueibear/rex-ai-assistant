@@ -10,19 +10,29 @@ from collections.abc import AsyncIterator, Iterable
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
+from typing import Any
 
 from .actions.dispatcher import _UNDO_PATTERN
+from .assistant_errors import IdentityRequiredError
 from .calendar_service import get_calendar_service
 from .config import Settings, settings
 from .followup_engine import FollowupEngine
 from .ha_bridge import HABridge
 from .history_store import HistoryStore
+from .identity import validate_user_id
 from .llm_client import LanguageModel
 from .memory import trim_history
 from .model_router import ModelRouter
 from .plugins import PluginSpec
 
 logger = logging.getLogger(__name__)
+
+# Deterministic fail-closed error for private operations without an identity
+# (issue #303).  Must never include paths, credentials, or other user IDs.
+_IDENTITY_REQUIRED_MESSAGE = (
+    "No user identity is bound for this operation. "
+    "Construct Assistant(user_id=...) or pass active_user_id with the request."
+)
 
 __all__ = [
     "Assistant",
@@ -92,20 +102,26 @@ class Assistant:
         self._settings = settings_obj or settings
         self._llm = LanguageModel(config=self._settings)
 
-        # Prefer explicit user_id, then settings.user_id, then "default"
-        self._user_id = user_id or getattr(self._settings, "user_id", None) or "default"
+        # Identity binding (issue #303): an omitted user_id leaves the
+        # instance explicitly unbound.  A missing identity never becomes
+        # "default" and never inherits settings.user_id — private requests
+        # on an unbound instance must supply a validated active_user_id.
+        # Explicit user_id="default" remains a valid, deliberate selection
+        # of the profile named "default".
+        self._user_id: str | None = validate_user_id(user_id) if user_id is not None else None
 
         # Per-user in-memory history windows keyed by user id (issue #303).
         # ``self._history`` is a property that resolves to the current
         # ``self._user_id``'s list, so identified-speaker requests never see
         # another user's turns.
         self._histories: dict[str, list[ConversationTurn]] = {}
-        self._history = []
         self._history_limit = history_limit or self._settings.max_memory_items
         self._plugins = list(plugins or [])
         self._transcripts_dir = Path(transcripts_dir or self._settings.transcripts_dir)
 
-        # Conversation history persistence
+        # Conversation history persistence.  Creating the store handle is a
+        # neutral operation; per-user rows are only read once an identity is
+        # bound.
         self._history_store: HistoryStore | None = None
         self._prune_timer: threading.Timer | None = None
         if getattr(self._settings, "persist_history", True):
@@ -116,22 +132,33 @@ class Assistant:
 
                     db_path = _Path("data/history.db")
                 self._history_store = HistoryStore(db_path=db_path)
-                # Preload the last 50 turns into in-memory history
-                stored = self._history_store.load_history(self._user_id, limit=50)
-                self._history = [
-                    ConversationTurn(speaker=row["role"], text=row["content"]) for row in stored
-                ]
-                # Run an initial prune at startup and schedule daily repeats
-                self._schedule_daily_prune()
+                if self._user_id is not None:
+                    # Preload the last 50 turns into in-memory history
+                    stored = self._history_store.load_history(self._user_id, limit=50)
+                    self._history = [
+                        ConversationTurn(speaker=row["role"], text=row["content"]) for row in stored
+                    ]
+                    # Run an initial prune at startup and schedule daily repeats
+                    self._schedule_daily_prune()
             except Exception as exc:
                 logger.warning("Failed to initialize HistoryStore: %s", exc)
                 self._history_store = None
 
-        # Follow-up engine for natural conversation cues (US-018: init extracted to followup_engine)
-        from .followup_engine import init_followup_engine as _init_fe
-
+        # Follow-up engine for natural conversation cues (US-018: init extracted
+        # to followup_engine).  Follow-up sessions are user-private state, so an
+        # unbound assistant defers initialization until a request arrives with a
+        # validated identity (see _ensure_followup_session).
         self._followup_lock = asyncio.Lock()
-        self._followup_engine, self._pending_followup = _init_fe(self._settings, self._user_id)
+        self._followup_engine: Any = None
+        self._pending_followups: dict[str, str | None] = {}
+        self._followup_sessions: set[str] = set()
+        self._followup_bootstrap_pending = self._user_id is None
+        if self._user_id is not None:
+            from .followup_engine import init_followup_engine as _init_fe
+
+            self._followup_engine, _pending = _init_fe(self._settings, self._user_id)
+            self._pending_followups[self._user_id] = _pending
+            self._followup_sessions.add(self._user_id)
 
         # Model router for task-category-based model selection.
         # Pass routing config so the router can probe Ollama availability at init.
@@ -225,12 +252,15 @@ class Assistant:
 
         self._context_builder = ContextBuilder(
             settings=self._settings,
-            history=self._history,
+            history=[],
             user_id=self._user_id,
             followup_engine=self._followup_engine,
-            # Live per-user view: resolves to the active user's history at
-            # build time instead of a construction-time snapshot (#303).
-            history_provider=lambda: self._history,
+            # Live per-user view: resolves to the request user's history at
+            # build time instead of a construction-time snapshot (#303).  The
+            # optional argument keeps request identities out of shared state.
+            history_provider=lambda user_id=None: self._history_for(
+                user_id if user_id is not None else self._require_user_id()
+            ),
         )
 
         # Intent router: handles direct-reply shortcuts without LLM (US-015)
@@ -291,7 +321,7 @@ class Assistant:
         Runs once immediately at startup, then repeats daily via a daemon thread.
         Safe to call if ``_history_store`` is None (no-op).
         """
-        if self._history_store is None:
+        if self._history_store is None or self._user_id is None:
             return
         retention_days = int(getattr(self._settings, "history_retention_days", 30))
         try:
@@ -312,9 +342,36 @@ class Assistant:
         self._prune_timer = timer
 
     @property
-    def user_id(self) -> str:
-        """Get the user ID for this assistant session."""
+    def user_id(self) -> str | None:
+        """Get the bound user ID for this assistant session (None when unbound)."""
         return self._user_id
+
+    # ------------------------------------------------------------------
+    # Identity resolution (issue #303)
+    # ------------------------------------------------------------------
+
+    def _require_user_id(self) -> str:
+        """Return the bound user ID, failing closed when the instance is unbound."""
+        user_id: str | None = getattr(self, "_user_id", None)
+        if user_id is None:
+            raise IdentityRequiredError(_IDENTITY_REQUIRED_MESSAGE)
+        return user_id
+
+    def _resolve_request_user_id(self, active_user_id: str | None) -> str:
+        """Resolve the validated identity a request operates as.
+
+        The effective identity comes only from an explicit validated request
+        identity or the explicit validated constructor identity.  A missing
+        identity fails closed before any private state is touched; it never
+        becomes ``"default"``.
+
+        Raises:
+            ValueError: If *active_user_id* fails canonical validation.
+            IdentityRequiredError: If no identity is available at all.
+        """
+        if active_user_id is not None:
+            return validate_user_id(active_user_id)
+        return self._require_user_id()
 
     # ------------------------------------------------------------------
     # Per-user in-memory history (issue #303)
@@ -343,13 +400,73 @@ class Assistant:
 
     @property
     def _history(self) -> list[ConversationTurn]:
-        """History window for the currently active ``self._user_id``."""
-        return self._history_for(getattr(self, "_user_id", "default"))
+        """History window for the bound ``self._user_id`` (fails closed unbound)."""
+        return self._history_for(self._require_user_id())
 
     @_history.setter
     def _history(self, value: list[ConversationTurn]) -> None:
-        uid = getattr(self, "_user_id", "default")
-        self.__dict__.setdefault("_histories", {})[uid] = list(value)
+        self.__dict__.setdefault("_histories", {})[self._require_user_id()] = list(value)
+
+    # ------------------------------------------------------------------
+    # Per-user pending follow-ups (issue #303)
+    # ------------------------------------------------------------------
+
+    def _pending_followups_map(self) -> dict[str, str | None]:
+        """Return the per-user pending-followup map (``__new__``-fixture safe)."""
+        pending: dict[str, str | None] = self.__dict__.setdefault("_pending_followups", {})
+        return pending
+
+    @property
+    def _pending_followup(self) -> str | None:
+        """Pending follow-up cue for the bound user (None when unbound)."""
+        user_id = getattr(self, "_user_id", None)
+        if user_id is None:
+            return None
+        return self._pending_followups_map().get(user_id)
+
+    @_pending_followup.setter
+    def _pending_followup(self, value: str | None) -> None:
+        user_id = getattr(self, "_user_id", None)
+        if user_id is None:
+            if value is None:
+                return
+            raise IdentityRequiredError(_IDENTITY_REQUIRED_MESSAGE)
+        self._pending_followups_map()[user_id] = value
+
+    def _ensure_followup_session(self, user_id: str) -> None:
+        """Initialize or attach *user_id*'s follow-up session exactly once.
+
+        For a bound constructor identity this happened in ``__init__``.  For
+        additional request identities (and the first identity on an unbound
+        instance) the user-private cue state is only touched here, after the
+        identity has been validated.
+        """
+        sessions: set[str] = self.__dict__.setdefault("_followup_sessions", set())
+        if user_id in sessions:
+            return
+        sessions.add(user_id)
+        engine = getattr(self, "_followup_engine", None)
+        if engine is None:
+            # Only genuinely unbound real constructions defer engine creation;
+            # test shells built via __new__ never bootstrap implicitly.
+            if not getattr(self, "_followup_bootstrap_pending", False):
+                return
+            from .followup_engine import init_followup_engine as _init_fe
+
+            self._followup_bootstrap_pending = False
+            engine, pending = _init_fe(self._settings, user_id)
+            self._followup_engine = engine
+            self._pending_followups_map()[user_id] = pending
+            return
+        try:
+            if hasattr(engine, "start_session"):
+                engine.start_session(user_id)
+            pending = None
+            if hasattr(engine, "get_followup_prompt"):
+                pending = engine.get_followup_prompt(user_id)
+            self._pending_followups_map()[user_id] = pending
+        except Exception as exc:
+            logger.debug("Follow-up session init failed for user: %s", exc)
 
     @property
     def has_pending_followup(self) -> bool:
@@ -380,6 +497,9 @@ class Assistant:
         if not transcript.strip():
             raise ValueError("Transcript must not be empty")
 
+        # Fail closed before any per-user context or cue state is touched.
+        user_id = self._resolve_request_user_id(active_user_id)
+
         ctx = self._context_builder.build(
             transcript,
             voice_mode=voice_mode,
@@ -390,19 +510,20 @@ class Assistant:
         messages = ctx.messages
 
         async with self._get_followup_lock():
-            if self._pending_followup:
+            pending = self._pending_followups_map().get(user_id)
+            if pending:
                 followup_text = (
-                    f'You may want to ask the user: "{self._pending_followup}" '
+                    f'You may want to ask the user: "{pending}" '
                     "as a natural conversation starter."
                 )
                 followup_hint = f"\n[Note: {followup_text}]"
                 prompt = prompt + followup_hint
                 messages.insert(-1, {"role": "system", "content": followup_text})
-                self._pending_followup = None
+                self._pending_followups_map()[user_id] = None
                 engine = self._followup_engine
                 if engine and hasattr(engine, "mark_current_cue_asked"):
                     try:
-                        engine.mark_current_cue_asked(self._user_id)
+                        engine.mark_current_cue_asked(user_id)
                     except Exception as exc:
                         logger.debug("mark_current_cue_asked failed: %s", exc)
 
@@ -436,13 +557,15 @@ class Assistant:
         except TypeError:
             return self._llm.stream(prompt)
 
-    async def _post_process_completion(self, transcript: str, completion: str) -> str:
+    async def _post_process_completion(
+        self, transcript: str, completion: str, *, user_id: str | None = None
+    ) -> str:
         plugin_enrichments = await self._run_plugins(transcript)
         return await self._result_handler.process(
             transcript,
             completion,
             tool_context=self._build_tool_context(),
-            model_call_fn=self._build_tool_model_call(transcript),
+            model_call_fn=self._build_tool_model_call(transcript, user_id=user_id),
             plugin_enrichments=plugin_enrichments,
         )
 
@@ -456,7 +579,12 @@ class Assistant:
         the turn to the identified speaker rather than the session default
         (issue #303).
         """
-        uid = user_id if user_id is not None else self._user_id
+        uid = user_id if user_id is not None else getattr(self, "_user_id", None)
+        if uid is None:
+            raise IdentityRequiredError(_IDENTITY_REQUIRED_MESSAGE)
+        # Never write history, transcripts, or in-memory windows under an
+        # unvalidated key (issue #303).
+        uid = validate_user_id(uid)
         now = datetime.utcnow()
         history_store = getattr(self, "_history_store", None)
         if history_store is not None:
@@ -500,15 +628,20 @@ class Assistant:
         return "text"
 
     async def stream_reply(
-        self, transcript: str, *, voice_mode: bool = False
+        self, transcript: str, *, voice_mode: bool = False, active_user_id: str | None = None
     ) -> AsyncIterator[str]:
         loop = asyncio.get_running_loop()
         completion: str | None = None
 
+        # Resolve and validate the request identity before any private state
+        # (intent shortcuts, history, cues) is touched (issue #303).
+        effective_user_id = self._resolve_request_user_id(active_user_id)
+        self._ensure_followup_session(effective_user_id)
+
         # Intent routing: time/date, greetings, recipes (US-015)
         _intent = self._get_or_create_intent_router().route(transcript)
         if _intent.handled:
-            self._record_completion(transcript, _intent.response)
+            self._record_completion(transcript, _intent.response, user_id=effective_user_id)
             yield _intent.response
             return
 
@@ -520,12 +653,16 @@ class Assistant:
             )
 
         if completion is not None:
-            completion = await self._post_process_completion(transcript, completion)
-            self._record_completion(transcript, completion)
+            completion = await self._post_process_completion(
+                transcript, completion, user_id=effective_user_id
+            )
+            self._record_completion(transcript, completion, user_id=effective_user_id)
             yield completion
             return
 
-        prompt, messages = await self._prepare_model_input(transcript, voice_mode=voice_mode)
+        prompt, messages = await self._prepare_model_input(
+            transcript, voice_mode=voice_mode, active_user_id=active_user_id
+        )
 
         try:
             token_iterator = self._stream_model_reply(prompt, messages)
@@ -533,8 +670,10 @@ class Assistant:
             completion = await loop.run_in_executor(
                 None, self._generate_model_reply, prompt, messages
             )
-            completion = await self._post_process_completion(transcript, completion)
-            self._record_completion(transcript, completion)
+            completion = await self._post_process_completion(
+                transcript, completion, user_id=effective_user_id
+            )
+            self._record_completion(transcript, completion, user_id=effective_user_id)
             yield completion
             return
 
@@ -578,8 +717,10 @@ class Assistant:
             await pump_task
 
         completion = "".join(collected_tokens).strip() or "(silence)"
-        completion = await self._post_process_completion(transcript, completion)
-        self._record_completion(transcript, completion)
+        completion = await self._post_process_completion(
+            transcript, completion, user_id=effective_user_id
+        )
+        self._record_completion(transcript, completion, user_id=effective_user_id)
         if not stream_released:
             yield completion
 
@@ -590,15 +731,15 @@ class Assistant:
         voice_mode: bool = False,
         active_user_id: str | None = None,
     ) -> str:
-        """Orchestrate a full reply: intent → cache → context → dispatch → response."""
+        """Orchestrate a full reply: identity → intent → cache → context → dispatch → response."""
         loop = asyncio.get_running_loop()
 
-        # The user this turn belongs to: the identified speaker when known,
-        # otherwise the session default.  Used for cache partitioning and
-        # turn attribution on every path, including early returns (#303).
-        effective_user_id = (
-            active_user_id if active_user_id is not None else getattr(self, "_user_id", "default")
-        )
+        # The user this turn belongs to: an explicit validated request
+        # identity, otherwise the explicit constructor identity.  Missing
+        # identity fails closed before intent routing, cache lookup, early
+        # returns, history, context, and tool dispatch (issue #303).
+        effective_user_id = self._resolve_request_user_id(active_user_id)
+        self._ensure_followup_session(effective_user_id)
 
         # Route intent: capability queries, pending suggestions, time/date, greetings, recipes
         _intent = self._get_or_create_intent_router().route(
@@ -622,8 +763,10 @@ class Assistant:
             self._record_completion(transcript, _cached, user_id=effective_user_id)
             return _cached  # type: ignore[no-any-return]
 
-        # Apply per-request model routing and user ID scoping; restore in finally
-        prev_model, prev_user_id = self._begin_request(transcript, active_user_id)
+        # Apply per-request model routing; restore in finally.  The request
+        # identity is propagated explicitly (never via self._user_id, which
+        # would race across overlapping requests for different users).
+        prev_model = self._begin_request(transcript)
         try:
             _ctx = self._get_or_create_context_builder().build(
                 transcript, voice_mode=voice_mode, active_user_id=active_user_id
@@ -634,7 +777,7 @@ class Assistant:
                 transcript,
                 voice_mode=voice_mode,
                 active_user_id=active_user_id,
-                user_id=self._user_id,
+                user_id=effective_user_id,
                 loop=loop,
             )
             final = self._get_or_create_response_builder().build(
@@ -642,16 +785,19 @@ class Assistant:
             )
             completion = final.text
         finally:
-            self._end_request(prev_model, prev_user_id)
+            self._end_request(prev_model)
 
         self._record_completion(transcript, completion, user_id=effective_user_id)
         return completion  # type: ignore[no-any-return]
 
-    def _begin_request(self, transcript: str, active_user_id: str | None) -> tuple[str | None, str]:
-        """Apply model routing and user ID scoping for the duration of a request.
+    def _begin_request(self, transcript: str) -> str | None:
+        """Apply per-request model routing.
 
-        Returns ``(prev_model, prev_user_id)`` for restoration in
-        :meth:`_end_request`.
+        Returns ``prev_model`` for restoration in :meth:`_end_request`.
+        Request identity is intentionally not handled here: it is resolved
+        once in :meth:`generate_reply` and passed explicitly to every
+        component, so overlapping requests for different users can never
+        observe each other's identity (issue #303).
         """
         # Model routing: classify the transcript and switch to the best model
         _router = getattr(self, "_router", None)
@@ -671,19 +817,12 @@ class Assistant:
                     prev_model or "default",
                 )
 
-        # User ID scoping: swap to identified user for history / credentials
-        prev_user_id = self._user_id
-        if active_user_id is not None:
-            self._user_id = active_user_id
-            logger.debug("voice_identity: switching active user to %r", active_user_id)
+        return prev_model
 
-        return prev_model, prev_user_id
-
-    def _end_request(self, prev_model: str | None, prev_user_id: str) -> None:
-        """Restore model name and user ID after a request completes."""
+    def _end_request(self, prev_model: str | None) -> None:
+        """Restore the model name after a request completes."""
         if prev_model is not None and hasattr(self._llm, "model_name"):
             self._llm.model_name = prev_model
-        self._user_id = prev_user_id
 
     async def _run_plugins(self, transcript: str) -> list[str]:
         loop = asyncio.get_running_loop()
@@ -768,10 +907,12 @@ class Assistant:
 
             cb = ContextBuilder(
                 settings=getattr(self, "_settings", None),
-                history=getattr(self, "_history", []),
-                user_id=getattr(self, "_user_id", "default"),
+                history=[],
+                user_id=getattr(self, "_user_id", None),
                 followup_engine=getattr(self, "_followup_engine", None),
-                history_provider=lambda: getattr(self, "_history", []),
+                history_provider=lambda user_id=None: self._history_for(
+                    user_id if user_id is not None else self._require_user_id()
+                ),
             )
             self._context_builder = cb
         return cb
@@ -843,7 +984,10 @@ class Assistant:
 
         return ctx
 
-    def _build_tool_model_call(self, transcript: str):
+    def _build_tool_model_call(self, transcript: str, *, user_id: str | None = None):
+        # Tool re-prompts read the same user's history as the rest of the
+        # request; missing identity fails closed (issue #303).
+        history = self._history_for(user_id) if user_id is not None else self._history
         base_messages = [
             {"role": "system", "content": self._context_builder.build_system_context()},
             {
@@ -856,7 +1000,7 @@ class Assistant:
                     "Do not request another tool unless the tool result is missing or invalid."
                 ),
             },
-            *[{"role": turn.speaker, "content": turn.text} for turn in self._history[-4:]],
+            *[{"role": turn.speaker, "content": turn.text} for turn in history[-4:]],
             {"role": "user", "content": transcript},
         ]
 
@@ -902,8 +1046,14 @@ class Assistant:
         return list(self._history)
 
     def _log_turn(self, transcript: str, reply: str, *, user_id: str | None = None) -> None:
+        # Resolve and validate the owner before any filesystem path is built:
+        # transcripts are written under a per-user directory and must never
+        # land under an invented or unvalidated identity (issue #303).
+        uid = user_id if user_id is not None else getattr(self, "_user_id", None)
+        if uid is None:
+            raise IdentityRequiredError(_IDENTITY_REQUIRED_MESSAGE)
+        uid = validate_user_id(uid)
         try:
-            uid = user_id if user_id is not None else self._user_id
             self._transcripts_dir.mkdir(parents=True, exist_ok=True)
             user_dir = self._transcripts_dir / uid
             user_dir.mkdir(parents=True, exist_ok=True)

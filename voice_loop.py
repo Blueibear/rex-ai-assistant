@@ -380,8 +380,14 @@ class AsyncRexAssistant:
         # Also create a higher-level Assistant for tool-routed responses.
         try:
             from rex.assistant import Assistant
+            from rex.identity import resolve_entrypoint_user_id
 
-            self._assistant = Assistant(settings_obj=self.config)
+            # Deliberate single-user profile selection (issue #303):
+            # Assistant no longer invents an identity when user_id is omitted.
+            self._assistant = Assistant(
+                settings_obj=self.config,
+                user_id=resolve_entrypoint_user_id(self.config),
+            )
         except Exception as exc:
             logger.warning("Failed to create Assistant (tool routing unavailable): %s", exc)
             self._assistant = None

@@ -55,6 +55,17 @@ class IntegrationNotConfiguredError(AssistantError):
     """Raised when an optional integration is requested but not configured."""
 
 
+class IdentityRequiredError(AssistantError):
+    """Raised when a private assistant operation runs without a validated user identity.
+
+    A missing identity must never silently become another profile (issue
+    #303): callers either bind an explicit ``user_id`` at construction time
+    or supply a validated ``active_user_id`` per request.  The message must
+    stay deterministic and free of private details (paths, credentials,
+    other user IDs).
+    """
+
+
 __all__ = [
     "AssistantError",
     "ConfigurationError",
@@ -68,4 +79,5 @@ __all__ = [
     "PluginExecutionError",
     "AuthenticationError",
     "IntegrationNotConfiguredError",
+    "IdentityRequiredError",
 ]

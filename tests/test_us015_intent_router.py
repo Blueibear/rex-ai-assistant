@@ -173,8 +173,8 @@ def test_assistant_has_intent_router():
     # used by other test files (avoids heavy __init__ side effects).
     a = Assistant.__new__(Assistant)
     a._settings = MagicMock()
-    a._history = []
     a._user_id = "default"
+    a._history = []
     a._tool_dispatcher = None
     a._context_builder = MagicMock()
     a._context_builder.build_system_context.return_value = ""
@@ -198,10 +198,10 @@ async def test_generate_reply_uses_intent_router_for_greeting():
     a._settings = MagicMock()
     a._settings.persist_history = False
     a._settings.followups_enabled = False
+    a._user_id = "default"
     a._history = []
     a._history_limit = 20
     a._plugins = []
-    a._user_id = "default"
     a._history_store = None
     a._followup_engine = None
     a._pending_followup = None

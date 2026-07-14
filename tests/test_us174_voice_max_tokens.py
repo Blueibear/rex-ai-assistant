@@ -157,6 +157,7 @@ class TestBuildPromptVoiceModeFunctional:
         from rex.context.builder import ContextBuilder
 
         assistant = Assistant.__new__(Assistant)
+        assistant._user_id = "default"
         assistant._history = []
         assistant._pending_followup = None
         assistant._followup_injected = False

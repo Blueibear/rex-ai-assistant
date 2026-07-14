@@ -68,10 +68,18 @@ def cmd_chat(args: argparse.Namespace) -> int:
 
     async def _run() -> None:
         """Configure logging, load plugins, and run the assistant loop."""
+        from rex.identity import resolve_entrypoint_user_id
+
         configure_logging()
         initialize_services()
         plugin_specs = load_plugins()
-        assistant = Assistant(history_limit=settings.max_memory_items, plugins=plugin_specs)
+        # Deliberate single-user profile selection (issue #303): Assistant no
+        # longer invents an identity when user_id is omitted.
+        assistant = Assistant(
+            history_limit=settings.max_memory_items,
+            plugins=plugin_specs,
+            user_id=resolve_entrypoint_user_id(settings),
+        )
         try:
             await _chat_loop(assistant)
         finally:

@@ -96,7 +96,15 @@ async def _run(args) -> None:
         os.environ["REX_ACTIVE_USER"] = args.user
         rex.reload_settings()
 
-    assistant = Assistant(history_limit=rex.settings.max_memory_items, plugins=plugin_specs)
+    # Deliberate single-user profile selection (issue #303): --user wins,
+    # then the identify/session chain, then the configured profile, then the
+    # explicit "default" profile.  Assistant no longer invents an identity.
+    from rex.identity import resolve_entrypoint_user_id
+
+    user_id = resolve_entrypoint_user_id(rex.settings, explicit_user=args.user)
+    assistant = Assistant(
+        history_limit=rex.settings.max_memory_items, plugins=plugin_specs, user_id=user_id
+    )
 
     try:
         wake_sound_path = getattr(rex.settings, "wake_sound_path", None)

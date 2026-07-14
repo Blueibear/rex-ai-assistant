@@ -269,11 +269,11 @@ class TestAssistantMusicRouting:
         assistant._tool_dispatcher = None
         assistant._response_cache = None
         assistant._ha_bridge = None
+        assistant._user_id = "test"
         assistant._history = []
         assistant._history_limit = 10
         assistant._history_store = None
         assistant._transcripts_dir = pathlib.Path("/tmp")
-        assistant._user_id = "test"
         assistant._record_completion = lambda t, c, **kw: None  # type: ignore[method-assign]
         assistant._router = MagicMock()
         assistant._router.classify.return_value = "general"

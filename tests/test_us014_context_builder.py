@@ -235,7 +235,7 @@ def test_assistant_build_prompt_delegates():
         import tempfile
 
         with tempfile.TemporaryDirectory() as tmp:
-            asst = mod.Assistant(transcripts_dir=tmp)
+            asst = mod.Assistant(transcripts_dir=tmp, user_id="default")
 
     prompt = asst._build_prompt("hello")
     assert "hello" in prompt

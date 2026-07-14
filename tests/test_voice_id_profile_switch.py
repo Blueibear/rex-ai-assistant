@@ -46,11 +46,11 @@ def _make_assistant(memory_dir: Path) -> object:
     assistant._llm = MagicMock()
     assistant._llm.generate.return_value = "Mock reply."
     assistant._llm.model_name = "test-model"
+    assistant._user_id = "default"
     assistant._history = []
     assistant._history_limit = 50
     assistant._plugins = []
     assistant._transcripts_dir = memory_dir / "transcripts"
-    assistant._user_id = "default"
     assistant._history_store = None
     assistant._prune_timer = None
     assistant._followup_engine = None

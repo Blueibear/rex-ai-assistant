@@ -101,7 +101,9 @@ def test_skill_training_returns_early():
     registry = MagicMock()
 
     ad = _make_dispatcher(skill_trainer=trainer, skill_registry=registry)
-    result = _run(ad.dispatch(_unhandled_intent(), _make_context(), "teach me to greet"))
+    result = _run(
+        ad.dispatch(_unhandled_intent(), _make_context(), "teach me to greet", user_id="default")
+    )
 
     assert result.success is True
     assert result.response == "Skill created."
@@ -115,7 +117,7 @@ def test_skill_training_no_match_proceeds():
     registry = MagicMock()
 
     ad = _make_dispatcher(skill_trainer=trainer, skill_registry=registry)
-    result = _run(ad.dispatch(_unhandled_intent(), _make_context(), "hello"))
+    result = _run(ad.dispatch(_unhandled_intent(), _make_context(), "hello", user_id="default"))
 
     # Should fall through to LLM
     assert result.success is True
@@ -134,7 +136,9 @@ def test_skill_invocation_returns_early():
     router.execute.return_value = "Skill executed."
 
     ad = _make_dispatcher(skill_router=router)
-    result = _run(ad.dispatch(_unhandled_intent(), _make_context(), "run my greeting"))
+    result = _run(
+        ad.dispatch(_unhandled_intent(), _make_context(), "run my greeting", user_id="default")
+    )
 
     assert result.response == "Skill executed."
     assert "skill_invocation" in result.actions_taken
@@ -145,7 +149,7 @@ def test_skill_invocation_no_match_proceeds():
     router.match.return_value = None
 
     ad = _make_dispatcher(skill_router=router)
-    result = _run(ad.dispatch(_unhandled_intent(), _make_context(), "hello"))
+    result = _run(ad.dispatch(_unhandled_intent(), _make_context(), "hello", user_id="default"))
 
     assert result.response == "LLM reply"
 
@@ -160,7 +164,9 @@ def test_shopping_list_returns_early():
     handler.handle.return_value = "Added milk to your list."
 
     ad = _make_dispatcher(shopping_list_handler=handler)
-    result = _run(ad.dispatch(_unhandled_intent(), _make_context(), "add milk to my list"))
+    result = _run(
+        ad.dispatch(_unhandled_intent(), _make_context(), "add milk to my list", user_id="default")
+    )
 
     assert result.response == "Added milk to your list."
     assert "shopping_list" in result.actions_taken
@@ -171,7 +177,7 @@ def test_shopping_list_no_match_proceeds():
     handler.handle.return_value = None
 
     ad = _make_dispatcher(shopping_list_handler=handler)
-    result = _run(ad.dispatch(_unhandled_intent(), _make_context(), "hello"))
+    result = _run(ad.dispatch(_unhandled_intent(), _make_context(), "hello", user_id="default"))
 
     assert result.response == "LLM reply"
 
@@ -186,7 +192,7 @@ def test_music_handler_returns_early():
     handler.handle.return_value = "Playing jazz."
 
     ad = _make_dispatcher(music_handler=handler)
-    result = _run(ad.dispatch(_unhandled_intent(), _make_context(), "play jazz"))
+    result = _run(ad.dispatch(_unhandled_intent(), _make_context(), "play jazz", user_id="default"))
 
     assert result.response == "Playing jazz."
     assert "music" in result.actions_taken
@@ -202,7 +208,9 @@ def test_device_state_returns_early():
     handler.handle.return_value = "The lights are on."
 
     ad = _make_dispatcher(device_state_handler=handler)
-    result = _run(ad.dispatch(_unhandled_intent(), _make_context(), "are the lights on"))
+    result = _run(
+        ad.dispatch(_unhandled_intent(), _make_context(), "are the lights on", user_id="default")
+    )
 
     assert result.response == "The lights are on."
     assert "device_state" in result.actions_taken
@@ -220,7 +228,9 @@ def test_ha_bridge_process_transcript():
     ha._command_history = None  # no pattern detection
 
     ad = _make_dispatcher(ha_bridge=ha)
-    result = _run(ad.dispatch(_unhandled_intent(), _make_context(), "turn on the lights"))
+    result = _run(
+        ad.dispatch(_unhandled_intent(), _make_context(), "turn on the lights", user_id="default")
+    )
 
     assert result.response == "Turning on the lights."
     ha.process_transcript.assert_called_once_with("turn on the lights")
@@ -232,7 +242,7 @@ def test_ha_bridge_undo():
     ha.undo_last.return_value = "Undone."
 
     ad = _make_dispatcher(ha_bridge=ha)
-    result = _run(ad.dispatch(_unhandled_intent(), _make_context(), "undo that"))
+    result = _run(ad.dispatch(_unhandled_intent(), _make_context(), "undo that", user_id="default"))
 
     assert result.response == "Undone."
     ha.undo_last.assert_called_once()
@@ -244,7 +254,9 @@ def test_ha_bridge_disabled_falls_through_to_llm():
     ha.enabled = False
 
     ad = _make_dispatcher(ha_bridge=ha)
-    result = _run(ad.dispatch(_unhandled_intent(), _make_context(), "turn on the lights"))
+    result = _run(
+        ad.dispatch(_unhandled_intent(), _make_context(), "turn on the lights", user_id="default")
+    )
 
     assert result.response == "LLM reply"
     ha.process_transcript.assert_not_called()
@@ -258,7 +270,9 @@ def test_ha_bridge_disabled_falls_through_to_llm():
 def test_llm_called_when_no_handler_matches():
     llm = _make_llm("The weather is sunny.")
     ad = _make_dispatcher(llm=llm)
-    result = _run(ad.dispatch(_unhandled_intent(), _make_context(), "what is the weather"))
+    result = _run(
+        ad.dispatch(_unhandled_intent(), _make_context(), "what is the weather", user_id="default")
+    )
 
     assert result.response == "The weather is sunny."
     llm.generate.assert_called_once()
@@ -276,7 +290,7 @@ def test_llm_uses_context_messages():
     cb = _make_context_builder(ctx)
 
     ad = _make_dispatcher(llm=llm, context_builder=cb)
-    result = _run(ad.dispatch(_unhandled_intent(), ctx, "q"))
+    result = _run(ad.dispatch(_unhandled_intent(), ctx, "q", user_id="default"))
 
     assert result.success is True
     call_kwargs = llm.generate.call_args
@@ -311,7 +325,9 @@ def test_skill_invocation_takes_priority_over_ha():
     ha.process_transcript.return_value = "HA won."
 
     ad = _make_dispatcher(skill_router=router, ha_bridge=ha)
-    result = _run(ad.dispatch(_unhandled_intent(), _make_context(), "do something"))
+    result = _run(
+        ad.dispatch(_unhandled_intent(), _make_context(), "do something", user_id="default")
+    )
 
     assert result.response == "Skill won."
     ha.process_transcript.assert_not_called()
