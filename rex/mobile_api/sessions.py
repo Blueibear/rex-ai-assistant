@@ -1,0 +1,502 @@
+"""Mobile session and rotating refresh-token lifecycle (issue #323).
+
+Security properties enforced here:
+
+- Refresh tokens are high-entropy opaque values; only SHA-256 hashes are
+  stored, never raw values (the source tokens carry >= 256 bits of entropy,
+  so an unsalted fast hash is sufficient and allows primary-key lookup).
+- Rotation happens inside one ``BEGIN IMMEDIATE`` SQLite transaction, and the
+  consume step is an ``UPDATE ... WHERE consumed_at IS NULL`` so concurrent
+  use of one refresh token yields exactly one success.
+- Reuse of a consumed token revokes the whole token family and its session,
+  and records an audit log event containing safe IDs only.
+- Sessions are per-device; logout revokes one session, logout-all revokes
+  every session belonging to one user and no one else's.
+
+Clock, token, and ID generators are injectable for deterministic tests.
+"""
+
+from __future__ import annotations
+
+import hashlib
+import logging
+import secrets
+import sqlite3
+import uuid
+from collections.abc import Callable
+from dataclasses import dataclass
+from datetime import UTC, datetime, timedelta
+from pathlib import Path
+
+from rex.identity import validate_user_id
+from rex.mobile_api.db import connect
+
+logger = logging.getLogger(__name__)
+
+# Rotation outcome statuses.
+ROTATED = "rotated"
+INVALID = "invalid"
+EXPIRED = "expired"
+REUSED = "reused"
+SESSION_REVOKED = "session_revoked"
+USER_INACTIVE = "user_inactive"
+
+_MAX_DEVICE_FIELD_LENGTH = 128
+
+
+def hash_refresh_token(raw_token: str) -> str:
+    """Return the hex SHA-256 hash under which a refresh token is stored."""
+    return hashlib.sha256(raw_token.encode("utf-8")).hexdigest()
+
+
+def _default_clock() -> datetime:
+    return datetime.now(UTC)
+
+
+def _default_token_generator() -> str:
+    # 48 bytes -> 384 bits of entropy, URL-safe base64 encoded.
+    return secrets.token_urlsafe(48)
+
+
+def _default_id_generator() -> str:
+    return str(uuid.uuid4())
+
+
+@dataclass(frozen=True)
+class DeviceInfo:
+    """Validated, presentation-only device metadata attached to a session."""
+
+    device_id: str
+    name: str = ""
+    platform: str = ""
+    app_version: str = ""
+
+
+@dataclass(frozen=True)
+class CreatedSession:
+    """Result of creating a session: the raw refresh token appears only here."""
+
+    session_id: str
+    user_id: str
+    refresh_token: str
+    refresh_expires_at: datetime
+    family_id: str
+
+
+@dataclass(frozen=True)
+class RotationResult:
+    """Outcome of a refresh-token rotation attempt."""
+
+    status: str
+    session_id: str | None = None
+    user_id: str | None = None
+    refresh_token: str | None = None
+    refresh_expires_at: datetime | None = None
+
+
+class MobileSessionStore:
+    """SQLite-backed store for mobile sessions and refresh-token families."""
+
+    def __init__(
+        self,
+        db_path: Path | str,
+        *,
+        refresh_ttl_seconds: int,
+        clock: Callable[[], datetime] | None = None,
+        token_generator: Callable[[], str] | None = None,
+        id_generator: Callable[[], str] | None = None,
+    ) -> None:
+        self._db_path = Path(db_path)
+        self._refresh_ttl_seconds = int(refresh_ttl_seconds)
+        self._clock = clock or _default_clock
+        self._token_generator = token_generator or _default_token_generator
+        self._id_generator = id_generator or _default_id_generator
+
+    # ------------------------------------------------------------------
+    # Helpers
+    # ------------------------------------------------------------------
+
+    def now(self) -> datetime:
+        """Return the injected current UTC time."""
+        return self._clock()
+
+    def _connect(self) -> sqlite3.Connection:
+        return connect(self._db_path)
+
+    @staticmethod
+    def _parse_ts(value: str | None) -> datetime | None:
+        if not value:
+            return None
+        try:
+            parsed = datetime.fromisoformat(value)
+        except ValueError:
+            return None
+        if parsed.tzinfo is None:
+            parsed = parsed.replace(tzinfo=UTC)
+        return parsed
+
+    def session_is_active(self, row: sqlite3.Row | None, now: datetime) -> bool:
+        """Return True when a session row exists, is unrevoked, and unexpired."""
+        if row is None:
+            return False
+        if row["revoked_at"] is not None:
+            return False
+        expires_at = self._parse_ts(row["expires_at"])
+        return expires_at is not None and now < expires_at
+
+    # ------------------------------------------------------------------
+    # Session lifecycle
+    # ------------------------------------------------------------------
+
+    def create_session(self, user_id: str, device: DeviceInfo) -> CreatedSession:
+        """Create a per-device session and its first refresh token."""
+        user_id = validate_user_id(user_id)
+        now = self.now()
+        expires_at = now + timedelta(seconds=self._refresh_ttl_seconds)
+        session_id = self._id_generator()
+        family_id = self._id_generator()
+        raw_token = self._token_generator()
+
+        conn = self._connect()
+        try:
+            conn.execute("BEGIN IMMEDIATE")
+            conn.execute(
+                """
+                INSERT INTO mobile_sessions (
+                    session_id, user_id, device_id, device_name, platform,
+                    app_version, created_at, last_seen_at, expires_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    session_id,
+                    user_id,
+                    device.device_id[:_MAX_DEVICE_FIELD_LENGTH],
+                    device.name[:_MAX_DEVICE_FIELD_LENGTH],
+                    device.platform[:_MAX_DEVICE_FIELD_LENGTH],
+                    device.app_version[:_MAX_DEVICE_FIELD_LENGTH],
+                    now.isoformat(),
+                    now.isoformat(),
+                    expires_at.isoformat(),
+                ),
+            )
+            conn.execute(
+                """
+                INSERT INTO mobile_refresh_tokens (
+                    token_hash, family_id, session_id, user_id,
+                    created_at, expires_at
+                ) VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    hash_refresh_token(raw_token),
+                    family_id,
+                    session_id,
+                    user_id,
+                    now.isoformat(),
+                    expires_at.isoformat(),
+                ),
+            )
+            conn.execute("COMMIT")
+        except BaseException:
+            try:
+                conn.execute("ROLLBACK")
+            except sqlite3.Error:
+                pass
+            raise
+        finally:
+            conn.close()
+
+        logger.info("Mobile session created: session=%s user=%s", session_id, user_id)
+        return CreatedSession(
+            session_id=session_id,
+            user_id=user_id,
+            refresh_token=raw_token,
+            refresh_expires_at=expires_at,
+            family_id=family_id,
+        )
+
+    def get_session(self, session_id: str) -> sqlite3.Row | None:
+        """Return the session row for *session_id*, or None."""
+        conn = self._connect()
+        try:
+            row: sqlite3.Row | None = conn.execute(
+                "SELECT * FROM mobile_sessions WHERE session_id = ?",
+                (session_id,),
+            ).fetchone()
+            return row
+        finally:
+            conn.close()
+
+    def touch_session(self, session_id: str) -> None:
+        """Update the session's last-seen timestamp."""
+        conn = self._connect()
+        try:
+            conn.execute(
+                "UPDATE mobile_sessions SET last_seen_at = ? WHERE session_id = ?",
+                (self.now().isoformat(), session_id),
+            )
+        finally:
+            conn.close()
+
+    def revoke_session(self, session_id: str, reason: str) -> bool:
+        """Revoke one session and all of its refresh tokens (idempotent)."""
+        now_iso = self.now().isoformat()
+        conn = self._connect()
+        try:
+            conn.execute("BEGIN IMMEDIATE")
+            cursor = conn.execute(
+                """
+                UPDATE mobile_sessions
+                SET revoked_at = ?, revoke_reason = ?
+                WHERE session_id = ? AND revoked_at IS NULL
+                """,
+                (now_iso, reason, session_id),
+            )
+            conn.execute(
+                """
+                UPDATE mobile_refresh_tokens
+                SET revoked_at = ?
+                WHERE session_id = ? AND revoked_at IS NULL
+                """,
+                (now_iso, session_id),
+            )
+            conn.execute("COMMIT")
+        except BaseException:
+            try:
+                conn.execute("ROLLBACK")
+            except sqlite3.Error:
+                pass
+            raise
+        finally:
+            conn.close()
+        revoked = cursor.rowcount > 0
+        if revoked:
+            logger.info("Mobile session revoked: session=%s reason=%s", session_id, reason)
+        return revoked
+
+    def revoke_all_sessions_for_user(self, user_id: str, reason: str) -> int:
+        """Revoke every active session for one validated user only."""
+        user_id = validate_user_id(user_id)
+        now_iso = self.now().isoformat()
+        conn = self._connect()
+        try:
+            conn.execute("BEGIN IMMEDIATE")
+            cursor = conn.execute(
+                """
+                UPDATE mobile_sessions
+                SET revoked_at = ?, revoke_reason = ?
+                WHERE user_id = ? AND revoked_at IS NULL
+                """,
+                (now_iso, reason, user_id),
+            )
+            conn.execute(
+                """
+                UPDATE mobile_refresh_tokens
+                SET revoked_at = ?
+                WHERE user_id = ? AND revoked_at IS NULL
+                """,
+                (now_iso, user_id),
+            )
+            conn.execute("COMMIT")
+        except BaseException:
+            try:
+                conn.execute("ROLLBACK")
+            except sqlite3.Error:
+                pass
+            raise
+        finally:
+            conn.close()
+        count = cursor.rowcount
+        logger.info(
+            "Mobile logout-all: user=%s revoked_sessions=%d reason=%s",
+            user_id,
+            count,
+            reason,
+        )
+        return count
+
+    # ------------------------------------------------------------------
+    # Refresh rotation
+    # ------------------------------------------------------------------
+
+    def rotate_refresh_token(self, raw_token: str) -> RotationResult:
+        """Atomically rotate a refresh token.
+
+        Exactly one concurrent caller can succeed for a given token: the
+        consume step updates ``consumed_at`` only where it is still NULL.
+        Reuse of a consumed token revokes the family and session.
+        """
+        if not raw_token or not isinstance(raw_token, str):
+            return RotationResult(status=INVALID)
+        token_hash = hash_refresh_token(raw_token)
+
+        conn = self._connect()
+        try:
+            conn.execute("BEGIN IMMEDIATE")
+            row = conn.execute(
+                "SELECT * FROM mobile_refresh_tokens WHERE token_hash = ?",
+                (token_hash,),
+            ).fetchone()
+            if row is None:
+                conn.execute("COMMIT")
+                return RotationResult(status=INVALID)
+
+            now = self.now()
+
+            if row["revoked_at"] is not None:
+                conn.execute("COMMIT")
+                return RotationResult(status=INVALID)
+
+            if row["consumed_at"] is not None:
+                self._revoke_family_locked(conn, row["family_id"], row["session_id"], now)
+                conn.execute("COMMIT")
+                logger.warning(
+                    "Mobile refresh token reuse detected: session=%s family=%s "
+                    "user=%s — family and session revoked",
+                    row["session_id"],
+                    row["family_id"],
+                    row["user_id"],
+                )
+                return RotationResult(
+                    status=REUSED,
+                    session_id=row["session_id"],
+                    user_id=row["user_id"],
+                )
+
+            token_expires = self._parse_ts(row["expires_at"])
+            if token_expires is None or now >= token_expires:
+                conn.execute("COMMIT")
+                return RotationResult(status=EXPIRED)
+
+            session = conn.execute(
+                "SELECT * FROM mobile_sessions WHERE session_id = ?",
+                (row["session_id"],),
+            ).fetchone()
+            if not self.session_is_active(session, now):
+                conn.execute("COMMIT")
+                return RotationResult(status=SESSION_REVOKED)
+
+            user = conn.execute("SELECT * FROM users WHERE id = ?", (row["user_id"],)).fetchone()
+            user_disabled = user is None or user["disabled_at"] is not None
+            if user_disabled:
+                self._revoke_family_locked(conn, row["family_id"], row["session_id"], now)
+                conn.execute("COMMIT")
+                logger.info(
+                    "Mobile refresh rejected for inactive user: session=%s",
+                    row["session_id"],
+                )
+                return RotationResult(status=USER_INACTIVE)
+
+            # Consume — this is the concurrency arbitration point.
+            consumed = conn.execute(
+                """
+                UPDATE mobile_refresh_tokens
+                SET consumed_at = ?
+                WHERE token_hash = ? AND consumed_at IS NULL
+                """,
+                (now.isoformat(), token_hash),
+            )
+            if consumed.rowcount != 1:
+                # A concurrent rotation won the race: treat as reuse.
+                self._revoke_family_locked(conn, row["family_id"], row["session_id"], now)
+                conn.execute("COMMIT")
+                logger.warning(
+                    "Mobile refresh concurrency loser treated as reuse: " "session=%s family=%s",
+                    row["session_id"],
+                    row["family_id"],
+                )
+                return RotationResult(
+                    status=REUSED,
+                    session_id=row["session_id"],
+                    user_id=row["user_id"],
+                )
+
+            new_raw = self._token_generator()
+            new_hash = hash_refresh_token(new_raw)
+            new_expires = now + timedelta(seconds=self._refresh_ttl_seconds)
+            conn.execute(
+                """
+                INSERT INTO mobile_refresh_tokens (
+                    token_hash, family_id, session_id, user_id,
+                    created_at, expires_at
+                ) VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    new_hash,
+                    row["family_id"],
+                    row["session_id"],
+                    row["user_id"],
+                    now.isoformat(),
+                    new_expires.isoformat(),
+                ),
+            )
+            conn.execute(
+                """
+                UPDATE mobile_refresh_tokens
+                SET replacement_hash = ?
+                WHERE token_hash = ?
+                """,
+                (new_hash, token_hash),
+            )
+            conn.execute(
+                """
+                UPDATE mobile_sessions
+                SET last_seen_at = ?, expires_at = ?
+                WHERE session_id = ?
+                """,
+                (now.isoformat(), new_expires.isoformat(), row["session_id"]),
+            )
+            conn.execute("COMMIT")
+        except BaseException:
+            try:
+                conn.execute("ROLLBACK")
+            except sqlite3.Error:
+                pass
+            raise
+        finally:
+            conn.close()
+
+        return RotationResult(
+            status=ROTATED,
+            session_id=row["session_id"],
+            user_id=row["user_id"],
+            refresh_token=new_raw,
+            refresh_expires_at=new_expires,
+        )
+
+    @staticmethod
+    def _revoke_family_locked(
+        conn: sqlite3.Connection, family_id: str, session_id: str, now: datetime
+    ) -> None:
+        """Revoke a token family and its session inside the caller's transaction."""
+        now_iso = now.isoformat()
+        conn.execute(
+            """
+            UPDATE mobile_refresh_tokens
+            SET revoked_at = ?
+            WHERE family_id = ? AND revoked_at IS NULL
+            """,
+            (now_iso, family_id),
+        )
+        conn.execute(
+            """
+            UPDATE mobile_sessions
+            SET revoked_at = ?, revoke_reason = ?
+            WHERE session_id = ? AND revoked_at IS NULL
+            """,
+            (now_iso, "refresh_token_reuse", session_id),
+        )
+
+
+__all__ = [
+    "EXPIRED",
+    "INVALID",
+    "REUSED",
+    "ROTATED",
+    "SESSION_REVOKED",
+    "USER_INACTIVE",
+    "CreatedSession",
+    "DeviceInfo",
+    "MobileSessionStore",
+    "RotationResult",
+    "hash_refresh_token",
+]

@@ -65,6 +65,11 @@ Entry points:
 - rex-agent -> rex.computers.agent_server:main  # backend service: optional remote PC control API
 - rex-tool-server -> rex.openclaw.tool_server:main  # backend service: OpenClaw tool adapter at /rex/tools/{tool_name}
 
+Mobile API gateway (issue #323) runs via the CLI, not a console script:
+
+- python -m rex mobile-api [--host HOST] [--port PORT]  # authenticated mobile gateway (default 127.0.0.1:8765)
+- python -m rex mobile-user create --username NAME      # safe mobile user creation (getpass prompts)
+
 ### Core components
 
 API: Flask (Flask-CORS, Flask-Limiter)
@@ -192,6 +197,7 @@ Bridge compatibility wrappers (17) — exec canonical `bridge/<name>.py` in thei
 - rex/identity.py
 - rex/voice_identity/
 - rex/computers/
+- rex/mobile_api/ — authenticated mobile API gateway (issue #323): injectable Flask app factory (`app.py`), typed config helpers, idempotent `users.db` migrations (`db.py`), per-device sessions + rotating hashed refresh tokens (`sessions.py`), short-lived access JWTs + request principal (`auth.py`), structured mobile errors (`errors.py`), truthful capabilities (`capabilities.py`), routes under `rex/mobile_api/routes/`. Session 1 implements auth only; chat/voice/TTS/HA routes are explicit 501 scaffolds.
 
 ### Assistant architecture
 
@@ -330,6 +336,14 @@ Runtime configuration → config/rex_config.json
 | `config.integrations` | `config.integrations.home_assistant_base_url`, `config.integrations.openclaw_gateway_url` |
 | `config.ui` | `config.ui.gui_port`, `config.ui.gui_host` |
 | `config.security` | `config.security.api_key_env`, `config.security.rate_limit_per_minute` |
+
+The mobile gateway adds an eighth typed group, `config.mobile_api`
+(`MobileApiConfig`, JSON group `mobile_api` in `config/rex_config.json`):
+host/port, token TTLs, body limits, deny-by-default CORS origins, and
+route-specific rate-limit strings. It is canonical nested config with no flat
+equivalents. The mobile JWT signing secret is `REX_JWT_SECRET` in `.env`
+(minimum 32 characters; the gateway fails closed without it). See
+`docs/mobile/MOBILE_API_SETUP_WINDOWS.md` for setup.
 
 Flat top-level fields (e.g. `config.llm_provider`, `config.tts_voice`) still work but emit
 `DeprecationWarning: Use config.<group>.<field> instead`. Migrate call sites to the nested path

@@ -73,6 +73,24 @@
       "*"
     ]
   },
+  "mobile_api": {
+    "enabled": false,
+    "host": "127.0.0.1",
+    "port": 8765,
+    "allowed_origins": [],
+    "require_tls": false,
+    "api_version": "1.0",
+    "access_token_ttl_seconds": 900,
+    "refresh_token_ttl_days": 30,
+    "max_json_bytes": 1048576,
+    "max_audio_bytes": 15728640,
+    "max_audio_seconds": 60,
+    "rate_limit_default": "60 per minute",
+    "rate_limit_login": "10 per minute",
+    "rate_limit_refresh": "30 per minute",
+    "rate_limit_chat": "30 per minute",
+    "rate_limit_voice": "10 per minute"
+  },
   "calendar": {
     "backend": "stub",
     "ics": {
