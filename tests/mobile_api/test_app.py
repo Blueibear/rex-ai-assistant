@@ -52,7 +52,7 @@ class TestAppFactory:
 
     def test_unexpected_exception_returns_generic_500(self, app) -> None:
         """FND-010: unexpected exceptions leak no stack, path, or secret."""
-        state = {"secret_path": "C:/very/secret/model/path"}
+        state = {"secret_path": "C:/very/secret/model/path"}  # pragma: allowlist secret
 
         @app.route("/mobile/_boom")
         def _boom():  # pragma: no cover - exercised via test client
@@ -167,7 +167,7 @@ class TestClientIdentityFieldsIgnored:
             "/mobile/auth/login",
             json={
                 "username": "james",
-                "password": "pw-123456",
+                "password": "pw-123456",  # pragma: allowlist secret
                 "role": "owner",
                 "permissions": ["admin"],
                 "risk_level": "none",

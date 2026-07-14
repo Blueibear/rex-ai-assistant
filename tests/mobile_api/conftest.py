@@ -14,7 +14,9 @@ from pathlib import Path
 
 import pytest
 
-TEST_JWT_SECRET = "unit-test-jwt-secret-0123456789abcdef0123456789abcdef"
+TEST_JWT_SECRET = (
+    "unit-test-jwt-secret-0123456789abcdef0123456789abcdef"  # pragma: allowlist secret
+)
 
 
 class FakeClock:

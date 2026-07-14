@@ -88,14 +88,16 @@ class TestMobileApiCommand:
         return captured
 
     def test_flags_override_config(self, monkeypatch, capsys) -> None:
+        # "0.0.0.0" here only exercises CLI flag precedence against a fake
+        # app object — nothing binds a socket in this test.
         captured = self._run(
             monkeypatch,
-            cli_host="0.0.0.0",
+            cli_host="0.0.0.0",  # nosec B104
             cli_port=9000,
             config_host="127.0.0.1",
             config_port=8765,
         )
-        assert captured["host"] == "0.0.0.0"
+        assert captured["host"] == "0.0.0.0"  # nosec B104
         assert captured["port"] == 9000
         output = capsys.readouterr().out
         assert "WARNING" in output  # LAN bind without TLS warns
