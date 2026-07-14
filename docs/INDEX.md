@@ -31,6 +31,16 @@ This index covers active documentation under `docs/`. Files under `docs/archive/
 | [policy.md](policy.md) | Policy engine configuration |
 | [tools.md](tools.md) | Tool registry and execution reference |
 
+## Mobile API Gateway Planning
+
+| File | Description |
+|---|---|
+| [mobile/MOBILE_API_MASTER_SPEC.md](mobile/MOBILE_API_MASTER_SPEC.md) | Canonical endpoint, authentication, WebSocket, chat, voice, TTS, and security contract |
+| [mobile/MOBILE_CLIENT_CONTRACT_AUDIT.md](mobile/MOBILE_CLIENT_CONTRACT_AUDIT.md) | Cross-repository mobile/backend audit and resolved contract conflicts |
+| [mobile/MOBILE_API_ARCHITECTURE.md](mobile/MOBILE_API_ARCHITECTURE.md) | Gateway components, session schema, identity propagation, idempotency, and deployment architecture |
+| [mobile/MOBILE_API_IMPLEMENTATION_PLAN.md](mobile/MOBILE_API_IMPLEMENTATION_PLAN.md) | Two-session Fable implementation backlog and validation gates |
+| [mobile/MOBILE_API_TEST_MATRIX.md](mobile/MOBILE_API_TEST_MATRIX.md) | Automated, integration, LAN, and physical-iPhone validation matrix |
+
 ## GUI and Operations
 
 | File | Description |
