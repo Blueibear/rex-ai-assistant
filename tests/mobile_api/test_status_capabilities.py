@@ -26,27 +26,44 @@ class TestStatus:
 
 
 class TestCapabilities:
-    def test_session_one_capabilities_are_truthful(self, client) -> None:
-        """CAP-001: authentication true; every runtime feature false."""
+    def test_capabilities_are_truthful(self, client) -> None:
+        """CAP-001/CAP-010: implemented+available features true; the rest false.
+
+        The test services inject available STT/TTS adapters and the
+        validated WebSocket stack is installed, so the Session 2 features
+        report true; unimplemented surfaces stay false.
+        """
         response = client.get("/mobile/capabilities")
         assert response.status_code == 200
         body = response.get_json()
         assert body["api_version"] == "1.0"
         assert body["minimum_app_version"] == "0.1.0"
         features = body["features"]
-        assert features["authentication"] is True
         for name in (
+            "authentication",
             "chat",
             "chat_streaming",
             "websocket_chat",
             "voice_upload",
             "tts",
+        ):
+            assert features[name] is True, name
+        for name in (
             "live_voice",
             "notifications",
             "approvals",
             "home_assistant",
         ):
             assert features[name] is False, name
+
+    def test_capabilities_reflect_runtime_dependencies(self, client, fake_stt, fake_tts) -> None:
+        """CAP-004/CAP-005: a missing runtime dependency turns a feature false."""
+        fake_stt.available = False
+        fake_tts.available = False
+        features = client.get("/mobile/capabilities").get_json()["features"]
+        assert features["voice_upload"] is False
+        assert features["tts"] is False
+        assert features["chat"] is True
 
     def test_capabilities_expose_no_sensitive_data(self, client) -> None:
         """CAP-009: no paths, tokens, account IDs, usernames, or model paths."""

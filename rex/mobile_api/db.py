@@ -118,6 +118,24 @@ def migrate_users_db(db_path: Path | str) -> None:
             CREATE INDEX IF NOT EXISTS idx_mobile_refresh_family
             ON mobile_refresh_tokens(family_id)
             """)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS mobile_message_requests (
+                user_id TEXT NOT NULL,
+                message_id TEXT NOT NULL,
+                conversation_id TEXT NOT NULL,
+                request_hash TEXT NOT NULL,
+                status TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                response_json TEXT NULL,
+                error_code TEXT NULL,
+                PRIMARY KEY (user_id, message_id)
+            )
+            """)
+        conn.execute("""
+            CREATE INDEX IF NOT EXISTS idx_mobile_message_requests_created
+            ON mobile_message_requests(created_at)
+            """)
         conn.execute("COMMIT")
     except BaseException:
         try:

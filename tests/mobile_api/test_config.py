@@ -155,6 +155,7 @@ class TestMobileApiConfigSerialization:
             "rate_limit_refresh",
             "rate_limit_chat",
             "rate_limit_voice",
+            "idempotency_retention_hours",
         }
 
     def test_show_config_output_includes_mobile_api(self, capsys) -> None:

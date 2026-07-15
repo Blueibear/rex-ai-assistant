@@ -31,7 +31,7 @@ def build_status_blueprint(services: MobileApiServices) -> Blueprint:
 
     @bp.get("/capabilities")
     def capabilities() -> Any:
-        return jsonify(capabilities_payload(services.config))
+        return jsonify(capabilities_payload(services.config, services))
 
     return bp
 

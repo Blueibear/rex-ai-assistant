@@ -153,6 +153,23 @@ def authenticate_request(
         MobileApiError: On any validation failure (fails closed).
     """
     token = _bearer_token_from_request()
+    return authenticate_token(services, token, allow_revoked_session=allow_revoked_session)
+
+
+def authenticate_token(
+    services: MobileApiServices, token: str, *, allow_revoked_session: bool = False
+) -> MobilePrincipal:
+    """Validate an access token and return the request principal.
+
+    Shared by the HTTP Bearer path and the WebSocket first-frame ``auth``
+    path so both transports apply identical validation: signature/algorithm,
+    issuer, audience, time claims, required claims, canonical ``sub``
+    (before any private lookup), session existence/ownership/status, and
+    user existence/active status.  Fails closed on any mismatch.
+
+    Raises:
+        MobileApiError: On any validation failure.
+    """
     claims = decode_access_token(token, services.jwt_secret)
 
     # Canonical identity validation BEFORE any private lookup.
@@ -241,6 +258,7 @@ __all__ = [
     "MobileAuthConfigurationError",
     "MobilePrincipal",
     "authenticate_request",
+    "authenticate_token",
     "decode_access_token",
     "issue_access_token",
     "load_jwt_secret",
