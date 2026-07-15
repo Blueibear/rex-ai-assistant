@@ -90,127 +90,118 @@ def _validate_upload_form() -> bytes:
     return bytes(audio_parts[0].read())
 
 
+def _decode_upload(services: MobileApiServices, data: bytes) -> str:
+    cfg = services.config
+    container = sniff_audio_container(data)
+    if container is None:
+        raise MobileApiError(
+            merr.INVALID_MEDIA, "Unsupported audio format. Use M4A/MP4, AAC, MP3, or WAV.", 415
+        )
+    with tempfile.TemporaryDirectory(prefix="rex-mobile-voice-") as tmp_dir:
+        tmp_path = Path(tmp_dir) / f"upload.{container}"
+        tmp_path.write_bytes(data)
+        audio = services.stt.decode(str(tmp_path))
+        duration_seconds = float(len(audio)) / WHISPER_SAMPLE_RATE
+        if duration_seconds > cfg.max_audio_seconds:
+            raise MobileApiError(
+                merr.PAYLOAD_TOO_LARGE,
+                f"Audio is longer than {cfg.max_audio_seconds} seconds.",
+                413,
+            )
+        return services.stt.transcribe(audio)
+
+
+def _add_optional_tts(services: MobileApiServices, body: dict[str, Any]) -> None:
+    response_text = str(body["response"])
+    tts_available, _ = services.tts.availability()
+    if not tts_available or not response_text:
+        return
+    try:
+        voice_id = services.tts.resolve_voice(None)
+        audio_bytes = services.tts.synthesize(response_text, voice_id)
+        body["tts_base64"] = base64.b64encode(audio_bytes).decode("ascii")
+        body["tts_mime_type"] = services.tts.mime_type()
+    except MobileApiError:
+        logger.info("Voice reply TTS unavailable; returning text only")
+
+
+def _handle_voice_upload(services: MobileApiServices) -> Any:
+    cfg = services.config
+    if request.content_length is not None and request.content_length > (
+        cfg.max_audio_bytes + 128 * 1024
+    ):
+        raise MobileApiError(merr.PAYLOAD_TOO_LARGE, "The upload is too large.", 413)
+    services.stt.require_available()
+    data = _validate_upload_form()
+    if not data:
+        raise MobileApiError(merr.INVALID_MEDIA, "The audio file is empty.", 415)
+    if len(data) > cfg.max_audio_bytes:
+        raise MobileApiError(merr.PAYLOAD_TOO_LARGE, "The audio file is too large.", 413)
+    transcript = _decode_upload(services, data)
+    if not transcript:
+        raise MobileApiError(merr.INVALID_MEDIA, "No speech was recognized in the audio.", 415)
+    response_text = services.chat_service.generate(
+        transcript, user_id=g.mobile_principal.user_id, voice_mode=True
+    )
+    body: dict[str, Any] = {
+        "request_id": getattr(g, "request_id", None),
+        "transcript": transcript,
+        "response": response_text,
+        "status": STATUS_COMPLETED,
+        "tool_used": None,
+    }
+    _add_optional_tts(services, body)
+    return jsonify(body), 200
+
+
+def _handle_tts_playback(services: MobileApiServices) -> Any:
+    from rex.mobile_api.validation import parse_json_body  # noqa: PLC0415
+
+    payload = parse_json_body()
+    unknown = set(payload) - {"text", "voice"}
+    if unknown:
+        names = ", ".join(sorted(unknown))
+        raise MobileApiError(merr.BAD_REQUEST, f"Unsupported field(s): {names}.", 400)
+    text = payload.get("text")
+    if not isinstance(text, str) or not text.strip():
+        raise MobileApiError(merr.BAD_REQUEST, "Field 'text' is required.", 400)
+    text = text.strip()
+    if len(text) > MAX_TTS_TEXT_CHARS:
+        raise MobileApiError(merr.BAD_REQUEST, "Field 'text' is too long.", 400)
+    voice = payload.get("voice")
+    if voice is not None and not isinstance(voice, str):
+        raise MobileApiError(merr.BAD_REQUEST, "Field 'voice' must be a string.", 400)
+    services.tts.require_available()
+    voice_id = services.tts.resolve_voice(voice)
+    audio_bytes = services.tts.synthesize(text, voice_id)
+    return (
+        jsonify(
+            {
+                "request_id": getattr(g, "request_id", None),
+                "audio_base64": base64.b64encode(audio_bytes).decode("ascii"),
+                "mime_type": services.tts.mime_type(),
+                "voice": voice_id,
+                "requested_voice": voice.strip() if voice and voice.strip() else "default",
+            }
+        ),
+        200,
+    )
+
+
 def build_voice_blueprint(services: MobileApiServices, limiter: Any) -> Blueprint:
     bp = Blueprint("mobile_voice", __name__, url_prefix="/mobile")
-    cfg = services.config
 
     @bp.post("/voice/upload")
-    @limiter.limit(cfg.rate_limit_voice)
+    @limiter.limit(services.config.rate_limit_voice)
     @require_mobile_auth
     def voice_upload() -> Any:
-        principal = g.mobile_principal
-
-        # Cheap size gate before reading the body where possible.
-        if request.content_length is not None and request.content_length > (
-            cfg.max_audio_bytes + 128 * 1024
-        ):
-            raise MobileApiError(merr.PAYLOAD_TOO_LARGE, "The upload is too large.", 413)
-
-        # STT availability gate before any temp file or decode work — a
-        # missing dependency/model is a truthful 503, never a mock.
-        services.stt.require_available()
-
-        data = _validate_upload_form()
-        if not data:
-            raise MobileApiError(merr.INVALID_MEDIA, "The audio file is empty.", 415)
-        if len(data) > cfg.max_audio_bytes:
-            raise MobileApiError(merr.PAYLOAD_TOO_LARGE, "The audio file is too large.", 413)
-
-        container = sniff_audio_container(data)
-        if container is None:
-            raise MobileApiError(
-                merr.INVALID_MEDIA,
-                "Unsupported audio format. Use M4A/MP4, AAC, MP3, or WAV.",
-                415,
-            )
-
-        # Private per-request temp directory; always removed in finally.
-        with tempfile.TemporaryDirectory(prefix="rex-mobile-voice-") as tmp_dir:
-            tmp_path = Path(tmp_dir) / f"upload.{container}"
-            tmp_path.write_bytes(data)
-            audio = services.stt.decode(str(tmp_path))
-            duration_seconds = float(len(audio)) / WHISPER_SAMPLE_RATE
-            if duration_seconds > cfg.max_audio_seconds:
-                raise MobileApiError(
-                    merr.PAYLOAD_TOO_LARGE,
-                    f"Audio is longer than {cfg.max_audio_seconds} seconds.",
-                    413,
-                )
-            transcript = services.stt.transcribe(audio)
-
-        if not transcript:
-            raise MobileApiError(merr.INVALID_MEDIA, "No speech was recognized in the audio.", 415)
-
-        # Canonical Assistant with the explicit validated identity — real
-        # runtime output only; conversational replies are 'completed'.
-        response_text = services.chat_service.generate(
-            transcript, user_id=principal.user_id, voice_mode=True
-        )
-
-        body: dict[str, Any] = {
-            "request_id": getattr(g, "request_id", None),
-            "transcript": transcript,
-            "response": response_text,
-            "status": STATUS_COMPLETED,
-            "tool_used": None,
-        }
-
-        # Optional TTS of the reply — only when the configured engine is
-        # genuinely available; a synthesis failure never fails the upload
-        # and never fabricates audio.
-        tts_available, _ = services.tts.availability()
-        if tts_available and response_text:
-            try:
-                voice_id = services.tts.resolve_voice(None)
-                audio_bytes = services.tts.synthesize(response_text, voice_id)
-                body["tts_base64"] = base64.b64encode(audio_bytes).decode("ascii")
-                body["tts_mime_type"] = services.tts.mime_type()
-            except MobileApiError:
-                logger.info("Voice reply TTS unavailable; returning text only")
-
-        return jsonify(body), 200
+        return _handle_voice_upload(services)
 
     @bp.post("/tts/playback")
-    @limiter.limit(cfg.rate_limit_voice)
+    @limiter.limit(services.config.rate_limit_voice)
     @require_mobile_auth
     def tts_playback() -> Any:
-        from rex.mobile_api.validation import parse_json_body  # noqa: PLC0415
-
-        payload = parse_json_body()
-        unknown = set(payload) - {"text", "voice"}
-        if unknown:
-            names = ", ".join(sorted(unknown))
-            raise MobileApiError(merr.BAD_REQUEST, f"Unsupported field(s): {names}.", 400)
-
-        text = payload.get("text")
-        if not isinstance(text, str) or not text.strip():
-            raise MobileApiError(merr.BAD_REQUEST, "Field 'text' is required.", 400)
-        text = text.strip()
-        if len(text) > MAX_TTS_TEXT_CHARS:
-            raise MobileApiError(merr.BAD_REQUEST, "Field 'text' is too long.", 400)
-
-        voice = payload.get("voice")
-        if voice is not None and not isinstance(voice, str):
-            raise MobileApiError(merr.BAD_REQUEST, "Field 'voice' must be a string.", 400)
-
-        # Availability gate, then honest voice resolution (no fallback that
-        # pretends the requested voice was used).
-        services.tts.require_available()
-        voice_id = services.tts.resolve_voice(voice)
-        audio_bytes = services.tts.synthesize(text, voice_id)
-
-        requested_label = voice if voice and voice.strip() not in ("", "default") else "default"
-        return (
-            jsonify(
-                {
-                    "request_id": getattr(g, "request_id", None),
-                    "audio_base64": base64.b64encode(audio_bytes).decode("ascii"),
-                    "mime_type": services.tts.mime_type(),
-                    "voice": requested_label,
-                }
-            ),
-            200,
-        )
+        return _handle_tts_playback(services)
 
     return bp
 

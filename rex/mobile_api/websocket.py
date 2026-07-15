@@ -42,7 +42,7 @@ from rex.mobile_api.auth import MobilePrincipal, authenticate_token
 from rex.mobile_api.chat import STATUS_COMPLETED
 from rex.mobile_api.errors import MobileApiError
 from rex.mobile_api.services import MobileApiServices
-from rex.mobile_api.validation import parse_chat_payload
+from rex.mobile_api.validation import parse_chat_payload, parse_websocket_client
 
 logger = logging.getLogger(__name__)
 
@@ -150,16 +150,26 @@ class MobileWebSocketServer:
             return None
 
         token = frame.get("access_token")
-        client = frame.get("client")
         if (
             not isinstance(token, str)
             or not token.strip()
-            or (client is not None and not isinstance(client, dict))
+            or set(frame)
+            != {
+                "type",
+                "access_token",
+                "client",
+            }
         ):
             self._send(
                 ws,
                 mev.auth_error_event(merr.AUTH_TOKEN_INVALID, "Invalid auth frame."),
             )
+            self._close(ws, CLOSE_UNAUTHENTICATED, "Not authenticated")
+            return None
+        try:
+            parse_websocket_client(frame.get("client"))
+        except MobileApiError as exc:
+            self._send(ws, mev.auth_error_event(exc.code, exc.message))
             self._close(ws, CLOSE_UNAUTHENTICATED, "Not authenticated")
             return None
 
@@ -204,58 +214,70 @@ class MobileWebSocketServer:
             try:
                 raw = ws.receive(timeout=IDLE_POLL_SECONDS)
             except Exception:
-                return  # closed by the client
-
-            # Bounded-interval session revalidation, including while idle.
+                return
             now = time.monotonic()
             if now - last_session_check >= SESSION_RECHECK_SECONDS:
-                if not self._session_active(principal):
-                    self._close(ws, CLOSE_UNAUTHENTICATED, "Session revoked")
+                if not self._require_active_session(ws, principal):
                     return
                 last_session_check = now
-            if raw is None:
+            frame = self._parse_authenticated_frame(ws, raw)
+            if frame is None:
                 continue
-
-            if isinstance(raw, (bytes, bytearray)):
-                raw = raw.decode("utf-8", errors="replace")
-            if len(raw) > MAX_FRAME_BYTES:
-                # Oversized frames are rejected without processing.
-                self._protocol_error(ws, merr.BAD_REQUEST, "Frame too large.")
-                continue
-
-            try:
-                frame = json.loads(raw)
-            except ValueError:
-                self._protocol_error(ws, merr.BAD_REQUEST, "Frame is not valid JSON.")
-                continue
-            if not isinstance(frame, dict) or not isinstance(frame.get("type"), str):
-                self._protocol_error(ws, merr.BAD_REQUEST, "Frame must have a type.")
-                continue
-
-            frame_type = frame["type"]
-            if frame_type == "ping":
-                self._send(ws, mev.pong_event(self._now_iso()))
-                continue
-            if frame_type == "auth":
-                # The connection principal is immutable.
-                self._protocol_error(ws, merr.BAD_REQUEST, "Connection is already authenticated.")
-                continue
-            if frame_type != "chat":
-                self._protocol_error(ws, merr.BAD_REQUEST, "Unsupported frame type.")
-                continue
-
-            if not message_limiter.allow(principal.session_id):
-                self._close(ws, CLOSE_RATE_LIMITED, "Message rate limited")
+            keep_open, checked_session = self._dispatch_authenticated_frame(
+                ws, principal, frame, message_limiter
+            )
+            if not keep_open:
                 return
+            if checked_session:
+                last_session_check = time.monotonic()
 
-            # Session must still be live before every privileged message.
-            if not self._session_active(principal):
-                self._close(ws, CLOSE_UNAUTHENTICATED, "Session revoked")
-                return
-            last_session_check = time.monotonic()
+    def _require_active_session(self, ws: Any, principal: MobilePrincipal) -> bool:
+        if self._session_active(principal):
+            return True
+        self._close(ws, CLOSE_UNAUTHENTICATED, "Session revoked")
+        return False
 
-            if not self._handle_chat_frame(ws, principal, frame):
-                return
+    def _parse_authenticated_frame(self, ws: Any, raw: Any) -> dict[str, Any] | None:
+        if raw is None:
+            return None
+        if isinstance(raw, (bytes, bytearray)):
+            raw = raw.decode("utf-8", errors="replace")
+        if len(raw) > MAX_FRAME_BYTES:
+            self._protocol_error(ws, merr.BAD_REQUEST, "Frame too large.")
+            return None
+        try:
+            frame = json.loads(raw)
+        except ValueError:
+            self._protocol_error(ws, merr.BAD_REQUEST, "Frame is not valid JSON.")
+            return None
+        if not isinstance(frame, dict) or not isinstance(frame.get("type"), str):
+            self._protocol_error(ws, merr.BAD_REQUEST, "Frame must have a type.")
+            return None
+        return frame
+
+    def _dispatch_authenticated_frame(
+        self,
+        ws: Any,
+        principal: MobilePrincipal,
+        frame: dict[str, Any],
+        message_limiter: SlidingWindowLimiter,
+    ) -> tuple[bool, bool]:
+        frame_type = frame["type"]
+        if frame_type == "ping":
+            self._send(ws, mev.pong_event(self._now_iso()))
+            return True, False
+        if frame_type == "auth":
+            self._protocol_error(ws, merr.BAD_REQUEST, "Connection is already authenticated.")
+            return True, False
+        if frame_type != "chat":
+            self._protocol_error(ws, merr.BAD_REQUEST, "Unsupported frame type.")
+            return True, False
+        if not message_limiter.allow(principal.session_id):
+            self._close(ws, CLOSE_RATE_LIMITED, "Message rate limited")
+            return False, False
+        if not self._require_active_session(ws, principal):
+            return False, False
+        return self._handle_chat_frame(ws, principal, frame), True
 
     def _now_iso(self) -> str:
         return self._services.clock().isoformat()

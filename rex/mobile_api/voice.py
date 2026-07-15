@@ -233,16 +233,25 @@ class TextToSpeechAdapter:
         if provider == "xtts":
             if find_spec("TTS") is None:
                 return False, "Coqui TTS is not installed"
-            return True, "ok"
-        if provider == "edge-tts":
+        elif provider == "edge-tts":
             if find_spec("edge_tts") is None:
                 return False, "edge-tts is not installed"
-            return True, "ok"
-        if provider == "pyttsx3":
+        elif provider == "pyttsx3":
             if find_spec("pyttsx3") is None:
                 return False, "pyttsx3 is not installed"
-            return True, "ok"
-        return False, f"unsupported TTS provider '{provider}'"
+        else:
+            return False, f"unsupported TTS provider '{provider}'"
+
+        configured = self._configured_default_voice()
+        try:
+            voices = self._list_voice_ids()
+        except Exception:
+            return False, "configured TTS voice list is unavailable"
+        if configured and configured not in voices:
+            return False, "configured default TTS voice is unavailable"
+        if not configured and provider != "edge-tts" and not voices:
+            return False, "no default TTS voice is available"
+        return True, "ok"
 
     def require_available(self) -> None:
         available, reason = self.availability()

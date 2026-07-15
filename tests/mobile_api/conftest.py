@@ -97,9 +97,13 @@ class FakeChatService:
     """
 
     def __init__(self) -> None:
+        self.available = True
         self.calls: list[tuple[str, str]] = []
         self.fail_with: Exception | None = None
         self.stream_fail_after_chunks: int | None = None
+
+    def availability(self) -> tuple[bool, str]:
+        return (self.available, "ok" if self.available else "fake chat disabled")
 
     def _reply(self, message: str, user_id: str) -> str:
         return f"echo[{user_id}]: {message}"

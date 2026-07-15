@@ -43,16 +43,6 @@ def server_version() -> str:
         return "unknown"
 
 
-def _chat_available() -> bool:
-    """True when the canonical Assistant code path is importable."""
-    try:
-        from importlib.util import find_spec  # noqa: PLC0415
-
-        return find_spec("rex.assistant") is not None
-    except Exception:  # pragma: no cover - importlib edge cases
-        return False
-
-
 def resolve_features(services: MobileApiServices | None = None) -> dict[str, bool]:
     """Return the truthful feature map for the current build and runtime.
 
@@ -60,12 +50,14 @@ def resolve_features(services: MobileApiServices | None = None) -> dict[str, boo
     voice/TTS truthful; without it (bare config contexts) those features are
     reported false rather than guessed.
     """
-    from rex.mobile_api.websocket import websocket_dependency_available  # noqa: PLC0415
-
-    chat = _chat_available()
+    chat = False
     voice_upload = False
     tts = False
     if services is not None:
+        try:
+            chat = services.chat_service.availability()[0]
+        except Exception:  # adapter/configuration failure means false
+            logger.warning("Chat capability check failed", exc_info=True)
         try:
             voice_upload = services.stt.availability()[0]
         except Exception:  # pragma: no cover - adapter failure means false
@@ -79,7 +71,7 @@ def resolve_features(services: MobileApiServices | None = None) -> dict[str, boo
         "authentication": True,
         "chat": chat,
         "chat_streaming": chat,
-        "websocket_chat": chat and websocket_dependency_available(),
+        "websocket_chat": chat and bool(services and services.websocket_registered),
         "voice_upload": chat and voice_upload,
         "tts": tts,
         # Not implemented as complete server-authoritative mobile paths:

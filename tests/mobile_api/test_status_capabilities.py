@@ -7,6 +7,8 @@ from __future__ import annotations
 
 import json
 
+from rex.mobile_api.voice import TextToSpeechAdapter
+
 
 class TestStatus:
     def test_status_is_minimal_and_public(self, client) -> None:
@@ -64,6 +66,35 @@ class TestCapabilities:
         assert features["voice_upload"] is False
         assert features["tts"] is False
         assert features["chat"] is True
+
+    def test_chat_and_websocket_require_runtime_and_registration(
+        self, client, services, fake_chat_service
+    ) -> None:
+        fake_chat_service.available = False
+        features = client.get("/mobile/capabilities").get_json()["features"]
+        assert features["chat"] is False
+        assert features["chat_streaming"] is False
+        assert features["websocket_chat"] is False
+
+        fake_chat_service.available = True
+        services.websocket_registered = False
+        features = client.get("/mobile/capabilities").get_json()["features"]
+        assert features["chat"] is True
+        assert features["websocket_chat"] is False
+
+    def test_capability_adapter_exception_fails_closed(self, client, fake_stt) -> None:
+        def explode():
+            raise RuntimeError("readiness probe failed")
+
+        fake_stt.availability = explode
+        features = client.get("/mobile/capabilities").get_json()["features"]
+        assert features["voice_upload"] is False
+
+    def test_tts_readiness_requires_configured_default_voice(self, monkeypatch) -> None:
+        adapter = TextToSpeechAdapter(provider="edge-tts", default_voice="missing-voice")
+        monkeypatch.setattr("rex.mobile_api.voice.find_spec", lambda _name: object())
+        monkeypatch.setattr(adapter, "_list_voice_ids", lambda: ["available-voice"])
+        assert adapter.availability()[0] is False
 
     def test_capabilities_expose_no_sensitive_data(self, client) -> None:
         """CAP-009: no paths, tokens, account IDs, usernames, or model paths."""

@@ -20,6 +20,8 @@ from rex.mobile_api.sessions import DeviceInfo
 
 _DEVICE_ID_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$")
 _MAX_DEVICE_TEXT_LENGTH = 128
+_MAX_APP_VERSION_LENGTH = 64
+_WS_CLIENT_PLATFORMS = {"ios", "android", "web"}
 _MAX_TOKEN_LENGTH = 512
 _MAX_CREDENTIAL_LENGTH = 512
 
@@ -138,6 +140,41 @@ def parse_device_info(payload: dict[str, Any]) -> DeviceInfo:
     )
 
 
+def parse_websocket_client(client: Any) -> dict[str, str]:
+    """Validate required WebSocket client metadata without trusting it as identity."""
+    if not isinstance(client, dict):
+        raise MobileApiError(merr.BAD_REQUEST, "Field 'client' must be an object.", 400)
+    allowed = {"platform", "app_version", "device_id"}
+    unknown = set(client) - allowed
+    if unknown:
+        names = ", ".join(sorted(unknown))
+        raise MobileApiError(merr.BAD_REQUEST, f"Unsupported client field(s): {names}.", 400)
+    if set(client) != allowed:
+        raise MobileApiError(
+            merr.BAD_REQUEST,
+            "Fields 'client.platform', 'client.app_version', and 'client.device_id' are required.",
+            400,
+        )
+    platform = client["platform"]
+    if not isinstance(platform, str) or platform not in _WS_CLIENT_PLATFORMS:
+        raise MobileApiError(merr.BAD_REQUEST, "Field 'client.platform' is invalid.", 400)
+    app_version = client["app_version"]
+    if (
+        not isinstance(app_version, str)
+        or not app_version.strip()
+        or len(app_version) > _MAX_APP_VERSION_LENGTH
+    ):
+        raise MobileApiError(merr.BAD_REQUEST, "Field 'client.app_version' is invalid.", 400)
+    device_id = client["device_id"]
+    if not isinstance(device_id, str) or not _DEVICE_ID_PATTERN.fullmatch(device_id):
+        raise MobileApiError(merr.BAD_REQUEST, "Field 'client.device_id' is invalid.", 400)
+    return {
+        "platform": platform,
+        "app_version": app_version.strip(),
+        "device_id": device_id,
+    }
+
+
 @dataclass(frozen=True)
 class ChatRequest:
     """A validated mobile chat request (HTTP body or WebSocket frame)."""
@@ -251,6 +288,7 @@ __all__ = [
     "parse_chat_payload",
     "parse_device_info",
     "parse_json_body",
+    "parse_websocket_client",
     "parse_refresh_token_field",
     "require_string_field",
 ]
