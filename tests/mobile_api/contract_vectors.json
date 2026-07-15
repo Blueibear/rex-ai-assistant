@@ -1,0 +1,237 @@
+{
+  "contract_version": "2026-07-15.323.2",
+  "api_version": "1.0",
+  "statuses": {
+    "normal_chat": "completed",
+    "action_statuses": ["attempted", "completed", "verified", "failed", "needs_confirmation"]
+  },
+  "http": {
+    "login_request": {
+      "username": "james",
+      "password": "<password>",
+      "device": {
+        "device_id": "b6a7f7e4-0c3d-4c19-9d8b-3f45f4f0a111",
+        "name": "James's iPhone",
+        "platform": "ios",
+        "app_version": "0.1.0"
+      }
+    },
+    "login_response": {
+      "access_token": "<jwt>",
+      "refresh_token": "<opaque-token>",
+      "token_type": "Bearer",
+      "expires_in": 900,
+      "refresh_expires_in": 2592000,
+      "session_id": "0d9c3a52-6f4e-4e91-8b7c-2f81f3f0a222",
+      "user": {
+        "id": "3d6f2c1e-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+        "name": "James",
+        "role": "owner",
+        "permissions": ["admin"],
+        "color": "#2D7FF9"
+      }
+    },
+    "refresh_request": {
+      "refresh_token": "<opaque-token>"
+    },
+    "refresh_response": {
+      "access_token": "<jwt>",
+      "refresh_token": "<rotated-opaque-token>",
+      "token_type": "Bearer",
+      "expires_in": 900,
+      "refresh_expires_in": 2592000,
+      "session_id": "0d9c3a52-6f4e-4e91-8b7c-2f81f3f0a222",
+      "user": {
+        "id": "3d6f2c1e-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+        "name": "James",
+        "role": "owner",
+        "permissions": ["admin"],
+        "color": "#2D7FF9"
+      }
+    },
+    "session_response": {
+      "session_id": "0d9c3a52-6f4e-4e91-8b7c-2f81f3f0a222",
+      "user": {
+        "id": "3d6f2c1e-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+        "name": "James",
+        "role": "owner",
+        "permissions": ["admin"],
+        "color": "#2D7FF9"
+      }
+    },
+    "error_envelope": {
+      "error": {
+        "code": "AUTH_INVALID_CREDENTIALS",
+        "message": "Invalid username or password.",
+        "retryable": false,
+        "request_id": "9a2b1c3d-4444-4444-8444-444444444444"
+      }
+    },
+    "chat_request": {
+      "message_id": "5f8f1f2a-1111-4111-8111-111111111111",
+      "conversation_id": "5f8f1f2a-2222-4222-8222-222222222222",
+      "sent_at": "2026-07-15T12:00:00+00:00",
+      "message": "Turn off the downstairs lights",
+      "mode": "mobile_text",
+      "client_context": {
+        "device": "iphone",
+        "location_hint": "home",
+        "response_preference": "brief"
+      }
+    },
+    "chat_response": {
+      "request_id": "9a2b1c3d-4444-4444-8444-444444444444",
+      "message_id": "5f8f1f2a-1111-4111-8111-111111111111",
+      "conversation_id": "5f8f1f2a-2222-4222-8222-222222222222",
+      "response": "The downstairs lights are off.",
+      "status": "completed",
+      "events": []
+    },
+    "sse": {
+      "content_type": "text/event-stream",
+      "data_prefix": "data: ",
+      "terminal_events": ["message_done", "error"],
+      "idempotency_header": "Idempotency-Key"
+    },
+    "voice_response": {
+      "request_id": "9a2b1c3d-4444-4444-8444-444444444444",
+      "transcript": "Turn off the downstairs lights",
+      "response": "The downstairs lights are off.",
+      "status": "completed",
+      "tool_used": null,
+      "tts_base64": "<base64-audio>",
+      "tts_mime_type": "audio/mpeg"
+    },
+    "tts_request": {
+      "text": "The downstairs lights are off.",
+      "voice": "default"
+    },
+    "tts_response": {
+      "request_id": "9a2b1c3d-4444-4444-8444-444444444444",
+      "audio_base64": "<base64-audio>",
+      "mime_type": "audio/mpeg",
+      "voice": "default"
+    },
+    "capabilities_response": {
+      "api_version": "1.0",
+      "minimum_app_version": "0.1.0",
+      "server_version": "<package-version>",
+      "features": {
+        "authentication": true,
+        "chat": true,
+        "chat_streaming": true,
+        "websocket_chat": true,
+        "voice_upload": true,
+        "tts": true,
+        "live_voice": false,
+        "notifications": false,
+        "approvals": false,
+        "home_assistant": false
+      }
+    }
+  },
+  "websocket": {
+    "url_path": "/mobile/chat/stream",
+    "auth_frame": {
+      "type": "auth",
+      "access_token": "<jwt>",
+      "client": {
+        "platform": "ios",
+        "app_version": "0.1.0",
+        "device_id": "b6a7f7e4-0c3d-4c19-9d8b-3f45f4f0a111"
+      }
+    },
+    "auth_ok": {
+      "type": "auth_ok",
+      "session_id": "0d9c3a52-6f4e-4e91-8b7c-2f81f3f0a222",
+      "user": {
+        "id": "3d6f2c1e-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+        "name": "James",
+        "role": "owner",
+        "permissions": ["admin"],
+        "color": "#2D7FF9"
+      }
+    },
+    "auth_error": {
+      "type": "auth_error",
+      "code": "AUTH_TOKEN_EXPIRED",
+      "message": "Access token expired."
+    },
+    "chat_frame": {
+      "type": "chat",
+      "message_id": "5f8f1f2a-1111-4111-8111-111111111111",
+      "conversation_id": "5f8f1f2a-2222-4222-8222-222222222222",
+      "sent_at": "2026-07-15T12:00:00+00:00",
+      "message": "Hello Rex",
+      "mode": "mobile_text",
+      "client_context": {
+        "device": "iphone",
+        "location_hint": "home",
+        "response_preference": "brief"
+      }
+    },
+    "ack": {
+      "type": "ack",
+      "message_id": "5f8f1f2a-1111-4111-8111-111111111111",
+      "accepted_at": "2026-07-15T12:00:01+00:00"
+    },
+    "token": {
+      "type": "token",
+      "message_id": "5f8f1f2a-1111-4111-8111-111111111111",
+      "content": "."
+    },
+    "tool_call": {
+      "type": "tool_call",
+      "message_id": "5f8f1f2a-1111-4111-8111-111111111111",
+      "tool": "home_assistant",
+      "action": "turn_off",
+      "target": "downstairs lights"
+    },
+    "tool_result": {
+      "type": "tool_result",
+      "message_id": "5f8f1f2a-1111-4111-8111-111111111111",
+      "tool": "home_assistant",
+      "action": "turn_off",
+      "status": "verified",
+      "message": "Downstairs lights are off."
+    },
+    "approval_required": {
+      "type": "approval_required",
+      "message_id": "5f8f1f2a-1111-4111-8111-111111111111",
+      "approval_id": "7c1d2e3f-5555-4555-8555-555555555555",
+      "risk_level": "critical",
+      "action": "unlock_front_door",
+      "requires_biometric": true,
+      "expires_at": "2026-07-15T12:05:00+00:00"
+    },
+    "message_done": {
+      "type": "message_done",
+      "message_id": "5f8f1f2a-1111-4111-8111-111111111111",
+      "conversation_id": "5f8f1f2a-2222-4222-8222-222222222222",
+      "full_content": "Hello! How can I help?",
+      "status": "completed"
+    },
+    "error": {
+      "type": "error",
+      "message_id": "5f8f1f2a-1111-4111-8111-111111111111",
+      "code": "BACKEND_UNAVAILABLE",
+      "message": "Rex is temporarily unavailable.",
+      "retryable": true,
+      "request_id": "9a2b1c3d-4444-4444-8444-444444444444"
+    },
+    "ping": {
+      "type": "ping",
+      "sent_at": "2026-07-15T12:00:00+00:00"
+    },
+    "pong": {
+      "type": "pong",
+      "sent_at": "2026-07-15T12:00:00+00:00"
+    },
+    "close_codes": {
+      "unauthenticated": 4401,
+      "forbidden": 4403,
+      "auth_timeout": 4408,
+      "rate_limited": 4429
+    }
+  }
+}

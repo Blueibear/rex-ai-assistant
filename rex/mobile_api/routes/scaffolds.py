@@ -17,12 +17,10 @@ from rex.mobile_api.auth import require_mobile_auth
 from rex.mobile_api.errors import MobileApiError
 from rex.mobile_api.services import MobileApiServices
 
-# (rule name, methods, path) — paths from the master spec §6.3–§6.5.
+# (rule name, methods, path) — paths from the master spec §6.5.  Chat,
+# streaming, voice, and TTS graduated to real routes in Session 2 and are
+# registered by their own blueprints.
 _SCAFFOLD_ROUTES: tuple[tuple[str, tuple[str, ...], str], ...] = (
-    ("chat", ("POST",), "/mobile/chat"),
-    ("chat_stream", ("POST",), "/mobile/chat/stream"),
-    ("voice_upload", ("POST",), "/mobile/voice/upload"),
-    ("tts_playback", ("POST",), "/mobile/tts/playback"),
     ("home_entities", ("GET",), "/mobile/home/entities"),
     ("home_command", ("POST",), "/mobile/home/command"),
     ("notifications", ("GET",), "/mobile/notifications"),

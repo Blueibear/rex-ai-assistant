@@ -37,6 +37,11 @@ PERMISSION_DENIED = "PERMISSION_DENIED"
 APPROVAL_REQUIRED = "APPROVAL_REQUIRED"
 NOT_FOUND = "NOT_FOUND"
 NOT_IMPLEMENTED = "NOT_IMPLEMENTED"
+# Cross-transport idempotency (issue #323 Session 2): a reused message ID
+# with a different semantic payload conflicts; a duplicate of a request that
+# is still executing is reported without re-execution.
+IDEMPOTENCY_CONFLICT = "IDEMPOTENCY_CONFLICT"
+REQUEST_IN_PROGRESS = "REQUEST_IN_PROGRESS"
 UNSUPPORTED_API_VERSION = "UNSUPPORTED_API_VERSION"
 INVALID_MEDIA = "INVALID_MEDIA"
 PAYLOAD_TOO_LARGE = "PAYLOAD_TOO_LARGE"
@@ -150,6 +155,7 @@ __all__ = [
     "BACKEND_UNAVAILABLE",
     "BAD_REQUEST",
     "FORBIDDEN",
+    "IDEMPOTENCY_CONFLICT",
     "INTERNAL_ERROR",
     "INVALID_MEDIA",
     "MobileApiError",
@@ -158,6 +164,7 @@ __all__ = [
     "PAYLOAD_TOO_LARGE",
     "PERMISSION_DENIED",
     "RATE_LIMITED",
+    "REQUEST_IN_PROGRESS",
     "UNSUPPORTED_API_VERSION",
     "install_mobile_error_handlers",
     "mobile_error_response",

@@ -72,7 +72,7 @@ Mobile API gateway (issue #323) runs via the CLI, not a console script:
 
 ### Core components
 
-API: Flask (Flask-CORS, Flask-Limiter)
+API: Flask (Flask-CORS, Flask-Limiter, Flask-Sock for the mobile WebSocket)
 
 GUI: Web dashboard via `rex.gui_app` (React + Flask). `gui.py` is deprecated.
 
@@ -197,7 +197,7 @@ Bridge compatibility wrappers (17) — exec canonical `bridge/<name>.py` in thei
 - rex/identity.py
 - rex/voice_identity/
 - rex/computers/
-- rex/mobile_api/ — authenticated mobile API gateway (issue #323): injectable Flask app factory (`app.py`), typed config helpers, idempotent `users.db` migrations (`db.py`), per-device sessions + rotating hashed refresh tokens (`sessions.py`), short-lived access JWTs + request principal (`auth.py`), structured mobile errors (`errors.py`), truthful capabilities (`capabilities.py`), routes under `rex/mobile_api/routes/`. Session 1 implements auth only; chat/voice/TTS/HA routes are explicit 501 scaffolds.
+- rex/mobile_api/ — authenticated mobile API gateway (issue #323): injectable Flask app factory (`app.py`), typed config helpers, idempotent `users.db` migrations (`db.py`), per-device sessions + rotating hashed refresh tokens (`sessions.py`), short-lived access JWTs + request principal (`auth.py`), structured mobile errors (`errors.py`), truthful runtime-aware capabilities (`capabilities.py`), cross-transport `(user_id, message_id)` chat idempotency (`idempotency.py`, `mobile_message_requests` table), canonical Assistant adapter (`chat.py` — explicit `active_user_id`, never direct `LanguageModel` calls), canonical snake_case streaming events (`events.py`), first-frame-auth WebSocket protocol via Flask-Sock (`websocket.py`, close codes 4401/4403/4408/4429), STT/TTS adapters reusing the existing Whisper and XTTS/edge-tts/pyttsx3 stacks (`voice.py`), routes under `rex/mobile_api/routes/` (`chat.py`: POST /mobile/chat + SSE /mobile/chat/stream; `voice.py`: /mobile/voice/upload + /mobile/tts/playback). Home Assistant/notifications/approvals/tasks/workflows/audit/settings remain explicit 501 scaffolds with false capabilities; `live_voice` stays false. Cross-repo wire contract fixtures live in `tests/mobile_api/contract_vectors.json` (identical copy in the AskRex mobile repo).
 
 ### Assistant architecture
 
@@ -339,9 +339,10 @@ Runtime configuration → config/rex_config.json
 
 The mobile gateway adds an eighth typed group, `config.mobile_api`
 (`MobileApiConfig`, JSON group `mobile_api` in `config/rex_config.json`):
-host/port, token TTLs, body limits, deny-by-default CORS origins, and
-route-specific rate-limit strings. It is canonical nested config with no flat
-equivalents. The mobile JWT signing secret is `REX_JWT_SECRET` in `.env`
+host/port, token TTLs, body limits, deny-by-default CORS origins,
+route-specific rate-limit strings, and `idempotency_retention_hours` (the
+retention window for cross-transport chat idempotency records, default 48).
+It is canonical nested config with no flat equivalents. The mobile JWT signing secret is `REX_JWT_SECRET` in `.env`
 (minimum 32 characters; the gateway fails closed without it). See
 `docs/mobile/MOBILE_API_SETUP_WINDOWS.md` for setup.
 
