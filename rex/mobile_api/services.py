@@ -42,6 +42,7 @@ class MobileApiServices:
     stt: SpeechToTextAdapter
     tts: TextToSpeechAdapter
     id_generator: Callable[[], str] = field(default=_default_id_generator)
+    websocket_registered: bool = False
 
     @property
     def clock(self) -> Callable[[], datetime]:

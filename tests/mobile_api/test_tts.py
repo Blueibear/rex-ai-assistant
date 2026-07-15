@@ -32,10 +32,17 @@ class TestTtsPlayback:
         )
         assert response.status_code == 200
         body = response.get_json()
-        assert set(body.keys()) == {"request_id", "audio_base64", "mime_type", "voice"}
+        assert set(body.keys()) == {
+            "request_id",
+            "audio_base64",
+            "mime_type",
+            "voice",
+            "requested_voice",
+        }
         assert base64.b64decode(body["audio_base64"]) == fake_tts.audio
         assert body["mime_type"] == "audio/wav"
-        assert body["voice"] == "default"
+        assert body["voice"] == "fake-default-voice"
+        assert body["requested_voice"] == "default"
         assert body["request_id"]
         assert fake_tts.synthesized == [("The lights are off.", "fake-default-voice")]
 
@@ -74,6 +81,7 @@ class TestTtsPlayback:
         )
         assert response.status_code == 200
         assert response.get_json()["voice"] == "fake-alt-voice"
+        assert response.get_json()["requested_voice"] == "fake-alt-voice"
         assert fake_tts.synthesized == [("hello", "fake-alt-voice")]
 
     def test_engine_unavailable_is_truthful(self, client, fake_tts) -> None:

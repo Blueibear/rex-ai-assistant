@@ -215,6 +215,9 @@ $tts = Invoke-RestMethod -Method Post -Uri http://127.0.0.1:8765/mobile/tts/play
 [IO.File]::WriteAllBytes("rex-tts-sample.wav", [Convert]::FromBase64String($tts.audio_base64))
 ```
 
+The response `voice` is the concrete provider voice that produced the audio;
+`requested_voice` preserves the caller's request (`default` when omitted).
+
 Voice upload (multipart; the file's actual bytes are validated — M4A/MP4,
 AAC, MP3, or WAV — and must decode successfully; limits are 15 MiB and 60
 seconds):
@@ -265,3 +268,17 @@ status → capabilities → login → invalid login → session → refresh →
 refresh-reuse (family revoked) → scaffold 501 → logout → revoked session.
 Physical-iPhone and LAN validation have **not** been performed in Session 1
 and remain tracked under issue #323.
+
+## Validation record (Session 2 correction pass)
+
+Windows 11 / Python 3.11 loopback validation exercised an actual
+Flask-Sock/simple-websocket upgrade and verified first-frame authentication,
+ack/token/message_done delivery, invalid-token close `4401`, observable auth
+timeout close `4408`, logout revocation close `4401`, no URL token, and
+same-message HTTP replay with one Assistant execution. The automated test is
+`tests/mobile_api/test_chat_websocket_live.py`.
+
+`python -m pytest -q tests/mobile_api` passed 252 tests. The complete repository
+suite still has unrelated failures reproduced on `master` in time/weather,
+workflow, and the generated coverage-report meta test. Physical-iPhone and LAN
+validation remain not run.

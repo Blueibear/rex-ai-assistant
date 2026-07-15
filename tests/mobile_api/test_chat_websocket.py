@@ -12,6 +12,8 @@ from __future__ import annotations
 import json
 import uuid
 
+import pytest
+
 from rex.mobile_api.websocket import (
     CLOSE_AUTH_TIMEOUT,
     CLOSE_RATE_LIMITED,
@@ -109,6 +111,42 @@ class TestAuthentication:
         ws = _run(services, [_auth_frame("not-a-real-token")])
         assert ws.sent[0]["type"] == "auth_error"
         assert ws.sent[0]["code"] in ("AUTH_TOKEN_INVALID", "AUTH_TOKEN_EXPIRED")
+        assert ws.closed[0] == CLOSE_UNAUTHENTICATED
+
+    @pytest.mark.parametrize(
+        "client_metadata",
+        [
+            None,
+            {},
+            {"platform": "ios", "app_version": "0.1.0"},
+            {"platform": "desktop", "app_version": "0.1.0", "device_id": "dev-1"},
+            {"platform": "ios", "app_version": 1, "device_id": "dev-1"},
+            {"platform": "ios", "app_version": "0.1.0", "device_id": "bad id"},
+            {
+                "platform": "ios",
+                "app_version": "0.1.0",
+                "device_id": "dev-1",
+                "unknown": "field",
+            },
+        ],
+    )
+    def test_client_metadata_is_required_and_strict(
+        self, client, services, client_metadata
+    ) -> None:
+        _, token = _login(client)
+        frame = {"type": "auth", "access_token": token}
+        if client_metadata is not None:
+            frame["client"] = client_metadata
+        ws = _run(services, [json.dumps(frame)])
+        assert ws.sent[0]["type"] == "auth_error"
+        assert ws.closed[0] == CLOSE_UNAUTHENTICATED
+
+    def test_unknown_auth_frame_field_is_rejected(self, client, services) -> None:
+        _, token = _login(client)
+        frame = json.loads(_auth_frame(token))
+        frame["user_id"] = "attacker-controlled"
+        ws = _run(services, [json.dumps(frame)])
+        assert ws.sent[0]["type"] == "auth_error"
         assert ws.closed[0] == CLOSE_UNAUTHENTICATED
 
     def test_revoked_session_token_closes_4401(self, client, services) -> None:

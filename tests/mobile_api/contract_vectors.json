@@ -110,7 +110,8 @@
       "request_id": "9a2b1c3d-4444-4444-8444-444444444444",
       "audio_base64": "<base64-audio>",
       "mime_type": "audio/mpeg",
-      "voice": "default"
+      "voice": "en-US-AriaNeural",
+      "requested_voice": "default"
     },
     "capabilities_response": {
       "api_version": "1.0",

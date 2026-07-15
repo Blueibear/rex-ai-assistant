@@ -21,8 +21,11 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
 import threading
 from collections.abc import Callable, Iterator
+from importlib.util import find_spec
+from pathlib import Path
 from typing import Any
 
 from rex.mobile_api import errors as merr
@@ -59,6 +62,52 @@ class MobileChatService:
         self._assistant_factory = assistant_factory or _default_assistant_factory
         self._assistant: Any = None
         self._init_lock = threading.Lock()
+
+    def availability(self) -> tuple[bool, str]:
+        """Check configured LLM prerequisites without loading a model or making a request."""
+        try:
+            from rex.config import settings  # noqa: PLC0415
+
+            provider = str(settings.llm_provider).strip().lower()
+            model = str(settings.llm_model or "").strip()
+            if not model:
+                return False, "no LLM model configured"
+            if provider == "openai":
+                ready = (
+                    find_spec("openai") is not None
+                    and bool(settings.openai_api_key or os.getenv("OPENAI_API_KEY"))
+                    and bool(settings.openai_model)
+                )
+                return (ready, "ok" if ready else "OpenAI is not fully configured")
+            if provider == "anthropic":
+                ready = (
+                    find_spec("anthropic") is not None
+                    and bool(settings.anthropic_api_key or os.getenv("ANTHROPIC_API_KEY"))
+                    and bool(settings.anthropic_model)
+                )
+                return (ready, "ok" if ready else "Anthropic is not fully configured")
+            if provider == "ollama":
+                # A configured URL/package cannot prove that the requested local model exists.
+                return False, "Ollama model readiness is not locally proven"
+            if provider == "transformers":
+                if find_spec("torch") is None or find_spec("transformers") is None:
+                    return False, "transformers runtime is not installed"
+                path = Path(model)
+                if path.exists():
+                    return True, "ok"
+                try:
+                    from transformers.utils.hub import try_to_load_from_cache  # noqa: PLC0415
+
+                    cached = try_to_load_from_cache(model, "config.json")
+                    ready = isinstance(cached, str) and Path(cached).is_file()
+                    return (ready, "ok" if ready else "transformers model is not cached")
+                except Exception:
+                    return False, "transformers model readiness check failed"
+            if provider == "echo":
+                return True, "ok"
+            return False, f"unsupported LLM provider '{provider}'"
+        except Exception:
+            return False, "LLM configuration is unavailable"
 
     def _get_assistant(self) -> Any:
         if self._assistant is not None:

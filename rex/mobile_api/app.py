@@ -163,6 +163,7 @@ def create_mobile_app(
     # WebSocket /mobile/chat/stream — registered only when the validated
     # Flask-Sock stack is installed; the capability stays false otherwise.
     ws_registered = register_websocket(app, services)
+    services.websocket_registered = ws_registered
 
     logger.info(
         "Mobile API app created (api_version=%s, websocket=%s)",
