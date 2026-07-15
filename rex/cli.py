@@ -71,6 +71,7 @@ from rex.commands import (  # noqa: E402
     identity,
     memory,
     messaging,
+    mobile,
     pc,
     reminders,
     scheduler,
@@ -141,6 +142,7 @@ from rex.commands.ha import (  # noqa: E402,F401
 from rex.commands.identity import cmd_identify, cmd_voice_id, cmd_whoami  # noqa: E402,F401
 from rex.commands.memory import cmd_kb, cmd_memory, cmd_remember  # noqa: E402,F401
 from rex.commands.messaging import cmd_msg, cmd_notify  # noqa: E402,F401
+from rex.commands.mobile import cmd_mobile_api, cmd_mobile_user  # noqa: E402,F401
 from rex.commands.pc import cmd_pc  # noqa: E402,F401
 from rex.commands.reminders import cmd_cues, cmd_reminders  # noqa: E402,F401
 from rex.commands.scheduler import cmd_scheduler  # noqa: E402,F401
@@ -193,6 +195,7 @@ def create_parser() -> argparse.ArgumentParser:
     ha.register(subparsers)
     identity.register_voice_id(subparsers)
     dashboard.register(subparsers)
+    mobile.register(subparsers)
 
     return parser
 

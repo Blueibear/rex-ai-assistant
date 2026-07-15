@@ -19,7 +19,7 @@ import warnings
 
 from typing import ClassVar, Dict, List, Optional
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, field_validator
 
 try:
     from dotenv import load_dotenv, set_key
@@ -236,6 +236,97 @@ class SecurityConfig(BaseModel):
     allowed_origins: List[str] = ["*"]
 
 
+_RATE_LIMIT_PATTERN = r"^\d+\s*(?:per\s+|/)\s*\d*\s*(?:second|minute|hour|day|month|year)s?$"
+
+
+class MobileApiConfig(BaseModel):
+    """Typed configuration for the authenticated mobile API gateway (issue #323).
+
+    Canonical JSON group: ``mobile_api`` in ``config/rex_config.json``.
+    The JWT signing secret is NOT part of this model — it lives in ``.env``
+    as ``REX_JWT_SECRET`` (secrets never belong in runtime configuration).
+    """
+
+    model_config = ConfigDict(extra="ignore")
+
+    enabled: bool = False
+    host: str = "127.0.0.1"
+    port: int = 8765
+    allowed_origins: List[str] = []
+    require_tls: bool = False
+    api_version: str = "1.0"
+    access_token_ttl_seconds: int = 900
+    refresh_token_ttl_days: int = 30
+    max_json_bytes: int = 1_048_576
+    max_audio_bytes: int = 15_728_640
+    max_audio_seconds: int = 60
+    rate_limit_default: str = "60 per minute"
+    rate_limit_login: str = "10 per minute"
+    rate_limit_refresh: str = "30 per minute"
+    rate_limit_chat: str = "30 per minute"
+    rate_limit_voice: str = "10 per minute"
+
+    @field_validator("host", "api_version")
+    @classmethod
+    def _non_empty(cls, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise ValueError("must not be empty")
+        return value
+
+    @field_validator("port")
+    @classmethod
+    def _valid_port(cls, value: int) -> int:
+        if not 1 <= value <= 65535:
+            raise ValueError("port must be between 1 and 65535")
+        return value
+
+    @field_validator(
+        "access_token_ttl_seconds",
+        "refresh_token_ttl_days",
+        "max_json_bytes",
+        "max_audio_bytes",
+        "max_audio_seconds",
+    )
+    @classmethod
+    def _positive(cls, value: int) -> int:
+        if value <= 0:
+            raise ValueError("must be a positive integer")
+        return value
+
+    @field_validator(
+        "rate_limit_default",
+        "rate_limit_login",
+        "rate_limit_refresh",
+        "rate_limit_chat",
+        "rate_limit_voice",
+    )
+    @classmethod
+    def _valid_rate_limit(cls, value: str) -> str:
+        import re as _re  # noqa: PLC0415
+
+        value = value.strip()
+        if not _re.fullmatch(_RATE_LIMIT_PATTERN, value):
+            raise ValueError(f"invalid rate limit string {value!r}; expected e.g. '60 per minute'")
+        return value
+
+    @field_validator("allowed_origins")
+    @classmethod
+    def _valid_origins(cls, value: List[str]) -> List[str]:
+        cleaned: List[str] = []
+        for origin in value:
+            origin = str(origin).strip().rstrip("/")
+            if not origin:
+                continue
+            if origin == "*":
+                raise ValueError(
+                    "wildcard '*' is not allowed for mobile_api.allowed_origins; "
+                    "CORS is deny-by-default"
+                )
+            cleaned.append(origin)
+        return cleaned
+
+
 @dataclass
 class AppConfig:
     """Application configuration combining JSON config and environment secrets."""
@@ -444,6 +535,10 @@ class AppConfig:
     ui: Optional[UIConfig] = field(default=None, repr=False, compare=False)
     security: Optional[SecurityConfig] = field(default=None, repr=False, compare=False)
 
+    # Mobile API gateway (issue #323) — canonical nested group, parsed from the
+    # ``mobile_api`` JSON section (no flat-field equivalents).
+    mobile_api: MobileApiConfig = field(default_factory=MobileApiConfig, repr=False, compare=False)
+
     # ---------------------------------------------------------------------------
     # US-003 — Deprecated flat-field access map (ClassVar, not a dataclass field)
     # Maps flat field name → sub-config group name; used by __getattribute__
@@ -586,6 +681,10 @@ class AppConfig:
         # Remove nested sub-config objects (US-002) — derived views; not part of serialised output
         for _key in ("audio", "voice", "llm", "tools", "integrations", "ui", "security"):
             raw.pop(_key, None)
+        # mobile_api is canonical nested config with no flat equivalents, so it
+        # is serialised as its validated dictionary (it contains no secrets —
+        # the JWT secret lives in .env only).
+        raw["mobile_api"] = self.mobile_api.model_dump()
         raw["transcripts_dir"] = str(self.transcripts_dir)
         raw["log_path"] = str(self.log_path)
         raw["error_log_path"] = str(self.error_log_path)
@@ -929,6 +1028,23 @@ def _migrate_wake_word_section(json_config: dict) -> dict:
     return json_config
 
 
+def _parse_mobile_api_config(raw: object) -> MobileApiConfig:
+    """Parse and validate the ``mobile_api`` JSON group.
+
+    Raises:
+        ConfigurationError: If any mobile_api value fails validation, so that
+            startup fails before serving rather than running misconfigured.
+    """
+    if not isinstance(raw, dict):
+        if raw is not None:
+            raise ConfigurationError("Config group 'mobile_api' must be a JSON object.")
+        raw = {}
+    try:
+        return MobileApiConfig(**raw)
+    except Exception as exc:
+        raise ConfigurationError(f"Invalid 'mobile_api' configuration: {exc}") from exc
+
+
 def build_app_config(json_config: dict) -> AppConfig:
     """Build an AppConfig from a merged JSON configuration."""
     # Migrate legacy wake_word key to canonical wakeword key
@@ -1134,6 +1250,8 @@ def build_app_config(json_config: dict) -> AppConfig:
         require_confirm_system_changes=bool(
             _get_nested(json_config, "windows.require_confirm_system_changes", True)
         ),
+        # Mobile API gateway (issue #323)
+        mobile_api=_parse_mobile_api_config(json_config.get("mobile_api")),
     )
 
     return config
