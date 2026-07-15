@@ -105,12 +105,56 @@ class MobileSessionStore:
         clock: Callable[[], datetime] | None = None,
         token_generator: Callable[[], str] | None = None,
         id_generator: Callable[[], str] | None = None,
+        audit_logger: object | None = None,
     ) -> None:
         self._db_path = Path(db_path)
         self._refresh_ttl_seconds = int(refresh_ttl_seconds)
         self._clock = clock or _default_clock
         self._token_generator = token_generator or _default_token_generator
         self._id_generator = id_generator or _default_id_generator
+        # Anything with a ``log(LogEntry)`` method; defaults to the canonical
+        # rex.audit logger, resolved lazily so importing this module stays
+        # side-effect free. Tests inject a recorder so no files are written.
+        self._audit_logger = audit_logger
+
+    def _resolve_audit_logger(self) -> object:
+        if self._audit_logger is None:
+            from rex.audit import get_audit_logger  # noqa: PLC0415
+
+            self._audit_logger = get_audit_logger()
+        return self._audit_logger
+
+    def _emit_reuse_audit_event(self, *, session_id: str, family_id: str, user_id: str) -> None:
+        """Persist a structured security-audit event for refresh-token reuse.
+
+        The event carries safe identifiers and status only — never raw
+        tokens, token hashes, access tokens, passwords, or request bodies.
+        Audit failures are logged but never break the security response
+        (the revocation has already been committed).
+        """
+        try:
+            from rex.audit import LogEntry  # noqa: PLC0415
+
+            entry = LogEntry(
+                action_id=self._id_generator(),
+                tool="mobile_auth",
+                tool_call_args={
+                    "event_type": "mobile_refresh_token_reuse",
+                    "session_id": session_id,
+                    "family_id": family_id,
+                    "user_id": user_id,
+                    "revocation_result": "family_and_session_revoked",
+                },
+                policy_decision="denied",
+                requested_by=user_id,
+                timestamp=self.now(),
+            )
+            self._resolve_audit_logger().log(entry)  # type: ignore[attr-defined]
+        except Exception:
+            logger.exception(
+                "Failed to write mobile refresh-reuse audit event: session=%s",
+                session_id,
+            )
 
     # ------------------------------------------------------------------
     # Helpers
@@ -356,6 +400,11 @@ class MobileSessionStore:
                     row["family_id"],
                     row["user_id"],
                 )
+                self._emit_reuse_audit_event(
+                    session_id=row["session_id"],
+                    family_id=row["family_id"],
+                    user_id=row["user_id"],
+                )
                 return RotationResult(
                     status=REUSED,
                     session_id=row["session_id"],
@@ -400,9 +449,14 @@ class MobileSessionStore:
                 self._revoke_family_locked(conn, row["family_id"], row["session_id"], now)
                 conn.execute("COMMIT")
                 logger.warning(
-                    "Mobile refresh concurrency loser treated as reuse: " "session=%s family=%s",
+                    "Mobile refresh concurrency loser treated as reuse: session=%s family=%s",
                     row["session_id"],
                     row["family_id"],
+                )
+                self._emit_reuse_audit_event(
+                    session_id=row["session_id"],
+                    family_id=row["family_id"],
+                    user_id=row["user_id"],
                 )
                 return RotationResult(
                     status=REUSED,

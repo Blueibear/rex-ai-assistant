@@ -151,6 +151,35 @@ class TestLoginRateLimit:
         assert "Retry-After" in limited.headers
 
 
+class TestLoginRateKey:
+    """The login limiter key must never contain raw IPs or usernames."""
+
+    def _key(self, app, username, address: str = "203.0.113.7") -> str:
+        from rex.mobile_api.routes.auth import _login_rate_key
+
+        with app.test_request_context(
+            "/mobile/auth/login",
+            method="POST",
+            json={"username": username, "password": "x"},
+            environ_base={"REMOTE_ADDR": address},
+        ):
+            return _login_rate_key()
+
+    def test_raw_ip_and_username_absent_from_key(self, app) -> None:
+        key = self._key(app, "james", address="203.0.113.7")
+        assert "203.0.113.7" not in key
+        assert "james" not in key
+
+    def test_username_normalization_is_consistent(self, app) -> None:
+        assert self._key(app, "James ") == self._key(app, "james")
+        assert self._key(app, "  JAMES") == self._key(app, "james")
+
+    def test_distinct_usernames_and_addresses_produce_distinct_keys(self, app) -> None:
+        base = self._key(app, "james", address="203.0.113.7")
+        assert self._key(app, "sarah", address="203.0.113.7") != base
+        assert self._key(app, "james", address="203.0.113.99") != base
+
+
 class TestLoginSecrecy:
     def test_password_and_tokens_never_logged(self, client, caplog) -> None:
         """AUTH-007: raw credentials and tokens are absent from captured logs."""

@@ -97,6 +97,78 @@ class TestMobileApiConfigValidation:
             _parse_mobile_api_config("not-a-dict")
 
 
+class TestMobileApiConfigSerialization:
+    """mobile_api is canonical nested config and must survive serialization."""
+
+    def _build_config(self):
+        from rex.config import build_app_config
+
+        return build_app_config(
+            {
+                "mobile_api": {
+                    "host": "192.168.1.50",
+                    "port": 9001,
+                    "access_token_ttl_seconds": 600,
+                    "allowed_origins": ["https://app.askrex.local"],
+                }
+            }
+        )
+
+    def test_to_dict_includes_mobile_api(self) -> None:
+        from rex.config import AppConfig
+
+        raw = AppConfig().to_dict()
+        assert "mobile_api" in raw
+        assert raw["mobile_api"]["host"] == "127.0.0.1"
+        assert raw["mobile_api"]["port"] == 8765
+
+    def test_loaded_values_survive_serialization(self) -> None:
+        raw = self._build_config().to_dict()
+        group = raw["mobile_api"]
+        assert group["host"] == "192.168.1.50"
+        assert group["port"] == 9001
+        assert group["access_token_ttl_seconds"] == 600
+        assert group["allowed_origins"] == ["https://app.askrex.local"]
+
+    def test_serialized_group_is_json_safe_and_secret_free(self) -> None:
+        import json
+
+        raw = self._build_config().to_dict()
+        text = json.dumps(raw["mobile_api"])
+        # The JWT secret lives in .env only and has no config field at all.
+        assert "secret" not in text.lower()
+        assert "REX_JWT" not in text
+        assert set(raw["mobile_api"].keys()) == {
+            "enabled",
+            "host",
+            "port",
+            "allowed_origins",
+            "require_tls",
+            "api_version",
+            "access_token_ttl_seconds",
+            "refresh_token_ttl_days",
+            "max_json_bytes",
+            "max_audio_bytes",
+            "max_audio_seconds",
+            "rate_limit_default",
+            "rate_limit_login",
+            "rate_limit_refresh",
+            "rate_limit_chat",
+            "rate_limit_voice",
+        }
+
+    def test_show_config_output_includes_mobile_api(self, capsys) -> None:
+        """`rex-config show` prints the mobile_api group."""
+        import json
+
+        from rex.config import show_config
+
+        show_config(self._build_config())
+        printed = json.loads(capsys.readouterr().out)
+        assert printed["mobile_api"]["port"] == 9001
+        assert printed["mobile_api"]["host"] == "192.168.1.50"
+
+
 class TestJwtSecret:
     def test_missing_secret_fails_closed(self, monkeypatch: pytest.MonkeyPatch) -> None:
         from rex.mobile_api.auth import MobileAuthConfigurationError, load_jwt_secret

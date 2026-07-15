@@ -68,14 +68,36 @@ def mobile_config():
     return MobileApiConfig()
 
 
+class RecordingAuditLogger:
+    """In-memory stand-in for rex.audit.AuditLogger — writes no files."""
+
+    def __init__(self) -> None:
+        self.entries: list = []
+
+    def log(self, entry) -> None:
+        self.entries.append(entry)
+
+
 @pytest.fixture()
-def services(mobile_env: Path, clock: FakeClock, mobile_config):
+def audit_recorder() -> RecordingAuditLogger:
+    return RecordingAuditLogger()
+
+
+@pytest.fixture()
+def services(
+    mobile_env: Path,
+    clock: FakeClock,
+    mobile_config,
+    audit_recorder: RecordingAuditLogger,
+):
     from rex.mobile_api.db import migrate_users_db
     from rex.mobile_api.services import MobileApiServices
 
     db_path = mobile_env / "users.db"
     migrate_users_db(db_path)
-    return MobileApiServices.build(mobile_config, db_path=db_path, clock=clock)
+    return MobileApiServices.build(
+        mobile_config, db_path=db_path, clock=clock, audit_logger=audit_recorder
+    )
 
 
 @pytest.fixture()

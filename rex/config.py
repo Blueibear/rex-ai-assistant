@@ -679,17 +679,12 @@ class AppConfig:
             warnings.simplefilter("ignore", DeprecationWarning)
             raw = asdict(self)
         # Remove nested sub-config objects (US-002) — derived views; not part of serialised output
-        for _key in (
-            "audio",
-            "voice",
-            "llm",
-            "tools",
-            "integrations",
-            "ui",
-            "security",
-            "mobile_api",
-        ):
+        for _key in ("audio", "voice", "llm", "tools", "integrations", "ui", "security"):
             raw.pop(_key, None)
+        # mobile_api is canonical nested config with no flat equivalents, so it
+        # is serialised as its validated dictionary (it contains no secrets —
+        # the JWT secret lives in .env only).
+        raw["mobile_api"] = self.mobile_api.model_dump()
         raw["transcripts_dir"] = str(self.transcripts_dir)
         raw["log_path"] = str(self.log_path)
         raw["error_log_path"] = str(self.error_log_path)

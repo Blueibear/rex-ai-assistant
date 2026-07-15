@@ -38,10 +38,11 @@ _LOGIN_FAILED = "Invalid username or password."
 
 
 def _login_rate_key() -> str:
-    """Rate-limit key for login: anonymized remote address + username hash.
+    """Rate-limit key for login: hashed remote address + hashed username.
 
     Combining both reduces per-account brute force without revealing account
-    existence; the raw username never appears in limiter storage.
+    existence. Neither the raw IP address nor the raw username ever appears
+    in limiter storage or logs — both components are one-way hash digests.
     """
     from flask import request  # noqa: PLC0415
     from flask_limiter.util import get_remote_address  # noqa: PLC0415
@@ -52,8 +53,10 @@ def _login_rate_key() -> str:
         raw = payload.get("username")
         if isinstance(raw, str):
             username = raw.strip().lower()
-    digest = hashlib.sha256(username.encode("utf-8")).hexdigest()[:16]
-    return f"{get_remote_address()}|{digest}"
+    username_digest = hashlib.sha256(username.encode("utf-8")).hexdigest()[:16]
+    address = get_remote_address() or "unknown"
+    address_digest = hashlib.sha256(address.encode("utf-8")).hexdigest()[:16]
+    return f"{address_digest}|{username_digest}"
 
 
 def build_auth_blueprint(services: MobileApiServices, limiter: Any) -> Blueprint:
@@ -155,8 +158,10 @@ def build_auth_blueprint(services: MobileApiServices, limiter: Any) -> Blueprint
         )
 
     @bp.post("/logout")
-    @require_mobile_auth
+    @require_mobile_auth(allow_revoked_session=True)
     def logout() -> Any:
+        # Idempotent: a repeated logout with the same (fully validated) token
+        # finds the session already revoked and returns the same success.
         principal = g.mobile_principal
         services.session_store.revoke_session(principal.session_id, "logout")
         return jsonify({"ok": True})

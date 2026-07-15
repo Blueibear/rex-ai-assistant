@@ -49,6 +49,7 @@ class MobileApiServices:
         clock: Callable[[], datetime] | None = None,
         token_generator: Callable[[], str] | None = None,
         id_generator: Callable[[], str] | None = None,
+        audit_logger: object | None = None,
     ) -> MobileApiServices:
         """Build the default production container with optional test overrides."""
         cfg = config or MobileApiConfig()
@@ -60,6 +61,7 @@ class MobileApiServices:
             clock=clock,
             token_generator=token_generator,
             id_generator=id_generator,
+            audit_logger=audit_logger,
         )
         return cls(
             config=cfg,

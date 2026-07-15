@@ -137,8 +137,17 @@ def _bearer_token_from_request() -> str:
     return parts[1].strip()
 
 
-def authenticate_request(services: MobileApiServices) -> MobilePrincipal:
+def authenticate_request(
+    services: MobileApiServices, *, allow_revoked_session: bool = False
+) -> MobilePrincipal:
     """Authenticate the current Flask request and return its principal.
+
+    ``allow_revoked_session`` exists solely so ``POST /mobile/auth/logout``
+    can be idempotent: every JWT check (algorithm, signature, issuer,
+    audience, required claims, nbf, exp), the canonical ``sub`` validation,
+    session existence/ownership, and user status still apply — only the
+    already-revoked-session rejection is skipped, and the session is never
+    reactivated or modified. Every other endpoint must use the default.
 
     Raises:
         MobileApiError: On any validation failure (fails closed).
@@ -165,9 +174,10 @@ def authenticate_request(services: MobileApiServices) -> MobilePrincipal:
             claims.get("jti"),
         )
         raise MobileApiError(merr.AUTH_TOKEN_INVALID, "Invalid access token.", 401)
-    if session["revoked_at"] is not None:
+    session_revoked = session["revoked_at"] is not None
+    if session_revoked and not allow_revoked_session:
         raise MobileApiError(merr.AUTH_SESSION_REVOKED, "Session has been revoked.", 401)
-    if not store.session_is_active(session, store.now()):
+    if not session_revoked and not store.session_is_active(session, store.now()):
         raise MobileApiError(merr.AUTH_SESSION_REVOKED, "Session has expired.", 401)
 
     conn = connect(services.db_path)
@@ -185,7 +195,9 @@ def authenticate_request(services: MobileApiServices) -> MobilePrincipal:
     if profile and isinstance(profile.get("name"), str) and profile["name"].strip():
         display_name = profile["name"].strip()
 
-    store.touch_session(session_id)
+    # Never modify an already-revoked session (logout-only path).
+    if not session_revoked:
+        store.touch_session(session_id)
     return MobilePrincipal(
         user_id=user_id,
         session_id=session_id,
@@ -196,18 +208,29 @@ def authenticate_request(services: MobileApiServices) -> MobilePrincipal:
     )
 
 
-def require_mobile_auth(view: Any) -> Any:
-    """Decorator: authenticate the request and attach ``g.mobile_principal``."""
+def require_mobile_auth(view: Any = None, *, allow_revoked_session: bool = False) -> Any:
+    """Decorator: authenticate the request and attach ``g.mobile_principal``.
 
-    @wraps(view)
-    def wrapper(*args: Any, **kwargs: Any) -> Any:
-        from flask import current_app, g  # noqa: PLC0415
+    ``allow_revoked_session=True`` is reserved for the idempotent logout
+    endpoint only (see :func:`authenticate_request`).
+    """
 
-        services = current_app.extensions["mobile_api_services"]
-        g.mobile_principal = authenticate_request(services)
-        return view(*args, **kwargs)
+    def decorate(fn: Any) -> Any:
+        @wraps(fn)
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
+            from flask import current_app, g  # noqa: PLC0415
 
-    return wrapper
+            services = current_app.extensions["mobile_api_services"]
+            g.mobile_principal = authenticate_request(
+                services, allow_revoked_session=allow_revoked_session
+            )
+            return fn(*args, **kwargs)
+
+        return wrapper
+
+    if view is not None:
+        return decorate(view)
+    return decorate
 
 
 __all__ = [
