@@ -185,7 +185,7 @@ class TestChatExecution:
     def test_message_body_not_logged(self, client, caplog) -> None:
         """CHAT-017: chat text never appears in server logs."""
         _, headers = _authed(client)
-        secret_text = "the-vault-code-is-9137"
+        secret_text = "the-vault-code-is-9137"  # pragma: allowlist secret
         with caplog.at_level("DEBUG"):
             client.post("/mobile/chat", json=chat_payload(secret_text), headers=headers)
         assert secret_text not in caplog.text

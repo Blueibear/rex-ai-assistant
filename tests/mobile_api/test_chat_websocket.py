@@ -320,7 +320,7 @@ class TestWsIdempotency:
     def test_no_tokens_or_bodies_in_logs(self, client, services, caplog) -> None:
         """WS-022: only safe correlation data is logged."""
         _, token = _login(client)
-        secret_message = "my-secret-garage-code-4242"
+        secret_message = "my-secret-garage-code-4242"  # pragma: allowlist secret
         with caplog.at_level("DEBUG"):
             _run(
                 services,

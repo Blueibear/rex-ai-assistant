@@ -146,7 +146,8 @@ class TestLiveResponseConformance:
 
     def test_nested_error_envelope(self, client, vectors) -> None:
         response = client.post(
-            "/mobile/auth/login", json={"username": "ghost", "password": "wrong-pass"}
+            "/mobile/auth/login",
+            json={"username": "ghost", "password": "wrong-pass"},  # pragma: allowlist secret
         )
         assert response.status_code == 401
         body = response.get_json()
