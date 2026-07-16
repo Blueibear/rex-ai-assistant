@@ -39,7 +39,7 @@ def _login(base_url: str) -> str:
         f"{base_url}/mobile/auth/login",
         json={
             "username": "james",
-            "password": "pw-123456",
+            "password": "pw-123456",  # pragma: allowlist secret
             "device": {
                 "device_id": str(uuid.uuid4()),
                 "name": "loopback",
