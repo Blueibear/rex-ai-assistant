@@ -14,9 +14,12 @@ Protocol (master spec §7):
   immutable principal to the connection — later frames can never replace
   identity.
 - ``auth_ok`` / ``auth_error`` frames; close codes ``4401`` (missing,
-  invalid, expired, or revoked authentication), ``4403`` (authenticated but
-  forbidden), ``4408`` (auth timeout), ``4429`` (connection/message rate
-  limits).
+  invalid, expired, or revoked authentication), ``4408`` (auth timeout),
+  ``4429`` (connection/message rate limits).  ``4403`` is RESERVED for a
+  future authenticated authorization denial: the canonical permission model
+  (``rex.permissions``) gates tools at dispatch time, not chat access, so
+  Session 2 has no real authenticated-but-forbidden condition and no code
+  path emits 4403.  Clients must still handle it defensively.
 - Chat frames validate the canonical schema, reserve the shared
   ``(user_id, message_id)`` idempotency record, then ``ack`` with
   ``message_id``/``accepted_at`` — reservation strictly precedes the ack.
@@ -48,6 +51,10 @@ logger = logging.getLogger(__name__)
 
 # Close codes (master spec §7.1).
 CLOSE_UNAUTHENTICATED = 4401
+# RESERVED: no Session 2 code path closes with 4403.  Chat access is not
+# gated by rex.permissions (permissions authorize tools at dispatch), so an
+# authenticated principal is never "forbidden" from chat today.  The code
+# stays in the wire contract for future server-side authorization denial.
 CLOSE_FORBIDDEN = 4403
 CLOSE_AUTH_TIMEOUT = 4408
 CLOSE_RATE_LIMITED = 4429

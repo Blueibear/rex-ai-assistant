@@ -149,6 +149,25 @@ class TestAuthentication:
         assert ws.sent[0]["type"] == "auth_error"
         assert ws.closed[0] == CLOSE_UNAUTHENTICATED
 
+    def test_4403_is_reserved_chat_is_not_permission_gated(self, client, services) -> None:
+        """4403 contract truthfulness: no Session 2 path emits it.
+
+        The canonical permission model (rex.permissions) authorizes tools at
+        dispatch time, not chat access — so an authenticated user with ZERO
+        granted permissions still chats normally and is never closed with
+        4403.  The code remains reserved in the wire contract for a future
+        server-side authorization denial.
+        """
+        from rex.mobile_api.websocket import CLOSE_FORBIDDEN
+        from rex.permissions import get_permissions
+
+        user_id, token = _login(client)  # created without any permissions
+        assert get_permissions(user_id) == []
+        ws = _run(services, [_auth_frame(token), _chat_frame("hello with no permissions")])
+        assert ws.sent[0]["type"] == "auth_ok"
+        assert [e["type"] for e in ws.sent][-1] == "message_done"
+        assert ws.closed is None or ws.closed[0] != CLOSE_FORBIDDEN
+
     def test_revoked_session_token_closes_4401(self, client, services) -> None:
         _, token = _login(client)
         from tests.mobile_api.conftest import auth_header
