@@ -278,6 +278,12 @@ timeout close `4408`, logout revocation close `4401`, no URL token, and
 same-message HTTP replay with one Assistant execution. The automated test is
 `tests/mobile_api/test_chat_websocket_live.py`.
 
+Close code `4403` (authenticated but forbidden) is **reserved** and has never
+been exercised: the canonical permission model gates tools at dispatch time,
+not chat access, so Session 2 has no real authenticated-but-forbidden
+condition and no server code path emits 4403. Clients still handle it
+defensively (no automatic reconnect).
+
 `python -m pytest -q tests/mobile_api` passed 252 tests. The complete repository
 suite still has unrelated failures reproduced on `master` in time/weather,
 workflow, and the generated coverage-report meta test. Physical-iPhone and LAN
