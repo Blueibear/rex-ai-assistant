@@ -432,7 +432,7 @@ class AsyncRexAssistant:
         else:
             logger.info(status_msg)
 
-        # Create listener with a placeholder loop (will be updated in run() with the actual running loop)
+        # Bind the listener to the actual running loop in run(), where that loop exists.
         self._listener = WakeWordListener(
             model=self._wake_model,
             threshold=self.config.wakeword_threshold,

@@ -264,6 +264,11 @@ Health check:
 
 python -m rex doctor
 
+Release health gate:
+
+python -m rex doctor --release-gate
+python scripts/security_audit.py --release-gate
+
 Text mode:
 
 python -m rex

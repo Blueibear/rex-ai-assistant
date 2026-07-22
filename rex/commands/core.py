@@ -30,7 +30,11 @@ def cmd_doctor(args: argparse.Namespace) -> int:
     from rex.doctor import run_diagnostics
 
     debug = getattr(args, "debug", False)
-    return run_diagnostics(verbose=args.verbose, debug=debug)
+    return run_diagnostics(
+        verbose=args.verbose,
+        debug=debug,
+        release_gate=getattr(args, "release_gate", False),
+    )
 
 
 def cmd_chat(args: argparse.Namespace) -> int:
@@ -182,6 +186,11 @@ def register(subparsers: argparse._SubParsersAction) -> None:
         action="store_true",
         default=argparse.SUPPRESS,
         help="Include additional low-level diagnostic info (log level, env vars)",
+    )
+    doctor_parser.add_argument(
+        "--release-gate",
+        action="store_true",
+        help="Exit nonzero for errors and actionable warnings",
     )
     doctor_parser.set_defaults(func=_cli().cmd_doctor)
 

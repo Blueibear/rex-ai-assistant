@@ -249,3 +249,14 @@ def test_get_default_registry_availability_filter_works() -> None:
     assert "web_search" not in available_names
     assert "home_assistant_call_service" not in available_names
     assert "send_email" not in available_names
+
+
+def test_delegated_music_handler_fails_closed() -> None:
+    """Dedicated-runtime tools must not report an empty successful result."""
+    from rex.tools.dispatcher import ToolDispatcher
+    from rex.tools.registry import get_default_registry
+
+    result = ToolDispatcher(get_default_registry()).dispatch("music_pause", {})
+
+    assert result.success is False
+    assert "dedicated runtime handler" in (result.error or "")

@@ -7,6 +7,7 @@ Also covers --strict-markdown-secrets mode and the allowlist mechanism.
 
 from __future__ import annotations
 
+import json
 import subprocess
 import sys
 import textwrap
@@ -221,6 +222,14 @@ class TestPlaceholderClassification:
         finding = "config/settings.json:5: TODO item"
         assert security_audit.classify_placeholder_finding(finding) == "configuration"
 
+    def test_json_under_docs_is_informational(self):
+        finding = "docs/archive/audit.json:5: TODO item"
+        assert security_audit.classify_placeholder_finding(finding) == "documentation"
+
+    def test_embedded_finding_path_does_not_replace_outer_document_path(self):
+        finding = "docs/security/audit.md:57: rex/core.py:106: TODO item"
+        assert security_audit.classify_placeholder_finding(finding) == "documentation"
+
     def test_yaml_file_classified_as_configuration(self):
         finding = "ci.yml:20: # WIP step"
         assert security_audit.classify_placeholder_finding(finding) == "configuration"
@@ -252,6 +261,15 @@ class TestPlaceholderClassification:
 
 class TestScanPathExclusions:
     """Tests for directory exclusion logic in should_scan_file."""
+
+    def test_archived_code_is_excluded(self):
+        assert not security_audit.should_scan_file(Path("archived/legacy.py"))
+
+    def test_package_lock_skips_placeholder_package_names(self, tmp_path):
+        lockfile = tmp_path / "package-lock.json"
+        lockfile.write_text('{"name": "cli-truncate"}\n', encoding="utf-8")
+        _, placeholders, _ = security_audit.scan_file(lockfile)
+        assert placeholders == []
 
     def test_ignores_mypy_cache_files(self):
         path = Path(".mypy_cache") / "3.12" / "module.meta.json"
@@ -340,6 +358,83 @@ class TestSecurityAuditScript:
             f"security_audit.py exited {result.returncode}.\n"
             f"stdout:\n{result.stdout}\nstderr:\n{result.stderr}"
         )
+
+
+class TestSecurityAuditReleaseGate:
+    def test_warning_only_documentation_run_passes(self, tmp_path, monkeypatch, capsys):
+        finding = tmp_path / "notes.md"
+        finding.write_text("TODO document this later\n", encoding="utf-8")
+        monkeypatch.setattr(security_audit, "get_tracked_files", lambda _root: ([finding], 0))
+
+        assert security_audit.main(["--release-gate"]) == 0
+        assert "informational findings" in capsys.readouterr().out
+
+    def test_actionable_source_finding_fails_release_gate(self, tmp_path, monkeypatch, capsys):
+        finding = tmp_path / "unfinished.py"
+        finding.write_text("# TODO implement secure dispatch\n", encoding="utf-8")
+        monkeypatch.setattr(security_audit, "get_tracked_files", lambda _root: ([finding], 0))
+
+        assert security_audit.main(["--release-gate"]) == 1
+        assert "actionable placeholder" in capsys.readouterr().out
+
+    def test_secret_finding_fails_in_developer_mode(self, tmp_path, monkeypatch):
+        finding = tmp_path / "unsafe.py"
+        finding.write_text("token = 'sk-" + "A" * 45 + "'\n", encoding="utf-8")
+        monkeypatch.setattr(security_audit, "get_tracked_files", lambda _root: ([finding], 0))
+
+        assert security_audit.main([]) == 1
+
+    def test_clean_release_gate_passes(self, monkeypatch, capsys):
+        monkeypatch.setattr(security_audit, "get_tracked_files", lambda _root: ([], 0))
+
+        assert security_audit.main(["--release-gate"]) == 0
+        assert "SECURITY GATE PASSED" in capsys.readouterr().out
+
+    def test_expired_suppression_is_rejected(self, tmp_path):
+        suppression_file = tmp_path / "suppressions.json"
+        suppression_file.write_text(
+            json.dumps(
+                {
+                    "suppressions": [
+                        {
+                            "category": "placeholder",
+                            "path": "rex/example.py",
+                            "line": 10,
+                            "reason": "Tracked upstream issue with an owner",
+                            "expires": "2025-01-01",
+                        }
+                    ]
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        valid, errors = security_audit.load_suppressions(suppression_file, tmp_path)
+        assert valid == set()
+        assert any("expired" in error for error in errors)
+
+    def test_invalid_suppression_path_is_rejected(self, tmp_path):
+        suppression_file = tmp_path / "suppressions.json"
+        suppression_file.write_text(
+            json.dumps(
+                {
+                    "suppressions": [
+                        {
+                            "category": "placeholder",
+                            "path": "../outside.py",
+                            "line": 1,
+                            "reason": "This path must never escape the repository",
+                            "expires": "2099-01-01",
+                        }
+                    ]
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        valid, errors = security_audit.load_suppressions(suppression_file, tmp_path)
+        assert valid == set()
+        assert any("within the repository" in error for error in errors)
 
     def test_strict_mode_clean_repo_exits_zero(self):
         """The script with --strict-markdown-secrets must still exit 0 on a clean repo.

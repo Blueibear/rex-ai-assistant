@@ -150,9 +150,33 @@ class ToolRegistry:
 # ---------------------------------------------------------------------------
 
 
-def _noop_handler(**kwargs: Any) -> dict[str, Any]:
-    """Placeholder handler for tools that delegate to another executor at runtime."""
-    return {}
+def _web_search_handler(*, transcript: str = "", query: str = "", **kwargs: Any) -> Any:
+    """Execute web search through the installed provider integration."""
+    search_query = (query or transcript).strip()
+    if not search_query:
+        raise ValueError("web_search requires a non-empty query")
+
+    try:
+        from plugins.web_search import search_web
+    except ImportError as exc:
+        raise RuntimeError("web_search integration is not installed") from exc
+
+    result = search_web(search_query)
+    if result is None:
+        raise RuntimeError("web_search integration is not configured")
+    return result
+
+
+def _delegated_handler(tool_name: str) -> Callable[..., Any]:
+    """Return a fail-closed handler for tools owned by a separate runtime path."""
+
+    def _raise_delegation_error(**kwargs: Any) -> Any:
+        raise RuntimeError(
+            f"{tool_name} is not executable through the canonical tool registry; "
+            "use its dedicated runtime handler"
+        )
+
+    return _raise_delegation_error
 
 
 def _build_default_registry() -> ToolRegistry:
@@ -218,7 +242,7 @@ def _build_default_registry() -> ToolRegistry:
             ),
             capability_tags=["search", "web", "lookup"],
             requires_config=["brave_api_key"],
-            handler=_noop_handler,
+            handler=_web_search_handler,
         )
     )
 
@@ -435,7 +459,7 @@ def _build_default_registry() -> ToolRegistry:
             description="Play music via Music Assistant. Args: query (str), room (str, optional).",
             capability_tags=["music", "play", "audio", "media"],
             requires_config=["music_assistant_url"],
-            handler=_noop_handler,
+            handler=_delegated_handler("music_play"),
         )
     )
 
@@ -445,7 +469,7 @@ def _build_default_registry() -> ToolRegistry:
             description="Pause music playback via Music Assistant. Args: room (str, optional).",
             capability_tags=["music", "pause", "audio", "media"],
             requires_config=["music_assistant_url"],
-            handler=_noop_handler,
+            handler=_delegated_handler("music_pause"),
         )
     )
 
@@ -455,7 +479,7 @@ def _build_default_registry() -> ToolRegistry:
             description="Resume paused music via Music Assistant. Args: room (str, optional).",
             capability_tags=["music", "resume", "audio", "media"],
             requires_config=["music_assistant_url"],
-            handler=_noop_handler,
+            handler=_delegated_handler("music_resume"),
         )
     )
 
@@ -465,7 +489,7 @@ def _build_default_registry() -> ToolRegistry:
             description="Skip to the next track via Music Assistant. Args: room (str, optional).",
             capability_tags=["music", "skip", "next", "audio", "media"],
             requires_config=["music_assistant_url"],
-            handler=_noop_handler,
+            handler=_delegated_handler("music_skip"),
         )
     )
 
@@ -478,7 +502,7 @@ def _build_default_registry() -> ToolRegistry:
             ),
             capability_tags=["music", "volume", "audio", "media"],
             requires_config=["music_assistant_url"],
-            handler=_noop_handler,
+            handler=_delegated_handler("music_volume"),
         )
     )
 

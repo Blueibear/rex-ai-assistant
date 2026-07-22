@@ -34,7 +34,7 @@ MINIMUM_APP_VERSION = "0.1.0"
 
 
 def server_version() -> str:
-    """Return the installed package version, or a safe placeholder."""
+    """Return the installed package version, or a safe fallback value."""
     try:
         from importlib.metadata import version  # noqa: PLC0415
 
