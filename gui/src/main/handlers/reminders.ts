@@ -2,6 +2,7 @@ import { ipcMain } from 'electron'
 import { spawn } from 'child_process'
 import type { Reminder, ReminderInput } from '../../types/ipc'
 import { resolveBridgePath, resolvePythonCommand } from '../bridgeResolver'
+import { privateSessionPayload, type ElectronSessionIdentity } from '../sessionIdentity'
 
 /**
  * Call rex_reminders_bridge.py with a JSON payload via stdin and resolve the
@@ -48,50 +49,50 @@ function callRemindersBridge(payload: Record<string, unknown>): Promise<Record<s
   })
 }
 
-async function getReminders(): Promise<Reminder[]> {
-  const result = await callRemindersBridge({ command: 'list' })
+async function getReminders(session: ElectronSessionIdentity): Promise<Reminder[]> {
+  const result = await callRemindersBridge(privateSessionPayload(session, { command: 'list' }))
   if (!result.ok) {
     throw new Error((result.error as string | undefined) ?? 'Failed to list reminders')
   }
   return (result.reminders as Reminder[]) ?? []
 }
 
-async function saveReminder(reminder: ReminderInput): Promise<Reminder> {
-  const result = await callRemindersBridge({ command: 'save', reminder })
+async function saveReminder(session: ElectronSessionIdentity, reminder: ReminderInput): Promise<Reminder> {
+  const result = await callRemindersBridge(privateSessionPayload(session, { command: 'save', reminder }))
   if (!result.ok) {
     throw new Error((result.error as string | undefined) ?? 'Failed to save reminder')
   }
   return result.reminder as Reminder
 }
 
-async function deleteReminder(id: string): Promise<void> {
-  const result = await callRemindersBridge({ command: 'delete', id })
+async function deleteReminder(session: ElectronSessionIdentity, id: string): Promise<void> {
+  const result = await callRemindersBridge(privateSessionPayload(session, { command: 'delete', id }))
   if (!result.ok) {
     throw new Error((result.error as string | undefined) ?? 'Failed to delete reminder')
   }
 }
 
-async function completeReminder(id: string): Promise<void> {
-  const result = await callRemindersBridge({ command: 'complete', id })
+async function completeReminder(session: ElectronSessionIdentity, id: string): Promise<void> {
+  const result = await callRemindersBridge(privateSessionPayload(session, { command: 'complete', id }))
   if (!result.ok) {
     throw new Error((result.error as string | undefined) ?? 'Failed to complete reminder')
   }
 }
 
-export function registerRemindersHandlers(): void {
+export function registerRemindersHandlers(session: ElectronSessionIdentity): void {
   ipcMain.handle('rex:getReminders', async (): Promise<Reminder[]> => {
-    return getReminders()
+    return getReminders(session)
   })
 
   ipcMain.handle('rex:saveReminder', async (_event, input: ReminderInput): Promise<Reminder> => {
-    return saveReminder(input)
+    return saveReminder(session, input)
   })
 
   ipcMain.handle('rex:deleteReminder', async (_event, id: string): Promise<void> => {
-    return deleteReminder(id)
+    return deleteReminder(session, id)
   })
 
   ipcMain.handle('rex:completeReminder', async (_event, id: string): Promise<void> => {
-    return completeReminder(id)
+    return completeReminder(session, id)
   })
 }

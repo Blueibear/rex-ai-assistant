@@ -63,6 +63,8 @@ def _resolve_user(payload: dict[str, Any]) -> str | None:
     """
     from rex.identity import resolve_active_user
 
+    if payload.get("data_scope") != "private":
+        return None
     explicit = str(payload.get("user") or "").strip() or None
     try:
         config: dict[str, Any] | None

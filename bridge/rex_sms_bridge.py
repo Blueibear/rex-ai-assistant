@@ -77,6 +77,11 @@ def main() -> None:
         sys.exit(1)
 
     try:
+        from rex.identity import validate_user_id
+
+        validate_user_id(str(payload.get("user") or ""))
+        if payload.get("data_scope") != "private":
+            raise PermissionError("SMS requires private Electron data scope")
         if command == "list_threads":
             result = _handle_list_threads()
         else:

@@ -139,7 +139,7 @@ class TestCalendarBridge:
     def test_malformed_explicit_user_resolves_to_none(self):
         import bridge.rex_calendar_bridge as bridge_mod
 
-        assert bridge_mod._resolve_user({"user": "../evil"}) is None
+        assert bridge_mod._resolve_user({"user": "../evil", "data_scope": "private"}) is None
 
 
 # ---------------------------------------------------------------------------

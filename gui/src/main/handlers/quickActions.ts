@@ -2,6 +2,7 @@ import { ipcMain } from 'electron'
 import { spawn } from 'child_process'
 import type { QuickAction, QuickActionRunResponse } from '../../types/ipc'
 import { resolveBridgePath, resolvePythonCommand } from '../bridgeResolver'
+import { privateSessionPayload, type ElectronSessionIdentity } from '../sessionIdentity'
 
 function callQuickActionsBridge(payload: Record<string, unknown>): Promise<Record<string, unknown>> {
   return new Promise((resolve) => {
@@ -24,7 +25,10 @@ function callQuickActionsBridge(payload: Record<string, unknown>): Promise<Recor
 
     py.on('close', (code) => {
       if (code !== 0) {
-        resolve({ ok: false, error: `bridge exited ${code}: ${stderr.slice(0, 200)}` })
+        resolve({
+          ok: false,
+          error: `bridge exited ${code}: ${stderr.slice(0, 200)}`
+        })
         return
       }
       try {
@@ -43,11 +47,15 @@ function callQuickActionsBridge(payload: Record<string, unknown>): Promise<Recor
   })
 }
 
-export function registerQuickActionsHandlers(): void {
+export function registerQuickActionsHandlers(session: ElectronSessionIdentity): void {
   ipcMain.handle(
     'rex:listQuickActions',
-    (): Promise<{ ok: boolean; quick_actions: QuickAction[]; error?: string }> =>
-      callQuickActionsBridge({ command: 'list' }) as Promise<{
+    (): Promise<{
+      ok: boolean
+      quick_actions: QuickAction[]
+      error?: string
+    }> =>
+      callQuickActionsBridge(privateSessionPayload(session, { command: 'list' })) as Promise<{
         ok: boolean
         quick_actions: QuickAction[]
         error?: string
@@ -56,12 +64,14 @@ export function registerQuickActionsHandlers(): void {
 
   ipcMain.handle(
     'rex:createQuickAction',
-    (
-      _event,
-      label: string,
-      commandText: string
-    ): Promise<{ ok: boolean; action?: QuickAction; error?: string }> =>
-      callQuickActionsBridge({ command: 'add', label, command_text: commandText }) as Promise<{
+    (_event, label: string, commandText: string): Promise<{ ok: boolean; action?: QuickAction; error?: string }> =>
+      callQuickActionsBridge(
+        privateSessionPayload(session, {
+          command: 'add',
+          label,
+          command_text: commandText
+        })
+      ) as Promise<{
         ok: boolean
         action?: QuickAction
         error?: string
@@ -71,7 +81,7 @@ export function registerQuickActionsHandlers(): void {
   ipcMain.handle(
     'rex:deleteQuickAction',
     (_event, id: string): Promise<{ ok: boolean; deleted?: boolean; error?: string }> =>
-      callQuickActionsBridge({ command: 'delete', id }) as Promise<{
+      callQuickActionsBridge(privateSessionPayload(session, { command: 'delete', id })) as Promise<{
         ok: boolean
         deleted?: boolean
         error?: string
@@ -80,7 +90,6 @@ export function registerQuickActionsHandlers(): void {
 
   ipcMain.handle(
     'rex:runQuickAction',
-    (_event, id: string): Promise<QuickActionRunResponse> =>
-      callQuickActionsBridge({ command: 'run', id }) as unknown as Promise<QuickActionRunResponse>
+    (_event, id: string): Promise<QuickActionRunResponse> => callQuickActionsBridge(privateSessionPayload(session, { command: 'run', id })) as unknown as Promise<QuickActionRunResponse>
   )
 }

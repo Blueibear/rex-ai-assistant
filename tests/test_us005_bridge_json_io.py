@@ -45,7 +45,9 @@ class TestTasksBridgeJsonIO:
         with patch.dict(
             "sys.modules", {"rex.scheduler": MagicMock(get_scheduler=lambda: mock_scheduler)}
         ):
-            result = _run_main(TASKS_MODULE, '{"action": "list"}')
+            result = _run_main(
+                TASKS_MODULE, '{"action": "list", "user": "james", "data_scope": "private"}'
+            )
         assert isinstance(result, dict)
         assert "tasks" in result or "error" in result
 
@@ -55,7 +57,9 @@ class TestTasksBridgeJsonIO:
         with patch.dict(
             "sys.modules", {"rex.scheduler": MagicMock(get_scheduler=lambda: mock_scheduler)}
         ):
-            result = _run_main(TASKS_MODULE, '{"command": "list"}')
+            result = _run_main(
+                TASKS_MODULE, '{"command": "list", "user": "james", "data_scope": "private"}'
+            )
         assert isinstance(result, dict)
         assert "tasks" in result or "error" in result
 
@@ -83,7 +87,9 @@ class TestRemindersBridgeJsonIO:
             "sys.modules",
             {"rex.reminder_service": MagicMock(get_reminder_service=lambda: mock_service)},
         ):
-            result = _run_main(REMINDERS_MODULE, '{"action": "list", "user": "default"}')
+            result = _run_main(
+                REMINDERS_MODULE, '{"action": "list", "user": "default", "data_scope": "private"}'
+            )
         assert isinstance(result, dict)
         assert "reminders" in result or "error" in result
 
@@ -94,7 +100,9 @@ class TestRemindersBridgeJsonIO:
             "sys.modules",
             {"rex.reminder_service": MagicMock(get_reminder_service=lambda: mock_service)},
         ):
-            result = _run_main(REMINDERS_MODULE, '{"command": "list", "user": "default"}')
+            result = _run_main(
+                REMINDERS_MODULE, '{"command": "list", "user": "default", "data_scope": "private"}'
+            )
         assert isinstance(result, dict)
         assert "reminders" in result or "error" in result
 
@@ -122,7 +130,9 @@ class TestMemoriesBridgeJsonIO:
             "sys.modules",
             {"rex.memory": MagicMock(get_long_term_memory=lambda **kwargs: mock_ltm)},
         ):
-            result = _run_main(MEMORIES_MODULE, '{"action": "list", "user": "default"}')
+            result = _run_main(
+                MEMORIES_MODULE, '{"action": "list", "user": "default", "data_scope": "private"}'
+            )
         assert isinstance(result, dict)
         assert "memories" in result or "error" in result
 
@@ -133,7 +143,9 @@ class TestMemoriesBridgeJsonIO:
             "sys.modules",
             {"rex.memory": MagicMock(get_long_term_memory=lambda **kwargs: mock_ltm)},
         ):
-            result = _run_main(MEMORIES_MODULE, '{"command": "list", "user": "default"}')
+            result = _run_main(
+                MEMORIES_MODULE, '{"command": "list", "user": "default", "data_scope": "private"}'
+            )
         assert isinstance(result, dict)
         assert "memories" in result or "error" in result
 

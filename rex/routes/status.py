@@ -172,7 +172,7 @@ def create_blueprint() -> Blueprint:
             limit = 50
 
         store = CommandHistoryStore()
-        entries = store.get_recent(limit=limit)
+        entries = store.get_recent(limit=limit, user_id=str(user["username"]))
         return jsonify({"history": entries}), 200
 
     # ------------------------------------------------------------------

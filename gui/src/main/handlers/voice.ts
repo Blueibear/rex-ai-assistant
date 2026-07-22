@@ -4,6 +4,7 @@ import type { ChildProcess } from 'child_process'
 import { dirname } from 'path'
 import { resolveBridgePath, resolvePythonCommand } from '../bridgeResolver'
 import { appendElectronLog } from './logs'
+import { privateSessionPayload, type ElectronSessionIdentity } from '../sessionIdentity'
 
 let voiceProcess: ChildProcess | null = null
 let currentVoiceState = 'idle'
@@ -21,9 +22,7 @@ function normalizeBridgeVoiceState(state: string): string {
 }
 
 function formatVoiceStatus(status: string): string {
-  return status
-    .replace(/_/g, ' ')
-    .replace(/\b\w/g, (char) => char.toUpperCase())
+  return status.replace(/_/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase())
 }
 
 function broadcastVoiceEvent(channel: string, data: unknown): void {
@@ -58,7 +57,7 @@ function killVoiceProcess(): void {
   }
 }
 
-export function registerVoiceHandlers(): void {
+export function registerVoiceHandlers(session: ElectronSessionIdentity): void {
   ipcMain.handle('rex:startVoice', async (event): Promise<{ ok: boolean; error?: string }> => {
     if (voiceProcess) {
       const existingState = getCurrentVoiceState()
@@ -92,7 +91,7 @@ export function registerVoiceHandlers(): void {
       cwd: bridgeCwd
     })
 
-    const py = spawn(resolvePythonCommand(), [scriptPath], {
+    const py = spawn(resolvePythonCommand(), [scriptPath, '--user', session.userId], {
       cwd: bridgeCwd,
       stdio: ['pipe', 'pipe', 'pipe']
     })
@@ -283,88 +282,132 @@ export function registerVoiceHandlers(): void {
     return { ok: true }
   })
 
-  ipcMain.handle(
-    'rex:listVoices',
-    async (
-      _event,
-      provider: string
-    ): Promise<{ ok: boolean; voices: unknown[]; error?: string }> => {
-      const scriptPath = resolveBridgeScript('rex_voices_bridge.py')
-      return new Promise((resolve) => {
-        const py = spawn(resolvePythonCommand(), [scriptPath], { stdio: ['pipe', 'pipe', 'pipe'] })
-        let stdout = ''
-        let stderr = ''
-        py.stdout.on('data', (chunk: Buffer) => { stdout += chunk.toString() })
-        py.stderr.on('data', (chunk: Buffer) => { stderr += chunk.toString() })
-        py.on('close', (code) => {
-          if (code !== 0 && stdout.trim() === '') {
-            resolve({ ok: false, voices: [], error: stderr || `Bridge exited with code ${code}` })
-            return
-          }
-          try {
-            const result = JSON.parse(stdout.trim()) as { ok: boolean; voices?: unknown[]; error?: string }
-            resolve({ ok: result.ok, voices: result.voices ?? [], error: result.error })
-          } catch {
-            resolve({ ok: false, voices: [], error: stderr || 'Failed to parse response' })
-          }
-        })
-        py.on('error', (err) => {
-          resolve({ ok: false, voices: [], error: `Failed to start bridge: ${err.message}` })
-        })
-        py.stdin?.write(JSON.stringify({ provider }) + '\n')
-        py.stdin?.end()
+  ipcMain.handle('rex:listVoices', async (_event, provider: string): Promise<{ ok: boolean; voices: unknown[]; error?: string }> => {
+    const scriptPath = resolveBridgeScript('rex_voices_bridge.py')
+    return new Promise((resolve) => {
+      const py = spawn(resolvePythonCommand(), [scriptPath], {
+        stdio: ['pipe', 'pipe', 'pipe']
       })
-    }
-  )
+      let stdout = ''
+      let stderr = ''
+      py.stdout.on('data', (chunk: Buffer) => {
+        stdout += chunk.toString()
+      })
+      py.stderr.on('data', (chunk: Buffer) => {
+        stderr += chunk.toString()
+      })
+      py.on('close', (code) => {
+        if (code !== 0 && stdout.trim() === '') {
+          resolve({
+            ok: false,
+            voices: [],
+            error: stderr || `Bridge exited with code ${code}`
+          })
+          return
+        }
+        try {
+          const result = JSON.parse(stdout.trim()) as {
+            ok: boolean
+            voices?: unknown[]
+            error?: string
+          }
+          resolve({
+            ok: result.ok,
+            voices: result.voices ?? [],
+            error: result.error
+          })
+        } catch {
+          resolve({
+            ok: false,
+            voices: [],
+            error: stderr || 'Failed to parse response'
+          })
+        }
+      })
+      py.on('error', (err) => {
+        resolve({
+          ok: false,
+          voices: [],
+          error: `Failed to start bridge: ${err.message}`
+        })
+      })
+      py.stdin?.write(JSON.stringify({ provider }) + '\n')
+      py.stdin?.end()
+    })
+  })
 
-  ipcMain.handle(
-    'rex:previewVoice',
-    async (
-      _event,
-      provider: string,
-      voiceId: string
-    ): Promise<{ ok: boolean; audio_base64?: string; error?: string }> => {
-      const scriptPath = resolveBridgeScript('rex_voice_sample_bridge.py')
-      return new Promise((resolve) => {
-        const py = spawn(resolvePythonCommand(), [scriptPath], { stdio: ['pipe', 'pipe', 'pipe'] })
-        let stdout = ''
-        let stderr = ''
-        py.stdout.on('data', (chunk: Buffer) => { stdout += chunk.toString() })
-        py.stderr.on('data', (chunk: Buffer) => { stderr += chunk.toString() })
-        py.on('close', (code) => {
-          if (code !== 0 && stdout.trim() === '') {
-            resolve({ ok: false, error: stderr || `Bridge exited with code ${code}` })
-            return
-          }
-          try {
-            const result = JSON.parse(stdout.trim()) as { ok: boolean; audio_base64?: string; error?: string }
-            resolve(result)
-          } catch {
-            resolve({ ok: false, error: stderr || 'Failed to parse response' })
-          }
-        })
-        py.on('error', (err) => {
-          resolve({ ok: false, error: `Failed to start bridge: ${err.message}` })
-        })
-        py.stdin?.write(JSON.stringify({ provider, voice_id: voiceId }) + '\n')
-        py.stdin?.end()
+  ipcMain.handle('rex:previewVoice', async (_event, provider: string, voiceId: string): Promise<{ ok: boolean; audio_base64?: string; error?: string }> => {
+    const scriptPath = resolveBridgeScript('rex_voice_sample_bridge.py')
+    return new Promise((resolve) => {
+      const py = spawn(resolvePythonCommand(), [scriptPath], {
+        stdio: ['pipe', 'pipe', 'pipe']
       })
-    }
-  )
+      let stdout = ''
+      let stderr = ''
+      py.stdout.on('data', (chunk: Buffer) => {
+        stdout += chunk.toString()
+      })
+      py.stderr.on('data', (chunk: Buffer) => {
+        stderr += chunk.toString()
+      })
+      py.on('close', (code) => {
+        if (code !== 0 && stdout.trim() === '') {
+          resolve({
+            ok: false,
+            error: stderr || `Bridge exited with code ${code}`
+          })
+          return
+        }
+        try {
+          const result = JSON.parse(stdout.trim()) as {
+            ok: boolean
+            audio_base64?: string
+            error?: string
+          }
+          resolve(result)
+        } catch {
+          resolve({ ok: false, error: stderr || 'Failed to parse response' })
+        }
+      })
+      py.on('error', (err) => {
+        resolve({
+          ok: false,
+          error: `Failed to start bridge: ${err.message}`
+        })
+      })
+      py.stdin?.write(JSON.stringify({ provider, voice_id: voiceId }) + '\n')
+      py.stdin?.end()
+    })
+  })
 
   ipcMain.handle(
     'rex:listWakeWords',
-    async (): Promise<{ ok: boolean; wake_words: unknown[]; error?: string; warning?: string }> => {
+    async (): Promise<{
+      ok: boolean
+      wake_words: unknown[]
+      error?: string
+      warning?: string
+    }> => {
       const scriptPath = resolveBridgeScript('rex_wakeword_list_bridge.py')
       return new Promise((resolve) => {
-        const py = spawn(resolvePythonCommand(), [scriptPath], { stdio: ['pipe', 'pipe', 'pipe'] })
+        const py = spawn(resolvePythonCommand(), [scriptPath], {
+          stdio: ['pipe', 'pipe', 'pipe']
+        })
         let stdout = ''
         let stderr = ''
-        py.stdout.on('data', (chunk: Buffer) => { stdout += chunk.toString() })
-        py.stderr.on('data', (chunk: Buffer) => { stderr += chunk.toString() })
+        py.stdout.on('data', (chunk: Buffer) => {
+          stdout += chunk.toString()
+        })
+        py.stderr.on('data', (chunk: Buffer) => {
+          stderr += chunk.toString()
+        })
         py.on('close', (code) => {
           if (code !== 0 && stdout.trim() === '') {
-            resolve({ ok: false, wake_words: [], error: stderr || `Bridge exited with code ${code}` })
+            resolve({
+              ok: false,
+              wake_words: [],
+              error: stderr || `Bridge exited with code ${code}`
+            })
             return
           }
           try {
@@ -374,13 +417,26 @@ export function registerVoiceHandlers(): void {
               error?: string
               warning?: string
             }
-            resolve({ ok: result.ok, wake_words: result.wake_words ?? [], error: result.error, warning: result.warning })
+            resolve({
+              ok: result.ok,
+              wake_words: result.wake_words ?? [],
+              error: result.error,
+              warning: result.warning
+            })
           } catch {
-            resolve({ ok: false, wake_words: [], error: stderr || 'Failed to parse response' })
+            resolve({
+              ok: false,
+              wake_words: [],
+              error: stderr || 'Failed to parse response'
+            })
           }
         })
         py.on('error', (err) => {
-          resolve({ ok: false, wake_words: [], error: `Failed to start bridge: ${err.message}` })
+          resolve({
+            ok: false,
+            wake_words: [],
+            error: `Failed to start bridge: ${err.message}`
+          })
         })
         py.stdin?.write('{}')
         py.stdin?.end()
@@ -394,17 +450,32 @@ export function registerVoiceHandlers(): void {
       _event,
       filePath: string,
       voiceName: string
-    ): Promise<{ ok: boolean; voice_id?: string; voice_name?: string; duration?: number; error?: string }> => {
+    ): Promise<{
+      ok: boolean
+      voice_id?: string
+      voice_name?: string
+      duration?: number
+      error?: string
+    }> => {
       const scriptPath = resolveBridgeScript('rex_voice_upload_bridge.py')
       return new Promise((resolve) => {
-        const py = spawn(resolvePythonCommand(), [scriptPath], { stdio: ['pipe', 'pipe', 'pipe'] })
+        const py = spawn(resolvePythonCommand(), [scriptPath], {
+          stdio: ['pipe', 'pipe', 'pipe']
+        })
         let stdout = ''
         let stderr = ''
-        py.stdout.on('data', (chunk: Buffer) => { stdout += chunk.toString() })
-        py.stderr.on('data', (chunk: Buffer) => { stderr += chunk.toString() })
+        py.stdout.on('data', (chunk: Buffer) => {
+          stdout += chunk.toString()
+        })
+        py.stderr.on('data', (chunk: Buffer) => {
+          stderr += chunk.toString()
+        })
         py.on('close', (code) => {
           if (code !== 0 && stdout.trim() === '') {
-            resolve({ ok: false, error: stderr || `Bridge exited with code ${code}` })
+            resolve({
+              ok: false,
+              error: stderr || `Bridge exited with code ${code}`
+            })
             return
           }
           try {
@@ -421,7 +492,10 @@ export function registerVoiceHandlers(): void {
           }
         })
         py.on('error', (err) => {
-          resolve({ ok: false, error: `Failed to start bridge: ${err.message}` })
+          resolve({
+            ok: false,
+            error: `Failed to start bridge: ${err.message}`
+          })
         })
         py.stdin?.write(JSON.stringify({ file_path: filePath, voice_name: voiceName }) + '\n')
         py.stdin?.end()
@@ -434,17 +508,31 @@ export function registerVoiceHandlers(): void {
     async (
       _event,
       wakeWordId: string
-    ): Promise<{ ok: boolean; audio_base64?: string; has_sample?: boolean; error?: string }> => {
+    ): Promise<{
+      ok: boolean
+      audio_base64?: string
+      has_sample?: boolean
+      error?: string
+    }> => {
       const scriptPath = resolveBridgeScript('rex_wakeword_sample_bridge.py')
       return new Promise((resolve) => {
-        const py = spawn(resolvePythonCommand(), [scriptPath], { stdio: ['pipe', 'pipe', 'pipe'] })
+        const py = spawn(resolvePythonCommand(), [scriptPath], {
+          stdio: ['pipe', 'pipe', 'pipe']
+        })
         let stdout = ''
         let stderr = ''
-        py.stdout.on('data', (chunk: Buffer) => { stdout += chunk.toString() })
-        py.stderr.on('data', (chunk: Buffer) => { stderr += chunk.toString() })
+        py.stdout.on('data', (chunk: Buffer) => {
+          stdout += chunk.toString()
+        })
+        py.stderr.on('data', (chunk: Buffer) => {
+          stderr += chunk.toString()
+        })
         py.on('close', (code) => {
           if (code !== 0 && stdout.trim() === '') {
-            resolve({ ok: false, error: stderr || `Bridge exited with code ${code}` })
+            resolve({
+              ok: false,
+              error: stderr || `Bridge exited with code ${code}`
+            })
             return
           }
           try {
@@ -460,7 +548,10 @@ export function registerVoiceHandlers(): void {
           }
         })
         py.on('error', (err) => {
-          resolve({ ok: false, error: `Failed to start bridge: ${err.message}` })
+          resolve({
+            ok: false,
+            error: `Failed to start bridge: ${err.message}`
+          })
         })
         py.stdin?.write(JSON.stringify({ wake_word_id: wakeWordId }) + '\n')
         py.stdin?.end()
@@ -475,17 +566,31 @@ export function registerVoiceHandlers(): void {
       phrase: string,
       positiveSamples: number[][],
       negativeSamples: number[][]
-    ): Promise<{ ok: boolean; model_path?: string; phrase?: string; error?: string }> => {
+    ): Promise<{
+      ok: boolean
+      model_path?: string
+      phrase?: string
+      error?: string
+    }> => {
       const scriptPath = resolveBridgeScript('rex_wakeword_train_bridge.py')
       return new Promise((resolve) => {
-        const py = spawn(resolvePythonCommand(), [scriptPath], { stdio: ['pipe', 'pipe', 'pipe'] })
+        const py = spawn(resolvePythonCommand(), [scriptPath], {
+          stdio: ['pipe', 'pipe', 'pipe']
+        })
         let stdout = ''
         let stderr = ''
-        py.stdout.on('data', (chunk: Buffer) => { stdout += chunk.toString() })
-        py.stderr.on('data', (chunk: Buffer) => { stderr += chunk.toString() })
+        py.stdout.on('data', (chunk: Buffer) => {
+          stdout += chunk.toString()
+        })
+        py.stderr.on('data', (chunk: Buffer) => {
+          stderr += chunk.toString()
+        })
         py.on('close', (code) => {
           if (code !== 0 && stdout.trim() === '') {
-            resolve({ ok: false, error: stderr || `Bridge exited with code ${code}` })
+            resolve({
+              ok: false,
+              error: stderr || `Bridge exited with code ${code}`
+            })
             return
           }
           try {
@@ -501,40 +606,59 @@ export function registerVoiceHandlers(): void {
           }
         })
         py.on('error', (err) => {
-          resolve({ ok: false, error: `Failed to start bridge: ${err.message}` })
+          resolve({
+            ok: false,
+            error: `Failed to start bridge: ${err.message}`
+          })
         })
-        py.stdin?.write(JSON.stringify({ phrase, positive_samples: positiveSamples, negative_samples: negativeSamples }) + '\n')
+        py.stdin?.write(
+          JSON.stringify({
+            phrase,
+            positive_samples: positiveSamples,
+            negative_samples: negativeSamples
+          }) + '\n'
+        )
         py.stdin?.end()
       })
     }
   )
 
-  ipcMain.handle(
-    'rex:getVoiceEnrollments',
-    async (): Promise<BridgeResult<{ active_user_id: string; enrollments: unknown[] }>> => {
-      return callEnrollmentBridge({
-        action: 'list'
-      }) as Promise<BridgeResult<{ active_user_id: string; enrollments: unknown[] }>>
-    }
-  )
+  ipcMain.handle('rex:getVoiceEnrollments', async (): Promise<BridgeResult<{ active_user_id: string; enrollments: unknown[] }>> => {
+    return callEnrollmentBridge({
+      ...privateSessionPayload(session, { action: 'list' })
+    }) as Promise<BridgeResult<{ active_user_id: string; enrollments: unknown[] }>>
+  })
 
-  ipcMain.handle(
-    'rex:enrollVoice',
-    async (
-      _event,
-      userId: string,
-      samples: number[][]
-    ): Promise<BridgeResult<{ enrollment?: unknown }>> => {
-      return callEnrollmentBridge({ action: 'enroll', user_id: userId, samples })
+  ipcMain.handle('rex:enrollVoice', async (_event, userId: string, samples: number[][]): Promise<BridgeResult<{ enrollment?: unknown }>> => {
+    if (userId !== session.userId) {
+      return {
+        ok: false,
+        error: 'Voice enrollment must match the authenticated Electron user'
+      }
     }
-  )
+    return callEnrollmentBridge(
+      privateSessionPayload(session, {
+        action: 'enroll',
+        user_id: session.userId,
+        samples
+      })
+    )
+  })
 
-  ipcMain.handle(
-    'rex:deleteVoiceEnrollment',
-    async (_event, userId: string): Promise<BridgeResult<{ deleted?: boolean }>> => {
-      return callEnrollmentBridge({ action: 'delete', user_id: userId })
+  ipcMain.handle('rex:deleteVoiceEnrollment', async (_event, userId: string): Promise<BridgeResult<{ deleted?: boolean }>> => {
+    if (userId !== session.userId) {
+      return {
+        ok: false,
+        error: 'Voice enrollment must match the authenticated Electron user'
+      }
     }
-  )
+    return callEnrollmentBridge(
+      privateSessionPayload(session, {
+        action: 'delete',
+        user_id: session.userId
+      })
+    )
+  })
 }
 
 export function getCurrentVoiceState(): string {
@@ -547,7 +671,9 @@ export function getCurrentVoiceState(): string {
 function callEnrollmentBridge(payload: Record<string, unknown>): Promise<BridgeResult<Record<string, unknown>>> {
   const scriptPath = resolveBridgeScript('rex_voice_enrollment_bridge.py')
   return new Promise((resolve) => {
-    const py = spawn(resolvePythonCommand(), [scriptPath], { stdio: ['pipe', 'pipe', 'pipe'] })
+    const py = spawn(resolvePythonCommand(), [scriptPath], {
+      stdio: ['pipe', 'pipe', 'pipe']
+    })
     let stdout = ''
     let stderr = ''
 
@@ -559,7 +685,10 @@ function callEnrollmentBridge(payload: Record<string, unknown>): Promise<BridgeR
     })
     py.on('close', (code) => {
       if (code !== 0 && stdout.trim() === '') {
-        resolve({ ok: false, error: stderr || `Bridge exited with code ${code}` })
+        resolve({
+          ok: false,
+          error: stderr || `Bridge exited with code ${code}`
+        })
         return
       }
       try {

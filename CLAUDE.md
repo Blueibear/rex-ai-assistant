@@ -269,6 +269,15 @@ Release health gate:
 python -m rex doctor --release-gate
 python scripts/security_audit.py --release-gate
 
+Electron identity (required before launch):
+
+rex identify --user <id>
+
+Legacy Electron task/history ownership migration is dry-run first:
+
+python scripts/migrate_electron_data_ownership.py --user <id>
+python scripts/migrate_electron_data_ownership.py --user <id> --apply
+
 Text mode:
 
 python -m rex

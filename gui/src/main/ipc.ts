@@ -20,27 +20,28 @@ import { registerHistoryHandlers } from './handlers/history'
 import { registerDevicesHandlers } from './handlers/devices'
 import { registerQuickActionsHandlers } from './handlers/quickActions'
 import { registerSetupHandlers } from './handlers/setup'
+import type { ElectronSessionIdentity } from './sessionIdentity'
 
-export function registerIpcHandlers(mainWindow: BrowserWindow | null = null): void {
-  registerChatHandlers()
-  registerVoiceHandlers()
-  registerTaskHandlers()
-  registerCalendarHandlers()
-  registerRemindersHandlers()
-  registerMemoriesHandlers()
-  registerEmailHandlers()
-  registerSMSHandlers()
+export function registerIpcHandlers(mainWindow: BrowserWindow | null, session: ElectronSessionIdentity): void {
+  registerChatHandlers(session)
+  registerVoiceHandlers(session)
+  registerTaskHandlers(session)
+  registerCalendarHandlers(session)
+  registerRemindersHandlers(session)
+  registerMemoriesHandlers(session)
+  registerEmailHandlers(session)
+  registerSMSHandlers(session)
   registerNotificationHandlers(mainWindow)
   registerSpeakerHandlers()
-  registerFileHandlers()
-  registerShoppingHandlers()
+  registerFileHandlers(session)
+  registerShoppingHandlers(session)
   registerLogsHandlers()
   registerUsageHandlers()
   registerSettingsHandlers()
   registerIntegrationsHandlers()
   registerSystemHandlers()
-  registerHistoryHandlers()
+  registerHistoryHandlers(session)
   registerDevicesHandlers()
-  registerQuickActionsHandlers()
+  registerQuickActionsHandlers(session)
   registerSetupHandlers()
 }

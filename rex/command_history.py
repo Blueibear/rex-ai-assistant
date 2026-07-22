@@ -60,9 +60,20 @@ class CommandHistoryStore:
                     timestamp TEXT NOT NULL,
                     command   TEXT NOT NULL,
                     result    TEXT,
-                    success   INTEGER NOT NULL DEFAULT 1
+                    success   INTEGER NOT NULL DEFAULT 1,
+                    user_id   TEXT
                 )
             """)
+            columns = {
+                str(row["name"])
+                for row in conn.execute("PRAGMA table_info(command_history)").fetchall()
+            }
+            if "user_id" not in columns:
+                conn.execute("ALTER TABLE command_history ADD COLUMN user_id TEXT")
+            conn.execute(
+                "CREATE INDEX IF NOT EXISTS idx_command_history_user_id_id "
+                "ON command_history(user_id, id DESC)"
+            )
             conn.commit()
 
     # ------------------------------------------------------------------
@@ -75,6 +86,8 @@ class CommandHistoryStore:
         result: str = "",
         success: bool = True,
         timestamp: str | None = None,
+        *,
+        user_id: str,
     ) -> int:
         """Append a command entry and return its row id.
 
@@ -87,16 +100,20 @@ class CommandHistoryStore:
         Returns:
             The integer row id of the new entry.
         """
+        from rex.identity import validate_user_id
+
+        owner = validate_user_id(user_id)
         ts = timestamp or datetime.now(UTC).isoformat()
         with self._open() as conn:
             cur = conn.execute(
-                "INSERT INTO command_history (timestamp, command, result, success) VALUES (?, ?, ?, ?)",
-                (ts, command, result, 1 if success else 0),
+                "INSERT INTO command_history "
+                "(timestamp, command, result, success, user_id) VALUES (?, ?, ?, ?, ?)",
+                (ts, command, result, 1 if success else 0, owner),
             )
             conn.commit()
             return cur.lastrowid or 0
 
-    def get_recent(self, limit: int = 50) -> list[dict[str, Any]]:
+    def get_recent(self, limit: int = 50, *, user_id: str) -> list[dict[str, Any]]:
         """Return the most recent *limit* commands, newest first.
 
         Args:
@@ -106,12 +123,15 @@ class CommandHistoryStore:
             List of dicts with keys: ``id``, ``timestamp``, ``command``,
             ``result``, ``success``.
         """
+        from rex.identity import validate_user_id
+
+        owner = validate_user_id(user_id)
         limit = max(1, min(limit, 500))
         with self._open() as conn:
             rows = conn.execute(
                 "SELECT id, timestamp, command, result, success FROM command_history "
-                "ORDER BY id DESC LIMIT ?",
-                (limit,),
+                "WHERE user_id = ? ORDER BY id DESC LIMIT ?",
+                (owner, limit),
             ).fetchall()
         return [
             {
@@ -124,10 +144,13 @@ class CommandHistoryStore:
             for row in rows
         ]
 
-    def clear(self) -> None:
-        """Delete all command history entries."""
+    def clear(self, *, user_id: str) -> None:
+        """Delete command history entries owned by one validated user."""
+        from rex.identity import validate_user_id
+
+        owner = validate_user_id(user_id)
         with self._open() as conn:
-            conn.execute("DELETE FROM command_history")
+            conn.execute("DELETE FROM command_history WHERE user_id = ?", (owner,))
             conn.commit()
 
 

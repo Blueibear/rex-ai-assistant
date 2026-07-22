@@ -16,6 +16,8 @@ bridge filenames are never hardcoded inline in handler files.
 | `rex_chat_stream_bridge.py` | Streaming LLM chat |
 | `rex_email_bridge.py` | Email read/send via configured backend |
 | `rex_file_extract_bridge.py` | File content extraction |
+| `rex_history_bridge.py` | Per-user command history read |
+| `rex_identity_bridge.py` | Immutable Electron session identity resolution |
 | `rex_memories_bridge.py` | User memory read/write |
 | `rex_reminders_bridge.py` | Reminder CRUD |
 | `rex_shopping_list_bridge.py` | Shopping list CRUD |

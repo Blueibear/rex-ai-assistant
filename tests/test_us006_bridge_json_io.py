@@ -61,7 +61,10 @@ class TestShoppingListBridgeJsonIO:
         mock_sl = MagicMock()
         mock_sl.list_items.return_value = []
         with patch("rex.shopping_list.ShoppingList", return_value=mock_sl):
-            result = _run_main(SHOPPING_MODULE, '{"command": "list"}')
+            result = _run_main(
+                SHOPPING_MODULE,
+                '{"command": "list", "user": "james", "data_scope": "shared_household"}',
+            )
         assert isinstance(result, dict)
         assert "items" in result or "error" in result
 
@@ -69,7 +72,10 @@ class TestShoppingListBridgeJsonIO:
         mock_sl = MagicMock()
         mock_sl.list_items.return_value = []
         with patch("rex.shopping_list.ShoppingList", return_value=mock_sl):
-            result = _run_main(SHOPPING_MODULE, '{"action": "list"}')
+            result = _run_main(
+                SHOPPING_MODULE,
+                '{"action": "list", "user": "james", "data_scope": "shared_household"}',
+            )
         assert isinstance(result, dict)
         assert "items" in result or "error" in result
 
@@ -80,7 +86,10 @@ class TestShoppingListBridgeJsonIO:
     def test_unknown_command_returns_error_key(self):
         mock_sl = MagicMock()
         with patch("rex.shopping_list.ShoppingList", return_value=mock_sl):
-            result = _run_main(SHOPPING_MODULE, '{"command": "bogus_cmd"}')
+            result = _run_main(
+                SHOPPING_MODULE,
+                '{"command": "bogus_cmd", "user": "james", "data_scope": "shared_household"}',
+            )
         assert "error" in result
 
 

@@ -96,6 +96,6 @@ def test_email_and_calendar_handlers_surface_bridge_errors() -> None:
         encoding="utf-8"
     )
 
-    assert "throw new Error(result.error" in email_src
-    assert "throw new Error(result.error" in calendar_src
-    assert "callCalendarBridge('create'" in calendar_src
+    assert "throw new Error" in email_src and "result.error" in email_src
+    assert "throw new Error" in calendar_src and "result.error" in calendar_src
+    assert "callCalendarBridge(session, 'create'" in calendar_src

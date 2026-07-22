@@ -103,10 +103,15 @@ def cmd_shopping(args: argparse.Namespace) -> int:
 def cmd_history(args: argparse.Namespace) -> int:
     """Show recent command history."""
     from rex.command_history import CommandHistoryStore
+    from rex.config_manager import load_config
+    from rex.identity import require_active_user
 
     limit = getattr(args, "limit", 20)
+    user_id = require_active_user(
+        getattr(args, "user", None), config=load_config(), action="command history"
+    )
     store = CommandHistoryStore()
-    entries = store.get_recent(limit=limit)
+    entries = store.get_recent(limit=limit, user_id=user_id)
     if not entries:
         print("No command history.")
         return 0
@@ -213,6 +218,7 @@ def register(subparsers: argparse._SubParsersAction) -> None:
     history_parser.add_argument(
         "--limit", type=int, default=20, help="Number of entries to show (default: 20)"
     )
+    history_parser.add_argument("--user", type=str, default=None, help="User whose history to show")
     history_parser.set_defaults(func=_cli().cmd_history)
 
     # quick-actions
