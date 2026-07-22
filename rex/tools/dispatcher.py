@@ -236,15 +236,19 @@ class ToolDispatcher:
         results: dict[str, Any] = {}
         for tool in tools:
             start = time.monotonic()
-            value, ok = self._invoke_with_timeout_retry(tool, message, user_id=user_id)
+            result = self.dispatch(
+                tool.name,
+                {"transcript": message},
+                {"user_id": user_id} if user_id is not None else {},
+            )
             duration = time.monotonic() - start
             logger.info(
                 "tool_dispatcher: %r %.3fs %s",
                 tool.name,
                 duration,
-                "ok" if ok else "failed",
+                "ok" if result.success else result.status,
             )
-            results[tool.name] = value
+            results[tool.name] = result.output if result.success else result.detail
         return results
 
     def dispatch(
@@ -269,26 +273,21 @@ class ToolDispatcher:
             ``ToolResult(success=True, output=...)`` on success or
             ``ToolResult(success=False, error=...)`` on failure / timeout.
         """
+        from rex.tools.execution import ToolExecutionLifecycle
         from rex.tools.protocol import ToolResult  # local import — avoids circular dependency
 
         tool = self._registry.get(name)
         if tool is None:
             return ToolResult(success=False, error=f"Unknown tool: {name!r}")
 
-        timeout = self._timeout_seconds
-        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
-            future = executor.submit(tool.handler, **args)
-            try:
-                output = future.result(timeout=timeout)
-                logger.debug("tool_dispatcher: dispatch %r ok", name)
-                return ToolResult(success=True, output=output)
-            except concurrent.futures.TimeoutError:
-                future.cancel()
-                logger.warning("tool_dispatcher: dispatch %r timed out after %.1fs", name, timeout)
-                return ToolResult(success=False, error=f"Tool {name!r} timed out")
-            except Exception as exc:
-                logger.warning("tool_dispatcher: dispatch %r failed: %s", name, exc)
-                return ToolResult(success=False, error=str(exc))
+        available = self._config is None or tool in self._registry.available_tools(self._config)
+        return ToolExecutionLifecycle().execute(
+            tool,
+            args,
+            context,
+            timeout_seconds=self._timeout_seconds,
+            available=available,
+        )
 
     @staticmethod
     def format_tool_context(results: dict[str, Any]) -> str:

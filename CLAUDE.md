@@ -136,7 +136,7 @@ External inputs include:
 Top-level directories:
 
 - rex/ — main package (CLI, services, workflows, integrations)
-- bridge/ — HTTP bridge modules for STT, TTS, calendar, and other external services
+- bridge/ — canonical Electron stdin/stdout JSON bridge processes (plus integration adapters)
 - archived/ — retired files kept for reference; not maintained (see `archived/ARCHIVED.md`)
 - scripts/ — operational and install scripts (platform scripts in `scripts/install/`)
 - plugins/ — optional plugins
@@ -188,6 +188,7 @@ Bridge compatibility wrappers (17) — exec canonical `bridge/<name>.py` in thei
 
 - rex/commands/ — CLI command modules, one per domain (US-REM-027); `rex/cli.py` keeps parser registration, `main()`, and re-exports, and `rex.cli.<name>` remains the import/monkeypatch surface for handlers and service getters
 - rex/voice/ — voice pipeline modules, one per concern (US-REM-028); `rex/voice_loop.py` is the facade and `rex.voice_loop.<name>` remains the import/monkeypatch surface (settings, lazy importers, sa/sd, pipeline classes)
+- rex/tools/execution.py — canonical typed tool lifecycle; all registered dispatch must pass availability, argument, identity, permission, risk, confirmation, execution, normalization, independent verification, truthful response, and redacted audit stages. Read-only success is `completed`; mutation success is `verified` only.
 - gui/src/main/ — Electron main-process modules, one per concern (US-REM-029); `index.ts` is a thin entrypoint (app lifecycle wiring only), `ipc.ts` aggregates handler registration, IPC handlers live in `gui/src/main/handlers/`, and settings/integration/HA logic lives in `configStore.ts`, `aiSettings.ts`, `voiceSettings.ts`, `settingsDefaults.ts`, `settingsMirror.ts`, `homeAssistant.ts`, `integrationStatus.ts`, `integrationInventory.ts`, `window.ts`
 - rex/email_backends/
 - rex/calendar_backends/
@@ -444,6 +445,7 @@ Add a short rule here that would have prevented the mistake.
 - The root-level `voice_loop.py` and `rex/voice_loop.py` are two separate implementations. `rex/voice_loop.py` is the **canonical** implementation: `rex_loop.py` imports `build_voice_loop` from `rex.voice_loop` (the package). Root `voice_loop.py` is a legacy file kept only for `AsyncRexAssistant` backward-compat re-exports. Changes to root `voice_loop.py` do NOT affect the CLI voice loop startup path.
 - `AppConfig.whisper_device` defaults to `"auto"`. When device is `"auto"`, resolve to `"cuda"` or `"cpu"` at model load time using `torch.cuda.is_available()`.
 - The voice loop must use `Assistant.generate_reply()` (which includes tool routing and system context injection) rather than calling `LanguageModel.generate()` directly. Direct LLM calls bypass time/weather tools and produce hallucinated answers for factual questions.
+- Never dispatch a mutating canonical tool by calling its handler directly. Use `ToolDispatcher.dispatch()` / `ToolExecutionLifecycle`; HTTP acceptance or a returned object is `attempted_unverified` until an independent verifier succeeds.
 - The canonical wake-word implementation is `rex/wakeword/` (`rex.wakeword.utils`, `rex.wakeword.listener`). Root-level `wakeword_utils.py` and `wakeword_listener.py` were stale re-exports and have been deleted. Use `rex.wakeword_utils` (package shim) or `rex.wakeword.utils` directly.
 - Direct Ruff and Black installations in CI must use the same revisions as `.pre-commit-config.yaml`; never install unpinned formatters in a required check.
 - The repository dependency security gate must audit the local project explicitly with `pip-audit --strict .`; a bare `pip-audit` audits the runner environment and is not an acceptable project gate.

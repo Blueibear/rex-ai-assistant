@@ -60,14 +60,14 @@ class ToolMeta:
             raise ValueError("Tool description cannot be empty")
 
 
-def _openclaw_noop_handler(**kwargs: Any) -> dict[str, Any]:
-    """Stub handler for OpenClaw tools in the canonical registry.
+def _openclaw_remote_only_handler(**kwargs: Any) -> dict[str, Any]:
+    """Fail closed when a gateway-only tool is invoked as a local callable.
 
     OpenClaw tools are dispatched via the gateway HTTP client, not by calling
-    this handler.  It exists only so the canonical ``ToolRegistry`` can hold
-    a valid ``Tool`` entry (which requires a handler).
+    this handler. The canonical registry needs a callable for discovery, but
+    returning an empty object would falsely imply successful execution.
     """
-    return {}
+    raise RuntimeError("OpenClaw gateway tool is not available through local dispatch")
 
 
 class ToolNotFoundError(Exception):
@@ -198,8 +198,17 @@ class ToolRegistry:
                     description=tool.description,
                     capability_tags=list(tool.capabilities),
                     requires_config=requires_config,
-                    handler=_openclaw_noop_handler,
-                    source="openclaw",
+                    handler=(
+                        existing.handler if existing is not None else _openclaw_remote_only_handler
+                    ),
+                    source=existing.source if existing is not None else "openclaw",
+                    operation=existing.operation if existing is not None else "read",
+                    risk=existing.risk if existing is not None else "safe",
+                    requires_identity=(
+                        existing.requires_identity if existing is not None else False
+                    ),
+                    required_args=(existing.required_args if existing is not None else ()),
+                    verifier=existing.verifier if existing is not None else None,
                 )
             )
         except Exception:

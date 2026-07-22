@@ -256,7 +256,11 @@ def test_delegated_music_handler_fails_closed() -> None:
     from rex.tools.dispatcher import ToolDispatcher
     from rex.tools.registry import get_default_registry
 
-    result = ToolDispatcher(get_default_registry()).dispatch("music_pause", {})
+    result = ToolDispatcher(get_default_registry()).dispatch(
+        "music_pause",
+        {},
+        {"user_id": "james", "request_id": "music-delegation-test"},
+    )
 
     assert result.success is False
     assert "dedicated runtime handler" in (result.error or "")

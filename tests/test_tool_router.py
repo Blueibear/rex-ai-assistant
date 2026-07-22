@@ -173,7 +173,8 @@ class TestSendEmail:
                     "_user_id": "default",
                 },
             )
-        assert result == "Email sent"
+        assert "Email sent" in result
+        assert "not independently verified" in result
         mock_svc.send.assert_called_once_with(
             to="alice@example.com", subject="Hi", body="Hello", user_id="default"
         )
@@ -255,6 +256,7 @@ class TestCalendarCreateEvent:
                 },
             )
         assert "Calendar event created" in result
+        assert "not independently verified" in result
         assert "Team Meeting" in result
 
     def test_missing_times_uses_defaults(self):
@@ -273,6 +275,7 @@ class TestCalendarCreateEvent:
                 "calendar_create_event", {"title": "Standup", "_user_id": "default"}
             )
         assert "Calendar event created" in result
+        assert "not independently verified" in result
 
     def test_exception_degraded_gracefully(self):
         with patch("rex.local_tool_executor.CalendarService", side_effect=RuntimeError("db error")):
@@ -299,6 +302,7 @@ class TestCalendarCreateEvent:
                 "calendar_create_event", {"summary": "Weekly Sync", "_user_id": "default"}
             )
         assert "Calendar event created" in result
+        assert "not independently verified" in result
 
 
 class TestNoLongerStubs:

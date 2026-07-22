@@ -15,7 +15,7 @@ from __future__ import annotations
 import logging
 from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Literal
 
 logger = logging.getLogger(__name__)
 
@@ -46,6 +46,11 @@ class Tool:
     requires_config: list[str]
     handler: Callable[..., Any]
     source: str = "local"
+    operation: Literal["read", "mutation"] = "read"
+    risk: Literal["safe", "sensitive", "prohibited"] = "safe"
+    requires_identity: bool = False
+    required_args: tuple[str, ...] = ()
+    verifier: Callable[[dict[str, Any], Any], bool] | None = None
 
     def __post_init__(self) -> None:
         if not self.name:
@@ -179,6 +184,21 @@ def _delegated_handler(tool_name: str) -> Callable[..., Any]:
     return _raise_delegation_error
 
 
+def _verify_numeric_field(field: str) -> Callable[[dict[str, Any], Any], bool]:
+    def _verify(args: dict[str, Any], output: Any) -> bool:
+        return isinstance(output, dict) and output.get(field) == int(args["level"])
+
+    return _verify
+
+
+def _verify_power_plan(args: dict[str, Any], output: Any) -> bool:
+    return (
+        isinstance(output, dict)
+        and isinstance(output.get("power_plan"), str)
+        and output["power_plan"].casefold() == str(args["name"]).casefold()
+    )
+
+
 def _build_default_registry() -> ToolRegistry:
     """Build and return a ``ToolRegistry`` pre-populated with all Rex tools."""
     # Lazily import so optional dependencies don't block startup.
@@ -253,6 +273,9 @@ def _build_default_registry() -> ToolRegistry:
             capability_tags=["email", "messaging", "send"],
             requires_config=["email_accounts"],
             handler=send_email,
+            operation="mutation",
+            requires_identity=True,
+            required_args=("to", "body"),
         )
     )
 
@@ -263,6 +286,9 @@ def _build_default_registry() -> ToolRegistry:
             capability_tags=["calendar", "schedule", "event"],
             requires_config=[],
             handler=calendar_create,
+            operation="mutation",
+            requires_identity=True,
+            required_args=("title", "start_time", "end_time"),
         )
     )
 
@@ -273,6 +299,9 @@ def _build_default_registry() -> ToolRegistry:
             capability_tags=["smart_home", "home_assistant", "iot"],
             requires_config=["ha_base_url", "ha_token"],
             handler=ha_call_service,
+            operation="mutation",
+            requires_identity=True,
+            required_args=("domain", "service", "entity_id"),
         )
     )
 
@@ -283,6 +312,9 @@ def _build_default_registry() -> ToolRegistry:
             capability_tags=["sms", "messaging", "text"],
             requires_config=[],
             handler=send_sms,
+            operation="mutation",
+            requires_identity=True,
+            required_args=("to", "body"),
         )
     )
 
@@ -376,6 +408,10 @@ def _build_default_registry() -> ToolRegistry:
             capability_tags=["windows", "settings", "audio", "volume"],
             requires_config=[],
             handler=set_volume,
+            operation="mutation",
+            requires_identity=True,
+            required_args=("level",),
+            verifier=_verify_numeric_field("volume"),
         )
     )
 
@@ -386,6 +422,10 @@ def _build_default_registry() -> ToolRegistry:
             capability_tags=["windows", "settings", "display", "brightness"],
             requires_config=[],
             handler=set_brightness,
+            operation="mutation",
+            requires_identity=True,
+            required_args=("level",),
+            verifier=_verify_numeric_field("brightness"),
         )
     )
 
@@ -406,6 +446,10 @@ def _build_default_registry() -> ToolRegistry:
             capability_tags=["windows", "settings", "power"],
             requires_config=[],
             handler=set_power_plan,
+            operation="mutation",
+            requires_identity=True,
+            required_args=("name",),
+            verifier=_verify_power_plan,
         )
     )
 
@@ -436,6 +480,8 @@ def _build_default_registry() -> ToolRegistry:
             capability_tags=["windows", "repair", "dns", "network"],
             requires_config=[],
             handler=flush_dns_cache,
+            operation="mutation",
+            requires_identity=True,
         )
     )
 
@@ -449,6 +495,9 @@ def _build_default_registry() -> ToolRegistry:
             capability_tags=["windows", "repair", "sfc", "system"],
             requires_config=[],
             handler=run_sfc_scan,
+            operation="mutation",
+            risk="sensitive",
+            requires_identity=True,
         )
     )
 
@@ -460,6 +509,8 @@ def _build_default_registry() -> ToolRegistry:
             capability_tags=["music", "play", "audio", "media"],
             requires_config=["music_assistant_url"],
             handler=_delegated_handler("music_play"),
+            operation="mutation",
+            requires_identity=True,
         )
     )
 
@@ -470,6 +521,8 @@ def _build_default_registry() -> ToolRegistry:
             capability_tags=["music", "pause", "audio", "media"],
             requires_config=["music_assistant_url"],
             handler=_delegated_handler("music_pause"),
+            operation="mutation",
+            requires_identity=True,
         )
     )
 
@@ -480,6 +533,8 @@ def _build_default_registry() -> ToolRegistry:
             capability_tags=["music", "resume", "audio", "media"],
             requires_config=["music_assistant_url"],
             handler=_delegated_handler("music_resume"),
+            operation="mutation",
+            requires_identity=True,
         )
     )
 
@@ -490,6 +545,8 @@ def _build_default_registry() -> ToolRegistry:
             capability_tags=["music", "skip", "next", "audio", "media"],
             requires_config=["music_assistant_url"],
             handler=_delegated_handler("music_skip"),
+            operation="mutation",
+            requires_identity=True,
         )
     )
 
@@ -503,6 +560,8 @@ def _build_default_registry() -> ToolRegistry:
             capability_tags=["music", "volume", "audio", "media"],
             requires_config=["music_assistant_url"],
             handler=_delegated_handler("music_volume"),
+            operation="mutation",
+            requires_identity=True,
         )
     )
 

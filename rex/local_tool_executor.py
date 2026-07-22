@@ -202,43 +202,24 @@ def _handle_calendar_create_event(args: dict[str, Any]) -> str:
     return f"Calendar event created: '{event.title}' from {start_fmt} to {end_fmt}"
 
 
-def _handle_home_assistant_call_service(args: dict[str, Any]) -> str:
-    """Call a Home Assistant service endpoint."""
-    domain = args.get("domain", "")
-    service = args.get("service", "")
-    entity_id = args.get("entity_id", "")
+def _handle_home_assistant_call_service(args: dict[str, Any]) -> dict[str, Any]:
+    """Route Home Assistant mutations through the shared policy service."""
+    from rex.openclaw.tools.ha_tool import ha_call_service
 
-    try:
-        from rex.config import AppConfig
-
-        cfg = AppConfig()
-        ha_url = getattr(cfg, "home_assistant_url", None)
-        if not ha_url:
-            return "[integration not configured]"
-    except Exception:
-        return "[integration not configured]"
-
-    try:
-        import requests
-
-        from rex.credentials import get_credential_manager
-
-        token = get_credential_manager().get_token("home_assistant")
-        if not token:
-            return "[integration not configured]"
-
-        url = f"{ha_url.rstrip('/')}/api/services/{domain}/{service}"
-        resp = requests.post(
-            url,
-            headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
-            json={"entity_id": entity_id} if entity_id else {},
-            timeout=10,
-        )
-        resp.raise_for_status()
-        return f"Home Assistant: {domain}.{service} called on {entity_id}"
-    except Exception as exc:
-        logger.warning("home_assistant_call_service failed: %s", exc)
-        return f"[Home Assistant error: {exc}]"
+    raw_ambient = args.get("context")
+    ambient: dict[str, Any] = raw_ambient if isinstance(raw_ambient, dict) else {}
+    return ha_call_service(
+        str(args.get("domain") or ""),
+        str(args.get("service") or ""),
+        str(args.get("entity_id") or ""),
+        data=args.get("data") if isinstance(args.get("data"), dict) else None,
+        context={
+            "user_id": args.get("_user_id") or args.get("user_id") or ambient.get("user_id"),
+            "request_id": args.get("_request_id") or ambient.get("request_id"),
+            "confirmation_token": args.get("confirmation_token")
+            or ambient.get("confirmation_token"),
+        },
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -283,10 +264,49 @@ def execute_tool(tool_name: str, args: dict[str, Any] | None = None) -> str:
     if tool_name not in EXECUTABLE_TOOLS:
         raise UnknownToolError(tool_name)
 
+    from rex.tools.execution import ToolExecutionLifecycle
+    from rex.tools.registry import Tool
+
+    supplied = dict(args or {})
+    mutation = tool_name in {
+        "send_email",
+        "calendar_create_event",
+        "home_assistant_call_service",
+    }
+    required_by_tool = {
+        "send_email": ("to", "body"),
+        "calendar_create_event": (),
+        "home_assistant_call_service": ("domain", "service", "entity_id"),
+    }
     handler = _HANDLERS[tool_name]
-    result: str = handler(args or {})
-    logger.debug("execute_tool(%r) → %r", tool_name, result[:80])
-    return result
+
+    def wrapped(**kwargs: Any) -> Any:
+        return handler(kwargs)
+
+    tool = Tool(
+        name=tool_name,
+        description=f"Local compatibility tool {tool_name}",
+        capability_tags=[],
+        requires_config=[],
+        handler=wrapped,
+        operation="mutation" if mutation else "read",
+        requires_identity=mutation,
+        required_args=required_by_tool.get(tool_name, ()),
+    )
+    context = {
+        "user_id": supplied.get("_user_id") or supplied.get("user_id"),
+        "request_id": supplied.get("_request_id"),
+    }
+    result = ToolExecutionLifecycle().execute(tool, supplied, context)
+    if mutation:
+        rendered = str(result.detail or result.error)
+        if result.status == "denied" and tool_name in {"send_email", "calendar_create_event"}:
+            prefix = "send_email" if tool_name == "send_email" else "calendar"
+            rendered = f"[{prefix} error: {rendered}]"
+    else:
+        rendered = str(result.output) if result.success else str(result.detail or result.error)
+    logger.debug("execute_tool(%r) → %r", tool_name, rendered[:80])
+    return rendered
 
 
 __all__ = [
