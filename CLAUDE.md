@@ -290,6 +290,19 @@ Targeted tests:
 
 pytest -q tests/<file>.py
 
+Electron GUI quality gates (run from `gui/`):
+
+```powershell
+npm.cmd ci
+npm.cmd run lint
+npm.cmd run typecheck
+npm.cmd test -- --run
+npm.cmd run build
+npm.cmd audit --audit-level=high
+```
+
+The GUI uses the flat ESLint configuration in `gui/eslint.config.mjs`.
+
 ## Setup and Installation (GPU)
 
 Do not reintroduce GPU extras like:

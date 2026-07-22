@@ -381,8 +381,8 @@ if (process.contextIsolated) {
     console.error(error)
   }
 } else {
-  // @ts-ignore (define in dts)
+  // @ts-expect-error -- fallback assignment when context isolation is disabled
   window.electron = electronAPI
-  // @ts-ignore (define in dts)
+  // @ts-expect-error -- fallback assignment when context isolation is disabled
   window.rex = rexAPI
 }
