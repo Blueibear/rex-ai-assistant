@@ -68,7 +68,7 @@ def test_cli_email_unread(capsys, monkeypatch):
     assert "Unread Email Summary" in output
 
 
-def test_cli_calendar_upcoming(capsys, monkeypatch):
+def test_cli_calendar_upcoming(capsys, monkeypatch, isolated_calendar_config):
     from rex.calendar_service import CalendarService
 
     reset_services()
