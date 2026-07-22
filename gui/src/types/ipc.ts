@@ -366,11 +366,18 @@ export interface DevicesResponse {
   error?: string
 }
 
-export type DeviceCommandStatus = 'attempted' | 'completed' | 'verified' | 'failed'
+export type DeviceCommandStatus =
+  | 'verified'
+  | 'attempted_unverified'
+  | 'confirmation_required'
+  | 'denied'
+  | 'failed'
 
 export interface DeviceCommandResponse {
   status: DeviceCommandStatus
   detail?: string
+  confirmationToken?: string
+  requestId?: string
 }
 
 export interface FileExtractResult {
@@ -579,7 +586,7 @@ export interface RexAPI {
   deleteQuickAction: (id: string) => Promise<{ ok: boolean; deleted?: boolean; error?: string }>
   runQuickAction: (id: string) => Promise<QuickActionRunResponse>
   getDevices: () => Promise<DevicesResponse>
-  sendDeviceCommand: (entityId: string, command: string, payload?: { value?: number }) => Promise<DeviceCommandResponse>
+  sendDeviceCommand: (entityId: string, command: string, payload?: { value?: number }, confirmationToken?: string, requestId?: string) => Promise<DeviceCommandResponse>
   uploadContactsFile: () => Promise<{ ok: boolean; path?: string; error?: string }>
   pickFolder: () => Promise<{ ok: boolean; path?: string; error?: string }>
   testEmailAccount: (id: string) => Promise<{ ok: boolean; error?: string }>

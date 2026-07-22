@@ -17,6 +17,7 @@ bridge filenames are never hardcoded inline in handler files.
 | `rex_email_bridge.py` | Email read/send via configured backend |
 | `rex_file_extract_bridge.py` | File content extraction |
 | `rex_history_bridge.py` | Per-user command history read |
+| `rex_ha_mutation_bridge.py` | Policy-controlled Home Assistant mutations and verification |
 | `rex_identity_bridge.py` | Immutable Electron session identity resolution |
 | `rex_memories_bridge.py` | User memory read/write |
 | `rex_reminders_bridge.py` | Reminder CRUD |

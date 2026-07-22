@@ -61,7 +61,7 @@ def test_handler_calls_call_device_command():
 def test_ha_module_exports_call_device_command():
     """homeAssistant.ts exports callDeviceCommand."""
     content = _read(HA_FILE)
-    assert "export async function callDeviceCommand" in content
+    assert "export function callDeviceCommand" in content
 
 
 def test_ha_module_exports_device_command_response():
@@ -76,10 +76,11 @@ def test_response_shape_includes_failed_status():
     assert "status: 'failed'" in content
 
 
-def test_response_shape_includes_attempted_status():
-    """callDeviceCommand returns { status: 'attempted' } on HTTP success."""
+def test_response_shape_requires_verification_status():
+    """HTTP dispatch no longer maps directly to a completion status."""
     content = _read(HA_FILE)
-    assert "status: 'attempted'" in content
+    assert "attempted_unverified" in content
+    assert "rex_ha_mutation_bridge.py" in content
 
 
 def test_preload_exposes_send_device_command():

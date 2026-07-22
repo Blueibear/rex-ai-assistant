@@ -365,9 +365,11 @@ const rexAPI = {
   sendDeviceCommand: (
     entityId: string,
     command: string,
-    payload?: { value?: number }
+    payload?: { value?: number },
+    confirmationToken?: string,
+    requestId?: string
   ): Promise<DeviceCommandResponse> =>
-    ipcRenderer.invoke('rex:sendDeviceCommand', entityId, command, payload),
+    ipcRenderer.invoke('rex:sendDeviceCommand', entityId, command, payload, confirmationToken, requestId),
   getSetupStatus: (): Promise<SetupStatusResponse> => ipcRenderer.invoke('rex:getSetupStatus'),
   completeSetup: (payload: SetupCompletePayload): Promise<SetupCompleteResponse> =>
     ipcRenderer.invoke('rex:completeSetup', payload)

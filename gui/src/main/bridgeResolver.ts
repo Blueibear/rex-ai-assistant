@@ -34,6 +34,7 @@ const BRIDGE_REGISTRY: Record<string, string> = {
   rex_memories_bridge: 'rex_memories_bridge.py',
   rex_file_extract_bridge: 'rex_file_extract_bridge.py',
   rex_history_bridge: 'rex_history_bridge.py',
+  rex_ha_mutation_bridge: 'rex_ha_mutation_bridge.py',
   rex_identity_bridge: 'rex_identity_bridge.py',
   rex_voice_bridge: 'rex_voice_bridge.py',
   rex_calendar_bridge: 'rex_calendar_bridge.py',

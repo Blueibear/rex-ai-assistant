@@ -4,6 +4,7 @@ import { join } from 'path'
 import { getConfigDir } from '../configStore'
 import { callDeviceCommand } from '../homeAssistant'
 import type { DeviceCommandResponse } from '../homeAssistant'
+import type { ElectronSessionIdentity } from '../sessionIdentity'
 
 interface DeviceEntry {
   entity_id: string
@@ -17,7 +18,7 @@ interface DevicesResponse {
   error?: string
 }
 
-export function registerDevicesHandlers(): void {
+export function registerDevicesHandlers(session: ElectronSessionIdentity): void {
   ipcMain.handle('rex:getDevices', (): DevicesResponse => {
     try {
       const aliasesPath = join(getConfigDir(), 'device_aliases.json')
@@ -38,7 +39,10 @@ export function registerDevicesHandlers(): void {
       _event: Electron.IpcMainInvokeEvent,
       entityId: string,
       command: string,
-      payload?: { value?: number }
-    ): Promise<DeviceCommandResponse> => callDeviceCommand(entityId, command, payload)
+      payload?: { value?: number },
+      confirmationToken?: string,
+      requestId?: string
+    ): Promise<DeviceCommandResponse> =>
+      callDeviceCommand(session, entityId, command, payload, confirmationToken, requestId)
   )
 }

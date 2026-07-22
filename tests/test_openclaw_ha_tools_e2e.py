@@ -137,21 +137,24 @@ class TestHaCallServiceExecution:
     """ha_call_service executes correctly against a mocked HABridge."""
 
     def test_turn_on_light_succeeds(self):
-        """ha_call_service returns success dict when bridge executes without error."""
+        """ha_call_service succeeds only after observing the requested state."""
         from unittest.mock import MagicMock, patch
 
         from rex.openclaw.tools.ha_tool import ha_call_service
 
         mock_bridge = MagicMock()
         mock_bridge.enabled = True
-        mock_bridge._execute_intent.return_value = (True, "Light turn_on light.living_room.")
+        mock_bridge._token = "test-token"
+        mock_bridge._request.side_effect = [{}, {"state": "on", "attributes": {}}]
 
         with patch("rex.openclaw.tools.ha_tool._get_ha_bridge", return_value=mock_bridge):
-            result = ha_call_service("light", "turn_on", "light.living_room")
+            result = ha_call_service(
+                "light", "turn_on", "light.living_room", context={"user_id": "james"}
+            )
 
         assert result["success"] is True
         assert result["entity_id"] == "light.living_room"
-        assert "light.living_room" in result["message"]
+        assert result["status"] == "verified"
 
     def test_turn_off_switch_succeeds(self):
         """ha_call_service returns success dict for a switch service call."""
@@ -161,26 +164,32 @@ class TestHaCallServiceExecution:
 
         mock_bridge = MagicMock()
         mock_bridge.enabled = True
-        mock_bridge._execute_intent.return_value = (True, "Switch turn_off switch.garage.")
+        mock_bridge._token = "test-token"
+        mock_bridge._request.side_effect = [{}, {"state": "off", "attributes": {}}]
 
         with patch("rex.openclaw.tools.ha_tool._get_ha_bridge", return_value=mock_bridge):
-            result = ha_call_service("switch", "turn_off", "switch.garage")
+            result = ha_call_service(
+                "switch", "turn_off", "switch.garage", context={"user_id": "james"}
+            )
 
         assert result["success"] is True
         assert result["entity_id"] == "switch.garage"
 
     def test_bridge_failure_propagated(self):
-        """When _execute_intent returns (False, reason), result has success=False."""
+        """Transport failures remain explicit failures."""
         from unittest.mock import MagicMock, patch
 
         from rex.openclaw.tools.ha_tool import ha_call_service
 
         mock_bridge = MagicMock()
         mock_bridge.enabled = True
-        mock_bridge._execute_intent.return_value = (False, "Entity not found.")
+        mock_bridge._token = "test-token"
+        mock_bridge._request.side_effect = ConnectionError("Entity not found.")
 
         with patch("rex.openclaw.tools.ha_tool._get_ha_bridge", return_value=mock_bridge):
-            result = ha_call_service("light", "turn_on", "light.unknown")
+            result = ha_call_service(
+                "light", "turn_on", "light.unknown", context={"user_id": "james"}
+            )
 
         assert result["success"] is False
         assert "Entity not found" in result["message"]
@@ -200,29 +209,43 @@ class TestHaCallServiceExecution:
 
         assert result["success"] is False
         assert "not configured" in result["message"]
-        mock_bridge._execute_intent.assert_not_called()
+        mock_bridge._request.assert_not_called()
 
     def test_intent_fields_match_call_args(self):
-        """IntentMatch constructed by ha_call_service has the correct fields."""
+        """Typed mutation fields match OpenClaw call arguments."""
         from unittest.mock import MagicMock, patch
 
+        from rex.ha.mutation_service import HAMutationResult, HAOutcome, HARisk
         from rex.openclaw.tools.ha_tool import ha_call_service
 
         mock_bridge = MagicMock()
         mock_bridge.enabled = True
-        mock_bridge._execute_intent.return_value = (True, "Done.")
+        mock_service = MagicMock()
+        mock_service.execute.return_value = HAMutationResult(
+            HAOutcome.ATTEMPTED_UNVERIFIED,
+            "No independent proof defined.",
+            "media_player.living_room",
+            "media_player",
+            "play_media",
+            "request-media",
+            HARisk.SAFE,
+        )
 
-        with patch("rex.openclaw.tools.ha_tool._get_ha_bridge", return_value=mock_bridge):
+        with (
+            patch("rex.openclaw.tools.ha_tool._get_ha_bridge", return_value=mock_bridge),
+            patch("rex.openclaw.tools.ha_tool._get_mutation_service", return_value=mock_service),
+        ):
             ha_call_service(
                 "media_player",
                 "play_media",
                 "media_player.living_room",
                 data={"media_content_id": "spotify:track:abc"},
+                context={"user_id": "james", "request_id": "request-media"},
             )
 
-        intent_arg = mock_bridge._execute_intent.call_args.args[0]
+        intent_arg = mock_service.execute.call_args.args[0]
         assert intent_arg.domain == "media_player"
         assert intent_arg.service == "play_media"
         assert intent_arg.entity_id == "media_player.living_room"
-        assert intent_arg.data["media_content_id"] == "spotify:track:abc"
-        assert intent_arg.source == "openclaw"
+        assert intent_arg.parameters["media_content_id"] == "spotify:track:abc"
+        assert intent_arg.user_id == "james"

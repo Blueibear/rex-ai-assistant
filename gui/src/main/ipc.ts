@@ -41,7 +41,7 @@ export function registerIpcHandlers(mainWindow: BrowserWindow | null, session: E
   registerIntegrationsHandlers()
   registerSystemHandlers()
   registerHistoryHandlers(session)
-  registerDevicesHandlers()
+  registerDevicesHandlers(session)
   registerQuickActionsHandlers(session)
   registerSetupHandlers()
 }
