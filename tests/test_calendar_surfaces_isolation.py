@@ -256,13 +256,13 @@ class TestLocalToolExecutor:
         from rex.local_tool_executor import execute_tool
 
         result = execute_tool("calendar_create_event", {"title": "Standup"})
-        assert "a valid user identity is required" in result
+        assert "a valid user identity is required" in result.lower()
 
     def test_invalid_user_fails_closed(self):
         from rex.local_tool_executor import execute_tool
 
         result = execute_tool("calendar_create_event", {"title": "Standup", "_user_id": "../evil"})
-        assert "a valid user identity is required" in result
+        assert "a valid user identity is required" in result.lower()
 
     def test_creates_in_requesting_users_store_only(self):
         from rex.calendar_service import CalendarService

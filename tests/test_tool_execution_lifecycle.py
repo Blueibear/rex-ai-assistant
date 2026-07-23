@@ -94,6 +94,13 @@ def test_timeout_after_possible_write_is_unverified() -> None:
     assert "possible write" in (result.error or "")
 
 
+def test_mutation_transient_failure_is_not_retried() -> None:
+    handler = MagicMock(side_effect=ConnectionError("network blip"))
+    result = execute(FakeTool(handler=handler))
+    assert result.status == ToolOutcome.FAILED
+    handler.assert_called_once()
+
+
 def test_duplicate_request_is_not_dispatched_twice_and_mismatch_is_denied() -> None:
     handler = MagicMock(return_value={"ok": True})
     tool = FakeTool(handler=handler)

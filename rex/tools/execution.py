@@ -21,6 +21,35 @@ from rex.tools.protocol import ToolResult
 
 logger = logging.getLogger(__name__)
 
+_TRANSIENT_TYPES = (
+    TimeoutError,
+    ConnectionError,
+    ConnectionResetError,
+    ConnectionRefusedError,
+    ConnectionAbortedError,
+    OSError,
+)
+
+
+def _is_transient_error(exc: BaseException) -> bool:
+    """Return whether a read-only tool failure is safe to retry once."""
+    if isinstance(exc, _TRANSIENT_TYPES):
+        return True
+    status = getattr(exc, "status_code", None) or getattr(exc, "code", None)
+    if isinstance(status, int) and status >= 500:
+        return True
+    return bool(getattr(exc, "is_transient", False))
+
+
+def _is_auth_error(exc: BaseException) -> bool:
+    """Return whether a failure is authentication or authorization related."""
+    if isinstance(exc, PermissionError):
+        return True
+    status = getattr(exc, "status_code", None) or getattr(exc, "code", None)
+    if isinstance(status, int) and status in (401, 403):
+        return True
+    return bool(getattr(exc, "auth_error", False))
+
 
 class ToolOperation(StrEnum):
     READ = "read"
@@ -219,37 +248,54 @@ class ToolExecutionLifecycle:
             handler_args.setdefault("_user_id", user_id)
         if ambient.get("confirmed") and ("confirmed" in signature.parameters or accepts_kwargs):
             handler_args.setdefault("confirmed", True)
-        executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
-        future = executor.submit(tool.handler, **handler_args)
-        try:
-            output = future.result(timeout=timeout_seconds)
-        except concurrent.futures.TimeoutError:
-            future.cancel()
-            outcome = (
-                ToolOutcome.ATTEMPTED_UNVERIFIED
-                if operation == ToolOperation.MUTATION
-                else ToolOutcome.FAILED
-            )
-            result = self._finish(
-                request,
-                outcome,
-                risk,
-                stages,
-                started,
-                error=(
-                    "Execution timed out after a possible write"
+        attempts = 2 if operation == ToolOperation.READ else 1
+        for attempt in range(attempts):
+            executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+            future = executor.submit(tool.handler, **handler_args)
+            try:
+                output = future.result(timeout=timeout_seconds)
+                break
+            except concurrent.futures.TimeoutError:
+                future.cancel()
+                outcome = (
+                    ToolOutcome.ATTEMPTED_UNVERIFIED
                     if operation == ToolOperation.MUTATION
-                    else "Execution timed out"
-                ),
-            )
-            if operation == ToolOperation.MUTATION:
-                with _dedupe_lock:
-                    _dedupe_results[dedupe_key] = (args_fingerprint, result)
-            return result
-        except Exception as exc:
-            return self._finish(request, ToolOutcome.FAILED, risk, stages, started, error=str(exc))
-        finally:
-            executor.shutdown(wait=False, cancel_futures=True)
+                    else ToolOutcome.FAILED
+                )
+                result = self._finish(
+                    request,
+                    outcome,
+                    risk,
+                    stages,
+                    started,
+                    error=(
+                        "Execution timed out after a possible write"
+                        if operation == ToolOperation.MUTATION
+                        else "Execution timed out"
+                    ),
+                )
+                if operation == ToolOperation.MUTATION:
+                    with _dedupe_lock:
+                        _dedupe_results[dedupe_key] = (args_fingerprint, result)
+                return result
+            except Exception as exc:
+                if (
+                    operation == ToolOperation.READ
+                    and attempt == 0
+                    and _is_transient_error(exc)
+                    and not _is_auth_error(exc)
+                ):
+                    logger.debug(
+                        "tool_execution: %r transient read failure; retrying once: %s",
+                        tool.name,
+                        exc,
+                    )
+                    continue
+                return self._finish(
+                    request, ToolOutcome.FAILED, risk, stages, started, error=str(exc)
+                )
+            finally:
+                executor.shutdown(wait=False, cancel_futures=True)
 
         stages.append("normalized_result")
         normalized = self._normalize_handler_result(output)

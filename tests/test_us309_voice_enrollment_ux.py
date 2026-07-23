@@ -98,7 +98,7 @@ class TestEnrollmentBridgeContract:
 
     def test_list_action_returns_ok(self):
         """action=list returns ok and an enrollments key."""
-        payload = json.dumps({"action": "list"})
+        payload = json.dumps({"action": "list", "user": "voice-test-user", "data_scope": "private"})
         result = subprocess.run(
             [sys.executable, str(BRIDGE)],
             input=payload,
