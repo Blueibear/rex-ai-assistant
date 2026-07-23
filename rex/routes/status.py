@@ -165,6 +165,8 @@ def create_blueprint() -> Blueprint:
         user, err = _require_auth()
         if err:
             return err
+        if user is None:
+            return jsonify({"error": "authentication_required"}), 401
 
         try:
             limit = int(request.args.get("limit", 50))
