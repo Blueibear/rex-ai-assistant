@@ -328,7 +328,9 @@ class HAMutationService:
             ("alarm_control_panel", "alarm_arm_away"): "armed_away",
         }
         if service == "turn_on":
-            attrs = {key: data[key] for key in ("brightness", "brightness_pct") if key in data}
+            attrs: dict[str, Any] = {
+                key: data[key] for key in ("brightness", "brightness_pct") if key in data
+            }
             return "on", attrs
         if service == "turn_off":
             return "off", {}

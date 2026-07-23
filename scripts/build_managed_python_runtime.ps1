@@ -1,7 +1,8 @@
 [CmdletBinding()]
 param(
     [ValidateSet('Core', 'Voice', 'Full')]
-    [string]$Profile = 'Voice',
+    [Alias('Profile')]
+    [string]$RuntimeProfile = 'Voice',
     [string]$PythonVersion = '3.11.9',
     [string]$BuildPython = '',
     [string]$RuntimeRoot
@@ -29,7 +30,7 @@ if ($LASTEXITCODE -ne 0 -or $buildVersion.Trim() -ne '3.11') {
 
 $runtimeArchive = "python-$PythonVersion-embed-amd64.zip"
 $runtimeUrl = "https://www.python.org/ftp/python/$PythonVersion/$runtimeArchive"
-$lockedSha256 = '009D6BF7E3B2DDCA3D784FA09F90FE54336D5B60F0E0F305C37F400BF83CFD3B'
+$lockedSha256 = '009D6BF7E3B2DDCA3D784FA09F90FE54336D5B60F0E0F305C37F400BF83CFD3B' # pragma: allowlist secret
 $tempRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("askrex-runtime-" + [guid]::NewGuid())
 $archivePath = Join-Path $tempRoot $runtimeArchive
 $wheelDir = Join-Path $tempRoot 'wheel'
@@ -80,10 +81,10 @@ try {
     & $BuildPython -m pip install --disable-pip-version-check --no-compile --upgrade --target $sitePackages -r (Join-Path $repoRoot 'requirements-electron-runtime.txt')
     if ($LASTEXITCODE -ne 0) { throw 'Electron core runtime dependency installation failed.' }
 
-    if ($Profile -eq 'Voice') {
+    if ($RuntimeProfile -eq 'Voice') {
         & $BuildPython -m pip install --disable-pip-version-check --no-compile --upgrade --target $sitePackages -r (Join-Path $repoRoot 'requirements-electron-voice.txt')
         if ($LASTEXITCODE -ne 0) { throw 'Voice runtime dependency installation failed.' }
-    } elseif ($Profile -eq 'Full') {
+    } elseif ($RuntimeProfile -eq 'Full') {
         & $BuildPython -m pip install --disable-pip-version-check --no-compile --upgrade --target $sitePackages ($wheel.FullName + '[full]')
         if ($LASTEXITCODE -ne 0) { throw 'Full runtime dependency installation failed.' }
     }
@@ -91,7 +92,7 @@ try {
     $runtimePython = Join-Path $runtimePath 'python.exe'
     & $runtimePython -I -c "import rex, requests; print('managed-runtime-ok')"
     if ($LASTEXITCODE -ne 0) { throw 'Managed runtime import smoke test failed.' }
-    if ($Profile -eq 'Voice') {
+    if ($RuntimeProfile -eq 'Voice') {
         & $runtimePython -I -c "import torch, whisper; assert torch.__version__.split('+', 1)[0] == '2.12.1'; print('managed-voice-runtime-ok')"
         if ($LASTEXITCODE -ne 0) { throw 'Managed Voice runtime dependency smoke test failed.' }
     }
@@ -103,11 +104,11 @@ try {
         architecture = 'windows-x64-embedded-python'
         python_version = $PythonVersion
         askrex_version = $askrexVersion
-        profile = $Profile.ToLowerInvariant()
+        profile = $RuntimeProfile.ToLowerInvariant()
         runtime_sha256 = $lockedSha256
     }
     $metadata | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $runtimePath 'ASKREX_RUNTIME.json') -Encoding utf8
-    Write-Host "Managed AskRex runtime built at $runtimePath (profile=$Profile)"
+    Write-Host "Managed AskRex runtime built at $runtimePath (profile=$RuntimeProfile)"
 } finally {
     if (Test-Path -LiteralPath $tempRoot) {
         Remove-Item -LiteralPath $tempRoot -Recurse -Force

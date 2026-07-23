@@ -181,7 +181,7 @@ def test_invalid_or_prohibited_commands_never_dispatch(tmp_path: Path) -> None:
 def test_audit_evidence_is_redacted(tmp_path: Path) -> None:
     client = FakeHAClient([{"state": "on", "attributes": {}}])
     svc = service(tmp_path, client)
-    svc.execute(mutation(parameters={"secret_code": "do-not-log"}))
+    svc.execute(mutation(parameters={"secret_code": "do-not-log"}))  # pragma: allowlist secret
     audit = (tmp_path / "audit.jsonl").read_text(encoding="utf-8")
     assert "do-not-log" not in audit
     assert "confirmation" not in audit
