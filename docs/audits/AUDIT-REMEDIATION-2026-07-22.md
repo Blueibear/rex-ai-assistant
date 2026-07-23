@@ -22,9 +22,10 @@ Status meanings follow the task contract: Implemented, Locally verified, CI veri
 
 - Managed runtime: Python 3.11.9 embeddable distribution with installed AskRex wheel, pinned runtime dependencies, CPU Whisper/Torch, and bundled FFmpeg.
 - Local Voice runtime directory: approximately 880 MB; unpacked app approximately 1.25 GB.
-- Locally validated installer: `gui/dist/AskRex Setup 1.0.0.exe`, 297,530,206 bytes at the validation point.
+- Final locally validated installer: `gui/dist/AskRex Setup 1.0.0.exe`, 305,471,434 bytes, SHA-256 `AE2750340B38D2C6AA630E02B1D1AE1E6274F64D58B50BC3B9F309E963C13396`.
 - Artifact scan found no Flask runtime dependency and no bundled credentials, profiles, memories, logs, or transcripts.
 - Clean install, typed IPC, managed bridge startup, deterministic safe chat, read-only memories, reinstall, and uninstall passed with PATH restricted to Windows System32.
+- Packaged Voice metadata/imports verified AskRex 1.4.1, CPU Torch 2.12.1, and Whisper 20250625; the build fails if Torch drifts outside that exact supported pin.
 - Authenticode status was `NotSigned` for both installer and unpacked executable.
 
 ## Final local gate evidence
