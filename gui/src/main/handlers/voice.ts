@@ -381,6 +381,64 @@ export function registerVoiceHandlers(session: ElectronSessionIdentity): void {
   })
 
   ipcMain.handle(
+    'rex:synthesizeSpeech',
+    async (
+      _event,
+      provider: string,
+      voiceId: string,
+      text: string
+    ): Promise<{ ok: boolean; audio_base64?: string; error?: string }> => {
+      const scriptPath = resolveBridgeScript('rex_voice_sample_bridge.py')
+      return new Promise((resolve) => {
+        const py = spawn(resolvePythonCommand(), [scriptPath], {
+          stdio: ['pipe', 'pipe', 'pipe']
+        })
+        let stdout = ''
+        let stderr = ''
+        py.stdout.on('data', (chunk: Buffer) => {
+          stdout += chunk.toString()
+        })
+        py.stderr.on('data', (chunk: Buffer) => {
+          stderr += chunk.toString()
+        })
+        py.on('close', (code) => {
+          try {
+            const result = JSON.parse(stdout.trim()) as {
+              ok: boolean
+              audio_base64?: string
+              error?: string
+            }
+            resolve(result)
+          } catch {
+            resolve({
+              ok: false,
+              error: stderr || `Speech bridge exited with code ${code}`
+            })
+          }
+        })
+        py.on('error', (error) => {
+          resolve({ ok: false, error: `Failed to start speech bridge: ${error.message}` })
+        })
+        py.stdin?.write(JSON.stringify({ provider, voice_id: voiceId, text, mode: 'response' }))
+        py.stdin?.end()
+      })
+    }
+  )
+
+  ipcMain.handle(
+    'rex:logVoiceTiming',
+    (_event, turnId: string, stage: string, durationMs: number): { ok: boolean } => {
+      appendElectronLog('INFO', 'Hold-to-Talk stage completed', {
+        event: 'hold_to_talk_stage_timing',
+        turn_id: turnId,
+        stage,
+        duration_ms: Math.max(0, Math.round(durationMs))
+      })
+      return { ok: true }
+    }
+  )
+
+  ipcMain.handle(
     'rex:listWakeWords',
     async (): Promise<{
       ok: boolean

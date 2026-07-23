@@ -534,7 +534,11 @@ export interface SetupCompleteResponse {
 
 export interface RexAPI {
   sendChat: (message: string) => Promise<string>
-  sendChatStream: (message: string, onToken: (token: string) => void) => Promise<void>
+  sendChatStream: (
+    message: string,
+    onToken: (token: string) => void,
+    signal?: AbortSignal
+  ) => Promise<void>
   getStatus: () => Promise<StatusResponse>
   onStatusChange: (cb: (status: string) => void) => (() => void)
   getSettings: (section: string) => Promise<Settings>
@@ -618,6 +622,16 @@ export interface RexAPI {
     provider: string,
     voiceId: string
   ) => Promise<{ ok: boolean; audio_base64?: string; error?: string }>
+  synthesizeSpeech: (
+    provider: string,
+    voiceId: string,
+    text: string
+  ) => Promise<{ ok: boolean; audio_base64?: string; error?: string }>
+  logVoiceTiming: (
+    turnId: string,
+    stage: string,
+    durationMs: number
+  ) => Promise<{ ok: boolean }>
   uploadCustomVoice: (
     filePath: string,
     voiceName: string

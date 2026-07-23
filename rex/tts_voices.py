@@ -146,8 +146,14 @@ async def synthesize_sample(
         Raw audio bytes (WAV for xtts/pyttsx3, MP3 for edge-tts).
         Raises ``RuntimeError`` if synthesis fails or the provider is unsupported.
     """
-    # Enforce 50-character limit to keep synthesis fast.
-    text = text[:50]
+    return await synthesize_speech(provider, voice_id, text[:50])
+
+
+async def synthesize_speech(provider: str, voice_id: str, text: str) -> bytes:
+    """Synthesize one bounded assistant response for renderer playback."""
+    text = text.strip()[:4000]
+    if not text:
+        raise RuntimeError("Speech text is required")
 
     p = provider.lower().strip()
     if p == "xtts":
@@ -228,7 +234,8 @@ async def _synthesize_pyttsx3(voice_id: str, text: str) -> bytes:
             raise RuntimeError("pyttsx3 is not installed") from exc
 
         engine = pyttsx3.init()
-        engine.setProperty("voice", voice_id)
+        if voice_id:
+            engine.setProperty("voice", voice_id)
         with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as f:
             tmpfile = f.name
         try:
@@ -251,4 +258,4 @@ def clear_edge_tts_cache() -> None:
     _edge_tts_cache = None
 
 
-__all__ = ["list_voices", "synthesize_sample", "clear_edge_tts_cache"]
+__all__ = ["list_voices", "synthesize_sample", "synthesize_speech", "clear_edge_tts_cache"]

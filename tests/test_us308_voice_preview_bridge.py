@@ -26,9 +26,9 @@ class TestVoiceSampleBridgeContract:
     def test_bridge_file_exists(self):
         assert BRIDGE.exists(), f"Bridge script missing: {BRIDGE}"
 
-    def test_missing_voice_id_returns_error(self):
-        """Calling bridge without voice_id yields ok=false."""
-        payload = json.dumps({"provider": "pyttsx3", "voice_id": ""})
+    def test_missing_voice_id_returns_error_for_voice_specific_provider(self):
+        """Calling a voice-specific provider without voice_id yields ok=false."""
+        payload = json.dumps({"provider": "edge-tts", "voice_id": ""})
         result = subprocess.run(
             [sys.executable, str(BRIDGE)],
             input=payload,

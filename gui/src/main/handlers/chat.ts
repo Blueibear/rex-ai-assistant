@@ -66,6 +66,7 @@ let sttReady = false
 let sttLineBuffer = ''
 const sttReadyCallbacks: Array<(err?: Error) => void> = []
 const sttPendingRequests = new Map<string, { resolve: (t: string) => void; reject: (e: Error) => void }>()
+const chatStreamProcesses = new Map<string, ChildProcess>()
 
 /**
  * Ensure the persistent STT bridge process is running and ready.
@@ -182,6 +183,7 @@ export function registerChatHandlers(session: ElectronSessionIdentity): void {
     const py = spawn(resolvePythonCommand(), [scriptPath], {
       stdio: ['pipe', 'pipe', 'pipe']
     })
+    chatStreamProcesses.set(streamId, py)
 
     let sentFinal = false
 
@@ -234,6 +236,7 @@ export function registerChatHandlers(session: ElectronSessionIdentity): void {
     })
 
     py.on('close', (code) => {
+      chatStreamProcesses.delete(streamId)
       // Flush any remaining buffered line
       if (lineBuffer.trim()) {
         try {
@@ -257,6 +260,7 @@ export function registerChatHandlers(session: ElectronSessionIdentity): void {
     })
 
     py.on('error', (_err) => {
+      chatStreamProcesses.delete(streamId)
       // Streaming bridge not available — fall back to non-streaming
       callRexBackend(message, session)
         .then((reply) => {
@@ -271,6 +275,14 @@ export function registerChatHandlers(session: ElectronSessionIdentity): void {
     py.stdin.write(JSON.stringify(privateSessionPayload(session, { message })))
     py.stdin.end()
 
+    return { ok: true }
+  })
+
+  ipcMain.handle('rex:cancelChatStream', async (_event, streamId: string): Promise<{ ok: boolean }> => {
+    const process = chatStreamProcesses.get(streamId)
+    if (!process) return { ok: true }
+    chatStreamProcesses.delete(streamId)
+    process.kill()
     return { ok: true }
   })
 

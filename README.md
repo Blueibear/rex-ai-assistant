@@ -127,7 +127,7 @@ This README reflects the current milestone after recent live testing and repair 
 - The Home Assistant page loads and lists entities after the recent GUI/backend consistency fixes.
 - The Home Assistant connection test now stays connected in the UI after a successful real connection test.
 - GUI Chat shows a visible pending/thinking state while Rex is preparing a reply.
-- Voice Hold to Talk records, transcribes, shows a pending state, gets a Rex reply, and can be used repeatedly.
+- Voice Hold to Talk records, transcribes, streams a Rex reply, synthesizes and plays it on the configured output device, supports cancel/barge-in and replay, and can be used repeatedly.
 - Wake-word mode is wired and can work end to end in live testing, but reliability and latency still need work.
 - Long voice answers now use a cleaner spoken handoff that points the user to the on-screen transcript instead of reading long replies badly.
 - Custom wake backends are wired: built-in openWakeWord fallback, `custom_embedding` as an interim path, and `custom_onnx` as the long-term target when a real asset is present.
@@ -176,7 +176,7 @@ The Electron app under `gui/` is the current primary GUI. `rex-gui` remains usef
 | Area | Current repo state |
 |---|---|
 | Text chat | Basic CLI and GUI chat work through `rex.assistant.Assistant` and the configured LLM provider. Common day/date phrasing coverage has improved; provider quality still depends on model/configuration. |
-| Voice pipeline | Hold to Talk works. Wake-word mode is wired and can work end to end through openWakeWord, Whisper STT, LLM reply generation, and TTS, but reliability and latency are still being tuned. Long answers now hand off to the transcript instead of reading a long reply aloud badly. |
+| Voice pipeline | Hold to Talk is the supported production path: record, Whisper STT, streamed response, TTS, selected-device playback, cancel/barge-in, replay, device-loss fallback, and repeated turns. Wake-word mode remains beta while hardware reliability and latency are still being tuned. |
 | Custom wake support | Built-in openWakeWord remains the safe fallback path. `custom_embedding` is usable as an interim path, and `custom_onnx` is the target path for a real `Hey Rex` wake model. The repo does not ship that custom asset by default. |
 | LLM providers | Local Transformers, OpenAI-compatible API settings, and Ollama routing are supported by config. Local model output quality varies by model and prompt path. |
 | Configuration | Runtime settings live in `config/rex_config.json`; secrets live in `.env`; profiles live in `profiles/`. |

@@ -9,7 +9,12 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 import rex.tts_voices as tts_voices_module
-from rex.tts_voices import clear_edge_tts_cache, list_voices, synthesize_sample
+from rex.tts_voices import (
+    clear_edge_tts_cache,
+    list_voices,
+    synthesize_sample,
+    synthesize_speech,
+)
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -290,6 +295,18 @@ class TestSynthesizeSampleEdgeTts:
 
         assert len(captured[0]) <= 50
 
+    def test_response_synthesis_preserves_text_beyond_preview_limit(self):
+        text = "A" * 200
+        synthesize = AsyncMock(return_value=b"audio")
+        with patch.object(tts_voices_module, "_synthesize_edge_tts", synthesize):
+            result = asyncio.run(synthesize_speech("edge-tts", "voice", text))
+        assert result == b"audio"
+        synthesize.assert_awaited_once_with("voice", text)
+
+    def test_response_synthesis_rejects_empty_text(self):
+        with pytest.raises(RuntimeError, match="Speech text is required"):
+            asyncio.run(synthesize_speech("pyttsx3", "", "  "))
+
 
 # ---------------------------------------------------------------------------
 # synthesize_sample — pyttsx3 provider
@@ -315,6 +332,16 @@ class TestSynthesizeSamplePyttsx3:
 
         assert result == fake_audio
         mock_engine.setProperty.assert_called_with("voice", "com.apple.voice.Alex")
+
+    def test_system_default_voice_does_not_set_empty_voice_id(self):
+        mock_engine = MagicMock()
+        mock_engine.save_to_file.side_effect = lambda _text, path: Path(path).write_bytes(b"wav")
+        mock_pyttsx3 = MagicMock()
+        mock_pyttsx3.init.return_value = mock_engine
+        with patch.dict("sys.modules", {"pyttsx3": mock_pyttsx3}):
+            result = asyncio.run(synthesize_speech("pyttsx3", "", "Hello"))
+        assert result == b"wav"
+        mock_engine.setProperty.assert_not_called()
 
     def test_missing_pyttsx3_raises_runtime_error(self):
         import sys

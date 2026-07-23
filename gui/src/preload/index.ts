@@ -46,7 +46,8 @@ import type {
 
 function makeSendChatStream(
   message: string,
-  onToken: (token: string) => void
+  onToken: (token: string) => void,
+  signal?: AbortSignal
 ): Promise<void> {
   return new Promise<void>((resolve, reject) => {
     const streamId = `${Date.now()}-${Math.random()}`
@@ -71,11 +72,23 @@ function makeSendChatStream(
       ipcRenderer.removeListener('rex:chatToken', tokenHandler)
       ipcRenderer.removeListener('rex:chatDone', doneHandler)
       ipcRenderer.removeListener('rex:chatError', errorHandler)
+      signal?.removeEventListener('abort', abortHandler)
+    }
+
+    function abortHandler(): void {
+      cleanup()
+      void ipcRenderer.invoke('rex:cancelChatStream', streamId)
+      reject(new DOMException('Chat response cancelled', 'AbortError'))
     }
 
     ipcRenderer.on('rex:chatToken', tokenHandler)
     ipcRenderer.on('rex:chatDone', doneHandler)
     ipcRenderer.on('rex:chatError', errorHandler)
+    if (signal?.aborted) {
+      abortHandler()
+      return
+    }
+    signal?.addEventListener('abort', abortHandler, { once: true })
 
     ipcRenderer.invoke('rex:startChatStream', { message, streamId }).catch((err: unknown) => {
       cleanup()
@@ -277,6 +290,14 @@ const rexAPI = {
     voiceId: string
   ): Promise<{ ok: boolean; audio_base64?: string; error?: string }> =>
     ipcRenderer.invoke('rex:previewVoice', provider, voiceId),
+  synthesizeSpeech: (
+    provider: string,
+    voiceId: string,
+    text: string
+  ): Promise<{ ok: boolean; audio_base64?: string; error?: string }> =>
+    ipcRenderer.invoke('rex:synthesizeSpeech', provider, voiceId, text),
+  logVoiceTiming: (turnId: string, stage: string, durationMs: number): Promise<{ ok: boolean }> =>
+    ipcRenderer.invoke('rex:logVoiceTiming', turnId, stage, durationMs),
   getVoiceEnrollments: (): Promise<{
     ok: boolean
     active_user_id: string
