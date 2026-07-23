@@ -77,8 +77,15 @@ export function resolveBridgePath(scriptFilename: string): string {
 // Python executable resolution
 // ---------------------------------------------------------------------------
 
-/** Return the Python executable path: bundled venv if present, else system `python`. */
+/** Return managed Python in packages; development may use the repo venv or PATH. */
 export function resolvePythonCommand(): string {
+  if (app.isPackaged) {
+    const managedPython = join(process.resourcesPath, 'python', 'python.exe')
+    if (!existsSync(managedPython)) {
+      throw new Error(`AskRex managed Python runtime is missing: ${managedPython}`)
+    }
+    return managedPython
+  }
   const bundledVenvPython = join(app.getAppPath(), '..', '.venv', 'Scripts', 'python.exe')
   return existsSync(bundledVenvPython) ? bundledVenvPython : 'python'
 }
@@ -112,5 +119,9 @@ export function validateBridges(): void {
   }
   if (allPresent) {
     console.log('[bridgeResolver] All bridge scripts validated successfully.')
+  }
+  if (app.isPackaged) {
+    resolvePythonCommand()
+    console.log('[bridgeResolver] Managed Python runtime validated successfully.')
   }
 }

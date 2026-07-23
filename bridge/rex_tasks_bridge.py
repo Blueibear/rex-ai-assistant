@@ -30,10 +30,7 @@ import uuid
 from datetime import UTC, datetime
 from typing import Any
 
-from rex.bridge_utils import bridge_error_response, repo_root, resolve_python
-
-_PYTHON_EXE = resolve_python()  # venv-aware interpreter path for subprocess calls
-_REPO_ROOT = repo_root()  # absolute repo root for resolving scripts and config
+from rex.bridge_utils import bridge_error_response
 
 
 def _utc_now() -> datetime:

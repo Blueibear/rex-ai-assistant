@@ -1,0 +1,7 @@
+# Runtime-only voice dependencies bundled into the Windows Electron installer.
+# GPU/CUDA packages and XTTS voice cloning remain optional external profiles.
+numpy==1.26.4
+sounddevice==0.5.5
+soundfile==0.13.1
+openai-whisper==20250625
+imageio-ffmpeg==0.6.0

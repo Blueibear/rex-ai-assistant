@@ -318,6 +318,22 @@ npm.cmd audit --audit-level=high
 
 The GUI uses the flat ESLint configuration in `gui/eslint.config.mjs`.
 
+Windows Electron distribution (run from `gui/`):
+
+```powershell
+npm.cmd run runtime:build   # managed Python 3.11 Voice profile
+npm.cmd run dist            # runtime + GUI + NSIS installer
+```
+
+Packaged Electron always resolves `resources/python/python.exe`; it must never
+fall back to machine Python or a checkout `.venv`. The installer bundles the
+AskRex wheel, canonical `bridge/` scripts, pinned Voice dependencies, and
+bundled FFmpeg. Validate packages with
+`scripts/verify_electron_package_contents.py` and
+`scripts/test_installed_electron_artifact.ps1`. Flask and user configuration,
+credentials, profiles, memories, transcripts, and logs are forbidden package
+contents. Generated runtimes live under ignored `gui/runtime/`.
+
 ## Setup and Installation (GPU)
 
 Do not reintroduce GPU extras like:

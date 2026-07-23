@@ -30,10 +30,6 @@ from contextlib import suppress
 from datetime import UTC, datetime
 from typing import Any, TypeVar
 
-from rex.bridge_utils import repo_root, resolve_python
-
-_PYTHON_EXE = resolve_python()  # venv-aware interpreter path for subprocess calls
-_REPO_ROOT = repo_root()  # absolute repo root for resolving scripts and config
 _VOICE_BRIDGE_SESSION_ID = (
     f"voice-{datetime.now(UTC).strftime('%Y%m%dT%H%M%SZ')}-{os.getpid()}-" f"{uuid.uuid4().hex[:8]}"
 )

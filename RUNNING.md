@@ -112,7 +112,15 @@ npm.cmd run build
 npm.cmd run preview
 ```
 
-The Electron app uses bridge scripts at the repo root, including `rex_chat_stream_bridge.py`, `rex_tasks_bridge.py`, `rex_reminders_bridge.py`, `rex_shopping_list_bridge.py`, `rex_memories_bridge.py`, `rex_voice_bridge.py`, and related voice/wake-word bridge scripts.
+Development Electron resolves canonical bridge scripts from `bridge/`. Packaged
+Windows Electron resolves those scripts from `resources/bridge/` and uses only
+its managed `resources/python/python.exe`; it does not use machine Python or a
+source checkout.
+
+Build the managed Voice installer from `gui/` with `npm.cmd run dist`. The
+Voice profile includes CPU Whisper/Torch and bundled FFmpeg, so the installer
+is substantially larger than the Core runtime. CUDA/GPU acceleration and XTTS
+voice cloning remain optional external profiles rather than installer claims.
 
 For Electron-only verification harnesses, run `npm.cmd run build` in `gui/` before using `gui/tmp_verify_*.cjs` so `gui/dist-electron/main/index.js` matches the TypeScript sources.
 

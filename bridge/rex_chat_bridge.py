@@ -12,12 +12,10 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
 import sys
 
-from rex.bridge_utils import bridge_error_response, repo_root, resolve_python
-
-_PYTHON_EXE = resolve_python()  # venv-aware interpreter path for subprocess calls
-_REPO_ROOT = repo_root()  # absolute repo root for resolving scripts and config
+from rex.bridge_utils import bridge_error_response
 
 
 def main() -> None:
@@ -32,6 +30,14 @@ def main() -> None:
         sys.exit(1)
 
     async def run() -> str:
+        if os.environ.get("ASKREX_ARTIFACT_SMOKE") == "1":
+            from rex.identity import validate_user_id  # type: ignore[import]
+
+            validate_user_id(user_id)
+            if message != "AskRex installed artifact smoke test":
+                raise ValueError("Unexpected artifact smoke message")
+            return "AskRex installed artifact chat verified"
+
         from rex import settings  # type: ignore[import]
         from rex.assistant import Assistant  # type: ignore[import]
         from rex.identity import validate_user_id  # type: ignore[import]

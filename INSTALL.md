@@ -6,7 +6,7 @@ This guide covers supported install paths for the current repo. AskRex is Python
 
 Different audiences use different install methods. Read the paragraph for your use case before proceeding.
 
-**End users (packaged Electron installer — future):** When a release is published, end users install the packaged Electron desktop app directly. The packaged app bundles the Python runtime and bridge scripts; no separate `pip install` or Python environment setup is required from the user's perspective. A packaged installer is not yet available; end users who want to try AskRex today should follow the developer path below.
+**End users (packaged Windows Electron installer):** The release artifact bundles a managed Python 3.11 runtime, the installed AskRex wheel, canonical bridge scripts, Whisper/Torch CPU dependencies, and FFmpeg. It does not require machine Python, Node.js, a source checkout, or a neighboring `.venv`. The locally validated build is currently unsigned; do not describe a public download as signed until release signing is configured and verified.
 
 **Developers and operators (`pip install .` from source):** `pip install .` installs:
 - The `rex` Python package library

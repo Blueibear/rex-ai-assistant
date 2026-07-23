@@ -5,9 +5,13 @@
   "main": "./dist-electron/main/index.js",
   "author": "AskRex",
   "homepage": ".",
+  "repository": "https://github.com/Blueibear/AskRex-Assistant.git",
   "scripts": {
     "dev": "electron-vite dev",
     "build": "electron-vite build",
+    "runtime:build": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File ../scripts/build_managed_python_runtime.ps1 -Profile Voice",
+    "runtime:build:core": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File ../scripts/build_managed_python_runtime.ps1 -Profile Core",
+    "predist": "npm run runtime:build && npm run build",
     "dist": "electron-builder --publish never",
     "preview": "electron-vite preview",
     "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
@@ -68,11 +72,25 @@
       },
       {
         "from": "../bridge",
-        "to": "bridge"
+        "to": "bridge",
+        "filter": [
+          "*.py",
+          "README.md"
+        ]
       },
       {
         "from": "../config",
-        "to": "config"
+        "to": "config",
+        "filter": [
+          "autonomy.json",
+          "rex_config.example.json",
+          "rex_config.schema.json",
+          "triage_rules.json"
+        ]
+      },
+      {
+        "from": "runtime/python",
+        "to": "python"
       }
     ],
     "win": {

@@ -108,7 +108,7 @@ Python 3.12 and newer are intentionally rejected by the current installers and r
 
 This section states which install method serves which audience. See [INSTALL.md](INSTALL.md) for detailed per-audience instructions.
 
-**End users — packaged Electron installer (future):** When a release is published, end users will install the packaged Electron desktop app directly. The packaged app bundles everything needed at runtime; no separate `pip install` step is required. Until a packaged release is published, follow the developer path below.
+**End users — packaged Windows Electron installer:** The built release artifact contains its own managed Python 3.11 Voice runtime, installed AskRex wheel, bridge scripts, and FFmpeg. It does not require a separate `pip install`, Node.js, or machine Python. The current local release candidate is unsigned; public release signing remains an external release requirement.
 
 **Developers and operators — `pip install .` from source:** `pip install .` installs the Python library (`rex` package), all six console scripts (`rex`, `rex-gui`, `rex-config`, `rex-speak-api`, `rex-agent`, `rex-tool-server`), the IPC bridge scripts (`bridge/rex_*.py` → `{sys.prefix}/bridge/`) that the Electron app spawns at runtime, and the config example (`config/rex_config.example.json` → `{sys.prefix}/config/`). This is the correct install path for developers, contributors, and operators who need CLI access, voice loop, TTS API, or direct Python library access. It does **not** provide the Electron desktop installer. See the [Advanced / Developer](#advanced--developer) section and [INSTALL.md](INSTALL.md) for the full developer setup.
 

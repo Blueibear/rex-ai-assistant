@@ -23,10 +23,7 @@ import sys
 import uuid
 from typing import Any
 
-from rex.bridge_utils import bridge_error_response, repo_root, resolve_python
-
-_PYTHON_EXE = resolve_python()
-_REPO_ROOT = repo_root()
+from rex.bridge_utils import bridge_error_response
 
 
 def _resolve_user_id(payload: dict[str, Any]) -> str | None:

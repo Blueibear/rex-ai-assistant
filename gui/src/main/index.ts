@@ -10,6 +10,7 @@ import { mirrorToRexConfig } from './settingsMirror'
 import { registerIpcHandlers } from './ipc'
 import { resolveElectronSessionIdentity } from './sessionIdentity'
 import { createWindow } from './window'
+import { runInstalledArtifactSmoke } from './artifactSmoke'
 
 app.whenReady().then(() => {
   electronApp.setAppUserModelId('com.rex-ai.rex-gui')
@@ -44,7 +45,8 @@ app.whenReady().then(() => {
     authentication: sessionIdentity.authentication
   })
   registerIpcHandlers(mainWindow, sessionIdentity)
-  createTray(mainWindow)
+  const runningArtifactSmoke = runInstalledArtifactSmoke(mainWindow)
+  if (!runningArtifactSmoke) createTray(mainWindow)
   appendElectronLog('INFO', 'Electron GUI main window created', {
     event: 'window_created'
   })
