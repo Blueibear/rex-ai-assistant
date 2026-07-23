@@ -46,7 +46,7 @@ here first, then propagated to docs, packaging config, and CI.
 
 | File | Classification | Notes |
 |------|----------------|-------|
-| `rex_loop.py` | `shippable` | Full voice loop entry point (`wake word -> STT -> LLM -> TTS`). Voice mode startup path (`python rex_loop.py`). Advanced/power-user surface. |
+| `rex_loop.py` | `developer-only` | Source voice-loop entry point. The packaged Electron Hold-to-Talk path is the supported end-user voice surface; wake word remains beta. |
 | `rex_speak_api.py` | `developer-only` | Same function as `rex-speak-api` entry point. Root-level script kept for direct invocation (`python rex_speak_api.py`). |
 | `wsgi.py` | `developer-only` | WSGI deployment entry point for `rex-gui`. Operator use for production deployments (e.g., gunicorn). |
 | `sitecustomize.py` | `developer-only` | Windows UTF-8 encoding fix; applied automatically at interpreter start. Not a user-facing entry point. |
@@ -115,7 +115,8 @@ These modules implement user-facing capabilities invoked by the assistant pipeli
 
 | Artifact | Classification | Notes |
 |----------|----------------|-------|
-| `askrex-assistant` wheel (`pip install .` / `pip install askrex-assistant`) | `developer-only` | Installs the `rex` Python library, six console scripts, and IPC bridge scripts. **Not** an end-user install artifact. End users install via the packaged Electron desktop installer (not yet published). Developers and operators use `pip install .` for CLI access, voice loop, TTS API, and developer Electron (`npm run dev`) workflows. The wheel does not include the Electron app bundle or the pre-built GUI assets. |
+| `askrex-assistant` wheel (`pip install .` / `pip install askrex-assistant`) | `developer-only` | Installs the `rex` Python library, six console scripts, and canonical IPC bridge scripts. **Not** an end-user artifact. The Windows Electron build installs this wheel into its managed runtime; developers/operators use it directly for CLI and service workflows. |
+| Windows Electron Voice installer | `shippable` | Primary end-user artifact. Bundles Electron, canonical bridges, managed Python 3.11, the AskRex wheel, CPU Whisper/Torch dependencies, and FFmpeg. Locally artifact-tested but currently unsigned; public release requires signing and blocking CI. |
 
 ---
 
@@ -123,14 +124,14 @@ These modules implement user-facing capabilities invoked by the assistant pipeli
 
 | Classification | Count |
 |----------------|-------|
-| `shippable` | 3 |
-| `developer-only` | 27 |
+| `shippable` | 2 |
+| `developer-only` | 28 |
 | `deprecated` | 5 |
 | `archived` | 15 |
 | `removed` | 0 |
 | **Total** | **50** |
 
-(Note: The pip/wheel artifact above is counted separately as a distribution artifact, not as an additional entry point. Entry-point and UI-surface counts above are unchanged. The `developer-only` count increased from 10 to 27 in US-017 when 17 root-level bridge compatibility wrappers were classified.)
+(Distribution artifacts are counted separately from the 50 entry points and UI surfaces. The installer classification does not change the total.)
 
 ---
 

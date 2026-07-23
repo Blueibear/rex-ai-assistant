@@ -1,8 +1,10 @@
 # Security Dependencies Report
 
+> **Historical snapshot (2026-01-08).** This report records one completed remediation pass; it is not a current all-clear. Use `scripts/security_audit.py --release-gate`, `pip-audit`, `npm audit --audit-level=high`, and [security/VULNERABILITY-SCAN.md](security/VULNERABILITY-SCAN.md) for current release decisions.
+
 **Date:** 2026-01-08
 **Audit Tool:** pip-audit v2.10.0
-**Status:** ✅ All known vulnerabilities resolved
+**Status:** Historical findings in this report were resolved
 
 ---
 

@@ -1,6 +1,6 @@
 # AskRex Assistant Installation Guide
 
-This guide covers supported install paths for the current repo. AskRex is Python 3.11-only today; use a 3.11 virtual environment even if your system default `python` is newer.
+This guide covers the end-user artifact and source/developer install paths. The managed Windows artifact bundles Python 3.11; source workflows must use a Python 3.11 virtual environment.
 
 ## Install Audiences
 
@@ -21,8 +21,8 @@ This is the correct path for contributors, developers, and operators who need CL
 | Component | Requirement |
 |---|---|
 | OS | Windows 10/11, macOS, or Linux |
-| Python | 3.11 (`>=3.11,<3.12`) |
-| Node.js/npm | Required for the Electron desktop app under `gui/` |
+| Python | Bundled for end users; 3.11 (`>=3.11,<3.12`) for source/developer workflows |
+| Node.js/npm | Build/development only; not required by the installed app |
 | Disk | Several GB if installing ML/TTS models |
 | Audio | Microphone and speakers for voice mode |
 | FFmpeg | Required for parts of the audio/TTS stack |
@@ -30,9 +30,9 @@ This is the correct path for contributors, developers, and operators who need CL
 
 Python 3.12, 3.13, and 3.14 are not supported by the validated ML/TTS dependency path and are rejected by the app.
 
-## Quick Start (Electron Desktop App)
+## Source / Developer Quick Start
 
-The primary user-facing interface is the **Electron desktop app**. These steps set up the full stack.
+End users run the packaged Windows installer. The following steps clone the repository and run the Electron app in development mode.
 
 Windows PowerShell:
 
@@ -193,12 +193,12 @@ rex-config migrate-legacy-env
 | Text chat (CLI) | `rex` or `python -m rex` | Developer / advanced — default interactive CLI |
 | Diagnostics | `rex doctor` | Environment and dependency checks |
 | Voice loop | `python rex_loop.py` | Developer / advanced — wake word -> STT -> LLM -> TTS |
-| Flask API backend | `rex-gui` | Developer-only — backend service for Electron; browser dashboard UI is incomplete |
+| Flask API/dashboard | `rex-gui` | Developer-only compatibility surface; Electron does not spawn or require it |
 | TTS API | `rex-speak-api` | Developer / advanced — requires `REX_SPEAK_API_KEY`; default port 5005 |
 | OpenClaw tool server | `rex-tool-server` | Developer / advanced — requires `REX_TOOL_API_KEY`; default port 18790 |
 | Windows computer agent | `rex-agent` | Developer / advanced — optional remote PC control agent |
 
-The legacy Tkinter launchers (`gui.py` and its entry point) are deprecated paths and should not be used for normal operation.
+The Tkinter launchers are archived under `archived/tkinter_gui/` and are not supported runtime paths.
 
 Override the Python web dashboard port:
 
@@ -228,6 +228,8 @@ npm.cmd run typecheck
 npm.cmd run build
 npm.cmd run preview
 ```
+
+Build the Windows Voice installer with `npm.cmd run dist`. `predist` first constructs the managed Python 3.11 runtime, installs the AskRex wheel and pinned Voice dependencies, then builds Electron. The produced installer is currently unsigned. `scripts/verify_electron_package_contents.py` and `scripts/test_installed_electron_artifact.ps1` are the artifact-level validation paths.
 
 For Electron-only verification harnesses, build first so `gui/dist-electron/main/index.js` matches the TypeScript sources.
 
@@ -300,12 +302,12 @@ Common fixes:
 
 ## Uninstall
 
+For the packaged Windows app, uninstall **AskRex** from Windows Installed Apps. The artifact harness verifies uninstall removes the application files. User data is retained intentionally; delete it separately only after confirming it is no longer needed.
+
+For a developer/operator wheel install:
+
 ```bash
 pip uninstall askrex-assistant
 ```
 
-Then remove local runtime state only if you no longer need it:
-
-```bash
-rm -rf .venv data logs transcripts Memory
-```
+Repository virtual environments and runtime-data directories are separate from the wheel uninstall. Remove only explicit paths you have reviewed and backed up; memories, profiles, transcripts, and logs may contain private user data.

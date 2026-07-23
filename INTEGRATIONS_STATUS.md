@@ -1,0 +1,23 @@
+# AskRex Integration Status
+
+This is the canonical integration release contract. Runtime status uses the same evidence vocabulary in `rex/integration_state.py`, `rex integrations`, `rex doctor`, the capability API, and Electron:
+
+`unavailable`, `unconfigured`, `configured`, `reachable`, `authenticated`, `degraded`, `read_only`, `write_capable`, `write_tested`, `verified`.
+
+Credentials alone mean `configured`. They never mean connected, authenticated, write-capable, or verified.
+
+| Integration | Product tier | Current contract |
+|---|---|---|
+| Home Assistant | Supported, credential-gated | Read access requires live authentication. Mutations use the unified policy service; sensitive actions require action-bound confirmation and all writes return verified, attempted-but-unverified, denied, or failed. Live-device transitions remain externally verified. |
+| Email | Partial | IMAP/SMTP backend paths exist. GUI email sending is unavailable; it creates a draft that can be copied to a mail client. Outlook Graph OAuth is unavailable. |
+| Calendar | Partial / read-only by backend | ICS reads exist. Credentials are configured-only until authenticated. Provider writes and Outlook Graph OAuth are unavailable. |
+| SMS / Phone | Experimental | Twilio paths require complete credentials. Status checks do not claim delivery or calling success; live delivery is externally verified. |
+| Web search | Partial | Provider selection exists. Configuration does not prove current network reachability. |
+| OpenAI / Ollama | Supported provider options | A key or URL is configuration evidence only. Provider availability depends on a live request. |
+| MQTT / Telegram / Push | Experimental | Visible and configurable, but live broker/provider authentication and delivery are externally verified. |
+| OpenClaw gateway | Experimental and optional | Feature-flagged HTTP client/tool adapters exist. A URL is configured-only evidence; the external gateway is not required by the packaged app. |
+| Browser automation / Windows control | Experimental | Environment-sensitive and permission-gated. Not part of the release-critical end-user path. |
+| WordPress / WooCommerce | Experimental operator tools | WordPress is monitoring-oriented. WooCommerce reads and approval-gated writes exist; live stores remain externally verified. |
+| Plex / smart speakers | Experimental | Hardware/service-dependent and not release-verified by automated tests. |
+
+The Electron Integrations page displays evidence state rather than a generic Connected badge. `rex integrations` provides the CLI inventory; `rex doctor` includes the same configuration evidence. No status probe sends email, calendar writes, SMS, phone calls, or provider notifications.

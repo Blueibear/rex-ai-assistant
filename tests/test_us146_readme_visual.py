@@ -112,15 +112,15 @@ def test_sections_in_table_of_contents():
 # ---------------------------------------------------------------------------
 
 
-def test_windows_note_is_blockquote():
-    """The Windows simpleaudio note must be in a blockquote (starts with '>'), not inline text."""
+def test_windows_voice_runtime_note_is_blockquote():
+    """The Windows managed-runtime note must remain visually prominent."""
     lines = _readme_text().splitlines()
     windows_note_line = None
     for line in lines:
-        if "simpleaudio" in line and "Windows" in line:
+        if "managed runtime" in line and "packaged Voice" in line:
             windows_note_line = line
             break
-    assert windows_note_line is not None, "Windows simpleaudio note not found in README"
+    assert windows_note_line is not None, "Windows managed Voice runtime note not found in README"
     assert windows_note_line.strip().startswith(
         ">"
     ), f"Windows note must be a blockquote (start with '>'), got: {windows_note_line!r}"

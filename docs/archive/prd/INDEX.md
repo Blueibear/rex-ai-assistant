@@ -1,11 +1,11 @@
 # Archived PRD Files
 
-These are completed or superseded product requirement documents. The active PRD is `PRD-master-next-cycle.md` at the repo root.
+These are completed or superseded product requirement documents. The only active release-readiness PRD is `PRD-production-readiness.md` at the repo root. Root `PRD.md` and `PRD-remaining-release-readiness.md` are also explicitly marked superseded but remain at the root to preserve historical links.
 
 | File | Description |
 |------|-------------|
 | PRD-ci-fix-pr216.md | Fix all CI failures on PR #216 (feature/openclaw-pivot) |
-| PRD-complete-3_31.md | Rex AI Assistant next-cycle PRD (superseded by PRD-master-next-cycle.md) |
+| PRD-complete-3_31.md | Rex AI Assistant next-cycle PRD (superseded historical work) |
 | PRD-complete.md | Rex AI Assistant completion PRD (general completion goals) |
 | PRD-full-repo-audit.md | Full repository audit and quality remediation |
 | PRD-full-test-and-fix.md | Full repository test, lint, and fix audit |

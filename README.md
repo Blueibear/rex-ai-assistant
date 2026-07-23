@@ -13,7 +13,7 @@
 
 AskRex Assistant is a local-first AI assistant for text chat, voice interaction, desktop control surfaces, and credential-gated home/productivity integrations. It runs from the Python `rex` package, with optional local ML dependencies for Whisper, openWakeWord, and XTTS, plus optional cloud/local LLM routing through OpenAI-compatible providers and Ollama.
 
-AskRex is alpha software. It is useful for local testing and development, but it should not be treated as production-ready. Recent GUI and voice-loop fixes have made several paths usable end to end; wake-word tuning, warning cleanup, and per-user data separation are still in progress. See [docs/claude/INTEGRATIONS_STATUS.md](docs/claude/INTEGRATIONS_STATUS.md) for the broader integration readiness snapshot.
+AskRex is a release-candidate implementation under validation, not a signed public production release. The Windows artifact has passed local clean-install, launch, managed-runtime, reinstall, and uninstall automation, but release signing, GitHub CI, and service/hardware checks listed below remain gates. Hold to Talk is the supported voice path; wake word is beta. See [INTEGRATIONS_STATUS.md](INTEGRATIONS_STATUS.md) for integration truth.
 
 > **Advanced / Developer**: For CLI text mode, voice loop, GPU/CUDA setup, and backend service configuration, see the [Advanced / Developer](#advanced--developer) section below. For GPU/CUDA setup and additional install variants, see [docs/advanced-install.md](docs/advanced-install.md).
 
@@ -23,8 +23,8 @@ AskRex is alpha software. It is useful for local testing and development, but it
 - [Install](#install)
 - [Current Status](#current-status)
 - [Working Now](#working-now)
-- [Known Limitations / In Progress](#known-limitations--in-progress)
-- [Planned Future Implementation](#planned-future-implementation)
+- [Known Limitations / External Verification](#known-limitations--external-verification)
+- [Implemented Privacy Boundary](#implemented-privacy-boundary)
 - [Main Entry Points](#main-entry-points)
 - [Features](#features)
 - [Requirements](#requirements)
@@ -37,7 +37,7 @@ AskRex is alpha software. It is useful for local testing and development, but it
 
 ## Getting Started
 
-The supported user-facing interface is the **Electron desktop app**. Python 3.11 and Node.js/npm are required.
+The supported user-facing interface is the **packaged Windows Electron desktop app**. Its managed Voice runtime does not require machine Python, Node.js, a source checkout, or a neighboring virtual environment. The source setup below is for developers; Python 3.11 and Node.js/npm are required only to build or run from source.
 
 Python 3.12 and newer are intentionally rejected by the current installers and runtime checks because the validated ML/TTS dependency path is Python 3.11-only.
 
@@ -128,42 +128,32 @@ This README reflects the current milestone after recent live testing and repair 
 - The Home Assistant status stays authenticated in the UI after a successful live API test; saved credentials alone remain configured-only.
 - GUI Chat shows a visible pending/thinking state while Rex is preparing a reply.
 - Voice Hold to Talk records, transcribes, streams a Rex reply, synthesizes and plays it on the configured output device, supports cancel/barge-in and replay, and can be used repeatedly.
-- Wake-word mode is wired and can work end to end in live testing, but reliability and latency still need work.
-- Long voice answers now use a cleaner spoken handoff that points the user to the on-screen transcript instead of reading long replies badly.
+- Wake-word mode is wired but remains beta; it is not part of the release-verified voice contract.
 - Custom wake backends are wired: built-in openWakeWord fallback, `custom_embedding` as an interim path, and `custom_onnx` as the long-term target when a real asset is present.
 - Day/date phrasing coverage in chat has improved for common variants.
 
-## Known Limitations / In Progress
+## Known Limitations / External Verification
 
-- Wake-word reliability is still inconsistent and may require threshold/device tuning.
-- Wake-word response latency is slower than desired.
+- Wake-word mode is beta and still requires microphone/device reliability and latency validation.
 - The repo does not ship a real `Hey Rex` custom wake asset. A valid asset is still required for `custom_onnx` or `custom_embedding` to become active.
 - Outlook email and calendar are labeled unavailable because Graph OAuth is not implemented.
-- CLI identity listing is currently polluted with test/demo users.
-- A deprecated `wake_word` config warning still appears during startup.
-- A `.env` permissions warning still appears.
 - Some pages and integrations are still in active stabilization; do not assume every registered integration is production-ready.
-- Per-user data isolation is planned but not yet complete.
+- The locally built Windows installer is unsigned. Signing remains a public-release gate.
+- Microphone input, audible selected-output TTS, barge-in, live Home Assistant transitions, and provider delivery/write paths require environment-specific validation.
 
-## Planned Future Implementation
+## Implemented Privacy Boundary
 
-- Per-user GUI login.
-- Personal vs shared data isolation.
-- Personal vs shared integrations.
-- Per-user chat histories with the ability to continue prior chats.
-- Per-user reminders, tasks, notifications, and memories.
-- Scoped document/context uploads with an upload-time choice for personal, shared, or universal access.
-- Small GUI polish items, including increasing the size of the top-left AskRex logo.
+Electron resolves one validated session identity in the main process. Chat, history, memories, tasks, reminders, shopping, email/calendar/SMS reads, voice identity, corrections, and document uploads receive that identity explicitly and fail closed when it is missing or invalid. Existing unowned Electron data is quarantined by `scripts/migrate_electron_data_ownership.py`; data is shared only when an owning store explicitly marks it shared. See [docs/security/ELECTRON_IDENTITY_AND_DATA.md](docs/security/ELECTRON_IDENTITY_AND_DATA.md).
 
 ## Main Entry Points
 
 | Surface | Command | Status |
 |---|---|---|
-| **Electron desktop app** | Windows: `cd gui; npm.cmd run dev`; macOS/Linux: `cd gui && npm run dev` | **Primary user-facing interface** — current primary GUI under active stabilization |
+| **Electron desktop app** | Installed AskRex app; source development: `cd gui; npm.cmd run dev` | **Primary user-facing interface** — Windows artifact is locally validated but unsigned |
 | CLI text chat | `rex` or `python -m rex` | Working basic chat (developer / advanced) |
 | Diagnostics | `rex doctor` or `python -m rex doctor` | Working |
-| Voice loop | `python rex_loop.py` | Working in live testing; tuning ongoing (developer / advanced) |
-| Python/Flask local API | `rex-gui` | Starts Flask on `http://127.0.0.1:8765`; backend service for Electron — not a standalone browser app (developer-only) |
+| Voice loop | `python rex_loop.py` | Developer / advanced source path; wake word is beta |
+| Python/Flask local API | `rex-gui` | Developer-only compatibility/API surface; not spawned or required by Electron |
 | TTS API | `rex-speak-api` | Implemented service, default `127.0.0.1:5005` (developer / advanced) |
 | OpenClaw tool server | `rex-tool-server` | Implemented service, default `127.0.0.1:18790` (developer / advanced) |
 | Windows computer agent | `rex-agent` | Optional remote PC control agent (developer / advanced) |
@@ -185,8 +175,8 @@ The Electron app under `gui/` is the current primary GUI. `rex-gui` remains usef
 | Email and calendar integrations | Credential presence is labeled configured-only. Outlook Graph OAuth is unavailable. The GUI can display inbox/calendar bridge results and create email drafts, but GUI email sending is unavailable; copy the draft into a mail client. |
 | CLI integrations | `rex email`, `rex calendar`, `rex msg`, `rex notify`, `rex gh`, `rex code`, `rex pc`, `rex wp`, `rex wc`, `rex ha`, `rex shopping`, `rex usage`, and more are registered. Readiness varies by backend credentials and test coverage. |
 | Tool execution | Tool registry, policy checks, audit logging, and OpenClaw-facing HTTP tool server are implemented. Local tool execution currently covers time, weather, and web search; the HTTP tool server exposes a broader adapter set. |
-| Memory | Memory storage paths exist under `Memory/` and `data/memory/`, and GUI chat history uses `data/history.db`. Full per-user GUI history/memory isolation is planned, not complete. |
-| Notifications | Priority routing, quiet hours, digest/escalation logic, CLI commands, and Electron notification UI plumbing are present. Full per-user notification behavior is planned, not complete. |
+| Memory and private data | Electron private stores are session-identity scoped and tested with two users. Shared data requires explicit shared ownership; legacy unowned data is quarantined for deliberate migration. |
+| Notifications | Priority routing, quiet hours, digest/escalation logic, CLI commands, and Electron notification UI plumbing are present. Provider delivery remains externally verified. |
 | WordPress/WooCommerce | WordPress health checks and WooCommerce order/product reads are implemented; WooCommerce order status and coupon writes are approval-gated. |
 | OpenClaw | Optional experimental HTTP gateway/client adapters and a standalone Rex tool server are present; feature flags under `openclaw` control gateway-backed paths. Configuration does not prove gateway reachability. |
 
@@ -194,16 +184,16 @@ The Electron app under `gui/` is the current primary GUI. `rex-gui` remains usef
 
 | Component | Requirement |
 |---|---|
-| Python | 3.11 only |
+| Python | Bundled for the Windows end-user artifact; 3.11 only for source/developer workflows |
 | OS | Windows 10/11, macOS, or Linux |
 | FFmpeg | Required for parts of the audio/TTS stack |
 | Audio hardware | Microphone and speakers for voice mode |
-| Node.js/npm | Required only for the Electron GUI under `gui/` |
+| Node.js/npm | Build/development only; not required by the installed app |
 | GPU | Optional NVIDIA CUDA path via `requirements-gpu*.txt` |
 
 On Windows, use `py -3.11 ...` or activate the repo `.venv` before running commands. A system default `python` that points at 3.12+ will be rejected.
 
-> **Note**: On Windows, audio playback requires simpleaudio. Install it with `pip install simpleaudio` if audio output is not working.
+> **Note**: Source voice workflows may require optional audio dependencies. The packaged Voice runtime carries its validated CPU audio/ML stack; do not modify the managed runtime in place.
 
 ## Configuration
 
@@ -441,6 +431,8 @@ Start with [docs/INDEX.md](docs/INDEX.md). High-value active docs:
 - [docs/usage.md](docs/usage.md) - user-facing usage guide
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) - architecture overview
 - [docs/UI_SURFACES.md](docs/UI_SURFACES.md) - current UI surface inventory
+- [INTEGRATIONS_STATUS.md](INTEGRATIONS_STATUS.md) - canonical integration state and support contract
+- [docs/audits/AUDIT-REMEDIATION-2026-07-22.md](docs/audits/AUDIT-REMEDIATION-2026-07-22.md) - current A–K remediation evidence ledger
 - [docs/tools.md](docs/tools.md) - tool registry and execution notes
 - [docs/api.md](docs/api.md) - HTTP services reference
 - [docs/troubleshooting.md](docs/troubleshooting.md) - common failures
@@ -449,7 +441,7 @@ Files under `docs/archive/` are historical development records and may intention
 
 ## Security
 
-- Keep secrets in `.env` or `config/credentials.json`; do not put them in `config/rex_config.json`.
+- Keep secrets in `.env`; do not put them in `config/rex_config.json`, documentation, logs, or packaged resources.
 - `rex-speak-api` requires `REX_SPEAK_API_KEY`.
 - `rex-tool-server` requires `REX_TOOL_API_KEY` for tool invocation.
 - The GUI backend's log endpoints (`/api/logs/stream`, `/api/logs/download`) require a `REX_PROXY_TOKEN` Bearer token and redact home-directory paths from served log content. See [docs/configuration.md](docs/configuration.md).
@@ -458,6 +450,7 @@ Files under `docs/archive/` are historical development records and may intention
 ### Security baseline
 
 - [docs/security/AUDIT-INVENTORY.md](docs/security/AUDIT-INVENTORY.md) - current `scripts/security_audit.py` triage inventory
+- Release gate: `python scripts/security_audit.py --release-gate`
 
 Security references:
 

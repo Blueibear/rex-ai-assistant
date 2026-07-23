@@ -23,7 +23,7 @@ If deeper reference is required, consult:
 
 - docs/claude/COMMANDS_AND_ENTRYPOINTS.md
 - docs/claude/CONFIG_AND_SECURITY.md
-- docs/claude/INTEGRATIONS_STATUS.md
+- INTEGRATIONS_STATUS.md
 - docs/claude/TESTING_AND_QUALITY.md
 
 This file remains the primary control document for:
@@ -52,14 +52,15 @@ Install via: pip install .
 
 Current install/runtime compatibility policy:
 
-- Default supported install path: Python 3.11
+- End-user install path: packaged Windows Electron installer with managed Python 3.11 Voice runtime
+- Developer/operator install path: Python 3.11 and `pip install .`
 - Full Windows GPU + TTS path: Python 3.11 with `requirements-gpu-cu124.txt`
 - Do not claim Python 3.12+ support unless the dependency stack has been validated end-to-end and docs, CI, and package metadata are updated together
 
 Entry points:
 
 - rex -> rex.cli:main  # first-class: primary CLI
-- rex-gui -> rex.gui_app:main  # backend service: Electron-backed GUI server; not a standalone browser app
+- rex-gui -> rex.gui_app:main  # developer-only Flask API/dashboard; not used by Electron
 - rex-config -> rex.config:cli  # utility: config inspection and migration
 - rex-speak-api -> rex_speak_api:main  # backend service: TTS API with auth and rate limiting
 - rex-agent -> rex.computers.agent_server:main  # backend service: optional remote PC control API
@@ -74,7 +75,7 @@ Mobile API gateway (issue #323) runs via the CLI, not a console script:
 
 API: Flask (Flask-CORS, Flask-Limiter, Flask-Sock for the mobile WebSocket)
 
-GUI: Web dashboard via `rex.gui_app` (React + Flask). `gui.py` is deprecated.
+GUI: React + Electron under `gui/` is the primary packaged interface. `rex.gui_app` is a developer-only Flask API/dashboard and is not spawned by Electron. Archived Tkinter files are unsupported.
 
 Config: Pydantic v2, python-dotenv
 

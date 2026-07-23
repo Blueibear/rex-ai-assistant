@@ -1,10 +1,12 @@
 # PRD: AskRex Release Readiness, Security Hardening, and Packaging Stabilization
 
+> **Superseded / historical.** The active release-readiness tracker is `PRD-production-readiness.md`. Do not use unchecked boxes here to select current work.
+
 **Project:** AskRex Assistant  
 **Repo:** Blueibear/AskRex-Assistant  
 **PRD Type:** Release Readiness (not a feature roadmap)  
 **Source of truth for findings:** Codex Analytical Repo Review (May 2026)  
-**Status:** Implementation-ready — hand to Claude Code one story at a time  
+**Status:** Superseded historical baseline
 **Output file:** `PRD.md`
 
 ---
