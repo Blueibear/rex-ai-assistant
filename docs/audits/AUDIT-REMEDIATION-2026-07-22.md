@@ -16,7 +16,7 @@ Status meanings follow the task contract: Implemented, Locally verified, CI veri
 | H — Integration truth | Locally verified | `310bcb4` | shared state vocabulary, CLI, doctor, API/capability registry, Electron UI, email draft-only UX | 88 focused Python tests, 12 GUI tests, GUI typecheck, and lint with no errors | Email/calendar/SMS/provider writes and external OpenClaw/search reachability |
 | I — Diagnostics/security gates | Locally verified | `e55701b` | distinct PASS/WARN/ERROR, doctor release gate, actionable/expiring security suppressions | Doctor, registry, and security-audit tests passed | None |
 | J — GUI lint/dependencies | Locally verified | `6bb97e4` | ESLint 9 flat config, upgraded dependencies, locked overrides | lint passes with three existing warnings; typecheck/build/Vitest/audit passed | GitHub dependency and GUI jobs on this PR |
-| K — Documentation/planning truth | In progress | pending documentation commit | README, INSTALL, RUNNING, surface docs, integration contract, CLAUDE, active/superseded PRDs, this ledger | Link/claim checks pending | Final artifact/signing/CI outcomes must be recorded after completion |
+| K — Documentation/planning truth | Locally verified | `fa22da6` | README, INSTALL, RUNNING, surface docs, integration contract, CLAUDE, active/superseded PRDs, this ledger | 65 focused release-contract tests passed; local Markdown links validated in 10 canonical files | Final artifact/signing/CI outcomes must be recorded after completion |
 
 ## Packaging evidence
 
