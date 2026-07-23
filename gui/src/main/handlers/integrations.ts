@@ -112,7 +112,7 @@ export function registerIntegrationsHandlers(): void {
   })
 
   ipcMain.handle('rex:testEmailAccount', (_event, id: string) => {
-    // Check that the identified account has the required credentials configured
+    // This is a configuration check only. It does not contact the provider.
     const stored = readGuiSettings()
     const integrations = (stored['integrations'] ?? {}) as Record<string, unknown>
     const accounts = Array.isArray(integrations.emailAccounts) ? integrations.emailAccounts : []
@@ -123,15 +123,19 @@ export function registerIntegrationsHandlers(): void {
         typeof account.host === 'string' && account.host.trim() !== '' &&
         typeof account.username === 'string' && account.username.trim() !== '' &&
         typeof account.password === 'string' && account.password.trim() !== '' // pragma: allowlist secret
-      return ok ? { ok: true } : { ok: false, error: 'IMAP host, username, and password are required' }
+      return ok
+        ? { ok: false, state: 'configured', error: 'Credentials are present, but provider authentication was not tested.' }
+        : { ok: false, state: 'unconfigured', error: 'IMAP host, username, and password are required' }
     }
     // gmail / outlook OAuth
     if (account.backend === 'outlook') {
-      return { ok: false, error: OUTLOOK_EMAIL_UNSUPPORTED }
+      return { ok: false, state: 'unavailable', error: OUTLOOK_EMAIL_UNSUPPORTED }
     }
     const ok =
       typeof account.clientId === 'string' && account.clientId.trim() !== '' &&
       typeof account.clientSecret === 'string' && account.clientSecret.trim() !== '' // pragma: allowlist secret
-    return ok ? { ok: true } : { ok: false, error: 'OAuth Client ID and Secret are required' }
+    return ok
+      ? { ok: false, state: 'configured', error: 'Credentials are present, but provider authentication was not tested.' }
+      : { ok: false, state: 'unconfigured', error: 'OAuth Client ID and Secret are required' }
   })
 }

@@ -43,6 +43,9 @@ class Capability:
     triggers: list[str] = field(default_factory=list)
     enabled: bool = True
     category: str = "General"
+    integration_state: str | None = None
+    read_capable: bool | None = None
+    write_capable: bool | None = None
 
     def __post_init__(self) -> None:
         if not self.name:
@@ -269,25 +272,28 @@ def populate_from_config(registry: CapabilityRegistry, config: object) -> None:
     if cap is not None:
         cap.enabled = _has("openweathermap_api_key")
 
+    from rex.integration_state import build_integration_inventory
+
+    evidence = {item.key: item for item in build_integration_inventory(config)}
+
+    def apply_integration_state(capability_name: str, integration_key: str) -> None:
+        capability = registry.get(capability_name)
+        item = evidence.get(integration_key)
+        if capability is None or item is None:
+            return
+        capability.enabled = item.available and item.configured
+        capability.integration_state = item.state.value
+        capability.read_capable = item.read_capable
+        capability.write_capable = item.write_capable
+
     # web search
-    cap = registry.get("web_search")
-    if cap is not None:
-        has_search = _has("brave_api_key") or bool(
-            getattr(config, "search_providers", "duckduckgo")
-        )
-        cap.enabled = has_search
+    apply_integration_state("web_search", "search")
 
     # Home Assistant
-    cap = registry.get("home_assistant")
-    if cap is not None:
-        cap.enabled = _has("ha_token") or _has("ha_base_url")
+    apply_integration_state("home_assistant", "home_assistant")
 
     # email
-    cap = registry.get("send_email")
-    if cap is not None:
-        provider = getattr(config, "email_provider", "none")
-        accounts = getattr(config, "email_accounts", [])
-        cap.enabled = (provider != "none") or bool(accounts)
+    apply_integration_state("send_email", "email")
 
     # music assistant
     cap = registry.get("music_assistant")

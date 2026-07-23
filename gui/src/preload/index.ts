@@ -41,7 +41,8 @@ import type {
   QuickActionRunResponse,
   SetupStatusResponse,
   SetupCompletePayload,
-  SetupCompleteResponse
+  SetupCompleteResponse,
+  IntegrationConnectionStatus
 } from '../types/ipc'
 
 function makeSendChatStream(
@@ -236,7 +237,7 @@ const rexAPI = {
     ipcRenderer.invoke('rex:getCommandHistory', limit),
   testVoice: (settings: VoiceSettings): Promise<{ ok: boolean; error?: string }> =>
     ipcRenderer.invoke('rex:testVoice', settings),
-  testIntegration: (type: 'email' | 'calendar' | 'sms' | 'homeassistant' | 'phone'): Promise<{ ok: boolean; error?: string }> =>
+  testIntegration: (type: 'email' | 'calendar' | 'sms' | 'homeassistant' | 'phone'): Promise<{ ok: boolean; state?: IntegrationConnectionStatus; error?: string }> =>
     ipcRenderer.invoke('rex:testIntegration', type),
   getIntegrations: () => ipcRenderer.invoke('rex:getIntegrations'),
   getCapabilities: () => ipcRenderer.invoke('rex:getCapabilities'),
@@ -254,7 +255,7 @@ const rexAPI = {
     ipcRenderer.invoke('rex:uploadContactsFile'),
   pickFolder: (): Promise<{ ok: boolean; path?: string; error?: string }> =>
     ipcRenderer.invoke('rex:pickFolder'),
-  testEmailAccount: (id: string): Promise<{ ok: boolean; error?: string }> =>
+  testEmailAccount: (id: string): Promise<{ ok: boolean; state?: IntegrationConnectionStatus; error?: string }> =>
     ipcRenderer.invoke('rex:testEmailAccount', id),
   getPreferenceSuggestions: (): Promise<PreferenceSuggestion[]> =>
     ipcRenderer.invoke('rex:getPreferenceSuggestions'),

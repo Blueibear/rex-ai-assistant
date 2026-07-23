@@ -2640,11 +2640,12 @@ function AiPanel(): React.ReactElement {
 }
 
 type IntegrationSection = 'email' | 'calendar' | 'sms' | 'homeassistant' | 'phone'
-type TestStatus = 'idle' | 'testing' | 'ok' | 'error'
+type TestStatus = 'idle' | 'testing' | 'configured' | 'ok' | 'error'
 
-function integrationStatusToTestStatus(status: IntegrationInventoryItem['status']): TestStatus {
-  if (status === 'connected') return 'ok'
-  if (status === 'error') return 'error'
+function integrationStatusToTestStatus(state: IntegrationInventoryItem['state']): TestStatus {
+  if (['authenticated', 'read_only', 'write_capable', 'write_tested', 'verified'].includes(state)) return 'ok'
+  if (state === 'configured' || state === 'reachable') return 'configured'
+  if (state === 'degraded' || state === 'unavailable') return 'error'
   return 'idle'
 }
 
@@ -2690,7 +2691,7 @@ function ConnectionBadge({
     return (
       <span className="inline-flex items-center gap-1 rounded-full bg-success/15 px-2 py-0.5 text-xs font-medium text-success">
         <span className="h-1.5 w-1.5 rounded-full bg-success" />
-        Connected
+        Live test passed
       </span>
     )
   }
@@ -2713,7 +2714,7 @@ function ConnectionBadge({
   return (
     <span className="inline-flex items-center gap-1 rounded-full bg-warning/15 px-2 py-0.5 text-xs font-medium text-warning">
       <span className="h-1.5 w-1.5 rounded-full bg-warning" />
-      Untested
+      Configured only
     </span>
   )
 }
@@ -2797,14 +2798,14 @@ function TestConnectionButton({
               </svg>
               Testing…
             </>
-          ) : 'Test Connection'}
+          ) : 'Check Status'}
         </button>
         {status === 'ok' && (
           <span className="flex items-center gap-1 text-xs text-success">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
               <polyline points="20 6 9 17 4 12" />
             </svg>
-            Connected
+            Authenticated
           </span>
         )}
         {status === 'error' && (
@@ -2812,15 +2813,18 @@ function TestConnectionButton({
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
               <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
             </svg>
-            Not connected
+            Check failed
           </span>
+        )}
+        {status === 'configured' && (
+          <span className="text-xs text-warning">Configured only</span>
         )}
         {status === 'idle' && (
           <span className="text-xs text-text-secondary">Not tested</span>
         )}
       </div>
-      {status === 'error' && error && (
-        <p className="mt-1 text-xs text-danger">{error}</p>
+      {(status === 'error' || status === 'configured') && error && (
+        <p className={`mt-1 text-xs ${status === 'error' ? 'text-danger' : 'text-warning'}`}>{error}</p>
       )}
     </div>
   )
@@ -2913,7 +2917,10 @@ function IntegrationsPanel(): React.ReactElement {
     window.rex
       .testEmailAccount(id)
       .then((res) => {
-        setAccountTestStatus((s) => ({ ...s, [id]: res.ok ? 'ok' : 'error' }))
+        const nextStatus = res.state
+          ? integrationStatusToTestStatus(res.state)
+          : res.ok ? 'ok' : 'error'
+        setAccountTestStatus((s) => ({ ...s, [id]: nextStatus }))
       })
       .catch(() => {
         setAccountTestStatus((s) => ({ ...s, [id]: 'error' }))
@@ -2932,7 +2939,7 @@ function IntegrationsPanel(): React.ReactElement {
       const next = { ...current }
       for (const item of inventory) {
         const section = integrationKeyToSection(item.key)
-        if (section) next[section] = integrationStatusToTestStatus(item.status)
+        if (section) next[section] = integrationStatusToTestStatus(item.state)
       }
       return next
     })
@@ -2941,9 +2948,9 @@ function IntegrationsPanel(): React.ReactElement {
       for (const item of inventory) {
         const section = integrationKeyToSection(item.key)
         if (!section) continue
-        if (item.status === 'error' && item.error) {
+        if ((item.state === 'degraded' || item.state === 'unavailable') && item.error) {
           next[section] = item.error
-        } else if (item.status !== 'error') {
+        } else if (item.state !== 'degraded' && item.state !== 'unavailable') {
           delete next[section]
         }
       }
@@ -3065,10 +3072,16 @@ function IntegrationsPanel(): React.ReactElement {
 
     testRequest
       .then((res) => {
-        setTestStatus((s) => ({ ...s, [section]: res.ok ? 'ok' : 'error' }))
+        const evidenceState = 'state' in res
+          ? res.state as IntegrationInventoryItem['state'] | undefined
+          : undefined
+        const nextStatus = evidenceState
+          ? integrationStatusToTestStatus(evidenceState)
+          : res.ok ? 'ok' : 'error'
+        setTestStatus((s) => ({ ...s, [section]: nextStatus }))
         setTestErrors((s) => {
           const next = { ...s }
-          if (!res.ok && res.error) {
+          if ((!res.ok || evidenceState === 'configured') && res.error) {
             next[section] = res.error
           } else {
             delete next[section]
@@ -3352,7 +3365,7 @@ function IntegrationsPanel(): React.ReactElement {
                       </div>
                     )}
 
-                    {/* Test connection + last-synced */}
+                    {/* Configuration evidence + last-synced */}
                     <div className="flex items-center gap-3">
                       <button
                         type="button"
@@ -3360,10 +3373,13 @@ function IntegrationsPanel(): React.ReactElement {
                         disabled={acctTestStatus === 'testing'}
                         className="flex items-center gap-1.5 rounded-lg border border-border bg-surface-raised px-3 py-1.5 text-xs font-medium text-text-primary transition-colors hover:bg-border focus:outline-none focus:ring-2 focus:ring-accent disabled:opacity-50"
                       >
-                        {acctTestStatus === 'testing' ? 'Testing…' : 'Test Connection'}
+                        {acctTestStatus === 'testing' ? 'Checking…' : 'Check Configuration'}
                       </button>
                       {acctTestStatus === 'ok' && (
-                        <span className="text-xs font-medium text-success">Connected</span>
+                        <span className="text-xs font-medium text-success">Authenticated</span>
+                      )}
+                      {acctTestStatus === 'configured' && (
+                        <span className="text-xs font-medium text-warning">Configured only</span>
                       )}
                       {acctTestStatus === 'error' && (
                         <span className="text-xs font-medium text-danger">Failed</span>

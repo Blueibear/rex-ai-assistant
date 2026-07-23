@@ -134,74 +134,9 @@ def create_blueprint() -> Blueprint:
         except Exception:
             return jsonify({"integrations": []}), 200
 
-        search_configured = bool(
-            os.getenv("SERPAPI_API_KEY") or os.getenv("BRAVE_API_KEY") or os.getenv("GOOGLE_CSE_ID")
-        )
+        from rex.integration_state import build_integration_inventory
 
-        integrations = [
-            {
-                "name": "Home Assistant",
-                "key": "home_assistant",
-                "configured": bool(cfg.ha_base_url and cfg.ha_token),
-                "configure_url": "/settings/home-assistant",
-            },
-            {
-                "name": "Email",
-                "key": "email",
-                "configured": cfg.email_provider not in ("none", ""),
-                "configure_url": "/settings?section=integrations",
-            },
-            {
-                "name": "Calendar",
-                "key": "calendar",
-                "configured": getattr(cfg, "calendar_provider", "none") not in ("none", ""),
-                "configure_url": "/settings?section=integrations",
-            },
-            {
-                "name": "SMS (Twilio)",
-                "key": "sms",
-                "configured": bool(
-                    os.getenv("TWILIO_ACCOUNT_SID") or os.getenv("TWILIO_AUTH_TOKEN")
-                ),
-                "configure_url": "/settings?section=integrations",
-            },
-            {
-                "name": "Telegram",
-                "key": "telegram",
-                "configured": bool(cfg.telegram_bot_token and cfg.telegram_chat_id),
-                "configure_url": "/settings?section=integrations",
-            },
-            {
-                "name": "Web Search",
-                "key": "search",
-                "configured": search_configured,
-                "configure_url": "/settings?section=ai",
-            },
-            {
-                "name": "MQTT",
-                "key": "mqtt",
-                "configured": bool(os.getenv("MQTT_BROKER_HOST")),
-                "configure_url": "/settings?section=integrations",
-            },
-            {
-                "name": "OpenAI",
-                "key": "openai",
-                "configured": bool(cfg.openai_api_key),
-                "configure_url": "/settings?section=ai",
-            },
-            {
-                "name": "Ollama",
-                "key": "ollama",
-                "configured": bool(cfg.ollama_base_url),
-                "configure_url": "/settings?section=ai",
-            },
-            {
-                "name": "Push Notifications",
-                "key": "push",
-                "configured": bool(cfg.push_provider and cfg.push_token),
-                "configure_url": "/settings?section=integrations",
-            },
-        ]
+        integrations = [item.to_dict() for item in build_integration_inventory(cfg)]
         return jsonify({"integrations": integrations}), 200
 
     @bp.route("/api/calendar/events", methods=["GET"])
@@ -378,8 +313,11 @@ def create_blueprint() -> Blueprint:
                     "description": c.description,
                     "category": getattr(c, "category", "General"),
                     "enabled": c.enabled,
+                    "state": c.integration_state,
+                    "read_capable": c.read_capable,
+                    "write_capable": c.write_capable,
                 }
-                for c in registry.list()
+                for c in registry.list(include_disabled=True)
             ]
         except Exception:
             caps = []

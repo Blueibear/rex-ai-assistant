@@ -196,20 +196,36 @@ def test_populate_enables_weather():
     assert registry.get("weather_now").enabled is True
 
 
-def test_populate_enables_home_assistant():
+def test_populate_requires_complete_home_assistant_configuration():
     reset_capability_registry()
     registry = get_capability_registry()
     cfg = _FakeConfig(ha_token="token123", ha_base_url=None)
     populate_from_config(registry, cfg)
-    assert registry.get("home_assistant").enabled is True
+    cap = registry.get("home_assistant")
+    assert cap.enabled is False
+    assert cap.integration_state == "unconfigured"
 
 
-def test_populate_enables_home_assistant_via_url():
+def test_populate_does_not_enable_home_assistant_with_url_only():
     reset_capability_registry()
     registry = get_capability_registry()
     cfg = _FakeConfig(ha_token=None, ha_base_url="http://homeassistant.local:8123")
     populate_from_config(registry, cfg)
-    assert registry.get("home_assistant").enabled is True
+    cap = registry.get("home_assistant")
+    assert cap.enabled is False
+    assert cap.integration_state == "unconfigured"
+
+
+def test_populate_records_configured_home_assistant_evidence():
+    reset_capability_registry()
+    registry = get_capability_registry()
+    cfg = _FakeConfig(ha_token="token123", ha_base_url="http://homeassistant.local:8123")
+    populate_from_config(registry, cfg)
+    cap = registry.get("home_assistant")
+    assert cap.enabled is True
+    assert cap.integration_state == "configured"
+    assert cap.read_capable is False
+    assert cap.write_capable is False
 
 
 def test_populate_enables_music_assistant():

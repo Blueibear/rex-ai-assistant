@@ -6,37 +6,32 @@ type Integration = IntegrationInventoryItem
 type Capability = CapabilityInfo
 
 function StatusBadge({ integration }: { integration: Integration }): React.ReactElement {
-  if (integration.status === 'connected') {
-    return (
-      <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-green-500/15 text-green-400">
-        Connected
-      </span>
-    )
+  const labels: Record<Integration['state'], string> = {
+    unavailable: 'Unavailable',
+    unconfigured: 'Not configured',
+    configured: 'Configured only',
+    reachable: 'Reachable',
+    authenticated: 'Authenticated',
+    degraded: 'Degraded',
+    read_only: 'Read-only',
+    write_capable: 'Write-capable',
+    write_tested: 'Write-tested',
+    verified: 'Verified'
   }
-  if (integration.status === 'error') {
-    return (
-      <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-red-500/15 text-red-400">
-        Connection error
-      </span>
-    )
-  }
-  if (integration.configured && integration.testable) {
-    return (
-      <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-yellow-500/15 text-yellow-400">
-        Untested
-      </span>
-    )
-  }
-  if (integration.configured) {
-    return (
-      <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-green-500/15 text-green-400">
-        Configured
-      </span>
-    )
-  }
+  const positive = ['authenticated', 'read_only', 'write_capable', 'write_tested', 'verified']
+    .includes(integration.state)
+  const negative = integration.state === 'unavailable' || integration.state === 'degraded'
   return (
-    <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-surface-raised text-text-muted">
-      Not configured
+    <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+      positive
+        ? 'bg-green-500/15 text-green-400'
+        : negative
+          ? 'bg-red-500/15 text-red-400'
+          : integration.state === 'configured' || integration.state === 'reachable'
+            ? 'bg-yellow-500/15 text-yellow-400'
+            : 'bg-surface-raised text-text-muted'
+    }`}>
+      {labels[integration.state]}
     </span>
   )
 }
@@ -158,6 +153,11 @@ export function IntegrationsPage(): React.ReactElement {
                         <p className="text-text-primary text-sm font-medium">{cap.name}</p>
                         {cap.description && (
                           <p className="text-text-muted text-xs mt-0.5 truncate">{cap.description}</p>
+                        )}
+                        {cap.state && (
+                          <p className="text-text-muted text-xs mt-0.5">
+                            Evidence: {cap.state.replace(/_/g, ' ')}
+                          </p>
                         )}
                       </div>
                       <span

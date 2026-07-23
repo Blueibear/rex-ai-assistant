@@ -125,7 +125,7 @@ This README reflects the current milestone after recent live testing and repair 
 - The Electron GUI launches and the main shell is stable.
 - GUI pages load for Tasks, Reminders, Settings, Users, Integrations, Email, Calendar, and Home Assistant.
 - The Home Assistant page loads and lists entities after the recent GUI/backend consistency fixes.
-- The Home Assistant connection test now stays connected in the UI after a successful real connection test.
+- The Home Assistant status stays authenticated in the UI after a successful live API test; saved credentials alone remain configured-only.
 - GUI Chat shows a visible pending/thinking state while Rex is preparing a reply.
 - Voice Hold to Talk records, transcribes, streams a Rex reply, synthesizes and plays it on the configured output device, supports cancel/barge-in and replay, and can be used repeatedly.
 - Wake-word mode is wired and can work end to end in live testing, but reliability and latency still need work.
@@ -138,7 +138,7 @@ This README reflects the current milestone after recent live testing and repair 
 - Wake-word reliability is still inconsistent and may require threshold/device tuning.
 - Wake-word response latency is slower than desired.
 - The repo does not ship a real `Hey Rex` custom wake asset. A valid asset is still required for `custom_onnx` or `custom_embedding` to become active.
-- Outlook integration status in the GUI should not be read as full mailbox/calendar sync readiness. Live Outlook email/calendar sync is still incomplete.
+- Outlook email and calendar are labeled unavailable because Graph OAuth is not implemented.
 - CLI identity listing is currently polluted with test/demo users.
 - A deprecated `wake_word` config warning still appears during startup.
 - A `.env` permissions warning still appears.
@@ -182,13 +182,13 @@ The Electron app under `gui/` is the current primary GUI. `rex-gui` remains usef
 | Configuration | Runtime settings live in `config/rex_config.json`; secrets live in `.env`; profiles live in `profiles/`. |
 | GUIs | The Electron/React desktop GUI (`gui/`) is the current primary interface. The Electron shell is stable in current testing; Tasks, Reminders, Settings, Users, Integrations, Email, Calendar, and Home Assistant pages load. The Python/Flask `rex-gui` surface still serves local API routes and an experimental `/ui/` browser dashboard, but that browser UI is incomplete and not recommended as the primary interface. |
 | Home Assistant | The GUI lists entities and routes mutations through one policy service. Sensitive lock/alarm/cover actions require action-bound confirmation, and Rex says an action is confirmed only after observing the requested state; otherwise it reports attempted-but-unverified, denied, or failed. Live-device verification remains environment-dependent. |
-| Email and calendar integrations | GUI integration status is more honest than before, but Outlook-connected status should not be read as full live Outlook mailbox/calendar sync. Treat Outlook email/calendar paths as partial until end-to-end sync is working. |
+| Email and calendar integrations | Credential presence is labeled configured-only. Outlook Graph OAuth is unavailable. The GUI can display inbox/calendar bridge results and create email drafts, but GUI email sending is unavailable; copy the draft into a mail client. |
 | CLI integrations | `rex email`, `rex calendar`, `rex msg`, `rex notify`, `rex gh`, `rex code`, `rex pc`, `rex wp`, `rex wc`, `rex ha`, `rex shopping`, `rex usage`, and more are registered. Readiness varies by backend credentials and test coverage. |
 | Tool execution | Tool registry, policy checks, audit logging, and OpenClaw-facing HTTP tool server are implemented. Local tool execution currently covers time, weather, and web search; the HTTP tool server exposes a broader adapter set. |
 | Memory | Memory storage paths exist under `Memory/` and `data/memory/`, and GUI chat history uses `data/history.db`. Full per-user GUI history/memory isolation is planned, not complete. |
 | Notifications | Priority routing, quiet hours, digest/escalation logic, CLI commands, and Electron notification UI plumbing are present. Full per-user notification behavior is planned, not complete. |
 | WordPress/WooCommerce | WordPress health checks and WooCommerce order/product reads are implemented; WooCommerce order status and coupon writes are approval-gated. |
-| OpenClaw | HTTP gateway/client adapters and a standalone Rex tool server are present; feature flags under `openclaw` control gateway-backed paths. |
+| OpenClaw | Optional experimental HTTP gateway/client adapters and a standalone Rex tool server are present; feature flags under `openclaw` control gateway-backed paths. Configuration does not prove gateway reachability. |
 
 ## Requirements
 

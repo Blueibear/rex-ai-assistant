@@ -263,10 +263,20 @@ export interface IntegrationsSettings {
   telegramChatId: string
 }
 
-export type IntegrationConnectionStatus = 'untested' | 'connected' | 'error'
+export type IntegrationConnectionStatus =
+  | 'unavailable'
+  | 'unconfigured'
+  | 'configured'
+  | 'reachable'
+  | 'authenticated'
+  | 'degraded'
+  | 'read_only'
+  | 'write_capable'
+  | 'write_tested'
+  | 'verified'
 
 export interface IntegrationStatus {
-  status: IntegrationConnectionStatus
+  state: IntegrationConnectionStatus
   testedAt?: string
   error?: string
 }
@@ -275,6 +285,9 @@ export interface IntegrationInventoryItem extends IntegrationStatus {
   name: string
   key: string
   configured: boolean
+  available: boolean
+  read_capable: boolean
+  write_capable: boolean
   configure_url?: string
   testable?: boolean
 }
@@ -290,6 +303,9 @@ export interface CapabilityInfo {
   description: string
   category: string
   enabled: boolean
+  state?: IntegrationConnectionStatus
+  read_capable?: boolean
+  write_capable?: boolean
 }
 
 export interface CapabilitiesResponse {
@@ -579,7 +595,7 @@ export interface RexAPI {
     limit?: number
   ) => Promise<{ ok: boolean; history: CommandHistoryEntry[]; error?: string }>
   testVoice: (settings: VoiceSettings) => Promise<{ ok: boolean; error?: string }>
-  testIntegration: (type: 'email' | 'calendar' | 'sms' | 'homeassistant' | 'phone') => Promise<{ ok: boolean; error?: string }>
+  testIntegration: (type: 'email' | 'calendar' | 'sms' | 'homeassistant' | 'phone') => Promise<{ ok: boolean; state?: IntegrationConnectionStatus; error?: string }>
   getIntegrations: () => Promise<IntegrationInventoryResponse>
   getCapabilities: () => Promise<CapabilitiesResponse>
   testHomeAssistant: (baseUrl: string, token: string) => Promise<HomeAssistantConnectionResponse>
@@ -593,7 +609,7 @@ export interface RexAPI {
   sendDeviceCommand: (entityId: string, command: string, payload?: { value?: number }, confirmationToken?: string, requestId?: string) => Promise<DeviceCommandResponse>
   uploadContactsFile: () => Promise<{ ok: boolean; path?: string; error?: string }>
   pickFolder: () => Promise<{ ok: boolean; path?: string; error?: string }>
-  testEmailAccount: (id: string) => Promise<{ ok: boolean; error?: string }>
+  testEmailAccount: (id: string) => Promise<{ ok: boolean; state?: IntegrationConnectionStatus; error?: string }>
   getPreferenceSuggestions: () => Promise<PreferenceSuggestion[]>
   applyPreferenceSuggestion: (field: string, value: string | number) => Promise<{ ok: boolean }>
   getEmailInbox: () => Promise<EmailMessage[]>

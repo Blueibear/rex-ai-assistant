@@ -1085,6 +1085,33 @@ def _print_debug_info() -> None:
     print()
 
 
+def check_integration_states() -> CheckResult:
+    """Report configured integration evidence without probing or overclaiming it."""
+    try:
+        from rex.config import load_config
+        from rex.integration_state import build_integration_inventory
+
+        integrations = build_integration_inventory(load_config())
+        details = "\n".join(
+            f"{item.name}: {item.state.value}" + (f" - {item.detail}" if item.detail else "")
+            for item in integrations
+        )
+        configured = sum(item.configured for item in integrations)
+        return CheckResult(
+            name="Integration readiness",
+            status=Status.INFO,
+            message=f"{configured} configured; live state requires explicit provider tests",
+            details=details,
+        )
+    except Exception as exc:
+        return CheckResult(
+            name="Integration readiness",
+            status=Status.WARNING,
+            message="Could not determine integration readiness",
+            details=str(exc),
+        )
+
+
 def run_diagnostics(
     verbose: bool = False,
     debug: bool = False,
@@ -1163,6 +1190,7 @@ def run_diagnostics(
 
     # XTTS + transformers compatibility
     report.add(check_xtts_transformers_compat())
+    report.add(check_integration_states())
 
     # Print results
     for result in report.results:

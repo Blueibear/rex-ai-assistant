@@ -116,7 +116,13 @@ from rex.commands.commerce import (  # noqa: E402,F401
     cmd_wc,
     cmd_wp,
 )
-from rex.commands.core import cmd_chat, cmd_doctor, cmd_tools, cmd_version  # noqa: E402,F401
+from rex.commands.core import (  # noqa: E402,F401
+    cmd_chat,
+    cmd_doctor,
+    cmd_integrations,
+    cmd_tools,
+    cmd_version,
+)
 from rex.commands.dashboard import (  # noqa: E402,F401
     cmd_history,
     cmd_quick_actions,

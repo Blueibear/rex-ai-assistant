@@ -416,6 +416,12 @@ The following must degrade gracefully if not configured:
 - Home Assistant
 - web search
 
+Integration readiness uses the shared state vocabulary in `rex/integration_state.py` and
+`gui/src/types/ipc.ts`: unavailable, unconfigured, configured, reachable, authenticated,
+degraded, read-only, write-capable, write-tested, and verified. Credentials alone mean
+`configured`, never connected or authenticated. Use `rex integrations` for the CLI inventory;
+`rex doctor` includes the same evidence without making live-provider claims.
+
 ### Do not add network exposure by default
 
 Anything that binds to a port must:

@@ -170,6 +170,20 @@ def cmd_tools(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_integrations(_args: argparse.Namespace) -> int:
+    """Print evidence-based integration readiness without saying configured is connected."""
+    from rex.config import load_config
+    from rex.integration_state import build_integration_inventory
+
+    print("Rex Integration Status")
+    print("=" * 60)
+    for integration in build_integration_inventory(load_config()):
+        print(f"{integration.name}: {integration.state.value}")
+        if integration.detail:
+            print(f"  {integration.detail}")
+    return 0
+
+
 def register(subparsers: argparse._SubParsersAction) -> None:
     """Register this domain's subcommands on the top-level subparsers."""
     # doctor
@@ -230,3 +244,10 @@ def register(subparsers: argparse._SubParsersAction) -> None:
     )
     tools_parser.add_argument("-a", "--all", action="store_true", help="Include disabled tools")
     tools_parser.set_defaults(func=_cli().cmd_tools)
+
+    integrations_parser = subparsers.add_parser(
+        "integrations",
+        help="Show evidence-based integration readiness",
+        description="Distinguish configuration from reachability, authentication, and tested writes.",
+    )
+    integrations_parser.set_defaults(func=cmd_integrations)
