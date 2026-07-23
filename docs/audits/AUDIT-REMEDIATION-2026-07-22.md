@@ -27,6 +27,12 @@ Status meanings follow the task contract: Implemented, Locally verified, CI veri
 - Clean install, typed IPC, managed bridge startup, deterministic safe chat, read-only memories, reinstall, and uninstall passed with PATH restricted to Windows System32.
 - Authenticode status was `NotSigned` for both installer and unpacked executable.
 
+## Final local gate evidence
+
+- CI-equivalent Python gate passed after remediation: 8,122 passed, 84 skipped, 83.05% coverage (75% required).
+- The final tool lifecycle preserves one retry for transient read failures, does not retry authentication failures or mutations, and retains the established user-facing timeout/error contract.
+- GitHub-hosted checks remain pending; the finding statuses above therefore remain Locally verified.
+
 ## Git reconciliation evidence
 
 - Original local `master`: `d1b56ff794f6e2bdddc463414604cb7a0bb78687`.
