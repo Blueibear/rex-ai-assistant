@@ -91,6 +91,10 @@ try {
     $runtimePython = Join-Path $runtimePath 'python.exe'
     & $runtimePython -I -c "import rex, requests; print('managed-runtime-ok')"
     if ($LASTEXITCODE -ne 0) { throw 'Managed runtime import smoke test failed.' }
+    if ($Profile -eq 'Voice') {
+        & $runtimePython -I -c "import torch, whisper; assert torch.__version__.split('+', 1)[0] == '2.12.1'; print('managed-voice-runtime-ok')"
+        if ($LASTEXITCODE -ne 0) { throw 'Managed Voice runtime dependency smoke test failed.' }
+    }
     & $runtimePython -I -c "import importlib.util, sys; sys.exit(1 if importlib.util.find_spec('flask') else 0)"
     if ($LASTEXITCODE -ne 0) { throw 'Flask must not be present in the Electron runtime.' }
 
