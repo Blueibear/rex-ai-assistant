@@ -32,4 +32,12 @@ def test_installed_artifact_harness_retries_identity_with_diagnostics() -> None:
     harness = (ROOT / "scripts/test_installed_electron_artifact.ps1").read_text(encoding="utf-8")
     assert "$attempt -le 3" in harness
     assert "failed after 3 attempts" in harness
-    assert "$identityOutput -join ' '" in harness
+    assert "$identityResult.Stdout.Trim()" in harness
+    assert "$identityResult.Stderr.Trim()" in harness
+
+
+def test_installed_artifact_harness_writes_utf8_bytes_on_windows_powershell_5() -> None:
+    harness = (ROOT / "scripts/test_installed_electron_artifact.ps1").read_text(encoding="utf-8")
+    assert "System.Text.UTF8Encoding($false)" in harness
+    assert "$process.StandardInput.BaseStream.Write" in harness
+    assert "StandardInputEncoding" not in harness
