@@ -1,9 +1,8 @@
 name: Refresh GUI PostCSS Lock
 
 on:
-  push:
-    branches:
-      - codex/audit-remediation
+  pull_request:
+    branches: [master]
     paths:
       - .github/workflows/refresh-gui-postcss-lock.yml
 
@@ -12,12 +11,13 @@ permissions:
 
 jobs:
   refresh-lock:
+    if: github.head_ref == 'codex/audit-remediation'
     runs-on: ubuntu-latest
     steps:
       - name: Check out PR branch
         uses: actions/checkout@v4
         with:
-          ref: codex/audit-remediation
+          ref: ${{ github.head_ref }}
           fetch-depth: 0
 
       - name: Set up Node.js
@@ -40,4 +40,4 @@ jobs:
           git add gui/package.json gui/package-lock.json
           git diff --cached --check
           git commit -m "fix(deps): update PostCSS security patch"
-          git push origin HEAD:codex/audit-remediation
+          git push origin HEAD:${{ github.head_ref }}
