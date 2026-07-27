@@ -1,4 +1,4 @@
-name: Diagnose Rex UI Dependencies
+name: Refresh Rex UI Lock
 
 on:
   pull_request:
@@ -7,10 +7,10 @@ on:
       - .github/workflows/refresh-rex-ui-lock.yml
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
-  audit:
+  refresh:
     if: github.head_ref == 'codex/audit-remediation'
     runs-on: ubuntu-latest
     steps:
@@ -26,13 +26,63 @@ jobs:
           cache: npm
           cache-dependency-path: rex/ui/package-lock.json
 
-      - name: Capture audit details
+      - name: Refresh and validate dependency lock
         working-directory: rex/ui
-        run: npm audit --audit-level=high --json > ../../rex-ui-audit.json || true
+        run: |
+          npm update postcss --package-lock-only
+          npm audit --audit-level=high
+          npm ci
+          npm run build
 
-      - name: Upload audit evidence
-        uses: actions/upload-artifact@v4
-        with:
-          name: rex-ui-audit
-          path: rex-ui-audit.json
-          if-no-files-found: error
+      - name: Update lockfile through GitHub API
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TARGET_BRANCH: ${{ github.head_ref }}
+        run: |
+          python - <<'PY'
+          import base64
+          import json
+          import os
+          import urllib.parse
+          import urllib.request
+
+          repository = os.environ["GITHUB_REPOSITORY"]
+          branch = os.environ["TARGET_BRANCH"]
+          token = os.environ["GH_TOKEN"]
+          path = "rex/ui/package-lock.json"
+          api_url = f"https://api.github.com/repos/{repository}/contents/{path}"
+          headers = {
+              "Accept": "application/vnd.github+json",
+              "Authorization": f"Bearer {token}",
+              "X-GitHub-Api-Version": "2022-11-28",
+              "User-Agent": "askrex-rex-ui-lock-refresh",
+          }
+
+          get_request = urllib.request.Request(
+              f"{api_url}?ref={urllib.parse.quote(branch)}",
+              headers=headers,
+          )
+          with urllib.request.urlopen(get_request) as response:
+              current_sha = json.load(response)["sha"]
+
+          with open(path, "rb") as lock_file:
+              content = base64.b64encode(lock_file.read()).decode("ascii")
+
+          payload = json.dumps(
+              {
+                  "message": "fix(deps): update legacy UI dependency lock",
+                  "content": content,
+                  "sha": current_sha,
+                  "branch": branch,
+              }
+          ).encode("utf-8")
+          put_request = urllib.request.Request(
+              api_url,
+              data=payload,
+              headers={**headers, "Content-Type": "application/json"},
+              method="PUT",
+          )
+          with urllib.request.urlopen(put_request) as response:
+              result = json.load(response)
+          print(result["commit"]["sha"])
+          PY
