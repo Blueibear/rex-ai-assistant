@@ -32,7 +32,7 @@ jobs:
         run: |
           npm install --save-dev \
             "postcss@^8.5.23" \
-            "electron-builder@26.15.7" \
+            "electron-builder@25.1.8" \
             "eslint@^10.8.0" \
             "@eslint/js@^10.0.1"
 
