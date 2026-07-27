@@ -35,15 +35,17 @@ function Invoke-IdentityBridge(
         $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
         [System.IO.File]::WriteAllText($stdinPath, $Payload, $utf8NoBom)
         $arguments = "-I `"$BridgeScript`""
-        $process = Start-Process \
-            -FilePath $PythonExe \
-            -ArgumentList $arguments \
-            -RedirectStandardInput $stdinPath \
-            -RedirectStandardOutput $stdoutPath \
-            -RedirectStandardError $stderrPath \
-            -Wait \
-            -PassThru \
-            -NoNewWindow
+        $startProcessArguments = @{
+            FilePath = $PythonExe
+            ArgumentList = $arguments
+            RedirectStandardInput = $stdinPath
+            RedirectStandardOutput = $stdoutPath
+            RedirectStandardError = $stderrPath
+            Wait = $true
+            PassThru = $true
+            NoNewWindow = $true
+        }
+        $process = Start-Process @startProcessArguments
 
         return [pscustomobject]@{
             ExitCode = $process.ExitCode
