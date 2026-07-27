@@ -23,8 +23,8 @@ function Invoke-IdentityBridge(
     [string]$Payload
 ) {
     # Windows PowerShell's native-command pipeline can transcode string input before
-    # it reaches stdin. Write UTF-8 directly so the packaged bridge receives valid JSON.
-    $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+    # it reaches stdin. Write UTF-8 bytes to the redirected stream directly so this
+    # works on Windows PowerShell 5 as well as PowerShell 7.
     $startInfo = New-Object System.Diagnostics.ProcessStartInfo
     $startInfo.FileName = $PythonExe
     $startInfo.Arguments = "-I `"$BridgeScript`""
@@ -33,9 +33,6 @@ function Invoke-IdentityBridge(
     $startInfo.RedirectStandardInput = $true
     $startInfo.RedirectStandardOutput = $true
     $startInfo.RedirectStandardError = $true
-    $startInfo.StandardInputEncoding = $utf8NoBom
-    $startInfo.StandardOutputEncoding = $utf8NoBom
-    $startInfo.StandardErrorEncoding = $utf8NoBom
 
     $process = New-Object System.Diagnostics.Process
     $process.StartInfo = $startInfo
@@ -43,7 +40,9 @@ function Invoke-IdentityBridge(
         if (-not $process.Start()) {
             throw "Failed to start managed Python identity bridge."
         }
-        $process.StandardInput.Write($Payload)
+        $payloadBytes = (New-Object System.Text.UTF8Encoding($false)).GetBytes($Payload)
+        $process.StandardInput.BaseStream.Write($payloadBytes, 0, $payloadBytes.Length)
+        $process.StandardInput.BaseStream.Flush()
         $process.StandardInput.Close()
         $stdout = $process.StandardOutput.ReadToEnd()
         $stderr = $process.StandardError.ReadToEnd()
