@@ -7,7 +7,7 @@ on:
       - .github/workflows/refresh-gui-postcss-lock.yml
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   refresh-lock:
@@ -18,6 +18,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: ${{ github.head_ref }}
+          fetch-depth: 0
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -26,9 +27,8 @@ jobs:
           cache: npm
           cache-dependency-path: gui/package-lock.json
 
-      - name: Upgrade affected tooling and capture validation
+      - name: Upgrade and validate affected tooling
         working-directory: gui
-        shell: bash
         run: |
           npm pkg set overrides.brace-expansion=5.0.8
           npm install --save-dev \
@@ -36,35 +36,17 @@ jobs:
             "electron-builder@26.15.7" \
             "eslint@^10.8.0" \
             "@eslint/js@^10.0.1"
+          npm audit --audit-level=high
+          npm run lint
+          npm run typecheck
+          npm test
+          npm run build
 
-          set +e
-          npm audit --audit-level=high --json > ../gui-audit.json
-          echo $? > ../gui-audit-exit.txt
-          npm run lint > ../gui-lint.log 2>&1
-          echo $? > ../gui-lint-exit.txt
-          npm run typecheck > ../gui-typecheck.log 2>&1
-          echo $? > ../gui-typecheck-exit.txt
-          npm test > ../gui-test.log 2>&1
-          echo $? > ../gui-test-exit.txt
-          npm run build > ../gui-build.log 2>&1
-          echo $? > ../gui-build-exit.txt
-          set -e
-
-      - name: Upload generated dependency files and validation
-        uses: actions/upload-artifact@v4
-        with:
-          name: gui-postcss-lock-refresh
-          path: |
-            gui/package.json
-            gui/package-lock.json
-            gui-audit.json
-            gui-audit-exit.txt
-            gui-lint.log
-            gui-lint-exit.txt
-            gui-typecheck.log
-            gui-typecheck-exit.txt
-            gui-test.log
-            gui-test-exit.txt
-            gui-build.log
-            gui-build-exit.txt
-          if-no-files-found: error
+      - name: Commit refreshed dependency files
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add gui/package.json gui/package-lock.json
+          git diff --cached --check
+          git commit -m "fix(deps): remediate GUI dependency advisories"
+          git push origin HEAD:${{ github.head_ref }}
