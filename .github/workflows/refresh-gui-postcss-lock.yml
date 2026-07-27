@@ -26,13 +26,30 @@ jobs:
           cache: npm
           cache-dependency-path: gui/package-lock.json
 
-      - name: Update PostCSS and capture audit details
+      - name: Upgrade affected tooling and capture validation
         working-directory: gui
+        shell: bash
         run: |
-          npm install --save-dev "postcss@^8.5.18" --package-lock-only
-          npm audit --audit-level=high --json > ../gui-audit.json || true
+          npm install --save-dev \
+            "postcss@^8.5.23" \
+            "electron-builder@26.15.3" \
+            "eslint@^10.8.0" \
+            "@eslint/js@^10.8.0"
 
-      - name: Upload generated dependency files
+          set +e
+          npm audit --audit-level=high --json > ../gui-audit.json
+          echo $? > ../gui-audit-exit.txt
+          npm run lint > ../gui-lint.log 2>&1
+          echo $? > ../gui-lint-exit.txt
+          npm run typecheck > ../gui-typecheck.log 2>&1
+          echo $? > ../gui-typecheck-exit.txt
+          npm test > ../gui-test.log 2>&1
+          echo $? > ../gui-test-exit.txt
+          npm run build > ../gui-build.log 2>&1
+          echo $? > ../gui-build-exit.txt
+          set -e
+
+      - name: Upload generated dependency files and validation
         uses: actions/upload-artifact@v4
         with:
           name: gui-postcss-lock-refresh
@@ -40,4 +57,13 @@ jobs:
             gui/package.json
             gui/package-lock.json
             gui-audit.json
+            gui-audit-exit.txt
+            gui-lint.log
+            gui-lint-exit.txt
+            gui-typecheck.log
+            gui-typecheck-exit.txt
+            gui-test.log
+            gui-test-exit.txt
+            gui-build.log
+            gui-build-exit.txt
           if-no-files-found: error
