@@ -32,9 +32,9 @@ jobs:
         run: |
           npm install --save-dev \
             "postcss@^8.5.23" \
-            "electron-builder@26.15.3" \
+            "electron-builder@26.15.7" \
             "eslint@^10.8.0" \
-            "@eslint/js@^10.8.0"
+            "@eslint/js@^10.0.1"
 
           set +e
           npm audit --audit-level=high --json > ../gui-audit.json
