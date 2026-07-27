@@ -22,39 +22,46 @@ function Invoke-IdentityBridge(
     [string]$BridgeScript,
     [string]$Payload
 ) {
-    # Windows PowerShell's native-command pipeline can transcode string input before
-    # it reaches stdin. Write UTF-8 bytes to the redirected stream directly so this
-    # works on Windows PowerShell 5 as well as PowerShell 7.
-    $startInfo = New-Object System.Diagnostics.ProcessStartInfo
-    $startInfo.FileName = $PythonExe
-    $startInfo.Arguments = "-I `"$BridgeScript`""
-    $startInfo.UseShellExecute = $false
-    $startInfo.CreateNoWindow = $true
-    $startInfo.RedirectStandardInput = $true
-    $startInfo.RedirectStandardOutput = $true
-    $startInfo.RedirectStandardError = $true
+    # Windows PowerShell 5 can transcode native-command pipeline input and its
+    # ProcessStartInfo lacks the modern encoding properties. Use exact UTF-8 file-backed
+    # stdin redirection so the packaged bridge receives byte-for-byte valid JSON.
+    $callRoot = Join-Path ([System.IO.Path]::GetTempPath()) ('askrex-identity-' + [guid]::NewGuid())
+    $stdinPath = Join-Path $callRoot 'stdin.json'
+    $stdoutPath = Join-Path $callRoot 'stdout.txt'
+    $stderrPath = Join-Path $callRoot 'stderr.txt'
+    New-Item -ItemType Directory -Force -Path $callRoot | Out-Null
 
-    $process = New-Object System.Diagnostics.Process
-    $process.StartInfo = $startInfo
     try {
-        if (-not $process.Start()) {
-            throw "Failed to start managed Python identity bridge."
-        }
-        $payloadBytes = (New-Object System.Text.UTF8Encoding($false)).GetBytes($Payload)
-        $process.StandardInput.BaseStream.Write($payloadBytes, 0, $payloadBytes.Length)
-        $process.StandardInput.BaseStream.Flush()
-        $process.StandardInput.Close()
-        $stdout = $process.StandardOutput.ReadToEnd()
-        $stderr = $process.StandardError.ReadToEnd()
-        $process.WaitForExit()
+        $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+        [System.IO.File]::WriteAllText($stdinPath, $Payload, $utf8NoBom)
+        $arguments = "-I `"$BridgeScript`""
+        $process = Start-Process \
+            -FilePath $PythonExe \
+            -ArgumentList $arguments \
+            -RedirectStandardInput $stdinPath \
+            -RedirectStandardOutput $stdoutPath \
+            -RedirectStandardError $stderrPath \
+            -Wait \
+            -PassThru \
+            -NoNewWindow
 
         return [pscustomobject]@{
             ExitCode = $process.ExitCode
-            Stdout = $stdout
-            Stderr = $stderr
+            Stdout = if (Test-Path -LiteralPath $stdoutPath) {
+                Get-Content -LiteralPath $stdoutPath -Raw
+            } else {
+                ''
+            }
+            Stderr = if (Test-Path -LiteralPath $stderrPath) {
+                Get-Content -LiteralPath $stderrPath -Raw
+            } else {
+                ''
+            }
         }
     } finally {
-        $process.Dispose()
+        if (Test-Path -LiteralPath $callRoot) {
+            Remove-Item -LiteralPath $callRoot -Recurse -Force
+        }
     }
 }
 
