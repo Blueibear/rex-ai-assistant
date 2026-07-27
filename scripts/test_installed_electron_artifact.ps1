@@ -17,6 +17,48 @@ function Invoke-Installer([string[]]$Arguments) {
     if ($process.ExitCode -ne 0) { throw "Installer exited with code $($process.ExitCode)" }
 }
 
+function Invoke-IdentityBridge(
+    [string]$PythonExe,
+    [string]$BridgeScript,
+    [string]$Payload
+) {
+    # Windows PowerShell's native-command pipeline can transcode string input before
+    # it reaches stdin. Write UTF-8 directly so the packaged bridge receives valid JSON.
+    $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+    $startInfo = New-Object System.Diagnostics.ProcessStartInfo
+    $startInfo.FileName = $PythonExe
+    $startInfo.Arguments = "-I `"$BridgeScript`""
+    $startInfo.UseShellExecute = $false
+    $startInfo.CreateNoWindow = $true
+    $startInfo.RedirectStandardInput = $true
+    $startInfo.RedirectStandardOutput = $true
+    $startInfo.RedirectStandardError = $true
+    $startInfo.StandardInputEncoding = $utf8NoBom
+    $startInfo.StandardOutputEncoding = $utf8NoBom
+    $startInfo.StandardErrorEncoding = $utf8NoBom
+
+    $process = New-Object System.Diagnostics.Process
+    $process.StartInfo = $startInfo
+    try {
+        if (-not $process.Start()) {
+            throw "Failed to start managed Python identity bridge."
+        }
+        $process.StandardInput.Write($Payload)
+        $process.StandardInput.Close()
+        $stdout = $process.StandardOutput.ReadToEnd()
+        $stderr = $process.StandardError.ReadToEnd()
+        $process.WaitForExit()
+
+        return [pscustomobject]@{
+            ExitCode = $process.ExitCode
+            Stdout = $stdout
+            Stderr = $stderr
+        }
+    } finally {
+        $process.Dispose()
+    }
+}
+
 try {
     New-Item -ItemType Directory -Force -Path $testRoot, $localAppData | Out-Null
     Invoke-Installer @('/S', "/D=$installPath")
@@ -39,19 +81,30 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'Managed runtime could not establish the smoke identity.' }
 
     $identityPayload = '{"action":"resolve_electron_session"}'
-    $identityOutput = @()
-    $identityExitCode = -1
+    $identityBridge = Join-Path $resources 'bridge\rex_identity_bridge.py'
+    $identityResult = $null
     for ($attempt = 1; $attempt -le 3; $attempt++) {
-        $identityOutput = @($identityPayload | & $runtimePython -I (Join-Path $resources 'bridge\rex_identity_bridge.py') 2>&1)
-        $identityExitCode = $LASTEXITCODE
-        if ($identityExitCode -eq 0) { break }
+        $identityResult = Invoke-IdentityBridge $runtimePython $identityBridge $identityPayload
+        if ($identityResult.ExitCode -eq 0) { break }
         if ($attempt -lt 3) { Start-Sleep -Seconds 2 }
     }
-    if ($identityExitCode -ne 0) {
-        throw "Read-only identity bridge action failed after 3 attempts (exit $identityExitCode): $($identityOutput -join ' ')"
+    if ($null -eq $identityResult -or $identityResult.ExitCode -ne 0) {
+        $exitCode = if ($null -eq $identityResult) { -1 } else { $identityResult.ExitCode }
+        $diagnostic = if ($null -eq $identityResult) {
+            'identity bridge did not start'
+        } else {
+            @($identityResult.Stdout.Trim(), $identityResult.Stderr.Trim()) |
+                Where-Object { $_ } |
+                Join-String -Separator ' '
+        }
+        throw "Read-only identity bridge action failed after 3 attempts (exit $exitCode): $diagnostic"
     }
-    $identityJson = $identityOutput | Where-Object { "$($_)".TrimStart().StartsWith('{') } | Select-Object -Last 1
-    if (-not $identityJson) { throw "Read-only identity bridge returned no JSON: $($identityOutput -join ' ')" }
+    $identityJson = $identityResult.Stdout -split '\r?\n' |
+        Where-Object { $_.TrimStart().StartsWith('{') } |
+        Select-Object -Last 1
+    if (-not $identityJson) {
+        throw "Read-only identity bridge returned no JSON: $($identityResult.Stdout) $($identityResult.Stderr)"
+    }
     $identity = $identityJson | ConvertFrom-Json
     if (-not $identity.ok -or $identity.user_id -ne 'artifact-ci-user') {
         throw 'Read-only identity bridge returned an unexpected result.'
