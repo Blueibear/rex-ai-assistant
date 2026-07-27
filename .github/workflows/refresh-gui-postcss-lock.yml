@@ -18,7 +18,6 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: ${{ github.head_ref }}
-          fetch-depth: 0
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -42,11 +41,26 @@ jobs:
           npm test
           npm run build
 
-      - name: Commit refreshed dependency files
+      - name: Update dependency files through GitHub API
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TARGET_BRANCH: ${{ github.head_ref }}
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add gui/package.json gui/package-lock.json
-          git diff --cached --check
-          git commit -m "fix(deps): remediate GUI dependency advisories"
-          git push origin HEAD:${{ github.head_ref }}
+          update_file() {
+            local path="$1"
+            local message="$2"
+            local sha
+            local content
+            sha=$(gh api "repos/${GITHUB_REPOSITORY}/contents/${path}?ref=${TARGET_BRANCH}" --jq .sha)
+            content=$(base64 -w 0 "${path}")
+            jq -n \
+              --arg message "${message}" \
+              --arg content "${content}" \
+              --arg sha "${sha}" \
+              --arg branch "${TARGET_BRANCH}" \
+              '{message:$message,content:$content,sha:$sha,branch:$branch}' > update-request.json
+            gh api --method PUT "repos/${GITHUB_REPOSITORY}/contents/${path}" --input update-request.json
+          }
+
+          update_file gui/package.json "fix(deps): update GUI dependency manifest"
+          update_file gui/package-lock.json "fix(deps): update GUI dependency lock"
