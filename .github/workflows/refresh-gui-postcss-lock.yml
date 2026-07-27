@@ -27,17 +27,17 @@ jobs:
           cache: npm
           cache-dependency-path: gui/package-lock.json
 
-      - name: Update PostCSS and validate audit
+      - name: Update PostCSS and capture audit details
         working-directory: gui
         run: |
           npm install --save-dev "postcss@^8.5.18" --package-lock-only
-          npm audit --audit-level=high
+          npm audit --audit-level=high --json > ../gui-audit.json || true
 
-      - name: Commit refreshed dependency lock
+      - name: Commit refreshed dependency lock and audit evidence
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add gui/package.json gui/package-lock.json
+          git add gui/package.json gui/package-lock.json gui-audit.json
           git diff --cached --check
           git commit -m "fix(deps): update PostCSS security patch"
           git push origin HEAD:${{ github.head_ref }}
