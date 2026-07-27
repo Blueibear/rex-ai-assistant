@@ -28,6 +28,20 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Validate PowerShell artifact scripts
+        shell: powershell
+        run: |
+          $parseErrors = @()
+          [System.Management.Automation.Language.Parser]::ParseFile(
+            (Resolve-Path 'scripts/test_installed_electron_artifact.ps1'),
+            [ref]$null,
+            [ref]$parseErrors
+          ) | Out-Null
+          if ($parseErrors.Count -gt 0) {
+            $parseErrors | ForEach-Object { Write-Error $_.Message }
+            exit 1
+          }
+
       - uses: actions/setup-node@v4
         with:
           node-version: "20.19.1"
