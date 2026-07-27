@@ -12,8 +12,45 @@ $installPath = Join-Path $testRoot 'AskRex'
 $localAppData = Join-Path $testRoot 'LocalAppData'
 $smokeOutput = Join-Path $testRoot 'smoke.json'
 
-function Invoke-Installer([string[]]$Arguments) {
-    $process = Start-Process -FilePath $installerPath -ArgumentList $Arguments -Wait -PassThru
+function Stop-ProcessTree([System.Diagnostics.Process]$Process) {
+    if ($null -eq $Process) { return }
+    try {
+        if (-not $Process.HasExited) {
+            $taskkill = Join-Path $env:SystemRoot 'System32\taskkill.exe'
+            & $taskkill /PID $Process.Id /T /F 2>$null | Out-Null
+            $Process.WaitForExit(10000) | Out-Null
+        }
+    } catch {
+        Write-Verbose "Process tree cleanup skipped for PID $($Process.Id): $($_.Exception.Message)"
+    }
+}
+
+function Stop-InstalledProcesses([string]$RootPath) {
+    $normalizedRoot = [System.IO.Path]::GetFullPath($RootPath).TrimEnd('\') + '\'
+    Get-Process -ErrorAction SilentlyContinue | ForEach-Object {
+        try {
+            $processPath = $_.Path
+            if ($processPath -and $processPath.StartsWith(
+                $normalizedRoot,
+                [System.StringComparison]::OrdinalIgnoreCase
+            )) {
+                Stop-ProcessTree $_
+            }
+        } catch {
+            # Some system processes do not expose Path. They are unrelated to this install.
+        }
+    }
+}
+
+function Invoke-Installer(
+    [string[]]$Arguments,
+    [int]$TimeoutSeconds = 180
+) {
+    $process = Start-Process -FilePath $installerPath -ArgumentList $Arguments -PassThru
+    if (-not $process.WaitForExit($TimeoutSeconds * 1000)) {
+        Stop-ProcessTree $process
+        throw "Installer timed out after $TimeoutSeconds seconds."
+    }
     if ($process.ExitCode -ne 0) { throw "Installer exited with code $($process.ExitCode)" }
 }
 
@@ -127,7 +164,7 @@ try {
         Start-Sleep -Milliseconds 500
     }
     if (-not (Test-Path -LiteralPath $smokeOutput)) {
-        if (-not $app.HasExited) { $app.Kill() }
+        Stop-ProcessTree $app
         throw 'Installed app did not produce the IPC smoke result within 90 seconds.'
     }
     $result = Get-Content -LiteralPath $smokeOutput -Raw | ConvertFrom-Json
@@ -136,10 +173,9 @@ try {
         $result.memories_count -lt 0) {
         throw "Installed app smoke failed: $(Get-Content -LiteralPath $smokeOutput -Raw)"
     }
-    if (-not $app.WaitForExit(15000)) {
-        $app.Kill()
-        $app.WaitForExit()
-    }
+
+    $app.WaitForExit(15000) | Out-Null
+    Stop-InstalledProcesses $installPath
 
     # A second silent install over the same target validates reinstall/upgrade behavior.
     Invoke-Installer @('/S', "/D=$installPath")
@@ -147,7 +183,12 @@ try {
         throw 'Managed runtime was lost during reinstall.'
     }
 
-    $uninstallProcess = Start-Process -FilePath $uninstaller -ArgumentList @('/S') -Wait -PassThru
+    Stop-InstalledProcesses $installPath
+    $uninstallProcess = Start-Process -FilePath $uninstaller -ArgumentList @('/S') -PassThru
+    if (-not $uninstallProcess.WaitForExit(120000)) {
+        Stop-ProcessTree $uninstallProcess
+        throw 'Uninstaller timed out after 120 seconds.'
+    }
     if ($uninstallProcess.ExitCode -ne 0) {
         throw "Uninstaller exited with code $($uninstallProcess.ExitCode)"
     }
@@ -160,6 +201,9 @@ try {
 } finally {
     Remove-Item Env:ASKREX_ARTIFACT_SMOKE -ErrorAction SilentlyContinue
     Remove-Item Env:ASKREX_ARTIFACT_SMOKE_OUTPUT -ErrorAction SilentlyContinue
+    if (Test-Path -LiteralPath $installPath) {
+        Stop-InstalledProcesses $installPath
+    }
     if (Test-Path -LiteralPath $testRoot) {
         $resolvedTestRoot = (Resolve-Path -LiteralPath $testRoot).Path
         $tempBase = [System.IO.Path]::GetFullPath([System.IO.Path]::GetTempPath())
