@@ -30,9 +30,10 @@ jobs:
         working-directory: gui
         shell: bash
         run: |
+          npm pkg set overrides.brace-expansion=5.0.8
           npm install --save-dev \
             "postcss@^8.5.23" \
-            "electron-builder@25.1.8" \
+            "electron-builder@26.15.7" \
             "eslint@^10.8.0" \
             "@eslint/js@^10.0.1"
 
