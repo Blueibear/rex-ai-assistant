@@ -1,0 +1,38 @@
+name: Diagnose Rex UI Dependencies
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - .github/workflows/refresh-rex-ui-lock.yml
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    if: github.head_ref == 'codex/audit-remediation'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out PR branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20.19.1"
+          cache: npm
+          cache-dependency-path: rex/ui/package-lock.json
+
+      - name: Capture audit details
+        working-directory: rex/ui
+        run: npm audit --audit-level=high --json > ../../rex-ui-audit.json || true
+
+      - name: Upload audit evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: rex-ui-audit
+          path: rex-ui-audit.json
+          if-no-files-found: error
