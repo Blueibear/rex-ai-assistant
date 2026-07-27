@@ -13,6 +13,7 @@ def test_windows_artifact_workflow_exercises_installed_release() -> None:
         "runs-on: windows-latest",
         'python-version: "3.11.9"',
         'node-version: "20.19.1"',
+        "Validate PowerShell artifact scripts",
         "npm ci",
         "python -m build --wheel",
         "npm run dist",
