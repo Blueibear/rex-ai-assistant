@@ -136,7 +136,10 @@ try {
         $result.memories_count -lt 0) {
         throw "Installed app smoke failed: $(Get-Content -LiteralPath $smokeOutput -Raw)"
     }
-    $app.WaitForExit(15000) | Out-Null
+    if (-not $app.WaitForExit(15000)) {
+        $app.Kill()
+        $app.WaitForExit()
+    }
 
     # A second silent install over the same target validates reinstall/upgrade behavior.
     Invoke-Installer @('/S', "/D=$installPath")
