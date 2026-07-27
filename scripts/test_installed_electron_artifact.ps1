@@ -93,9 +93,9 @@ try {
         $diagnostic = if ($null -eq $identityResult) {
             'identity bridge did not start'
         } else {
-            @($identityResult.Stdout.Trim(), $identityResult.Stderr.Trim()) |
-                Where-Object { $_ } |
-                Join-String -Separator ' '
+            $parts = @($identityResult.Stdout.Trim(), $identityResult.Stderr.Trim()) |
+                Where-Object { $_ }
+            $parts -join ' '
         }
         throw "Read-only identity bridge action failed after 3 attempts (exit $exitCode): $diagnostic"
     }
