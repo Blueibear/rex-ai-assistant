@@ -36,8 +36,10 @@ def test_installed_artifact_harness_retries_identity_with_diagnostics() -> None:
     assert "$identityResult.Stderr.Trim()" in harness
 
 
-def test_installed_artifact_harness_writes_utf8_bytes_on_windows_powershell_5() -> None:
+def test_installed_artifact_harness_uses_utf8_file_backed_stdin() -> None:
     harness = (ROOT / "scripts/test_installed_electron_artifact.ps1").read_text(encoding="utf-8")
     assert "System.Text.UTF8Encoding($false)" in harness
-    assert "$process.StandardInput.BaseStream.Write" in harness
+    assert "System.IO.File]::WriteAllText" in harness
+    assert "-RedirectStandardInput $stdinPath" in harness
     assert "StandardInputEncoding" not in harness
+    assert "StandardInput.BaseStream" not in harness
