@@ -1016,8 +1016,8 @@ python scripts/security_audit.py
 - [x] Authenticated GET with a valid token still works. *(Covered by `tests/test_rr008_log_auth.py`.)*
 - [x] A negative test asserts the 401 (delivered as `tests/test_rr008_log_auth.py`, e.g. `test_stream_without_token_returns_401`, rather than the originally planned `tests/test_logs_auth.py` name).
 - [x] Log output redacts home-directory paths (`/Users/<name>`, `C:\Users\<name>`) before being sent in any response. *(`_redact_log_line` in `rex/routes/_helpers.py`; covered by `tests/test_rr008_log_auth.py`.)*
-- [ ] `docs/configuration.md` and `README.md` document the auth requirement. *(2026-07-08: `docs/configuration.md` documents `REX_PROXY_TOKEN`; `README.md` still missing the mention.)*
-- [ ] All relevant GitHub checks pass. *(Check when the README update lands.)*
+- [x] `docs/configuration.md` and `README.md` document the auth requirement. *(2026-07-28: README.md §Security notes documents the `/api/logs/*` Bearer-token requirement and home-directory redaction, referencing `docs/configuration.md`.)*
+- [x] All relevant GitHub checks pass. *(Master `8dccbe3` CI green with the README mention present.)*
 
 **Validation commands:**
 ```bash
@@ -1220,15 +1220,15 @@ ruff check .
 **Workstream:** CI
 **Description:** As a maintainer, I want CI Black coverage to include `scripts/` too.
 
-**Reconciliation status (2026-06-12):** Still valid. `.github/workflows/ci.yml` currently runs `black --check --diff rex/ tests/ bridge/ *.py`; `scripts/` is still missing from the Black CI command.
+**Reconciliation status (2026-07-28, supersedes 2026-06-12):** Implemented on `fable/shipping-readiness` commit `36f4cb2`: CI now runs `black --check --diff rex/ tests/ bridge/ scripts/ *.py`; `black --check scripts/` passed locally (31 files unchanged) before the change landed.
 
 **Files/areas likely involved:**
 - `.github/workflows/ci.yml`
 
 **Acceptance Criteria:**
-- [ ] CI runs `black --check --diff rex/ tests/ bridge/ scripts/ *.py`.
-- [ ] Any unformatted file fails the check.
-- [ ] All relevant GitHub checks pass.
+- [x] CI runs `black --check --diff rex/ tests/ bridge/ scripts/ *.py`. *(Commit `36f4cb2`.)*
+- [x] Any unformatted file fails the check. *(Same blocking Lint & Format Check job.)*
+- [ ] All relevant GitHub checks pass. *(Pending PR #332 CI.)*
 
 **Validation commands:**
 ```bash
@@ -1295,9 +1295,9 @@ python scripts/check_wheel_contents.py
 - `.github/workflows/ci.yml`
 
 **Acceptance Criteria:**
-- [ ] A `security-audit` job runs `python scripts/security_audit.py` and fails on a non-zero exit.
-- [ ] The job is documented in `SECURITY.md`.
-- [ ] All relevant GitHub checks pass.
+- [x] A `security-audit` job runs `python scripts/security_audit.py` and fails on a non-zero exit. *(2026-07-28: "Security Audit Gate" job in ci.yml runs `--release-gate` mode, which is strictly stricter; local run exits 0.)*
+- [x] The job is documented in `SECURITY.md`. *(Security baseline section.)*
+- [ ] All relevant GitHub checks pass. *(Pending PR #332 CI.)*
 
 **Validation commands:**
 ```bash
@@ -1318,10 +1318,10 @@ python scripts/security_audit.py
 - `.github/workflows/ci.yml`
 
 **Acceptance Criteria:**
-- [ ] Script enumerates generated patterns and fails if any are tracked.
-- [ ] CI runs the script.
-- [ ] `.gitignore` covers each pattern.
-- [ ] All relevant GitHub checks pass.
+- [x] Script enumerates generated patterns and fails if any are tracked. *(2026-07-28: `scripts/check_no_generated_artifacts.py`; the deliberately committed `rex/ui/dist/index.html` dashboard bundle is allowlisted with justification; `tests/test_us035_no_generated_artifacts.py` covers patterns, allowlist, and the live tree.)*
+- [x] CI runs the script. *(Step in the Lint & Format Check job.)*
+- [x] `.gitignore` covers each pattern. *(Verified: coverage/dist/build/htmlcov/pycache entries present.)*
+- [ ] All relevant GitHub checks pass. *(Pending PR #332 CI.)*
 
 **Validation commands:**
 ```bash
@@ -1336,15 +1336,15 @@ python scripts/check_no_generated_artifacts.py
 **Workstream:** CI
 **Description:** As a maintainer, I want CI to fail if a test modified a tracked file.
 
-**Reconciliation status (2026-07-08, supersedes 2026-06-12):** The Python 3.11 test job's "Verify tests did not modify tracked files" step remains in place and green. Still open: the GUI Vitest job has no equivalent tree-clean step, so the "every job that runs tests" box is not yet satisfied as written.
+**Reconciliation status (2026-07-28, supersedes 2026-07-08):** The Python 3.11 test job's tree-clean step remains in place, and the GUI Vitest job now has an equivalent "Verify tests did not modify tracked files" step. Both test-running jobs are covered.
 
 **Files/areas likely involved:**
 - `.github/workflows/ci.yml` (the existing "Verify tests did not modify tracked files" step — promote to all relevant jobs)
 
 **Acceptance Criteria:**
-- [ ] Every job that runs tests includes the working-tree-clean check.
-- [ ] The check ignores documented artifacts (`.coverage`, `coverage.xml`, `htmlcov/`).
-- [ ] All relevant GitHub checks pass.
+- [x] Every job that runs tests includes the working-tree-clean check. *(2026-07-28: Python 3.11 Tests & Coverage and GUI Vitest Tests jobs both verify.)*
+- [x] The check ignores documented artifacts (`.coverage`, `coverage.xml`, `htmlcov/`). *(Python job step excludes exactly these.)*
+- [ ] All relevant GitHub checks pass. *(Pending PR #332 CI.)*
 
 **Validation commands:**
 ```bash
