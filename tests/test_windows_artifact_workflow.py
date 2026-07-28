@@ -75,5 +75,5 @@ def test_installed_artifact_harness_does_not_turn_cleanup_locks_into_product_fai
     harness = (ROOT / "scripts/test_installed_electron_artifact.ps1").read_text(encoding="utf-8")
     assert "function Remove-SmokeTestRoot" in harness
     assert "$attempt -le 10" in harness
-    assert "Write-Warning \"Could not fully remove temporary smoke directory" in harness
+    assert 'Write-Warning "Could not fully remove temporary smoke directory' in harness
     assert "Remove-SmokeTestRoot $testRoot" in harness
