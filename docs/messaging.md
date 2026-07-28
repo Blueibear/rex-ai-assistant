@@ -381,6 +381,25 @@ automatically. The store detects the missing `user_id` column via
 `PRAGMA table_info` and runs an idempotent `ALTER TABLE` at startup. No
 data is lost.
 
+## Twilio Fail-Closed Behavior
+
+Outbound SMS refuses cleanly when Twilio is not usable — there is no code
+path that reports success without a configured, installed backend:
+
+- Constructing `TwilioSMSBackend`
+  (`rex/integrations/messaging/backends/twilio_sms.py`) without the optional
+  `twilio` package raises `ImportError` with install instructions. Nothing is
+  sent.
+- Sending with missing credentials raises `SMSSendError` naming each missing
+  credential (`twilio_account_sid`, `twilio_auth_token`,
+  `twilio_from_number`). Credential values are never logged.
+- The inbound webhook handler (`rex/telephony/twilio_handler.py`) fails
+  closed on signature validation when the Twilio SDK is absent.
+
+Coverage: `tests/test_twilio_sms_backend.py` (missing package, missing
+credentials) and `tests/test_ph001_twilio_handler.py` (fail-closed signature
+validation).
+
 ## Inbound SMS Webhook
 
 ### Hosting

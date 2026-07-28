@@ -19,6 +19,21 @@ bridge configuration see the existing inline docs in `rex/ha_bridge.py`.
 
 ---
 
+## Rex endpoint authentication (developer Flask API)
+
+The developer `rex-gui` Flask endpoints for Home Assistant
+(`/api/ha/test`, save, and control routes in `rex/routes/ha.py`) require a
+`REX_PROXY_TOKEN` Bearer token via `Authorization: Bearer <token>`; requests
+without a valid token receive HTTP 401. This is Rex's own endpoint
+authentication and is separate from the Home Assistant long-lived access
+token described below, which authenticates Rex to your Home Assistant
+instance. Coverage: `tests/test_rr009_ha_test_auth.py`.
+
+The packaged Electron app does not use these Flask routes; its device
+control goes through the main-process IPC mutation bridge described in the
+next section, which is bound to the local OS session identity and applies
+the same mutation policy and confirmation tokens.
+
 ## Electron GUI device control (IPC)
 
 The Electron renderer sends device commands via the `window.rex.sendDeviceCommand` IPC method

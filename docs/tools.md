@@ -55,6 +55,30 @@ Implementation:
 
 Local execution currently supports `time_now`, `weather_now`, and `web_search`. The registry contains additional metadata entries used for readiness and UI/status reporting.
 
+## Risk Classes and Confirmation Gates
+
+Every registered canonical tool declares a risk class on its `ToolSpec`
+(`rex/tools/registry.py`, `risk` field) — this registry is the authoritative
+list of which tools require confirmation:
+
+| Risk | Meaning | Lifecycle behavior (`rex/tools/execution.py`) |
+|---|---|---|
+| `safe` | Read-only or low-impact | Dispatches after availability/argument/identity/permission checks. |
+| `sensitive` | Destructive or high-impact (e.g. `run_sfc_scan`) | Without prior confirmation the call does **not** execute; it returns outcome `confirmation_required`. Re-invoking with confirmation completes the action. |
+| `prohibited` | Never allowed by policy | Denied with a user-visible error; never dispatched. |
+
+The refusal is always surfaced as a structured outcome
+(`confirmation_required` / `denied`), never a silent skip. Mutations are
+additionally deduplicated by `(user_id, tool, request_id)`: replaying a
+completed request returns the recorded result, and reusing a `request_id`
+with different arguments is denied. Read-only success reports `completed`;
+mutation success reports `verified` only after independent verification.
+
+Home Assistant mutations use the stricter action-bound confirmation tokens
+described in [docs/home_assistant.md](home_assistant.md) (signed, single-use,
+user/entity/service/parameter-bound, expiring). Coverage:
+`tests/test_tool_execution_lifecycle.py`, `tests/test_ha_mutation_service.py`.
+
 ## OpenClaw Tool Server
 
 Start the standalone HTTP tool server:
