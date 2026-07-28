@@ -1127,11 +1127,11 @@ pytest tests/test_twilio_fail_closed.py -q
 - `gui/tests/settingsRedaction.test.ts` (new, vitest)
 
 **Acceptance Criteria:**
-- [ ] Any key matching a documented secret pattern (API keys, tokens, passwords) is stored only in `.env`, never in `config/gui_settings.json`.
-- [ ] A test loads `config/gui_settings.json` from a fixture and asserts no secret pattern appears.
-- [ ] When the renderer needs a secret, it requests via IPC and the main process reads `.env`.
-- [ ] `docs/configuration.md` and `SECURITY.md` document the rule.
-- [ ] All relevant GitHub checks pass.
+- [x] Any key matching a documented secret pattern (API keys, tokens, passwords) is stored only in `.env`, never in `config/gui_settings.json`. *(2026-07-28: `writeGuiSettings` now strips secret-pattern keys at any depth via `gui/src/main/settingsRedaction.ts` before persisting; secrets entered in the GUI are written to `.env` via `writeEnvKey`. The packaged-resource scanner additionally forbids `.env` and `gui_settings.json` in the artifact.)*
+- [x] A test loads `config/gui_settings.json` from a fixture and asserts no secret pattern appears. *(Delivered as source-level Vitest coverage: `gui/tests/settingsRedaction.test.ts` asserts secret keys are stripped from persisted settings at every nesting depth, plus legit keys like `max_tokens`/`api_key_env` survive.)*
+- [x] When the renderer needs a secret, it requests via IPC and the main process reads `.env`. *(e.g. `getApiKeys` returns only set/unset booleans; the HA token is read from `.env` in `gui/src/main/homeAssistant.ts` and never returned to the renderer or stored in gui_settings.)*
+- [x] `docs/configuration.md` and `SECURITY.md` document the rule. *(2026-07-28 additions.)*
+- [ ] All relevant GitHub checks pass. *(Pending PR #332 CI.)*
 
 **Validation commands:**
 ```bash
@@ -1153,11 +1153,11 @@ cd gui && npm test -- settingsRedaction || true
 - `.github/workflows/ci.yml`
 
 **Acceptance Criteria:**
-- [ ] `detect-secrets` scan covers `config/`.
-- [ ] A test fixture confirms a known secret pattern under `config/` would fail the scan.
-- [ ] The PR review checklist mentions secret-scan results.
-- [ ] `SECURITY.md` documents the rule.
-- [ ] All relevant GitHub checks pass.
+- [x] `detect-secrets` scan covers `config/`. *(The CI Hardcoded Secret Scan excludes only `.venv|__pycache__|.git|.egg-info` — `config/` is scanned; `tests/test_us096_secret_scan.py` runs the same whole-tree scan.)*
+- [x] A test fixture confirms a known secret pattern under `config/` would fail the scan. *(2026-07-28: `test_planted_secret_under_config_is_detected` plants an AWS-style key in a throwaway config/ JSON and asserts detect-secrets flags it.)*
+- [x] The PR review checklist mentions secret-scan results. *(2026-07-28: `.github/PULL_REQUEST_TEMPLATE.md` Verification checklist.)*
+- [x] `SECURITY.md` documents the rule. *(Security baseline section covers the detect-secrets gate incl. `config/`.)*
+- [ ] All relevant GitHub checks pass. *(Pending PR #332 CI.)*
 
 **Validation commands:**
 ```bash
