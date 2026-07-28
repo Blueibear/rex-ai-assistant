@@ -61,3 +61,11 @@ def test_installed_artifact_harness_uses_clean_reinstall_lifecycle() -> None:
     assert positions == sorted(positions)
     assert "function Invoke-Uninstaller" in harness
     assert "function Assert-Uninstalled" in harness
+
+
+def test_installed_artifact_harness_pins_build_python_before_path_isolation() -> None:
+    harness = (ROOT / "scripts/test_installed_electron_artifact.ps1").read_text(encoding="utf-8")
+    resolve_position = harness.index("$buildPythonPath = (Get-Command $BuildPython")
+    isolate_position = harness.index("$env:PATH = Join-Path $env:SystemRoot 'System32'")
+    assert resolve_position < isolate_position
+    assert harness.count("& $buildPythonPath") == 2
