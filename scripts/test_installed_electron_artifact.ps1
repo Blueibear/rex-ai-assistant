@@ -107,6 +107,28 @@ function Assert-Uninstalled([string]$ApplicationPath) {
     }
 }
 
+function Remove-SmokeTestRoot([string]$RootPath) {
+    if (-not (Test-Path -LiteralPath $RootPath)) { return }
+    $resolvedRoot = (Resolve-Path -LiteralPath $RootPath).Path
+    $tempBase = [System.IO.Path]::GetFullPath([System.IO.Path]::GetTempPath())
+    if (-not $resolvedRoot.StartsWith($tempBase, [System.StringComparison]::OrdinalIgnoreCase)) {
+        throw "Refusing to clean test path outside the temp directory: $resolvedRoot"
+    }
+
+    for ($attempt = 1; $attempt -le 10; $attempt++) {
+        try {
+            Remove-Item -LiteralPath $resolvedRoot -Recurse -Force -ErrorAction Stop
+            return
+        } catch {
+            if ($attempt -eq 10) {
+                Write-Warning "Could not fully remove temporary smoke directory after 10 attempts: $resolvedRoot. $($_.Exception.Message)"
+                return
+            }
+            Start-Sleep -Seconds 2
+        }
+    }
+}
+
 function Invoke-IdentityBridge(
     [string]$PythonExe,
     [string]$BridgeScript,
@@ -267,12 +289,5 @@ try {
     if (Test-Path -LiteralPath $installPath) {
         Stop-InstalledProcesses $installPath
     }
-    if (Test-Path -LiteralPath $testRoot) {
-        $resolvedTestRoot = (Resolve-Path -LiteralPath $testRoot).Path
-        $tempBase = [System.IO.Path]::GetFullPath([System.IO.Path]::GetTempPath())
-        if (-not $resolvedTestRoot.StartsWith($tempBase)) {
-            throw "Refusing to clean test path outside the temp directory: $resolvedTestRoot"
-        }
-        Remove-Item -LiteralPath $resolvedTestRoot -Recurse -Force
-    }
+    Remove-SmokeTestRoot $testRoot
 }
