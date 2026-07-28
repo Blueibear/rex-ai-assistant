@@ -2,7 +2,8 @@
 param(
     [Parameter(Mandatory = $true)]
     [string]$Installer,
-    [string]$BuildPython = 'python'
+    [string]$BuildPython = 'python',
+    [string]$DiagnosticsPath = ''
 )
 
 $ErrorActionPreference = 'Stop'
@@ -11,6 +12,32 @@ $testRoot = Join-Path ([System.IO.Path]::GetTempPath()) ('askrex-installed-smoke
 $installPath = Join-Path $testRoot 'AskRex'
 $localAppData = Join-Path $testRoot 'LocalAppData'
 $smokeOutput = Join-Path $testRoot 'smoke.json'
+$script:smokePhase = 'initializing'
+
+function Write-SmokeDiagnostics(
+    [string]$Status,
+    [string]$Message = ''
+) {
+    if (-not $DiagnosticsPath) { return }
+    $diagnosticDirectory = Split-Path -Parent $DiagnosticsPath
+    if ($diagnosticDirectory) {
+        New-Item -ItemType Directory -Force -Path $diagnosticDirectory | Out-Null
+    }
+    $payload = [ordered]@{
+        status = $Status
+        phase = $script:smokePhase
+        message = $Message
+        timestamp_utc = [DateTime]::UtcNow.ToString('o')
+    } | ConvertTo-Json
+    $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+    [System.IO.File]::WriteAllText($DiagnosticsPath, $payload, $utf8NoBom)
+}
+
+function Set-SmokePhase([string]$Phase) {
+    $script:smokePhase = $Phase
+    Write-Host "[artifact-smoke] $Phase"
+    Write-SmokeDiagnostics 'running'
+}
 
 function Stop-ProcessTree([System.Diagnostics.Process]$Process) {
     if ($null -eq $Process) { return }
@@ -52,6 +79,31 @@ function Invoke-Installer(
         throw "Installer timed out after $TimeoutSeconds seconds."
     }
     if ($process.ExitCode -ne 0) { throw "Installer exited with code $($process.ExitCode)" }
+}
+
+function Invoke-Uninstaller(
+    [string]$UninstallerPath,
+    [int]$TimeoutSeconds = 300
+) {
+    if (-not (Test-Path -LiteralPath $UninstallerPath -PathType Leaf)) {
+        throw "Uninstaller is missing: $UninstallerPath"
+    }
+    $process = Start-Process -FilePath $UninstallerPath -ArgumentList @('/S') -PassThru
+    if (-not $process.WaitForExit($TimeoutSeconds * 1000)) {
+        Stop-ProcessTree $process
+        throw "Uninstaller timed out after $TimeoutSeconds seconds."
+    }
+    if ($process.ExitCode -ne 0) { throw "Uninstaller exited with code $($process.ExitCode)" }
+}
+
+function Assert-Uninstalled([string]$ApplicationPath) {
+    $deadline = [DateTime]::UtcNow.AddSeconds(30)
+    while ((Test-Path -LiteralPath $ApplicationPath) -and [DateTime]::UtcNow -lt $deadline) {
+        Start-Sleep -Milliseconds 250
+    }
+    if (Test-Path -LiteralPath $ApplicationPath) {
+        throw 'Uninstall left the application executable behind.'
+    }
 }
 
 function Invoke-IdentityBridge(
@@ -105,7 +157,10 @@ function Invoke-IdentityBridge(
 }
 
 try {
+    Write-SmokeDiagnostics 'running'
     New-Item -ItemType Directory -Force -Path $testRoot, $localAppData | Out-Null
+
+    Set-SmokePhase 'initial-install'
     Invoke-Installer @('/S', "/D=$installPath")
 
     $appExe = Join-Path $installPath 'AskRex.exe'
@@ -118,6 +173,7 @@ try {
         }
     }
 
+    Set-SmokePhase 'installed-resource-verification'
     & $BuildPython (Join-Path $PSScriptRoot 'verify_electron_package_contents.py') $resources
     if ($LASTEXITCODE -ne 0) { throw 'Installed resource verification failed.' }
 
@@ -125,6 +181,7 @@ try {
     & $runtimePython -I -c "from rex.identity import set_session_user; set_session_user('artifact-ci-user')"
     if ($LASTEXITCODE -ne 0) { throw 'Managed runtime could not establish the smoke identity.' }
 
+    Set-SmokePhase 'identity-bridge'
     $identityPayload = '{"action":"resolve_electron_session"}'
     $identityBridge = Join-Path $resources 'bridge\rex_identity_bridge.py'
     $identityResult = $null
@@ -155,6 +212,7 @@ try {
         throw 'Read-only identity bridge returned an unexpected result.'
     }
 
+    Set-SmokePhase 'electron-ipc-smoke'
     $env:ASKREX_ARTIFACT_SMOKE = '1'
     $env:ASKREX_ARTIFACT_SMOKE_OUTPUT = $smokeOutput
     $env:PATH = Join-Path $env:SystemRoot 'System32'
@@ -177,27 +235,31 @@ try {
     $app.WaitForExit(15000) | Out-Null
     Stop-InstalledProcesses $installPath
 
-    # A second silent install over the same target validates reinstall/upgrade behavior.
-    Invoke-Installer @('/S', "/D=$installPath")
-    if (-not (Test-Path -LiteralPath $runtimePython -PathType Leaf)) {
-        throw 'Managed runtime was lost during reinstall.'
-    }
+    Set-SmokePhase 'first-uninstall'
+    Invoke-Uninstaller $uninstaller
+    Assert-Uninstalled $appExe
 
+    Set-SmokePhase 'reinstall'
+    Invoke-Installer @('/S', "/D=$installPath")
+    foreach ($required in @($appExe, $uninstaller, $runtimePython)) {
+        if (-not (Test-Path -LiteralPath $required -PathType Leaf)) {
+            throw "Reinstalled artifact is missing: $required"
+        }
+    }
+    & $BuildPython (Join-Path $PSScriptRoot 'verify_electron_package_contents.py') $resources
+    if ($LASTEXITCODE -ne 0) { throw 'Reinstalled resource verification failed.' }
+
+    Set-SmokePhase 'final-uninstall'
     Stop-InstalledProcesses $installPath
-    $uninstallProcess = Start-Process -FilePath $uninstaller -ArgumentList @('/S') -PassThru
-    if (-not $uninstallProcess.WaitForExit(300000)) {
-        Stop-ProcessTree $uninstallProcess
-        throw 'Uninstaller timed out after 300 seconds.'
-    }
-    if ($uninstallProcess.ExitCode -ne 0) {
-        throw "Uninstaller exited with code $($uninstallProcess.ExitCode)"
-    }
-    $deadline = [DateTime]::UtcNow.AddSeconds(30)
-    while ((Test-Path -LiteralPath $appExe) -and [DateTime]::UtcNow -lt $deadline) {
-        Start-Sleep -Milliseconds 250
-    }
-    if (Test-Path -LiteralPath $appExe) { throw 'Uninstall left the application executable behind.' }
-    Write-Host 'Installed AskRex artifact smoke passed (IPC, managed bridge, chat, reinstall, uninstall).'
+    Invoke-Uninstaller $uninstaller
+    Assert-Uninstalled $appExe
+
+    Set-SmokePhase 'complete'
+    Write-SmokeDiagnostics 'success' 'Installed artifact passed all smoke phases.'
+    Write-Host 'Installed AskRex artifact smoke passed (IPC, managed bridge, chat, uninstall, reinstall, final uninstall).'
+} catch {
+    Write-SmokeDiagnostics 'failure' $_.Exception.Message
+    throw
 } finally {
     Remove-Item Env:ASKREX_ARTIFACT_SMOKE -ErrorAction SilentlyContinue
     Remove-Item Env:ASKREX_ARTIFACT_SMOKE_OUTPUT -ErrorAction SilentlyContinue
