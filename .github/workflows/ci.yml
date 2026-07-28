@@ -43,7 +43,7 @@ jobs:
         run: ruff check --output-format=github .
 
       - name: 🎨 Check code formatting with Black
-        run: black --check --diff rex/ tests/ bridge/ *.py
+        run: black --check --diff rex/ tests/ bridge/ scripts/ *.py
 
       - name: 🧾 Compile check (syntax)
         run: |
@@ -80,6 +80,28 @@ jobs:
       - name: 🔎 Run mypy
         run: |
           mypy rex --ignore-missing-imports
+
+  gui-lint:
+    name: GUI ESLint
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: 🧾 Checkout repository
+        uses: actions/checkout@v4
+
+      - name: 🟩 Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: gui/package-lock.json
+
+      - name: 📥 Install GUI dependencies
+        run: cd gui && npm ci
+
+      - name: 🧹 Run ESLint
+        run: cd gui && npm run lint
 
   gui-typecheck:
     name: GUI TypeScript Typecheck
