@@ -1177,11 +1177,11 @@ python -m detect_secrets scan --baseline .secrets.baseline config/
 - `scripts/security_audit.py`
 
 **Acceptance Criteria:**
-- [ ] Every row in `docs/security/AUDIT-INVENTORY.md` is either `resolved` or `documented-and-accepted`.
-- [ ] No row is `production-blocker` with status `open`.
-- [ ] `python scripts/security_audit.py` exits 0 OR exits with only findings explicitly listed in an allowlist with justification.
-- [ ] `README.md`'s "Security baseline" section is current.
-- [ ] All relevant GitHub checks pass.
+- [x] Every row in `docs/security/AUDIT-INVENTORY.md` is either `resolved` or `documented-and-accepted`. *(2026-07-28: the eight open production-blocker rows were stale — the flagged markers in `rex/replay.py`, `rex/openclaw/workflow_bridge.py`, and `rex/skills/trainer.py` were fixed by commits `3b049cd`, `977a885`, `fde0c76`; verified absent from current source and rows marked resolved with commit evidence.)*
+- [x] No row is `production-blocker` with status `open`. *(Status counts: open=0, resolved=8, documented=206.)*
+- [x] `python scripts/security_audit.py` exits 0 OR exits with only findings explicitly listed in an allowlist with justification. *(2026-07-28 local run of `--release-gate` mode: exit 0, zero exposed secrets; now CI-enforced by the Security Audit Gate job.)*
+- [x] `README.md`'s "Security baseline" section is current. *(Points to the inventory and the release-gate command.)*
+- [ ] All relevant GitHub checks pass. *(Pending PR #332 CI.)*
 
 **Validation commands:**
 ```bash
