@@ -102,6 +102,47 @@ class TestSecretScan:
             "the test must only ever write to its tmp_path copy"
         )
 
+    def test_planted_secret_under_config_is_detected(self, tmp_path):
+        """US-028: a token-looking string under config/ must fail the scan.
+
+        Proves the scanner actually detects secrets in config JSON rather
+        than merely running. Uses a synthetic high-entropy AWS-style key in
+        a throwaway directory mimicking config/.
+        """
+        import base64
+        import hashlib
+
+        config_dir = tmp_path / "config"
+        config_dir.mkdir()
+        planted = config_dir / "gui_settings.json"
+        # Derive a deterministic high-entropy value at runtime so no
+        # secret-looking string ever appears in this source file.
+        derived = base64.b64encode(hashlib.sha256(b"askrex-us028-fixture").digest()).decode()
+        planted.write_text(
+            json.dumps(
+                {
+                    "james": {
+                        "aws_access_key_id": "AKIA" + "IOSFODNN7EXAMPLE",
+                        "aws_secret_access_key": derived[:40],
+                    }
+                }
+            ),
+            encoding="utf-8",
+        )
+        result = subprocess.run(
+            [sys.executable, "-m", "detect_secrets", "scan", str(planted)],
+            capture_output=True,
+            text=True,
+            cwd=tmp_path,
+        )
+        assert result.returncode == 0, result.stderr
+        report = json.loads(result.stdout)
+        findings = report.get("results", {})
+        assert findings, (
+            "detect-secrets failed to flag a planted AWS-style secret in a "
+            f"config/ JSON file.\nstdout: {result.stdout}"
+        )
+
     def test_no_confirmed_real_secrets_in_baseline(self):
         """Baseline results must contain zero is_verified=True entries."""
         data = json.loads(BASELINE_FILE.read_text(encoding="utf-8"))

@@ -8,6 +8,12 @@ All others are optional and use the shown default when omitted.
 (models, audio devices, wake-word config) belong in `config/rex_config.json`.
 See `.env.example` for a copy-paste template.
 
+The Electron GUI enforces this split: `config/gui_settings.json` never stores
+credentials. The main process strips any secret-pattern key (tokens, API keys,
+passwords) before persisting GUI settings (`gui/src/main/settingsRedaction.ts`)
+and writes secrets entered in the GUI to `.env` instead. The renderer never
+receives secret values back — only set/unset status.
+
 ---
 
 ## Server
