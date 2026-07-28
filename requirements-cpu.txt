@@ -2,10 +2,12 @@
 # Use this for CPU-only deployments or CI environments that need the ML stack.
 
 # PyTorch CPU versions (PyPI CPU wheels)
-# Verified working stack uses torch 2.6.0 with TTS 0.22.0 on Python 3.11.
-torch==2.12.0
-torchvision==0.21.0
-torchaudio==2.6.0
+# torch matches the packaged Windows Voice runtime pin in
+# requirements-electron-voice.txt; torchvision/torchaudio are the pip-resolved
+# companion releases for that torch version.
+torch==2.12.1
+torchvision==0.27.1
+torchaudio==2.11.0
 
 # Install Rex with ML + audio extras
 -e ".[ml,audio]"

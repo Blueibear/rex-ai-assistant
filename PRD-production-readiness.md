@@ -1016,8 +1016,8 @@ python scripts/security_audit.py
 - [x] Authenticated GET with a valid token still works. *(Covered by `tests/test_rr008_log_auth.py`.)*
 - [x] A negative test asserts the 401 (delivered as `tests/test_rr008_log_auth.py`, e.g. `test_stream_without_token_returns_401`, rather than the originally planned `tests/test_logs_auth.py` name).
 - [x] Log output redacts home-directory paths (`/Users/<name>`, `C:\Users\<name>`) before being sent in any response. *(`_redact_log_line` in `rex/routes/_helpers.py`; covered by `tests/test_rr008_log_auth.py`.)*
-- [ ] `docs/configuration.md` and `README.md` document the auth requirement. *(2026-07-08: `docs/configuration.md` documents `REX_PROXY_TOKEN`; `README.md` still missing the mention.)*
-- [ ] All relevant GitHub checks pass. *(Check when the README update lands.)*
+- [x] `docs/configuration.md` and `README.md` document the auth requirement. *(2026-07-28: README.md §Security notes documents the `/api/logs/*` Bearer-token requirement and home-directory redaction, referencing `docs/configuration.md`.)*
+- [x] All relevant GitHub checks pass. *(Master `8dccbe3` CI green with the README mention present.)*
 
 **Validation commands:**
 ```bash
@@ -1042,11 +1042,11 @@ pytest tests/test_logs_auth.py -q
 - `tests/test_ha_auth.py` (new or updated)
 
 **Acceptance Criteria:**
-- [ ] HA test, save, and control routes return 401 without a valid token.
-- [ ] IPC equivalents enforce the same auth via the main-process token store.
-- [ ] Negative tests cover each route.
-- [ ] `docs/home_assistant.md` documents the auth requirement.
-- [ ] All relevant GitHub checks pass.
+- [x] HA test, save, and control routes return 401 without a valid token. *(`rex/routes/ha.py` calls `_require_auth()` on all three routes; `tests/test_rr009_ha_test_auth.py`.)*
+- [x] IPC equivalents enforce the same auth via the main-process token store. *(Delivered by the superseding PR #331 design: Electron IPC device control is bound to the immutable local OS session identity (`gui/src/main/sessionIdentity.ts`) and HA mutations require signed action-bound confirmation tokens via the mutation bridge — a stricter control than a shared proxy token. `tests/test_ha_mutation_service.py`.)*
+- [x] Negative tests cover each route. *(`tests/test_rr009_ha_test_auth.py` et al.)*
+- [x] `docs/home_assistant.md` documents the auth requirement. *(2026-07-28: "Rex endpoint authentication" section.)*
+- [ ] All relevant GitHub checks pass. *(Pending PR #332 CI.)*
 
 **Validation commands:**
 ```bash
@@ -1070,12 +1070,12 @@ pytest tests/test_ha_auth.py -q
 **Implementation notes:** Define "destructive" as: filesystem deletion outside per-user data dirs, HA locks/garage/alarms, broad HA scripts/scenes, outbound SMS/email, financial actions, autonomy plan execution. Require an explicit `confirmation_token` or a user-visible GUI confirmation before dispatch. Default refusal must be a clear, user-visible error, not a silent skip.
 
 **Acceptance Criteria:**
-- [ ] A registry of destructive tools exists and is documented.
-- [ ] Calling a destructive tool without confirmation returns a `requires_confirmation` response with a token.
-- [ ] Calling with the matching token completes the action.
-- [ ] A negative test asserts that the first call does not execute the side effect.
-- [ ] `README.md` and `docs/tools.md` document the gate.
-- [ ] All relevant GitHub checks pass.
+- [x] A registry of destructive tools exists and is documented. *(Delivered as the `risk` field on every `ToolSpec` in `rex/tools/registry.py` (`safe`/`sensitive`/`prohibited`); documented 2026-07-28 in `docs/tools.md` "Risk Classes and Confirmation Gates".)*
+- [x] Calling a destructive tool without confirmation returns a `requires_confirmation` response with a token. *(Delivered as outcome `confirmation_required` from the canonical lifecycle in `rex/tools/execution.py`; Home Assistant mutations use signed single-use action-bound confirmation tokens in `rex/ha/mutation_service.py`.)*
+- [x] Calling with the matching token completes the action. *(Confirmed calls execute; HA token round-trip covered by `tests/test_ha_mutation_service.py`.)*
+- [x] A negative test asserts that the first call does not execute the side effect. *(`tests/test_tool_execution_lifecycle.py`, `tests/test_ha_mutation_service.py`.)*
+- [x] `README.md` and `docs/tools.md` document the gate. *(2026-07-28 additions.)*
+- [ ] All relevant GitHub checks pass. *(Pending PR #332 CI.)*
 
 **Validation commands:**
 ```bash
@@ -1100,12 +1100,12 @@ pytest tests/test_destructive_tool_confirmation.py -q
 - `tests/test_twilio_fail_closed.py` (new or updated)
 
 **Acceptance Criteria:**
-- [ ] Importing the Twilio backend without the `twilio` package raises a clear `IntegrationUnavailable("twilio not installed")`.
-- [ ] Sending without `TWILIO_*` env vars raises a clear error to the caller.
-- [ ] No code path returns `success` on a missing-config send.
-- [ ] A test asserts a missing-dep send fails with a user-visible error.
-- [ ] `docs/messaging.md` documents the behavior.
-- [ ] All relevant GitHub checks pass.
+- [x] Importing the Twilio backend without the `twilio` package raises a clear `IntegrationUnavailable("twilio not installed")`. *(Delivered as `ImportError` with install instructions at `TwilioSMSBackend` construction — same fail-closed behavior under the standard exception name; `tests/test_twilio_sms_backend.py`.)*
+- [x] Sending without `TWILIO_*` env vars raises a clear error to the caller. *(`SMSSendError` naming each missing credential; values never logged.)*
+- [x] No code path returns `success` on a missing-config send. *(Construction/credential resolution raise before any send path.)*
+- [x] A test asserts a missing-dep send fails with a user-visible error. *(`tests/test_twilio_sms_backend.py`, `tests/test_ph001_twilio_handler.py`.)*
+- [x] `docs/messaging.md` documents the behavior. *(2026-07-28: "Twilio Fail-Closed Behavior" section.)*
+- [ ] All relevant GitHub checks pass. *(Pending PR #332 CI.)*
 
 **Validation commands:**
 ```bash
@@ -1127,11 +1127,11 @@ pytest tests/test_twilio_fail_closed.py -q
 - `gui/tests/settingsRedaction.test.ts` (new, vitest)
 
 **Acceptance Criteria:**
-- [ ] Any key matching a documented secret pattern (API keys, tokens, passwords) is stored only in `.env`, never in `config/gui_settings.json`.
-- [ ] A test loads `config/gui_settings.json` from a fixture and asserts no secret pattern appears.
-- [ ] When the renderer needs a secret, it requests via IPC and the main process reads `.env`.
-- [ ] `docs/configuration.md` and `SECURITY.md` document the rule.
-- [ ] All relevant GitHub checks pass.
+- [x] Any key matching a documented secret pattern (API keys, tokens, passwords) is stored only in `.env`, never in `config/gui_settings.json`. *(2026-07-28: `writeGuiSettings` now strips secret-pattern keys at any depth via `gui/src/main/settingsRedaction.ts` before persisting; secrets entered in the GUI are written to `.env` via `writeEnvKey`. The packaged-resource scanner additionally forbids `.env` and `gui_settings.json` in the artifact.)*
+- [x] A test loads `config/gui_settings.json` from a fixture and asserts no secret pattern appears. *(Delivered as source-level Vitest coverage: `gui/tests/settingsRedaction.test.ts` asserts secret keys are stripped from persisted settings at every nesting depth, plus legit keys like `max_tokens`/`api_key_env` survive.)*
+- [x] When the renderer needs a secret, it requests via IPC and the main process reads `.env`. *(e.g. `getApiKeys` returns only set/unset booleans; the HA token is read from `.env` in `gui/src/main/homeAssistant.ts` and never returned to the renderer or stored in gui_settings.)*
+- [x] `docs/configuration.md` and `SECURITY.md` document the rule. *(2026-07-28 additions.)*
+- [ ] All relevant GitHub checks pass. *(Pending PR #332 CI.)*
 
 **Validation commands:**
 ```bash
@@ -1153,11 +1153,11 @@ cd gui && npm test -- settingsRedaction || true
 - `.github/workflows/ci.yml`
 
 **Acceptance Criteria:**
-- [ ] `detect-secrets` scan covers `config/`.
-- [ ] A test fixture confirms a known secret pattern under `config/` would fail the scan.
-- [ ] The PR review checklist mentions secret-scan results.
-- [ ] `SECURITY.md` documents the rule.
-- [ ] All relevant GitHub checks pass.
+- [x] `detect-secrets` scan covers `config/`. *(The CI Hardcoded Secret Scan excludes only `.venv|__pycache__|.git|.egg-info` — `config/` is scanned; `tests/test_us096_secret_scan.py` runs the same whole-tree scan.)*
+- [x] A test fixture confirms a known secret pattern under `config/` would fail the scan. *(2026-07-28: `test_planted_secret_under_config_is_detected` plants an AWS-style key in a throwaway config/ JSON and asserts detect-secrets flags it.)*
+- [x] The PR review checklist mentions secret-scan results. *(2026-07-28: `.github/PULL_REQUEST_TEMPLATE.md` Verification checklist.)*
+- [x] `SECURITY.md` documents the rule. *(Security baseline section covers the detect-secrets gate incl. `config/`.)*
+- [ ] All relevant GitHub checks pass. *(Pending PR #332 CI.)*
 
 **Validation commands:**
 ```bash
@@ -1177,11 +1177,11 @@ python -m detect_secrets scan --baseline .secrets.baseline config/
 - `scripts/security_audit.py`
 
 **Acceptance Criteria:**
-- [ ] Every row in `docs/security/AUDIT-INVENTORY.md` is either `resolved` or `documented-and-accepted`.
-- [ ] No row is `production-blocker` with status `open`.
-- [ ] `python scripts/security_audit.py` exits 0 OR exits with only findings explicitly listed in an allowlist with justification.
-- [ ] `README.md`'s "Security baseline" section is current.
-- [ ] All relevant GitHub checks pass.
+- [x] Every row in `docs/security/AUDIT-INVENTORY.md` is either `resolved` or `documented-and-accepted`. *(2026-07-28: the eight open production-blocker rows were stale — the flagged markers in `rex/replay.py`, `rex/openclaw/workflow_bridge.py`, and `rex/skills/trainer.py` were fixed by commits `3b049cd`, `977a885`, `fde0c76`; verified absent from current source and rows marked resolved with commit evidence.)*
+- [x] No row is `production-blocker` with status `open`. *(Status counts: open=0, resolved=8, documented=206.)*
+- [x] `python scripts/security_audit.py` exits 0 OR exits with only findings explicitly listed in an allowlist with justification. *(2026-07-28 local run of `--release-gate` mode: exit 0, zero exposed secrets; now CI-enforced by the Security Audit Gate job.)*
+- [x] `README.md`'s "Security baseline" section is current. *(Points to the inventory and the release-gate command.)*
+- [ ] All relevant GitHub checks pass. *(Pending PR #332 CI.)*
 
 **Validation commands:**
 ```bash
@@ -1220,15 +1220,15 @@ ruff check .
 **Workstream:** CI
 **Description:** As a maintainer, I want CI Black coverage to include `scripts/` too.
 
-**Reconciliation status (2026-06-12):** Still valid. `.github/workflows/ci.yml` currently runs `black --check --diff rex/ tests/ bridge/ *.py`; `scripts/` is still missing from the Black CI command.
+**Reconciliation status (2026-07-28, supersedes 2026-06-12):** Implemented on `fable/shipping-readiness` commit `36f4cb2`: CI now runs `black --check --diff rex/ tests/ bridge/ scripts/ *.py`; `black --check scripts/` passed locally (31 files unchanged) before the change landed.
 
 **Files/areas likely involved:**
 - `.github/workflows/ci.yml`
 
 **Acceptance Criteria:**
-- [ ] CI runs `black --check --diff rex/ tests/ bridge/ scripts/ *.py`.
-- [ ] Any unformatted file fails the check.
-- [ ] All relevant GitHub checks pass.
+- [x] CI runs `black --check --diff rex/ tests/ bridge/ scripts/ *.py`. *(Commit `36f4cb2`.)*
+- [x] Any unformatted file fails the check. *(Same blocking Lint & Format Check job.)*
+- [ ] All relevant GitHub checks pass. *(Pending PR #332 CI.)*
 
 **Validation commands:**
 ```bash
@@ -1295,9 +1295,9 @@ python scripts/check_wheel_contents.py
 - `.github/workflows/ci.yml`
 
 **Acceptance Criteria:**
-- [ ] A `security-audit` job runs `python scripts/security_audit.py` and fails on a non-zero exit.
-- [ ] The job is documented in `SECURITY.md`.
-- [ ] All relevant GitHub checks pass.
+- [x] A `security-audit` job runs `python scripts/security_audit.py` and fails on a non-zero exit. *(2026-07-28: "Security Audit Gate" job in ci.yml runs `--release-gate` mode, which is strictly stricter; local run exits 0.)*
+- [x] The job is documented in `SECURITY.md`. *(Security baseline section.)*
+- [ ] All relevant GitHub checks pass. *(Pending PR #332 CI.)*
 
 **Validation commands:**
 ```bash
@@ -1318,10 +1318,10 @@ python scripts/security_audit.py
 - `.github/workflows/ci.yml`
 
 **Acceptance Criteria:**
-- [ ] Script enumerates generated patterns and fails if any are tracked.
-- [ ] CI runs the script.
-- [ ] `.gitignore` covers each pattern.
-- [ ] All relevant GitHub checks pass.
+- [x] Script enumerates generated patterns and fails if any are tracked. *(2026-07-28: `scripts/check_no_generated_artifacts.py`; the deliberately committed `rex/ui/dist/index.html` dashboard bundle is allowlisted with justification; `tests/test_us035_no_generated_artifacts.py` covers patterns, allowlist, and the live tree.)*
+- [x] CI runs the script. *(Step in the Lint & Format Check job.)*
+- [x] `.gitignore` covers each pattern. *(Verified: coverage/dist/build/htmlcov/pycache entries present.)*
+- [ ] All relevant GitHub checks pass. *(Pending PR #332 CI.)*
 
 **Validation commands:**
 ```bash
@@ -1336,15 +1336,15 @@ python scripts/check_no_generated_artifacts.py
 **Workstream:** CI
 **Description:** As a maintainer, I want CI to fail if a test modified a tracked file.
 
-**Reconciliation status (2026-07-08, supersedes 2026-06-12):** The Python 3.11 test job's "Verify tests did not modify tracked files" step remains in place and green. Still open: the GUI Vitest job has no equivalent tree-clean step, so the "every job that runs tests" box is not yet satisfied as written.
+**Reconciliation status (2026-07-28, supersedes 2026-07-08):** The Python 3.11 test job's tree-clean step remains in place, and the GUI Vitest job now has an equivalent "Verify tests did not modify tracked files" step. Both test-running jobs are covered.
 
 **Files/areas likely involved:**
 - `.github/workflows/ci.yml` (the existing "Verify tests did not modify tracked files" step — promote to all relevant jobs)
 
 **Acceptance Criteria:**
-- [ ] Every job that runs tests includes the working-tree-clean check.
-- [ ] The check ignores documented artifacts (`.coverage`, `coverage.xml`, `htmlcov/`).
-- [ ] All relevant GitHub checks pass.
+- [x] Every job that runs tests includes the working-tree-clean check. *(2026-07-28: Python 3.11 Tests & Coverage and GUI Vitest Tests jobs both verify.)*
+- [x] The check ignores documented artifacts (`.coverage`, `coverage.xml`, `htmlcov/`). *(Python job step excludes exactly these.)*
+- [ ] All relevant GitHub checks pass. *(Pending PR #332 CI.)*
 
 **Validation commands:**
 ```bash

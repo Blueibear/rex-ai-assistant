@@ -63,9 +63,40 @@ jobs:
       - name: Build wheel
         run: python -m build --wheel
 
+      # Authenticode signing activates only when the certificate secret is
+      # provisioned. Without WINDOWS_CSC_LINK the build produces the same
+      # unsigned artifact as before; nothing is claimed to be signed.
+      - name: Configure Authenticode signing when certificate secret exists
+        shell: powershell
+        env:
+          WINDOWS_CSC_LINK: ${{ secrets.WINDOWS_CSC_LINK }}
+          WINDOWS_CSC_KEY_PASSWORD: ${{ secrets.WINDOWS_CSC_KEY_PASSWORD }}
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:WINDOWS_CSC_LINK)) {
+            Write-Host "No signing certificate secret configured - building an unsigned artifact."
+          } else {
+            Add-Content -Path $env:GITHUB_ENV -Value "CSC_LINK=$env:WINDOWS_CSC_LINK"
+            Add-Content -Path $env:GITHUB_ENV -Value "CSC_KEY_PASSWORD=$env:WINDOWS_CSC_KEY_PASSWORD"
+            Write-Host "Signing certificate secret detected - electron-builder will sign the artifact."
+          }
+
       - name: Build managed runtime and installer
         working-directory: gui
         run: npm run dist
+
+      - name: Verify Authenticode signature truthfully
+        shell: powershell
+        run: |
+          $sig = Get-AuthenticodeSignature "gui/dist/AskRex Setup 1.0.0.exe"
+          Write-Host "Installer Authenticode status: $($sig.Status)"
+          if ([string]::IsNullOrWhiteSpace($env:CSC_LINK)) {
+            Write-Host "No signing secret was configured; the artifact is expected to be unsigned (status: $($sig.Status))."
+          } elseif ($sig.Status -ne 'Valid') {
+            Write-Error "Signing was configured but the installer signature status is $($sig.Status)."
+            exit 1
+          } else {
+            Write-Host "Installer signature verified. Signer: $($sig.SignerCertificate.Subject)"
+          }
 
       - name: Reject missing or private packaged resources
         run: python scripts/verify_electron_package_contents.py gui/dist/win-unpacked/resources

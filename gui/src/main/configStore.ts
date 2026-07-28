@@ -2,6 +2,7 @@ import { app } from 'electron'
 import { join } from 'path'
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs'
 import type { Settings } from '../types/ipc'
+import { redactSecretSettings } from './settingsRedaction'
 
 // ---------------------------------------------------------------------------
 // Config file helpers
@@ -33,7 +34,10 @@ export function readGuiSettings(): Record<string, Settings> {
 export function writeGuiSettings(settings: Record<string, Settings>): void {
   const dir = getConfigDir()
   if (!existsSync(dir)) mkdirSync(dir, { recursive: true })
-  writeFileSync(getGuiSettingsPath(), JSON.stringify(settings, null, 2), 'utf8')
+  // Secrets belong in .env only (US-027) — strip any secret-pattern key
+  // before persisting, regardless of what a caller passes in.
+  const redacted = redactSecretSettings(settings)
+  writeFileSync(getGuiSettingsPath(), JSON.stringify(redacted, null, 2), 'utf8')
 }
 
 export function readRexConfig(): Record<string, unknown> {

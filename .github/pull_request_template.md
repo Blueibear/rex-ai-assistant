@@ -16,6 +16,7 @@
 - [ ] `python -m compileall -q .`
 - [ ] `python scripts/security_audit.py`
 - [ ] `pytest -q`
+- [ ] Secret scan clean (`detect-secrets` against `.secrets.baseline`; no new findings, none under `config/`)
 
 ## CLAUDE.md
 - [ ] Not needed

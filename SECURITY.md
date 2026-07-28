@@ -4,6 +4,8 @@
 
 The current `scripts/security_audit.py` baseline and triage inventory is tracked in [docs/security/AUDIT-INVENTORY.md](docs/security/AUDIT-INVENTORY.md). Release validation must run `python scripts/security_audit.py --release-gate`; actionable findings and invalid or expired suppressions exit nonzero. Developer mode remains informative and does not substitute for the release gate.
 
+CI enforces this on every push and pull request: the **Security Audit Gate** job in `.github/workflows/ci.yml` runs `python scripts/security_audit.py --release-gate` and fails the build on any nonzero exit. CI also rejects committed generated artifacts (`scripts/check_no_generated_artifacts.py`) and committed secrets (`detect-secrets` against `.secrets.baseline`, covering the whole tree including `config/`).
+
 ## Reporting a vulnerability
 
 If you discover a security issue in AskRex Assistant, please do **not** open a public GitHub issue with exploit details.

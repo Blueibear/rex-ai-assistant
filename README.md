@@ -446,6 +446,7 @@ Files under `docs/archive/` are historical development records and may intention
 - `rex-tool-server` requires `REX_TOOL_API_KEY` for tool invocation.
 - The GUI backend's log endpoints (`/api/logs/stream`, `/api/logs/download`) require a `REX_PROXY_TOKEN` Bearer token and redact home-directory paths from served log content. See [docs/configuration.md](docs/configuration.md).
 - Approval-gated high-risk actions, such as WooCommerce writes and remote PC commands, require explicit confirmation flows.
+- Canonical tools declare a risk class (`safe` / `sensitive` / `prohibited`) in the tool registry; `sensitive` tools return `confirmation_required` instead of executing until explicitly confirmed, and `prohibited` tools are always denied. Home Assistant mutations additionally use signed, single-use, action-bound confirmation tokens. See [docs/tools.md](docs/tools.md).
 
 ### Security baseline
 
