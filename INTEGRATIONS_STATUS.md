@@ -19,5 +19,6 @@ Credentials alone mean `configured`. They never mean connected, authenticated, w
 | Browser automation / Windows control | Experimental | Environment-sensitive and permission-gated. Not part of the release-critical end-user path. |
 | WordPress / WooCommerce | Experimental operator tools | WordPress is monitoring-oriented. WooCommerce reads and approval-gated writes exist; live stores remain externally verified. |
 | Plex / smart speakers | Experimental | Hardware/service-dependent and not release-verified by automated tests. |
+| Mobile API gateway | Beta backend, credential-gated | `python -m rex mobile-api` serves the companion mobile client: JWT auth (`REX_JWT_SECRET`, fails closed), per-device sessions, localhost by default, rate-limited. Chat, streaming, voice upload, and TTS are implemented with truthful capability reporting; Home Assistant, notifications, approvals, tasks, workflows, audit, settings, and live duplex voice remain explicit not-implemented scaffolds with false capabilities. Physical-iPhone/LAN validation is externally verified and still outstanding. |
 
 The Electron Integrations page displays evidence state rather than a generic Connected badge. `rex integrations` provides the CLI inventory; `rex doctor` includes the same configuration evidence. No status probe sends email, calendar writes, SMS, phone calls, or provider notifications.

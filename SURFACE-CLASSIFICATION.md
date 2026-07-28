@@ -31,6 +31,12 @@ here first, then propagated to docs, packaging config, and CI.
 | `rex-agent` | `rex.computers.agent_server:main` | `developer-only` | Optional remote PC control API. Not enabled by default; requires explicit configuration. |
 | `rex-tool-server` | `rex.openclaw.tool_server:main` | `developer-only` | OpenClaw tool adapter backend at `/rex/tools/{tool_name}`. Backend service; not user-facing. |
 
+The mobile API gateway is a CLI subcommand, not a `[project.scripts]` console script:
+
+| Entry Point | Module | Classification | Notes |
+|-------------|--------|----------------|-------|
+| `python -m rex mobile-api` | `rex.mobile_api` | `developer-only` | Authenticated mobile API gateway for the companion AskRex mobile client (issue #323). Localhost by default, JWT-authenticated (`REX_JWT_SECRET`, fails closed), rate-limited. Backend service run by an operator; not part of the packaged Electron installer. Physical-device/LAN validation is outstanding, so the mobile surface itself is pre-release. |
+
 ---
 
 ## UI Surfaces
@@ -125,11 +131,11 @@ These modules implement user-facing capabilities invoked by the assistant pipeli
 | Classification | Count |
 |----------------|-------|
 | `shippable` | 2 |
-| `developer-only` | 28 |
+| `developer-only` | 29 |
 | `deprecated` | 5 |
 | `archived` | 15 |
 | `removed` | 0 |
-| **Total** | **50** |
+| **Total** | **51** |
 
 (Distribution artifacts are counted separately from the 50 entry points and UI surfaces. The installer classification does not change the total.)
 
@@ -145,3 +151,4 @@ These modules implement user-facing capabilities invoked by the assistant pipeli
 | 2026-06-23 | US-013 | Added Package Distribution section classifying pip/wheel (askrex-assistant) as developer-only. |
 | 2026-06-23 | US-017 | Classified all 17 root-level bridge compatibility wrappers as developer-only (count: developer-only 10→27, total 33→50). Updated CLAUDE.md root-file count from 9 to 27. No files moved to archived/ — all bridge wrappers are actively used for test-import compatibility. |
 | 2026-06-24 | US-022 | Added Internal Python APIs section. Classified `rex.skills.trainer` (`SkillTrainer`) as shippable — invoked by assistant when user requests skill creation. |
+| 2026-07-28 | #323 | Added `python -m rex mobile-api` (`rex.mobile_api`) as developer-only — the surface existed on master but was missing from this document (count: developer-only 28→29, total 50→51). |
