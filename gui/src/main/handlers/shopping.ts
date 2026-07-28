@@ -2,6 +2,7 @@ import { ipcMain } from 'electron'
 import { spawn } from 'child_process'
 import type { ShoppingItem } from '../../types/ipc'
 import { resolveBridgePath, resolvePythonCommand } from '../bridgeResolver'
+import { sharedHouseholdPayload, type ElectronSessionIdentity } from '../sessionIdentity'
 
 function callShoppingBridge(payload: Record<string, unknown>): Promise<Record<string, unknown>> {
   return new Promise((resolve) => {
@@ -24,7 +25,10 @@ function callShoppingBridge(payload: Record<string, unknown>): Promise<Record<st
 
     py.on('close', (code) => {
       if (code !== 0) {
-        resolve({ ok: false, error: `bridge exited ${code}: ${stderr.slice(0, 200)}` })
+        resolve({
+          ok: false,
+          error: `bridge exited ${code}: ${stderr.slice(0, 200)}`
+        })
         return
       }
       try {
@@ -43,11 +47,11 @@ function callShoppingBridge(payload: Record<string, unknown>): Promise<Record<st
   })
 }
 
-export function registerShoppingHandlers(): void {
+export function registerShoppingHandlers(session: ElectronSessionIdentity): void {
   ipcMain.handle(
     'rex:getShoppingItems',
     (): Promise<{ ok: boolean; items: ShoppingItem[]; error?: string }> =>
-      callShoppingBridge({ command: 'list' }) as Promise<{
+      callShoppingBridge(sharedHouseholdPayload(session, { command: 'list' })) as Promise<{
         ok: boolean
         items: ShoppingItem[]
         error?: string
@@ -56,12 +60,24 @@ export function registerShoppingHandlers(): void {
 
   ipcMain.handle(
     'rex:addShoppingItem',
-    (_event, name: string, quantity: number, unit: string): Promise<{
+    (
+      _event,
+      name: string,
+      quantity: number,
+      unit: string
+    ): Promise<{
       ok: boolean
       item?: ShoppingItem
       error?: string
     }> =>
-      callShoppingBridge({ command: 'add', name, quantity, unit }) as Promise<{
+      callShoppingBridge(
+        sharedHouseholdPayload(session, {
+          command: 'add',
+          name,
+          quantity,
+          unit
+        })
+      ) as Promise<{
         ok: boolean
         item?: ShoppingItem
         error?: string
@@ -70,20 +86,18 @@ export function registerShoppingHandlers(): void {
 
   ipcMain.handle(
     'rex:checkShoppingItem',
-    (_event, id: string): Promise<{ ok: boolean; error?: string }> =>
-      callShoppingBridge({ command: 'check', id }) as Promise<{ ok: boolean; error?: string }>
+    (_event, id: string): Promise<{ ok: boolean; error?: string }> => callShoppingBridge(sharedHouseholdPayload(session, { command: 'check', id })) as Promise<{ ok: boolean; error?: string }>
   )
 
   ipcMain.handle(
     'rex:uncheckShoppingItem',
-    (_event, id: string): Promise<{ ok: boolean; error?: string }> =>
-      callShoppingBridge({ command: 'uncheck', id }) as Promise<{ ok: boolean; error?: string }>
+    (_event, id: string): Promise<{ ok: boolean; error?: string }> => callShoppingBridge(sharedHouseholdPayload(session, { command: 'uncheck', id })) as Promise<{ ok: boolean; error?: string }>
   )
 
   ipcMain.handle(
     'rex:clearCheckedShoppingItems',
     (): Promise<{ ok: boolean; count?: number; error?: string }> =>
-      callShoppingBridge({ command: 'clear_checked' }) as Promise<{
+      callShoppingBridge(sharedHouseholdPayload(session, { command: 'clear_checked' })) as Promise<{
         ok: boolean
         count?: number
         error?: string

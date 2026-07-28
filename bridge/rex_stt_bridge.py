@@ -20,14 +20,12 @@ from __future__ import annotations
 
 import base64
 import json
+import os
 import sys
 import tempfile
 from pathlib import Path
 
-from rex.bridge_utils import bridge_error_response, repo_root, resolve_python
-
-_PYTHON_EXE = resolve_python()  # venv-aware interpreter path for subprocess calls
-_REPO_ROOT = repo_root()  # absolute repo root for resolving scripts and config
+from rex.bridge_utils import bridge_error_response
 
 
 def emit(obj: dict) -> None:  # type: ignore[type-arg]
@@ -35,6 +33,16 @@ def emit(obj: dict) -> None:  # type: ignore[type-arg]
 
 
 def main() -> None:
+    # Packaged Windows builds carry imageio-ffmpeg's private binary. Put its
+    # directory on PATH so Whisper never depends on a machine ffmpeg install.
+    try:
+        import imageio_ffmpeg  # type: ignore[import]
+
+        ffmpeg_dir = str(Path(imageio_ffmpeg.get_ffmpeg_exe()).parent)
+        os.environ["PATH"] = ffmpeg_dir + os.pathsep + os.environ.get("PATH", "")
+    except ImportError:
+        pass
+
     # Resolve whisper model name from Rex config (fall back to "base").
     model_name = "base"
     try:

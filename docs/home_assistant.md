@@ -1,6 +1,7 @@
 # Home Assistant Integration
 
-**Implementation Status: Beta** — TTS notification channel functional; intent bridge available.
+**Implementation Status: Beta** — TTS notifications and policy-controlled device mutations are
+implemented; live household/device validation remains environment-dependent.
 
 ---
 
@@ -26,21 +27,40 @@ The Electron renderer sends device commands via the `window.rex.sendDeviceComman
 ```typescript
 // Renderer usage
 const result = await window.rex.sendDeviceCommand(entityId, command, payload?)
-// result: { status: 'attempted' | 'completed' | 'verified' | 'failed', detail?: string }
+// result: { status: 'verified' | 'attempted_unverified' |
+//   'confirmation_required' | 'denied' | 'failed', detail?: string }
 ```
 
-The main-process handler (in `gui/src/main/handlers/devices.ts`) delegates to
-`callDeviceCommand` in `gui/src/main/homeAssistant.ts`, which calls the HA REST API
-`POST /api/services/{domain}/{service}`.
+The main-process handler delegates to `bridge/rex_ha_mutation_bridge.py`. That bridge and the
+OpenClaw HA tool both use `rex.ha.mutation_service.HAMutationService`; renderer code cannot bypass
+the policy service. The service validates the immutable Electron user, classifies risk, dispatches,
+then reads entity state independently. An HTTP 2xx response is never treated as proof.
 
 **Status semantics:**
 
 | Status | Meaning |
 |--------|---------|
-| `attempted` | Command was dispatched to Home Assistant (HTTP 2xx received). State not verified. |
-| `failed` | Command could not be dispatched (HA not configured, network error, or HTTP error). |
-| `completed` | Reserved — will be populated by US-048 post-dispatch state polling. |
-| `verified` | Reserved — will be populated by US-048 state confirmation. |
+| `verified` | The requested state was observed after dispatch. |
+| `attempted_unverified` | Dispatch may have occurred, but the requested state was not observed or no proof rule exists. |
+| `confirmation_required` | A sensitive action was not dispatched; a short-lived, action-bound confirmation is required. |
+| `denied` | Identity, permission, confirmation, or policy validation rejected the action before dispatch. |
+| `failed` | Dispatch definitely failed before a successful response was received. |
+
+Results also contain `expected`, `actual`, and `latency_ms` evidence. User-facing text says
+"confirmed" only for `verified`; all other outcomes preserve their uncertainty.
+
+### Mutation policy
+
+| Risk | Domains | Behavior |
+|---|---|---|
+| Safe | `light`, `switch`, `fan`, `climate`, `media_player` | Dispatch and verify when a proof rule exists. |
+| Sensitive | `lock`, `alarm_control_panel`, `cover` (including garage doors) | Require explicit confirmation before dispatch. |
+| Prohibited | `automation`, `hassio`, `homeassistant`, `python_script`, `script`, `shell_command`, `update`, and unknown domains | Fail closed; no dispatch. |
+
+Confirmations are signed and bound to the validated user, entity, domain, service, complete
+parameter set, expiration, and a random nonce. They are single-use; expired, replayed, modified,
+and cross-user tokens are denied. Request IDs are user-owned and deduplicate completed attempts.
+Audit evidence is written without parameters, credentials, or confirmation tokens.
 
 **Command-to-service mapping:**
 

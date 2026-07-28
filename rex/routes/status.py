@@ -165,6 +165,8 @@ def create_blueprint() -> Blueprint:
         user, err = _require_auth()
         if err:
             return err
+        if user is None:
+            return jsonify({"error": "authentication_required"}), 401
 
         try:
             limit = int(request.args.get("limit", 50))
@@ -172,7 +174,7 @@ def create_blueprint() -> Blueprint:
             limit = 50
 
         store = CommandHistoryStore()
-        entries = store.get_recent(limit=limit)
+        entries = store.get_recent(limit=limit, user_id=str(user["username"]))
         return jsonify({"history": entries}), 200
 
     # ------------------------------------------------------------------

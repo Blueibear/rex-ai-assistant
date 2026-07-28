@@ -13,6 +13,7 @@ Reads control commands from stdin (one JSON object per line):
 
 from __future__ import annotations
 
+import argparse
 import asyncio
 import json
 import logging
@@ -29,14 +30,11 @@ from contextlib import suppress
 from datetime import UTC, datetime
 from typing import Any, TypeVar
 
-from rex.bridge_utils import repo_root, resolve_python
-
-_PYTHON_EXE = resolve_python()  # venv-aware interpreter path for subprocess calls
-_REPO_ROOT = repo_root()  # absolute repo root for resolving scripts and config
 _VOICE_BRIDGE_SESSION_ID = (
     f"voice-{datetime.now(UTC).strftime('%Y%m%dT%H%M%SZ')}-{os.getpid()}-" f"{uuid.uuid4().hex[:8]}"
 )
 logger = logging.getLogger(__name__)
+_SESSION_USER_ID: str | None = None
 _ResourceT = TypeVar("_ResourceT")
 _INTERNAL_TOOL_SYNTAX_RE = re.compile(r"\bTOOL_(?:REQUEST|RESULT)\s*:", re.IGNORECASE)
 _SENTENCE_SPLIT_RE = re.compile(r"(?<=[.!?])\s+")
@@ -297,7 +295,7 @@ def _run_stub_loop() -> None:
     try:
         from rex import settings as rex_settings  # type: ignore[import]
         from rex.assistant import Assistant  # type: ignore[import]
-        from rex.identity import resolve_entrypoint_user_id  # type: ignore[import]
+        from rex.identity import validate_user_id  # type: ignore[import]
         from rex.services import initialize_services  # type: ignore[import]
 
         initialize_services()
@@ -306,7 +304,7 @@ def _run_stub_loop() -> None:
         assistant = Assistant(
             history_limit=rex_settings.max_memory_items,
             plugins=[],
-            user_id=resolve_entrypoint_user_id(rex_settings),
+            user_id=validate_user_id(_SESSION_USER_ID or ""),
         )
         has_backend = True
     except Exception:
@@ -504,7 +502,7 @@ async def _run_real_loop() -> None:
     emit({"type": "status", "status": "loading_plugins"})
     plugin_specs = load_plugins()
     emit({"type": "status", "status": "creating_assistant"})
-    from rex.identity import resolve_entrypoint_user_id  # type: ignore[import]
+    from rex.identity import validate_user_id  # type: ignore[import]
 
     # Deliberate single-user profile selection (issue #303): Assistant no
     # longer invents an identity when user_id is omitted.
@@ -512,7 +510,7 @@ async def _run_real_loop() -> None:
         lambda: Assistant(
             history_limit=active_settings.max_memory_items,
             plugins=plugin_specs,
-            user_id=resolve_entrypoint_user_id(active_settings),
+            user_id=validate_user_id(_SESSION_USER_ID or ""),
         )
     )
 
@@ -849,6 +847,13 @@ async def _run_real_loop() -> None:
 
 
 def main() -> None:
+    global _SESSION_USER_ID
+    parser = argparse.ArgumentParser(description="AskRex Electron voice bridge")
+    parser.add_argument("--user", required=True, help="Validated Electron session user")
+    args = parser.parse_args()
+    from rex.identity import validate_user_id
+
+    _SESSION_USER_ID = validate_user_id(args.user)
     # Try to use the real voice loop. GUI wake-word mode should never silently
     # simulate listening because that hides microphone/dependency failures.
     try:

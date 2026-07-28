@@ -13,10 +13,7 @@ from __future__ import annotations
 import json
 import sys
 
-from rex.bridge_utils import bridge_error_response, repo_root, resolve_python
-
-_PYTHON_EXE = resolve_python()  # venv-aware interpreter path for subprocess calls
-_REPO_ROOT = repo_root()  # absolute repo root for resolving scripts and config
+from rex.bridge_utils import bridge_error_response
 
 
 def main() -> None:
@@ -29,6 +26,11 @@ def main() -> None:
     action = str(payload.get("action", "list"))
 
     try:
+        from rex.identity import validate_user_id
+
+        session_user_id = validate_user_id(str(payload.get("user") or ""))
+        if payload.get("data_scope") != "private":
+            raise PermissionError("Voice identity requires private Electron data scope")
         from rex.voice_identity.ui_service import (
             delete_enrollment,
             enroll_from_samples,
@@ -54,6 +56,8 @@ def main() -> None:
             samples = payload.get("samples", [])
             if not user_id:
                 raise ValueError("user_id is required")
+            if validate_user_id(user_id) != session_user_id:
+                raise PermissionError("Cannot enroll another user's voice")
             if not isinstance(samples, list):
                 raise ValueError("samples must be a list")
             enrollment = enroll_from_samples(user_id, samples)
@@ -64,6 +68,8 @@ def main() -> None:
             user_id = str(payload.get("user_id", "")).strip()
             if not user_id:
                 raise ValueError("user_id is required")
+            if validate_user_id(user_id) != session_user_id:
+                raise PermissionError("Cannot delete another user's voice enrollment")
             deleted = delete_enrollment(user_id)
             print(json.dumps({"ok": True, "deleted": deleted}), flush=True)
             return

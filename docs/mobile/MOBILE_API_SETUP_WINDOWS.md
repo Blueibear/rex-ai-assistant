@@ -1,13 +1,25 @@
 # Mobile API Gateway — Windows Setup and Troubleshooting
 
-This guide covers running the AskRex mobile API gateway (Session 1: foundation
-and authentication) on Windows 10/11 with PowerShell.
+This guide covers running the AskRex mobile API gateway on Windows 10/11 with
+PowerShell.
 
-The gateway serves `/mobile/*` only. Chat, streaming, WebSocket, voice, TTS,
+The gateway serves `/mobile/*` only. Session 1 delivered authentication
+(login, rotating refresh sessions, logout, session restore). Session 2 adds
+authenticated chat (`POST /mobile/chat`), SSE streaming
+(`POST /mobile/chat/stream`), WebSocket chat
+(`WebSocket /mobile/chat/stream`, first-frame `auth`), voice upload
+(`POST /mobile/voice/upload`), and protected TTS
+(`POST /mobile/tts/playback`), all sharing one server-side
+`(user_id, message_id)` idempotency store so a retried or replayed message
+never executes twice.
+
 Home Assistant, notifications, approvals, tasks, workflows, audit-log, and
-settings routes exist as explicit HTTP 501 `NOT_IMPLEMENTED` scaffolds and are
+settings routes remain explicit HTTP 501 `NOT_IMPLEMENTED` scaffolds and are
 reported as `false` in `/mobile/capabilities` until they are really
-implemented.
+implemented. `live_voice` (real-time duplex audio) is not implemented and
+stays `false`. Voice and TTS capabilities are runtime-aware: they report
+`true` only when their dependencies (Whisper + ffmpeg + a downloaded model;
+the configured TTS engine) are actually available.
 
 ## 1. Prerequisites
 
@@ -67,7 +79,8 @@ group. All values below are the defaults; add only what you need to change:
     "rate_limit_login": "10 per minute",
     "rate_limit_refresh": "30 per minute",
     "rate_limit_chat": "30 per minute",
-    "rate_limit_voice": "10 per minute"
+    "rate_limit_voice": "10 per minute",
+    "idempotency_retention_hours": 48
   }
 }
 ```
@@ -169,6 +182,52 @@ Invoke-RestMethod -Method Post -Uri http://127.0.0.1:8765/mobile/auth/logout `
   -Headers @{ Authorization = "Bearer $($refresh.access_token)" }
 ```
 
+Chat (non-streaming; `message_id`/`conversation_id` are client-generated
+UUIDs and double as the idempotency key — resending the exact same request
+replays the stored result without re-executing):
+
+```powershell
+$chat = @{
+  message_id      = [guid]::NewGuid().ToString()
+  conversation_id = [guid]::NewGuid().ToString()
+  sent_at         = (Get-Date).ToUniversalTime().ToString("o")
+  message         = "Hello Rex"
+  mode            = "mobile_text"
+} | ConvertTo-Json
+Invoke-RestMethod -Method Post -Uri http://127.0.0.1:8765/mobile/chat `
+  -ContentType "application/json" -Body $chat `
+  -Headers @{ Authorization = "Bearer $($login.access_token)" }
+```
+
+SSE streaming uses the same body against `POST /mobile/chat/stream` and
+returns `text/event-stream` frames (`token` events, then one terminal
+`message_done` or `error`). The WebSocket endpoint is
+`ws://127.0.0.1:8765/mobile/chat/stream`; the first frame must be
+`{"type": "auth", "access_token": "<jwt>", "client": {...}}` — tokens never
+go in the URL.
+
+TTS (JSON base64 audio; text is never placed in a query string):
+
+```powershell
+$tts = Invoke-RestMethod -Method Post -Uri http://127.0.0.1:8765/mobile/tts/playback `
+  -ContentType "application/json" -Body (@{ text = "Hello from Rex." } | ConvertTo-Json) `
+  -Headers @{ Authorization = "Bearer $($login.access_token)" }
+[IO.File]::WriteAllBytes("rex-tts-sample.wav", [Convert]::FromBase64String($tts.audio_base64))
+```
+
+The response `voice` is the concrete provider voice that produced the audio;
+`requested_voice` preserves the caller's request (`default` when omitted).
+
+Voice upload (multipart; the file's actual bytes are validated — M4A/MP4,
+AAC, MP3, or WAV — and must decode successfully; limits are 15 MiB and 60
+seconds):
+
+```powershell
+curl.exe -X POST http://127.0.0.1:8765/mobile/voice/upload `
+  -H "Authorization: Bearer $($login.access_token)" `
+  -F "audio=@recording.m4a" -F "mode=mobile_voice"
+```
+
 ## 8. Troubleshooting
 
 | Symptom | Cause / fix |
@@ -181,6 +240,11 @@ Invoke-RestMethod -Method Post -Uri http://127.0.0.1:8765/mobile/auth/logout `
 | `401 AUTH_TOKEN_EXPIRED` | The access token passed its 15-minute lifetime — refresh, or the refresh token passed its 30-day lifetime — log in again. |
 | `429 RATE_LIMITED` | Too many requests; wait for the `Retry-After` seconds in the response. |
 | `501 NOT_IMPLEMENTED` | The route is a truthful scaffold — that feature is not built yet (see `/mobile/capabilities`). |
+| `409 IDEMPOTENCY_CONFLICT` | The same `message_id` was reused with a different message body, or the `Idempotency-Key` header does not match the JSON `message_id`. Send a new message ID. |
+| `409 REQUEST_IN_PROGRESS` | The same message is still executing (e.g. a retry raced the original delivery). Wait for the original result; it is replayed for the same ID once complete. |
+| `503 BACKEND_UNAVAILABLE` on `/mobile/voice/upload` | Whisper, ffmpeg, or the configured Whisper model is not available locally. Models are never downloaded during a request — install/download them first (`pip install -r requirements-cpu.txt`, ffmpeg on PATH, then run any local STT once to fetch the model). |
+| `503 BACKEND_UNAVAILABLE` on `/mobile/tts/playback` | The configured TTS engine (`config.voice.tts_engine`) is not installed or failed/timed out. `/mobile/capabilities` reports the current truth. |
+| `415 INVALID_MEDIA` on voice upload | The uploaded bytes are not a supported container (M4A/MP4, AAC, MP3, WAV) or could not be decoded. The filename and declared MIME type are ignored — only real content counts. |
 | Phone cannot reach the server | Confirm the server is bound to `0.0.0.0`, the firewall rule targets the Private profile and correct port, both devices share the same network, and the phone uses `http://<PC-LAN-IP>:8765`. |
 | `port ... in use` | Another process owns the port. Pick another port with `--port`. |
 
@@ -204,3 +268,23 @@ status → capabilities → login → invalid login → session → refresh →
 refresh-reuse (family revoked) → scaffold 501 → logout → revoked session.
 Physical-iPhone and LAN validation have **not** been performed in Session 1
 and remain tracked under issue #323.
+
+## Validation record (Session 2 correction pass)
+
+Windows 11 / Python 3.11 loopback validation exercised an actual
+Flask-Sock/simple-websocket upgrade and verified first-frame authentication,
+ack/token/message_done delivery, invalid-token close `4401`, observable auth
+timeout close `4408`, logout revocation close `4401`, no URL token, and
+same-message HTTP replay with one Assistant execution. The automated test is
+`tests/mobile_api/test_chat_websocket_live.py`.
+
+Close code `4403` (authenticated but forbidden) is **reserved** and has never
+been exercised: the canonical permission model gates tools at dispatch time,
+not chat access, so Session 2 has no real authenticated-but-forbidden
+condition and no server code path emits 4403. Clients still handle it
+defensively (no automatic reconnect).
+
+`python -m pytest -q tests/mobile_api` passed 252 tests. The complete repository
+suite still has unrelated failures reproduced on `master` in time/weather,
+workflow, and the generated coverage-report meta test. Physical-iPhone and LAN
+validation remain not run.

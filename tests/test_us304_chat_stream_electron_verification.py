@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 from pathlib import Path
 
@@ -13,10 +14,19 @@ ELECTRON_CMD = GUI_DIR / "node_modules" / ".bin" / "electron.cmd"
 
 
 @pytest.mark.skipif(not ELECTRON_CMD.exists(), reason="electron.cmd not found")
-def test_chat_streaming_works_in_electron() -> None:
+def test_chat_streaming_works_in_electron(tmp_path: Path) -> None:
     """Electron chat page renders a typed streamed reply incrementally."""
     assert VERIFY_SCRIPT.exists(), f"Missing Electron verification script: {VERIFY_SCRIPT}"
     assert ELECTRON_CMD.exists(), f"Missing Electron binary: {ELECTRON_CMD}"
+
+    app_data = tmp_path / "appdata"
+    session_dir = app_data / "rex-ai"
+    session_dir.mkdir(parents=True)
+    (session_dir / "session.json").write_text(
+        json.dumps({"active_user": "electron-test-user"}), encoding="utf-8"
+    )
+    env = os.environ.copy()
+    env["LOCALAPPDATA"] = str(app_data)
 
     try:
         result = subprocess.run(
@@ -25,6 +35,7 @@ def test_chat_streaming_works_in_electron() -> None:
             capture_output=True,
             text=True,
             timeout=120,
+            env=env,
         )
     except OSError as exc:
         pytest.skip(f"Electron verification unavailable: {exc}")

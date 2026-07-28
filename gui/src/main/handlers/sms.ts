@@ -2,20 +2,27 @@ import { ipcMain } from 'electron'
 import { spawn } from 'child_process'
 import { resolveBridgePath, resolvePythonCommand } from '../bridgeResolver'
 import type { SMSMessage, SMSThread } from '../../types/ipc'
+import { privateSessionPayload, type ElectronSessionIdentity } from '../sessionIdentity'
 
 // In-memory store for messages sent during this session.
 let sessionThreads: SMSThread[] = []
 
-function callSmsBridge(command: string, extra: object = {}): Promise<unknown> {
+function callSmsBridge(session: ElectronSessionIdentity, command: string, extra: object = {}): Promise<unknown> {
   return new Promise((resolve, reject) => {
     const scriptPath = resolveBridgePath('rex_sms_bridge.py')
-    const py = spawn(resolvePythonCommand(), [scriptPath], { stdio: ['pipe', 'pipe', 'pipe'] })
+    const py = spawn(resolvePythonCommand(), [scriptPath], {
+      stdio: ['pipe', 'pipe', 'pipe']
+    })
 
     let stdout = ''
     let stderr = ''
 
-    py.stdout.on('data', (chunk: Buffer) => { stdout += chunk.toString() })
-    py.stderr.on('data', (chunk: Buffer) => { stderr += chunk.toString() })
+    py.stdout.on('data', (chunk: Buffer) => {
+      stdout += chunk.toString()
+    })
+    py.stderr.on('data', (chunk: Buffer) => {
+      stderr += chunk.toString()
+    })
 
     py.on('close', (code) => {
       if (code !== 0) {
@@ -33,14 +40,14 @@ function callSmsBridge(command: string, extra: object = {}): Promise<unknown> {
       reject(new Error(`Failed to spawn SMS bridge: ${err.message}`))
     })
 
-    py.stdin.write(JSON.stringify({ command, ...extra }))
+    py.stdin.write(JSON.stringify(privateSessionPayload(session, { command, ...extra })))
     py.stdin.end()
   })
 }
 
-async function getSMSThreads(): Promise<SMSThread[]> {
+async function getSMSThreads(session: ElectronSessionIdentity): Promise<SMSThread[]> {
   try {
-    const result = await callSmsBridge('list_threads') as {
+    const result = (await callSmsBridge(session, 'list_threads')) as {
       ok: boolean
       threads?: SMSThread[]
       error?: string
@@ -53,23 +60,19 @@ async function getSMSThreads(): Promise<SMSThread[]> {
         merged.push(local)
       }
     }
-    return merged.sort(
-      (a, b) => new Date(b.last_message_at).getTime() - new Date(a.last_message_at).getTime()
-    )
+    return merged.sort((a, b) => new Date(b.last_message_at).getTime() - new Date(a.last_message_at).getTime())
   } catch {
-    return [...sessionThreads].sort(
-      (a, b) => new Date(b.last_message_at).getTime() - new Date(a.last_message_at).getTime()
-    )
+    return [...sessionThreads].sort((a, b) => new Date(b.last_message_at).getTime() - new Date(a.last_message_at).getTime())
   }
 }
 
-export function registerSMSHandlers(): void {
+export function registerSMSHandlers(session: ElectronSessionIdentity): void {
   ipcMain.handle('rex:getSMSThreads', async (): Promise<SMSThread[]> => {
-    return getSMSThreads()
+    return getSMSThreads(session)
   })
 
   ipcMain.handle('rex:getSMSThread', async (_event, threadId: string): Promise<SMSThread | undefined> => {
-    const threads = await getSMSThreads()
+    const threads = await getSMSThreads(session)
     return threads.find((t) => t.id === threadId)
   })
 
@@ -89,11 +92,7 @@ export function registerSMSHandlers(): void {
 
     const existing = sessionThreads.find((t) => t.id === threadId)
     if (existing) {
-      sessionThreads = sessionThreads.map((t) =>
-        t.id === threadId
-          ? { ...t, messages: [...t.messages, newMsg], last_message_at: now }
-          : t
-      )
+      sessionThreads = sessionThreads.map((t) => (t.id === threadId ? { ...t, messages: [...t.messages, newMsg], last_message_at: now } : t))
     } else {
       const newThread: SMSThread = {
         id: threadId,

@@ -28,10 +28,13 @@ from rex.mobile_api.db import migrate_users_db
 from rex.mobile_api.errors import install_mobile_error_handlers
 from rex.mobile_api.routes import (
     build_auth_blueprint,
+    build_chat_blueprint,
     build_scaffolds_blueprint,
     build_status_blueprint,
+    build_voice_blueprint,
 )
 from rex.mobile_api.services import MobileApiServices
+from rex.mobile_api.websocket import register_websocket
 
 logger = logging.getLogger(__name__)
 
@@ -126,7 +129,10 @@ def create_mobile_app(
     migrate_users_db(services.db_path)
 
     app = Flask("rex_mobile_api")
-    app.config["MAX_CONTENT_LENGTH"] = cfg.max_json_bytes
+    # The transport-level cap must admit multipart voice uploads (15 MiB by
+    # default); JSON routes enforce the tighter ``max_json_bytes`` limit in
+    # ``parse_json_body`` before any parsing work.
+    app.config["MAX_CONTENT_LENGTH"] = max(cfg.max_json_bytes, cfg.max_audio_bytes + 128 * 1024)
     app.extensions["mobile_api_services"] = services
 
     # Reused canonical middleware: assigns g.request_id before authentication
@@ -150,9 +156,20 @@ def create_mobile_app(
 
     app.register_blueprint(build_status_blueprint(services))
     app.register_blueprint(build_auth_blueprint(services, limiter))
+    app.register_blueprint(build_chat_blueprint(services, limiter))
+    app.register_blueprint(build_voice_blueprint(services, limiter))
     app.register_blueprint(build_scaffolds_blueprint(services))
 
-    logger.info("Mobile API app created (api_version=%s)", cfg.api_version)
+    # WebSocket /mobile/chat/stream — registered only when the validated
+    # Flask-Sock stack is installed; the capability stays false otherwise.
+    ws_registered = register_websocket(app, services)
+    services.websocket_registered = ws_registered
+
+    logger.info(
+        "Mobile API app created (api_version=%s, websocket=%s)",
+        cfg.api_version,
+        "on" if ws_registered else "off",
+    )
     return app
 
 

@@ -1,0 +1,413 @@
+"""Typed, truthful execution lifecycle for local and OpenClaw tools."""
+
+from __future__ import annotations
+
+import concurrent.futures
+import hashlib
+import inspect
+import json
+import logging
+import threading
+import time
+import uuid
+from collections.abc import Callable
+from dataclasses import dataclass
+from enum import StrEnum
+from typing import Any, Literal, Protocol
+
+from rex.audit import LogEntry, get_audit_logger
+from rex.identity import validate_user_id
+from rex.tools.protocol import ToolResult
+
+logger = logging.getLogger(__name__)
+
+_TRANSIENT_TYPES = (
+    TimeoutError,
+    ConnectionError,
+    ConnectionResetError,
+    ConnectionRefusedError,
+    ConnectionAbortedError,
+    OSError,
+)
+
+
+def _is_transient_error(exc: BaseException) -> bool:
+    """Return whether a read-only tool failure is safe to retry once."""
+    if isinstance(exc, _TRANSIENT_TYPES):
+        return True
+    status = getattr(exc, "status_code", None) or getattr(exc, "code", None)
+    if isinstance(status, int) and status >= 500:
+        return True
+    return bool(getattr(exc, "is_transient", False))
+
+
+def _is_auth_error(exc: BaseException) -> bool:
+    """Return whether a failure is authentication or authorization related."""
+    if isinstance(exc, PermissionError):
+        return True
+    status = getattr(exc, "status_code", None) or getattr(exc, "code", None)
+    if isinstance(status, int) and status in (401, 403):
+        return True
+    return bool(getattr(exc, "auth_error", False))
+
+
+class ToolOperation(StrEnum):
+    READ = "read"
+    MUTATION = "mutation"
+
+
+class ToolRisk(StrEnum):
+    SAFE = "safe"
+    SENSITIVE = "sensitive"
+    PROHIBITED = "prohibited"
+
+
+class ToolOutcome(StrEnum):
+    COMPLETED = "completed"
+    VERIFIED = "verified"
+    ATTEMPTED_UNVERIFIED = "attempted_unverified"
+    CONFIRMATION_REQUIRED = "confirmation_required"
+    DENIED = "denied"
+    FAILED = "failed"
+    UNAVAILABLE = "unavailable"
+
+
+class ExecutableTool(Protocol):
+    @property
+    def name(self) -> str: ...
+
+    @property
+    def handler(self) -> Callable[..., Any]: ...
+
+    @property
+    def operation(self) -> Literal["read", "mutation"]: ...
+
+    @property
+    def risk(self) -> Literal["safe", "sensitive", "prohibited"]: ...
+
+    @property
+    def requires_identity(self) -> bool: ...
+
+    @property
+    def required_args(self) -> tuple[str, ...]: ...
+
+    @property
+    def verifier(self) -> Callable[[dict[str, Any], Any], bool] | None: ...
+
+
+@dataclass(frozen=True)
+class ToolExecutionRequest:
+    name: str
+    args: dict[str, Any]
+    context: dict[str, Any]
+    request_id: str
+
+
+_dedupe_lock = threading.Lock()
+_dedupe_results: dict[tuple[str, str, str], tuple[str, ToolResult]] = {}
+
+
+def _fingerprint(args: dict[str, Any]) -> str:
+    encoded = json.dumps(args, sort_keys=True, separators=(",", ":"), default=str).encode()
+    return hashlib.sha256(encoded).hexdigest()
+
+
+def _truthful_detail(name: str, status: ToolOutcome, detail: str | None = None) -> str:
+    if detail:
+        return detail
+    if status == ToolOutcome.VERIFIED:
+        return f"Verified {name}."
+    if status == ToolOutcome.COMPLETED:
+        return f"Completed read-only tool {name}."
+    if status == ToolOutcome.ATTEMPTED_UNVERIFIED:
+        return f"I attempted {name}, but could not independently verify the result."
+    if status == ToolOutcome.CONFIRMATION_REQUIRED:
+        return f"{name} requires explicit confirmation."
+    if status == ToolOutcome.DENIED:
+        return f"{name} was denied."
+    if status == ToolOutcome.UNAVAILABLE:
+        return f"{name} is unavailable."
+    return f"{name} failed."
+
+
+class ToolExecutionLifecycle:
+    """Run the ordered availability-to-audit contract for one registered tool."""
+
+    def execute(
+        self,
+        tool: ExecutableTool,
+        args: dict[str, Any],
+        context: dict[str, Any] | None = None,
+        *,
+        timeout_seconds: float = 10.0,
+        available: bool = True,
+    ) -> ToolResult:
+        ambient = dict(context or {})
+        request_id = str(
+            ambient.get("request_id") or args.get("_request_id") or f"tool_{uuid.uuid4().hex}"
+        )
+        request = ToolExecutionRequest(tool.name, dict(args), ambient, request_id)
+        started = time.monotonic()
+        stages: list[str] = ["capability_availability"]
+        operation = ToolOperation(tool.operation)
+        risk = ToolRisk(tool.risk)
+
+        if not available:
+            return self._finish(
+                request,
+                ToolOutcome.UNAVAILABLE,
+                risk,
+                stages,
+                started,
+                error="Tool is not configured",
+            )
+
+        stages.append("argument_validation")
+        missing = [name for name in tool.required_args if args.get(name) in (None, "")]
+        if missing:
+            return self._finish(
+                request,
+                ToolOutcome.DENIED,
+                risk,
+                stages,
+                started,
+                error=f"Missing required arguments: {', '.join(missing)}",
+            )
+
+        user_id = ""
+        stages.append("identity_validation")
+        if tool.requires_identity or operation == ToolOperation.MUTATION:
+            candidate = ambient.get("user_id") or ambient.get("user") or args.get("_user_id")
+            try:
+                user_id = validate_user_id(str(candidate or ""))
+            except ValueError:
+                return self._finish(
+                    request,
+                    ToolOutcome.DENIED,
+                    risk,
+                    stages,
+                    started,
+                    error="A valid user identity is required",
+                )
+
+        stages.extend(("permission_evaluation", "risk_classification"))
+        permitted_users = ambient.get("permitted_users")
+        if permitted_users is not None and user_id not in set(permitted_users):
+            return self._finish(
+                request,
+                ToolOutcome.DENIED,
+                risk,
+                stages,
+                started,
+                error="User is not permitted to execute this tool",
+            )
+        if risk == ToolRisk.PROHIBITED:
+            return self._finish(
+                request,
+                ToolOutcome.DENIED,
+                risk,
+                stages,
+                started,
+                error="Tool policy prohibits this operation",
+            )
+
+        stages.append("confirmation")
+        if risk == ToolRisk.SENSITIVE and not ambient.get("confirmed"):
+            return self._finish(request, ToolOutcome.CONFIRMATION_REQUIRED, risk, stages, started)
+
+        dedupe_key = (user_id, tool.name, request_id)
+        args_fingerprint = _fingerprint(args)
+        if operation == ToolOperation.MUTATION:
+            with _dedupe_lock:
+                prior = _dedupe_results.get(dedupe_key)
+            if prior is not None:
+                if prior[0] != args_fingerprint:
+                    return self._finish(
+                        request,
+                        ToolOutcome.DENIED,
+                        risk,
+                        stages,
+                        started,
+                        error="request_id was already used with different arguments",
+                    )
+                return prior[1]
+
+        stages.append("execution")
+        handler_args = dict(args)
+        handler_context = {**ambient, "request_id": request_id}
+        if user_id:
+            handler_context["user_id"] = user_id
+        signature = inspect.signature(tool.handler)
+        accepts_kwargs = any(
+            parameter.kind == inspect.Parameter.VAR_KEYWORD
+            for parameter in signature.parameters.values()
+        )
+        if "context" in signature.parameters or accepts_kwargs:
+            handler_args.setdefault("context", handler_context)
+        if user_id and ("_user_id" in signature.parameters or accepts_kwargs):
+            handler_args.setdefault("_user_id", user_id)
+        if ambient.get("confirmed") and ("confirmed" in signature.parameters or accepts_kwargs):
+            handler_args.setdefault("confirmed", True)
+        attempts = 2 if operation == ToolOperation.READ else 1
+        for attempt in range(attempts):
+            executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+            future = executor.submit(tool.handler, **handler_args)
+            try:
+                output = future.result(timeout=timeout_seconds)
+                break
+            except concurrent.futures.TimeoutError:
+                future.cancel()
+                outcome = (
+                    ToolOutcome.ATTEMPTED_UNVERIFIED
+                    if operation == ToolOperation.MUTATION
+                    else ToolOutcome.FAILED
+                )
+                result = self._finish(
+                    request,
+                    outcome,
+                    risk,
+                    stages,
+                    started,
+                    error=(
+                        "Execution timed out after a possible write"
+                        if operation == ToolOperation.MUTATION
+                        else "Execution timed out"
+                    ),
+                )
+                if operation == ToolOperation.MUTATION:
+                    with _dedupe_lock:
+                        _dedupe_results[dedupe_key] = (args_fingerprint, result)
+                return result
+            except Exception as exc:
+                if (
+                    operation == ToolOperation.READ
+                    and attempt == 0
+                    and _is_transient_error(exc)
+                    and not _is_auth_error(exc)
+                ):
+                    logger.debug(
+                        "tool_execution: %r transient read failure; retrying once: %s",
+                        tool.name,
+                        exc,
+                    )
+                    continue
+                return self._finish(
+                    request, ToolOutcome.FAILED, risk, stages, started, error=str(exc)
+                )
+            finally:
+                executor.shutdown(wait=False, cancel_futures=True)
+
+        stages.append("normalized_result")
+        normalized = self._normalize_handler_result(output)
+        stages.append("independent_verification")
+        if normalized is not None:
+            outcome, detail = normalized
+        elif operation == ToolOperation.READ:
+            outcome, detail = ToolOutcome.COMPLETED, None
+        elif tool.verifier is None:
+            outcome = ToolOutcome.ATTEMPTED_UNVERIFIED
+            detail = (
+                f"Tool reported: {output}. The mutation was attempted, "
+                "but the result was not independently verified."
+            )
+        else:
+            try:
+                verified = bool(tool.verifier(args, output))
+            except Exception as exc:
+                verified = False
+                detail = f"Verification failed: {exc}"
+            else:
+                detail = None
+            outcome = ToolOutcome.VERIFIED if verified else ToolOutcome.ATTEMPTED_UNVERIFIED
+
+        stages.append("truthful_response")
+        result = self._finish(request, outcome, risk, stages, started, output=output, detail=detail)
+        if operation == ToolOperation.MUTATION:
+            with _dedupe_lock:
+                _dedupe_results[dedupe_key] = (args_fingerprint, result)
+        return result
+
+    @staticmethod
+    def _normalize_handler_result(output: Any) -> tuple[ToolOutcome, str | None] | None:
+        if isinstance(output, str) and output.startswith("["):
+            if "not configured" in output.lower():
+                return ToolOutcome.UNAVAILABLE, output
+            if "error" in output.lower():
+                return ToolOutcome.FAILED, output
+        if not isinstance(output, dict):
+            return None
+        if output.get("requires_confirmation") is True:
+            return ToolOutcome.CONFIRMATION_REQUIRED, str(
+                output.get("message") or "Explicit confirmation is required"
+            )
+        if output.get("ok") is False or output.get("success") is False or output.get("error"):
+            return ToolOutcome.FAILED, str(output.get("error") or output.get("message") or "failed")
+        raw_status = output.get("status")
+        if raw_status not in {item.value for item in ToolOutcome}:
+            return None
+        return ToolOutcome(str(raw_status)), str(
+            output.get("detail") or output.get("message") or ""
+        )
+
+    def _finish(
+        self,
+        request: ToolExecutionRequest,
+        outcome: ToolOutcome,
+        risk: ToolRisk,
+        stages: list[str],
+        started: float,
+        *,
+        output: Any = None,
+        detail: str | None = None,
+        error: str | None = None,
+    ) -> ToolResult:
+        stages.append("audit_recording")
+        rendered = _truthful_detail(request.name, outcome, detail or error)
+        result = ToolResult(
+            success=outcome in {ToolOutcome.COMPLETED, ToolOutcome.VERIFIED},
+            output=output,
+            error=error,
+            status=outcome.value,
+            detail=rendered,
+            request_id=request.request_id,
+            risk=risk.value,
+            stages=tuple(stages),
+        )
+        try:
+            get_audit_logger().log(
+                LogEntry(
+                    action_id=request.request_id,
+                    tool=request.name,
+                    tool_call_args={
+                        "argument_names": sorted(request.args),
+                        "arguments_hash": _fingerprint(request.args),
+                    },
+                    policy_decision=(
+                        "denied"
+                        if outcome in {ToolOutcome.DENIED, ToolOutcome.UNAVAILABLE}
+                        else "allowed"
+                    ),
+                    tool_result={
+                        "status": result.status,
+                        "success": result.success,
+                        "risk": result.risk,
+                    },
+                    error=error,
+                    requested_by=str(
+                        request.context.get("user_id") or request.context.get("user") or ""
+                    ),
+                    duration_ms=int((time.monotonic() - started) * 1000),
+                )
+            )
+        except Exception:
+            logger.exception("Tool audit recording failed for %s", request.name)
+        return result
+
+
+__all__ = [
+    "ToolExecutionLifecycle",
+    "ToolExecutionRequest",
+    "ToolOperation",
+    "ToolOutcome",
+    "ToolRisk",
+]

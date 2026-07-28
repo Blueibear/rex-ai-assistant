@@ -50,6 +50,7 @@ class CheckResult:
     status: Status
     message: str
     details: str = ""
+    release_blocking: bool = False
 
 
 @dataclass
@@ -80,12 +81,24 @@ class DiagnosticsReport:
         """Count of checks with warning status."""
         return sum(1 for r in self.results if r.status == Status.WARNING)
 
+    @property
+    def release_blocker_count(self) -> int:
+        """Count actionable warnings that block a release gate."""
+        return sum(
+            1
+            for result in self.results
+            if result.status == Status.WARNING and result.release_blocking
+        )
+
 
 def _status_symbol(status: Status) -> str:
-    """Return a PASS/FAIL label for the status level."""
-    if status == Status.ERROR:
-        return "[FAIL]"
-    return "[PASS]"
+    """Return a distinct, truthful label for each status level."""
+    return {
+        Status.OK: "[PASS]",
+        Status.INFO: "[INFO]",
+        Status.WARNING: "[WARN]",
+        Status.ERROR: "[ERROR]",
+    }[status]
 
 
 def _find_project_root() -> Path | None:
@@ -148,6 +161,7 @@ def check_config_file(root: Path | None) -> CheckResult:
                 status=Status.WARNING,
                 message="rex_config.json not found (example exists)",
                 details=f"Copy {example_path} to {config_path} and customize it.",
+                release_blocking=True,
             )
         return CheckResult(
             name="Config File",
@@ -312,6 +326,16 @@ def check_config_permissions(root: Path | None) -> CheckResult:
     # Check .env file permissions (should not be world-readable)
     env_path = root / ".env"
     if env_path.exists():
+        if os.name == "nt":
+            return CheckResult(
+                name="Config Permissions",
+                status=Status.INFO,
+                message="Windows ACL permissions require an explicit access review",
+                details=(
+                    f"Review access to {env_path} with 'icacls' and ensure only the "
+                    "current user and trusted administrators can read it."
+                ),
+            )
         try:
             mode = env_path.stat().st_mode
             # Check if world-readable (others have read permission)
@@ -324,6 +348,7 @@ def check_config_permissions(root: Path | None) -> CheckResult:
                         f"Consider restricting permissions: chmod 600 {env_path}\n"
                         "This file may contain sensitive API keys."
                     ),
+                    release_blocking=True,
                 )
         except OSError:
             pass
@@ -730,6 +755,7 @@ def check_config_types(root: Path | None) -> CheckResult:
             name="Config Types",
             status=Status.WARNING,
             message=f"Config type check could not complete: {exc}",
+            release_blocking=True,
         )
     finally:
         logger.removeHandler(handler)
@@ -742,6 +768,7 @@ def check_config_types(root: Path | None) -> CheckResult:
             status=Status.WARNING,
             message=f"{len(warnings_found)} field(s) have string-typed numeric values",
             details=details,
+            release_blocking=True,
         )
 
     return CheckResult(
@@ -1058,12 +1085,44 @@ def _print_debug_info() -> None:
     print()
 
 
-def run_diagnostics(verbose: bool = False, debug: bool = False) -> int:
+def check_integration_states() -> CheckResult:
+    """Report configured integration evidence without probing or overclaiming it."""
+    try:
+        from rex.config import load_config
+        from rex.integration_state import build_integration_inventory
+
+        integrations = build_integration_inventory(load_config())
+        details = "\n".join(
+            f"{item.name}: {item.state.value}" + (f" - {item.detail}" if item.detail else "")
+            for item in integrations
+        )
+        configured = sum(item.configured for item in integrations)
+        return CheckResult(
+            name="Integration readiness",
+            status=Status.INFO,
+            message=f"{configured} configured; live state requires explicit provider tests",
+            details=details,
+        )
+    except Exception as exc:
+        return CheckResult(
+            name="Integration readiness",
+            status=Status.WARNING,
+            message="Could not determine integration readiness",
+            details=str(exc),
+        )
+
+
+def run_diagnostics(
+    verbose: bool = False,
+    debug: bool = False,
+    release_gate: bool = False,
+) -> int:
     """Run all diagnostic checks and print results.
 
     Args:
         verbose: If True, show detailed information for all checks.
         debug: If True, print additional low-level diagnostic info.
+        release_gate: If True, actionable warnings also produce a nonzero exit.
 
     Returns:
         Exit code: 0 if no errors, 1 if errors found.
@@ -1071,6 +1130,10 @@ def run_diagnostics(verbose: bool = False, debug: bool = False) -> int:
     print("Rex Doctor - Environment Diagnostics")
     print("=" * 40)
     print()
+
+    if release_gate:
+        print("Release gate: enabled (actionable warnings are blocking)")
+        print()
 
     if debug:
         _print_debug_info()
@@ -1127,6 +1190,7 @@ def run_diagnostics(verbose: bool = False, debug: bool = False) -> int:
 
     # XTTS + transformers compatibility
     report.add(check_xtts_transformers_compat())
+    report.add(check_integration_states())
 
     # Print results
     for result in report.results:
@@ -1145,11 +1209,19 @@ def run_diagnostics(verbose: bool = False, debug: bool = False) -> int:
     print("-" * 40)
 
     if report.has_errors():
-        print(f"Rex is NOT ready to use. Fix the {report.error_count} FAIL item(s) above.")
+        print(f"Rex is NOT ready to use. Fix the {report.error_count} ERROR item(s) above.")
         return 1
+    if release_gate and report.release_blocker_count:
+        print(
+            "Rex is NOT release-ready. Fix the "
+            f"{report.release_blocker_count} actionable WARN item(s) above."
+        )
+        return 1
+    if report.has_warnings():
+        print(f"Rex is ready to use with {report.warning_count} warning(s).")
     else:
         print("Rex is ready to use.")
-        return 0
+    return 0
 
 
 if __name__ == "__main__":

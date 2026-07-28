@@ -1,6 +1,6 @@
 # How to Run AskRex Assistant
 
-Use an activated Python 3.11 environment for every Python command in this guide.
+End users launch the installed AskRex Windows app; its managed runtime needs no machine Python or Node. Use an activated Python 3.11 environment for source/developer Python commands in this guide.
 
 Windows:
 
@@ -22,14 +22,14 @@ source .venv/bin/activate
 |---|---|---|
 | Text chat | `rex` or `python -m rex` | Interactive CLI chat |
 | Diagnostics | `rex doctor` or `python -m rex doctor` | Environment, dependency, and config checks |
-| Voice loop | `python rex_loop.py` | Wake word, STT, LLM, and TTS pipeline |
-| Python web dashboard | `rex-gui` | Browser UI at `http://127.0.0.1:8765/ui/` |
-| Electron desktop GUI | `cd gui && npm.cmd run dev` | Desktop React/Electron shell |
+| Voice loop | `python rex_loop.py` | Developer voice loop; wake word remains beta |
+| Python web dashboard | `rex-gui` | Developer-only browser/API surface at `http://127.0.0.1:8765/ui/` |
+| Electron desktop GUI | Installed AskRex app or `cd gui && npm.cmd run dev` | Primary user-facing surface; source command is development-only |
 | TTS API | `rex-speak-api` | Local speech synthesis service on port 5005 |
 | OpenClaw tool server | `rex-tool-server` | HTTP tool adapter service on port 18790 |
 | Windows computer agent | `rex-agent` | Optional remote PC control agent |
 
-The old Tkinter launchers `python run_gui.py` and `python gui.py` are deprecated. They remain in the repo only for legacy debugging.
+The old Tkinter launchers are archived under `archived/tkinter_gui/` and are not supported.
 
 ## Text Chat
 
@@ -69,7 +69,11 @@ pip install -r requirements-cpu.txt
 pip install -r requirements-gpu-cu124.txt
 ```
 
+In the Electron app, Hold to Talk is the supported path: record, STT, streamed response, TTS, selected-output playback, cancel/barge-in, replay, device-loss fallback, and repeated turns. Wake-word mode is beta until hardware reliability is proven.
+
 ## Python Web Dashboard
+
+This developer-only surface is not required by the Electron app.
 
 ```bash
 rex-gui
@@ -112,7 +116,15 @@ npm.cmd run build
 npm.cmd run preview
 ```
 
-The Electron app uses bridge scripts at the repo root, including `rex_chat_stream_bridge.py`, `rex_tasks_bridge.py`, `rex_reminders_bridge.py`, `rex_shopping_list_bridge.py`, `rex_memories_bridge.py`, `rex_voice_bridge.py`, and related voice/wake-word bridge scripts.
+Development Electron resolves canonical bridge scripts from `bridge/`. Packaged
+Windows Electron resolves those scripts from `resources/bridge/` and uses only
+its managed `resources/python/python.exe`; it does not use machine Python or a
+source checkout.
+
+Build the managed Voice installer from `gui/` with `npm.cmd run dist`. The
+Voice profile includes CPU Whisper/Torch and bundled FFmpeg, so the installer
+is substantially larger than the Core runtime. CUDA/GPU acceleration and XTTS
+voice cloning remain optional external profiles rather than installer claims.
 
 For Electron-only verification harnesses, run `npm.cmd run build` in `gui/` before using `gui/tmp_verify_*.cjs` so `gui/dist-electron/main/index.js` matches the TypeScript sources.
 
@@ -180,7 +192,7 @@ curl -X POST http://127.0.0.1:18790/rex/tools/time_now \
 python -m rex doctor
 ```
 
-The doctor command checks Python version, package importability, config files, API keys, audio devices, FFmpeg, LLM service reachability, wake word config, STT/TTS dependencies, and GPU availability.
+The doctor command checks Python version, package importability, config files, API keys, audio devices, FFmpeg, LLM service reachability, wake word config, STT/TTS dependencies, and GPU availability. Use `rex doctor --release-gate` for actionable release blockers and `rex integrations` for the evidence-based integration inventory. Credentials alone are reported as configured, not connected or authenticated.
 
 ## Common Problems
 

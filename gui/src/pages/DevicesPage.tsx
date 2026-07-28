@@ -10,23 +10,47 @@ interface LightControlProps {
   device: Device
 }
 
+async function sendDeviceCommand(
+  entityId: string,
+  command: string,
+  payload?: { value?: number }
+) {
+  const first = await window.rex.sendDeviceCommand(entityId, command, payload)
+  if (first.status !== 'confirmation_required' || !first.confirmationToken) return first
+  if (!window.confirm(first.detail ?? 'Confirm this sensitive Home Assistant action?')) {
+    return { ...first, status: 'denied' as const, detail: 'Confirmation declined.' }
+  }
+  return window.rex.sendDeviceCommand(
+    entityId,
+    command,
+    payload,
+    first.confirmationToken,
+    first.requestId
+  )
+}
+
 function LightControl({ device }: LightControlProps): React.ReactElement {
   const [on, setOn] = useState(false)
   const [brightness, setBrightness] = useState(255)
   const [busy, setBusy] = useState(false)
+  const [feedback, setFeedback] = useState<string | null>(null)
 
   const toggle = async (): Promise<void> => {
     setBusy(true)
     const cmd = on ? 'turn_off' : 'turn_on'
-    const result = await window.rex.sendDeviceCommand(device.entity_id, cmd)
-    if (result.status !== 'failed') setOn(!on)
+    const result = await sendDeviceCommand(device.entity_id, cmd)
+    if (result.status === 'verified') setOn(!on)
+    setFeedback(result.detail ?? result.status.replace('_', ' '))
     setBusy(false)
   }
 
   const handleBrightness = async (e: React.ChangeEvent<HTMLInputElement>): Promise<void> => {
     const val = Number(e.target.value)
+    const previous = brightness
     setBrightness(val)
-    await window.rex.sendDeviceCommand(device.entity_id, 'set_brightness', { value: val })
+    const result = await sendDeviceCommand(device.entity_id, 'set_brightness', { value: val })
+    if (result.status !== 'verified') setBrightness(previous)
+    setFeedback(result.detail ?? result.status.replace('_', ' '))
   }
 
   return (
@@ -34,6 +58,7 @@ function LightControl({ device }: LightControlProps): React.ReactElement {
       <div className="min-w-0">
         <p className="text-text-primary text-sm font-medium">{device.name}</p>
         <p className="text-text-muted text-xs mt-0.5">Light</p>
+        {feedback && <p className="text-text-muted text-xs mt-1" role="status">{feedback}</p>}
       </div>
       <div className="flex items-center gap-3 flex-shrink-0">
         {on && (
@@ -75,12 +100,14 @@ interface SwitchControlProps {
 function SwitchControl({ device }: SwitchControlProps): React.ReactElement {
   const [on, setOn] = useState(false)
   const [busy, setBusy] = useState(false)
+  const [feedback, setFeedback] = useState<string | null>(null)
 
   const toggle = async (): Promise<void> => {
     setBusy(true)
     const cmd = on ? 'turn_off' : 'turn_on'
-    const result = await window.rex.sendDeviceCommand(device.entity_id, cmd)
-    if (result.status !== 'failed') setOn(!on)
+    const result = await sendDeviceCommand(device.entity_id, cmd)
+    if (result.status === 'verified') setOn(!on)
+    setFeedback(result.detail ?? result.status.replace('_', ' '))
     setBusy(false)
   }
 
@@ -89,6 +116,7 @@ function SwitchControl({ device }: SwitchControlProps): React.ReactElement {
       <div className="min-w-0">
         <p className="text-text-primary text-sm font-medium">{device.name}</p>
         <p className="text-text-muted text-xs mt-0.5">Switch</p>
+        {feedback && <p className="text-text-muted text-xs mt-1" role="status">{feedback}</p>}
       </div>
       <button
         type="button"
@@ -118,23 +146,29 @@ function MediaPlayerControl({ device }: MediaPlayerControlProps): React.ReactEle
   const [playing, setPlaying] = useState(false)
   const [volume, setVolume] = useState(0.5)
   const [busy, setBusy] = useState(false)
+  const [feedback, setFeedback] = useState<string | null>(null)
 
   const handlePlayPause = async (): Promise<void> => {
     setBusy(true)
     const cmd = playing ? 'media_pause' : 'media_play'
-    const result = await window.rex.sendDeviceCommand(device.entity_id, cmd)
-    if (result.status !== 'failed') setPlaying(!playing)
+    const result = await sendDeviceCommand(device.entity_id, cmd)
+    if (result.status === 'verified') setPlaying(!playing)
+    setFeedback(result.detail ?? result.status.replace('_', ' '))
     setBusy(false)
   }
 
   const handleNext = async (): Promise<void> => {
-    await window.rex.sendDeviceCommand(device.entity_id, 'media_next_track')
+    const result = await sendDeviceCommand(device.entity_id, 'media_next_track')
+    setFeedback(result.detail ?? result.status.replace('_', ' '))
   }
 
   const handleVolume = async (e: React.ChangeEvent<HTMLInputElement>): Promise<void> => {
     const val = Number(e.target.value)
+    const previous = volume
     setVolume(val)
-    await window.rex.sendDeviceCommand(device.entity_id, 'volume_set', { value: val })
+    const result = await sendDeviceCommand(device.entity_id, 'volume_set', { value: val })
+    if (result.status !== 'verified') setVolume(previous)
+    setFeedback(result.detail ?? result.status.replace('_', ' '))
   }
 
   return (
@@ -142,6 +176,7 @@ function MediaPlayerControl({ device }: MediaPlayerControlProps): React.ReactEle
       <div className="min-w-0">
         <p className="text-text-primary text-sm font-medium">{device.name}</p>
         <p className="text-text-muted text-xs mt-0.5">Media Player</p>
+        {feedback && <p className="text-text-muted text-xs mt-1" role="status">{feedback}</p>}
       </div>
       <div className="flex items-center gap-2 flex-shrink-0">
         <input

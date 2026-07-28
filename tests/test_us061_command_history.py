@@ -26,17 +26,17 @@ class TestCommandHistoryStore:
         from rex.command_history import CommandHistoryStore
 
         store = CommandHistoryStore(db_path=tmp_path / "h.db")
-        row_id = store.record("hello rex")
+        row_id = store.record("hello rex", user_id="james")
         assert row_id > 0
 
     def test_get_recent_returns_recorded_entries(self, tmp_path: Path) -> None:
         from rex.command_history import CommandHistoryStore
 
         store = CommandHistoryStore(db_path=tmp_path / "h.db")
-        store.record("cmd one", result="res one", success=True)
-        store.record("cmd two", result="res two", success=False)
+        store.record("cmd one", result="res one", success=True, user_id="james")
+        store.record("cmd two", result="res two", success=False, user_id="james")
 
-        entries = store.get_recent()
+        entries = store.get_recent(user_id="james")
         assert len(entries) == 2
         # newest first
         assert entries[0]["command"] == "cmd two"
@@ -46,9 +46,9 @@ class TestCommandHistoryStore:
         from rex.command_history import CommandHistoryStore
 
         store = CommandHistoryStore(db_path=tmp_path / "h.db")
-        store.record("ok cmd", success=True)
-        store.record("fail cmd", success=False)
-        entries = store.get_recent()
+        store.record("ok cmd", success=True, user_id="james")
+        store.record("fail cmd", success=False, user_id="james")
+        entries = store.get_recent(user_id="james")
         for e in entries:
             assert isinstance(e["success"], bool)
 
@@ -57,16 +57,16 @@ class TestCommandHistoryStore:
 
         store = CommandHistoryStore(db_path=tmp_path / "h.db")
         for i in range(10):
-            store.record(f"cmd {i}")
-        entries = store.get_recent(limit=3)
+            store.record(f"cmd {i}", user_id="james")
+        entries = store.get_recent(limit=3, user_id="james")
         assert len(entries) == 3
 
     def test_get_recent_clamps_limit_min(self, tmp_path: Path) -> None:
         from rex.command_history import CommandHistoryStore
 
         store = CommandHistoryStore(db_path=tmp_path / "h.db")
-        store.record("only one")
-        entries = store.get_recent(limit=0)
+        store.record("only one", user_id="james")
+        entries = store.get_recent(limit=0, user_id="james")
         assert len(entries) >= 1  # clamped to 1
 
     def test_get_recent_clamps_limit_max(self, tmp_path: Path) -> None:
@@ -75,25 +75,25 @@ class TestCommandHistoryStore:
         store = CommandHistoryStore(db_path=tmp_path / "h.db")
         # 600 entries
         for i in range(600):
-            store.record(f"cmd {i}")
-        entries = store.get_recent(limit=600)
+            store.record(f"cmd {i}", user_id="james")
+        entries = store.get_recent(limit=600, user_id="james")
         assert len(entries) == 500  # clamped to 500
 
     def test_clear_removes_all_entries(self, tmp_path: Path) -> None:
         from rex.command_history import CommandHistoryStore
 
         store = CommandHistoryStore(db_path=tmp_path / "h.db")
-        store.record("cmd a")
-        store.record("cmd b")
-        store.clear()
-        assert store.get_recent() == []
+        store.record("cmd a", user_id="james")
+        store.record("cmd b", user_id="james")
+        store.clear(user_id="james")
+        assert store.get_recent(user_id="james") == []
 
     def test_entry_has_required_keys(self, tmp_path: Path) -> None:
         from rex.command_history import CommandHistoryStore
 
         store = CommandHistoryStore(db_path=tmp_path / "h.db")
-        store.record("test cmd", result="test result", success=True)
-        entry = store.get_recent()[0]
+        store.record("test cmd", result="test result", success=True, user_id="james")
+        entry = store.get_recent(user_id="james")[0]
         assert "id" in entry
         assert "timestamp" in entry
         assert "command" in entry
@@ -156,7 +156,7 @@ class TestHistoryEndpoint:
 
         store = CommandHistoryStore(db_path=tmp_data_dir / "command_history.db")
         for i in range(20):
-            store.record(f"cmd {i}")
+            store.record(f"cmd {i}", user_id="admin")
 
         resp = flask_client.get(
             "/api/history?limit=5", headers={"Authorization": f"Bearer {token}"}
@@ -172,7 +172,7 @@ class TestHistoryEndpoint:
         from rex.command_history import CommandHistoryStore
 
         store = CommandHistoryStore(db_path=tmp_data_dir / "command_history.db")
-        store.record("voice command", result="done", success=True)
+        store.record("voice command", result="done", success=True, user_id="admin")
 
         resp = flask_client.get("/api/history", headers={"Authorization": f"Bearer {token}"})
         data = resp.get_json()
@@ -180,3 +180,42 @@ class TestHistoryEndpoint:
         entry = data["history"][0]
         for key in ("id", "timestamp", "command", "result", "success"):
             assert key in entry
+
+    def test_two_users_cannot_read_or_clear_each_others_history(self, tmp_path: Path) -> None:
+        from rex.command_history import CommandHistoryStore
+
+        store = CommandHistoryStore(db_path=tmp_path / "h.db")
+        store.record("James private command", user_id="james")
+        store.record("Cole private command", user_id="cole")
+
+        assert [entry["command"] for entry in store.get_recent(user_id="james")] == [
+            "James private command"
+        ]
+        assert [entry["command"] for entry in store.get_recent(user_id="cole")] == [
+            "Cole private command"
+        ]
+
+        store.clear(user_id="james")
+        assert store.get_recent(user_id="james") == []
+        assert len(store.get_recent(user_id="cole")) == 1
+
+    def test_legacy_unowned_rows_are_quarantined(self, tmp_path: Path) -> None:
+        import sqlite3
+
+        from rex.command_history import CommandHistoryStore
+
+        db_path = tmp_path / "legacy.db"
+        with sqlite3.connect(db_path) as conn:
+            conn.execute(
+                "CREATE TABLE command_history ("
+                "id INTEGER PRIMARY KEY AUTOINCREMENT, timestamp TEXT NOT NULL, "
+                "command TEXT NOT NULL, result TEXT, success INTEGER NOT NULL DEFAULT 1)"
+            )
+            conn.execute(
+                "INSERT INTO command_history (timestamp, command, result, success) "
+                "VALUES ('2026-01-01', 'legacy private command', '', 1)"
+            )
+
+        store = CommandHistoryStore(db_path=db_path)
+        assert store.get_recent(user_id="james") == []
+        assert store.get_recent(user_id="cole") == []

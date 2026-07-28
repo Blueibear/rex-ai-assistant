@@ -9,7 +9,11 @@ permissions:
   pull-requests: write
 
 jobs:
+  windows-electron-artifact:
+    uses: ./.github/workflows/windows-electron-artifact.yml
+
   release-please:
+    needs: windows-electron-artifact
     runs-on: ubuntu-latest
     steps:
       - uses: googleapis/release-please-action@v4

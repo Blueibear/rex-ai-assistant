@@ -1,5 +1,7 @@
 # PRD: AskRex Assistant Production Readiness and Release Candidate Hardening
 
+> **Active PRD — 2026-07-22.** This is the only active release-readiness tracker. `PRD.md` and `PRD-remaining-release-readiness.md` are retained as superseded historical evidence. The current cross-cutting audit implementation ledger is [docs/audits/AUDIT-REMEDIATION-2026-07-22.md](docs/audits/AUDIT-REMEDIATION-2026-07-22.md). Local completion does not imply CI, signing, hardware, or external-provider verification.
+
 > **Ralph execution rule**
 > A task means one full User Story, not one checkbox.
 > Choose the first User Story whose acceptance criteria contain any unchecked `[ ]` box.
@@ -15,6 +17,9 @@
 
 > **Reconciliation note — 2026-07-08 (issue #300)**
 > Re-audited Section 2 (Current State), Section 6 (Blocker Inventory), and the Phase 3–4 acceptance criteria against `master` HEAD `fde0c76`. Stale baseline claims are now marked **[RESOLVED — historical]** in place with the verifying commit or CI evidence; do not implement them again. Stories US-021, US-022, US-030, and US-032 were verified complete against current code/CI and are now checked. US-023/US-024/US-033/US-036 carry updated per-box status notes. `PRD-remaining-release-readiness.md` is complete except two Definition-of-Done boxes (a literal base-deps clean-checkout pytest run, and an owner decision on the re-added sanitized fixtures `profiles/james.json`/`users.json`) — treat it as historical evidence, not an active tracker. This reconciliation did not implement runtime behavior.
+
+> **Audit remediation note — 2026-07-22**
+> Findings A–K from the current audit are implemented in reviewable commits and locally verified as recorded in `docs/audits/AUDIT-REMEDIATION-2026-07-22.md`. This supersedes older baseline prose for calendar isolation, Electron identity/data ownership, HA mutation verification, tool lifecycle, managed Electron runtime, Windows artifact CI, Hold to Talk, integration-state truth, diagnostics/security gates, and GUI dependency gates. Items remain **locally verified**, not CI verified, until the pull-request checks pass. The unsigned installer and hardware/external-provider checks remain explicit release limitations.
 
 ---
 

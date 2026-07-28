@@ -1,5 +1,7 @@
 # PRD: AskRex Remaining Release Readiness Work
 
+> **Superseded / historical.** This tracker was superseded by `PRD-production-readiness.md`. Do not select new work from this file; it remains in place for commit and acceptance-criteria history.
+
 > **Ralph execution rule**
 > A task means one full User Story, not one checkbox.
 > Choose the first User Story whose acceptance criteria contain any unchecked `[ ]` box.
@@ -7,7 +9,7 @@
 > A User Story is only complete when current code, tests, and acceptance criteria prove it.
 > When a story is complete, update this PRD and its progress log in the same commit as the implementation.
 > Do not commit completed implementation work while leaving that story unchecked in this PRD.
-> This PRD is the authoritative task tracker. `progress-remaining-release-readiness.txt` is supporting history only.
+> `PRD-production-readiness.md` is the authoritative task tracker. `progress-remaining-release-readiness.txt` is supporting history only.
 
 ---
 

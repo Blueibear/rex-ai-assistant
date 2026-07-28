@@ -61,6 +61,21 @@ class TestIntegrationsEndpoint:
             assert "name" in entry
             assert "key" in entry
             assert "configured" in entry
+            assert entry["state"] in {
+                "unavailable",
+                "unconfigured",
+                "configured",
+                "reachable",
+                "authenticated",
+                "degraded",
+                "read_only",
+                "write_capable",
+                "write_tested",
+                "verified",
+            }
+            assert isinstance(entry["read_capable"], bool)
+            assert isinstance(entry["write_capable"], bool)
+            assert "configure_url" in entry
 
     def test_configured_field_is_boolean(self, flask_client) -> None:  # type: ignore[override]
         resp = flask_client.get("/api/integrations")
@@ -122,6 +137,9 @@ class TestCapabilitiesEndpoint:
             assert "description" in entry
             assert "category" in entry
             assert "enabled" in entry
+            assert "state" in entry
+            assert "read_capable" in entry
+            assert "write_capable" in entry
 
     def test_enabled_field_is_boolean(self, flask_client) -> None:  # type: ignore[override]
         resp = flask_client.get("/api/capabilities")

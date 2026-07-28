@@ -30,10 +30,7 @@ import uuid
 from datetime import UTC, datetime
 from typing import Any
 
-from rex.bridge_utils import bridge_error_response, repo_root, resolve_python
-
-_PYTHON_EXE = resolve_python()  # venv-aware interpreter path for subprocess calls
-_REPO_ROOT = repo_root()  # absolute repo root for resolving scripts and config
+from rex.bridge_utils import bridge_error_response
 
 
 def _utc_now() -> datetime:
@@ -96,15 +93,23 @@ def _job_to_task(job: Any) -> dict[str, Any]:
     }
 
 
-def _handle_list() -> dict[str, Any]:
+def _owner(job: Any) -> str | None:
+    metadata = getattr(job, "metadata", None) or {}
+    owner = metadata.get("owner_user_id")
+    return str(owner) if owner else None
+
+
+def _handle_list(user_id: str) -> dict[str, Any]:
     from rex.scheduler import get_scheduler
 
     scheduler = get_scheduler()
-    tasks = [_job_to_task(j) for j in scheduler.list_jobs()]
-    return {"ok": True, "tasks": tasks}
+    jobs = scheduler.list_jobs()
+    tasks = [_job_to_task(job) for job in jobs if _owner(job) == user_id]
+    unowned = sum(1 for job in jobs if _owner(job) is None)
+    return {"ok": True, "tasks": tasks, "legacy_unowned_count": unowned}
 
 
-def _handle_save(task: dict[str, Any]) -> dict[str, Any]:
+def _handle_save(user_id: str, task: dict[str, Any]) -> dict[str, Any]:
     from rex.scheduler import get_scheduler  # type: ignore[import]
 
     scheduler = get_scheduler()
@@ -117,10 +122,17 @@ def _handle_save(task: dict[str, Any]) -> dict[str, Any]:
 
     interval = _schedule_to_interval(gui_schedule)
     internal_schedule = f"interval:{interval}"
-    metadata: dict[str, Any] = {"gui_schedule": gui_schedule, "prompt": prompt}
+    metadata: dict[str, Any] = {
+        "gui_schedule": gui_schedule,
+        "prompt": prompt,
+        "owner_user_id": user_id,
+        "data_scope": "private",
+    }
 
     existing = scheduler.get_job(task_id)
     if existing is not None:
+        if _owner(existing) != user_id:
+            return {"ok": False, "error": f"Task {task_id!r} not found"}
         updated = scheduler.update_job(
             task_id,
             name=name,
@@ -142,24 +154,42 @@ def _handle_save(task: dict[str, Any]) -> dict[str, Any]:
     return {"ok": True, "task": _job_to_task(job)}
 
 
-def _handle_delete(task_id: str) -> dict[str, Any]:
+def _handle_delete(user_id: str, task_id: str) -> dict[str, Any]:
     from rex.scheduler import get_scheduler  # type: ignore[import]
 
     scheduler = get_scheduler()
+    existing = scheduler.get_job(task_id)
+    if existing is None or _owner(existing) != user_id:
+        return {"ok": False, "error": f"Task {task_id!r} not found"}
     existed = scheduler.remove_job(task_id)
     if not existed:
         return {"ok": False, "error": f"Task {task_id!r} not found"}
     return {"ok": True}
 
 
-def _handle_set_enabled(task_id: str, enabled: bool) -> dict[str, Any]:
+def _handle_set_enabled(user_id: str, task_id: str, enabled: bool) -> dict[str, Any]:
     from rex.scheduler import get_scheduler  # type: ignore[import]
 
     scheduler = get_scheduler()
+    existing = scheduler.get_job(task_id)
+    if existing is None or _owner(existing) != user_id:
+        return {"ok": False, "error": f"Task {task_id!r} not found"}
     updated = scheduler.update_job(task_id, enabled=enabled)
     if updated is None:
         return {"ok": False, "error": f"Task {task_id!r} not found"}
     return {"ok": True, "task": _job_to_task(updated)}
+
+
+def _handle_history(user_id: str, task_id: str) -> dict[str, Any]:
+    """Return persisted task runs when available; never synthesize successes."""
+    from rex.scheduler import get_scheduler  # type: ignore[import]
+
+    existing = get_scheduler().get_job(task_id)
+    if existing is None or _owner(existing) != user_id:
+        return {"ok": False, "error": f"Task {task_id!r} not found"}
+    metadata = getattr(existing, "metadata", None) or {}
+    runs = metadata.get("run_history")
+    return {"ok": True, "runs": runs if isinstance(runs, list) else []}
 
 
 def main() -> None:
@@ -171,17 +201,25 @@ def main() -> None:
         sys.exit(1)
 
     try:
+        from rex.identity import validate_user_id
+
+        user_id = validate_user_id(str(payload.get("user") or ""))
+        if payload.get("data_scope") != "private":
+            raise PermissionError("Tasks require private Electron data scope")
         if command == "list":
-            result = _handle_list()
+            result = _handle_list(user_id)
         elif command == "save":
-            result = _handle_save(dict(payload.get("task") or {}))
+            result = _handle_save(user_id, dict(payload.get("task") or {}))
         elif command == "delete":
-            result = _handle_delete(str(payload.get("id") or ""))
+            result = _handle_delete(user_id, str(payload.get("id") or ""))
         elif command == "set_enabled":
             result = _handle_set_enabled(
+                user_id,
                 str(payload.get("id") or ""),
                 bool(payload.get("enabled", True)),
             )
+        elif command == "history":
+            result = _handle_history(user_id, str(payload.get("id") or ""))
         else:
             result = {"ok": False, "error": f"Unknown command: {command!r}"}
     except Exception as exc:

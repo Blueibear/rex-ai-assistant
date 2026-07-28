@@ -265,6 +265,9 @@ class MobileApiConfig(BaseModel):
     rate_limit_refresh: str = "30 per minute"
     rate_limit_chat: str = "30 per minute"
     rate_limit_voice: str = "10 per minute"
+    # Retention window for the cross-transport (user_id, message_id)
+    # idempotency records; must cover realistic reconnect/retry behaviour.
+    idempotency_retention_hours: int = 48
 
     @field_validator("host", "api_version")
     @classmethod
@@ -287,6 +290,7 @@ class MobileApiConfig(BaseModel):
         "max_json_bytes",
         "max_audio_bytes",
         "max_audio_seconds",
+        "idempotency_retention_hours",
     )
     @classmethod
     def _positive(cls, value: int) -> int:

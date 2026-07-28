@@ -1,27 +1,30 @@
 import { ipcMain } from 'electron'
 import { spawn } from 'child_process'
 import { resolveBridgePath, resolvePythonCommand } from '../bridgeResolver'
+import { privateSessionPayload, type ElectronSessionIdentity } from '../sessionIdentity'
 
 const FILE_SIZE_LIMIT_BYTES = 10 * 1024 * 1024 // 10 MB
 
-const TEXT_MIME_TYPES = new Set([
-  'text/plain',
-  'text/markdown',
-  'text/csv',
-  'application/csv',
-  'text/x-markdown'
-])
+const TEXT_MIME_TYPES = new Set(['text/plain', 'text/markdown', 'text/csv', 'application/csv', 'text/x-markdown'])
 
 const IMAGE_MIME_TYPES = new Set(['image/png', 'image/jpeg', 'image/jpg'])
 
 function callExtractBridge(
+  session: ElectronSessionIdentity,
   filename: string,
   dataBase64: string,
   mimeType: string
-): Promise<{ ok: boolean; isImage: boolean; extractedText?: string; error?: string }> {
+): Promise<{
+  ok: boolean
+  isImage: boolean
+  extractedText?: string
+  error?: string
+}> {
   return new Promise((resolve) => {
     const scriptPath = resolveBridgePath('rex_file_extract_bridge.py')
-    const py = spawn(resolvePythonCommand(), [scriptPath], { stdio: ['pipe', 'pipe', 'pipe'] })
+    const py = spawn(resolvePythonCommand(), [scriptPath], {
+      stdio: ['pipe', 'pipe', 'pipe']
+    })
     let stdout = ''
 
     py.stdout.on('data', (chunk: Buffer) => {
@@ -43,22 +46,36 @@ function callExtractBridge(
           error: result.error
         })
       } catch {
-        resolve({ ok: false, isImage: false, error: 'Failed to parse extraction result' })
+        resolve({
+          ok: false,
+          isImage: false,
+          error: 'Failed to parse extraction result'
+        })
       }
     })
 
     py.on('error', () => {
-      resolve({ ok: false, isImage: false, error: 'Failed to start extraction bridge' })
+      resolve({
+        ok: false,
+        isImage: false,
+        error: 'Failed to start extraction bridge'
+      })
     })
 
     py.stdin.write(
-      JSON.stringify({ filename, data_base64: dataBase64, mime_type: mimeType })
+      JSON.stringify(
+        privateSessionPayload(session, {
+          filename,
+          data_base64: dataBase64,
+          mime_type: mimeType
+        })
+      )
     )
     py.stdin.end()
   })
 }
 
-export function registerFileHandlers(): void {
+export function registerFileHandlers(session: ElectronSessionIdentity): void {
   ipcMain.handle(
     'rex:extractFileForChat',
     async (
@@ -68,10 +85,24 @@ export function registerFileHandlers(): void {
         dataBase64,
         mimeType,
         sizeBytes
-      }: { filename: string; dataBase64: string; mimeType: string; sizeBytes: number }
-    ): Promise<{ ok: boolean; isImage: boolean; extractedText?: string; error?: string }> => {
+      }: {
+        filename: string
+        dataBase64: string
+        mimeType: string
+        sizeBytes: number
+      }
+    ): Promise<{
+      ok: boolean
+      isImage: boolean
+      extractedText?: string
+      error?: string
+    }> => {
       if (sizeBytes > FILE_SIZE_LIMIT_BYTES) {
-        return { ok: false, isImage: false, error: 'File too large (max 10 MB)' }
+        return {
+          ok: false,
+          isImage: false,
+          error: 'File too large (max 10 MB)'
+        }
       }
 
       const normalizedMime = mimeType.toLowerCase().split(';')[0].trim()
@@ -80,20 +111,21 @@ export function registerFileHandlers(): void {
         return { ok: true, isImage: true }
       }
 
-      if (
-        TEXT_MIME_TYPES.has(normalizedMime) ||
-        /\.(txt|md|csv)$/i.test(filename)
-      ) {
+      if (TEXT_MIME_TYPES.has(normalizedMime) || /\.(txt|md|csv)$/i.test(filename)) {
         try {
           const text = Buffer.from(dataBase64, 'base64').toString('utf-8')
           return { ok: true, isImage: false, extractedText: text }
         } catch {
-          return { ok: false, isImage: false, error: 'Failed to decode text file' }
+          return {
+            ok: false,
+            isImage: false,
+            error: 'Failed to decode text file'
+          }
         }
       }
 
       // PDF or other — delegate to Python bridge
-      return callExtractBridge(filename, dataBase64, normalizedMime)
+      return callExtractBridge(session, filename, dataBase64, normalizedMime)
     }
   )
 }

@@ -263,10 +263,20 @@ export interface IntegrationsSettings {
   telegramChatId: string
 }
 
-export type IntegrationConnectionStatus = 'untested' | 'connected' | 'error'
+export type IntegrationConnectionStatus =
+  | 'unavailable'
+  | 'unconfigured'
+  | 'configured'
+  | 'reachable'
+  | 'authenticated'
+  | 'degraded'
+  | 'read_only'
+  | 'write_capable'
+  | 'write_tested'
+  | 'verified'
 
 export interface IntegrationStatus {
-  status: IntegrationConnectionStatus
+  state: IntegrationConnectionStatus
   testedAt?: string
   error?: string
 }
@@ -275,6 +285,9 @@ export interface IntegrationInventoryItem extends IntegrationStatus {
   name: string
   key: string
   configured: boolean
+  available: boolean
+  read_capable: boolean
+  write_capable: boolean
   configure_url?: string
   testable?: boolean
 }
@@ -290,6 +303,9 @@ export interface CapabilityInfo {
   description: string
   category: string
   enabled: boolean
+  state?: IntegrationConnectionStatus
+  read_capable?: boolean
+  write_capable?: boolean
 }
 
 export interface CapabilitiesResponse {
@@ -366,11 +382,18 @@ export interface DevicesResponse {
   error?: string
 }
 
-export type DeviceCommandStatus = 'attempted' | 'completed' | 'verified' | 'failed'
+export type DeviceCommandStatus =
+  | 'verified'
+  | 'attempted_unverified'
+  | 'confirmation_required'
+  | 'denied'
+  | 'failed'
 
 export interface DeviceCommandResponse {
   status: DeviceCommandStatus
   detail?: string
+  confirmationToken?: string
+  requestId?: string
 }
 
 export interface FileExtractResult {
@@ -527,7 +550,11 @@ export interface SetupCompleteResponse {
 
 export interface RexAPI {
   sendChat: (message: string) => Promise<string>
-  sendChatStream: (message: string, onToken: (token: string) => void) => Promise<void>
+  sendChatStream: (
+    message: string,
+    onToken: (token: string) => void,
+    signal?: AbortSignal
+  ) => Promise<void>
   getStatus: () => Promise<StatusResponse>
   onStatusChange: (cb: (status: string) => void) => (() => void)
   getSettings: (section: string) => Promise<Settings>
@@ -568,7 +595,7 @@ export interface RexAPI {
     limit?: number
   ) => Promise<{ ok: boolean; history: CommandHistoryEntry[]; error?: string }>
   testVoice: (settings: VoiceSettings) => Promise<{ ok: boolean; error?: string }>
-  testIntegration: (type: 'email' | 'calendar' | 'sms' | 'homeassistant' | 'phone') => Promise<{ ok: boolean; error?: string }>
+  testIntegration: (type: 'email' | 'calendar' | 'sms' | 'homeassistant' | 'phone') => Promise<{ ok: boolean; state?: IntegrationConnectionStatus; error?: string }>
   getIntegrations: () => Promise<IntegrationInventoryResponse>
   getCapabilities: () => Promise<CapabilitiesResponse>
   testHomeAssistant: (baseUrl: string, token: string) => Promise<HomeAssistantConnectionResponse>
@@ -579,10 +606,10 @@ export interface RexAPI {
   deleteQuickAction: (id: string) => Promise<{ ok: boolean; deleted?: boolean; error?: string }>
   runQuickAction: (id: string) => Promise<QuickActionRunResponse>
   getDevices: () => Promise<DevicesResponse>
-  sendDeviceCommand: (entityId: string, command: string, payload?: { value?: number }) => Promise<DeviceCommandResponse>
+  sendDeviceCommand: (entityId: string, command: string, payload?: { value?: number }, confirmationToken?: string, requestId?: string) => Promise<DeviceCommandResponse>
   uploadContactsFile: () => Promise<{ ok: boolean; path?: string; error?: string }>
   pickFolder: () => Promise<{ ok: boolean; path?: string; error?: string }>
-  testEmailAccount: (id: string) => Promise<{ ok: boolean; error?: string }>
+  testEmailAccount: (id: string) => Promise<{ ok: boolean; state?: IntegrationConnectionStatus; error?: string }>
   getPreferenceSuggestions: () => Promise<PreferenceSuggestion[]>
   applyPreferenceSuggestion: (field: string, value: string | number) => Promise<{ ok: boolean }>
   getEmailInbox: () => Promise<EmailMessage[]>
@@ -611,6 +638,16 @@ export interface RexAPI {
     provider: string,
     voiceId: string
   ) => Promise<{ ok: boolean; audio_base64?: string; error?: string }>
+  synthesizeSpeech: (
+    provider: string,
+    voiceId: string,
+    text: string
+  ) => Promise<{ ok: boolean; audio_base64?: string; error?: string }>
+  logVoiceTiming: (
+    turnId: string,
+    stage: string,
+    durationMs: number
+  ) => Promise<{ ok: boolean }>
   uploadCustomVoice: (
     filePath: string,
     voiceName: string

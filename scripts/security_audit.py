@@ -19,12 +19,20 @@ Flags:
                                skips fenced blocks to reduce false positives.
     --allowlist FILE           Path(s) exempt from strict-mode fenced-block
                                scanning (may be repeated).
+    --release-gate             Fail on merge markers, secrets, invalid
+                               suppressions, and actionable source/config
+                               placeholder findings.
+    --suppressions FILE        JSON file containing narrow, documented,
+                               expiring placeholder suppressions.
 """
 
 import argparse
+import json
 import re
 import subprocess
 import sys
+from dataclasses import dataclass
+from datetime import date
 from pathlib import Path
 
 # Paths excluded from self-scan: this script and its dedicated test file, both of
@@ -55,6 +63,7 @@ EXCLUDE_DIRS = {
     ".nox",
     ".cache",
     ".claude",
+    "archived",
     "venv",
     "source",
     "node_modules",
@@ -117,7 +126,103 @@ DOC_EXTENSIONS = {".md", ".txt"}
 # Findings are printed as "filepath:line: message". On Windows, the filepath can
 # contain a ":" (drive letter). This regex greedily captures the filepath up to
 # the final ":<digits>:" delimiter.
-FINDING_PREFIX = re.compile(r"^(.*):(\d+):\s")
+FINDING_PREFIX = re.compile(r"^(.*?):(\d+):\s")
+
+_SUPPRESSIBLE_CATEGORIES = {"placeholder"}
+
+
+@dataclass(frozen=True)
+class FindingSuppression:
+    """One narrow, documented, expiring security-audit exclusion."""
+
+    category: str
+    path: str
+    line: int
+
+
+def load_suppressions(
+    suppression_path: Path,
+    repo_root: Path,
+    *,
+    today: date | None = None,
+) -> tuple[set[FindingSuppression], list[str]]:
+    """Load validated suppressions and return ``(valid, errors)``."""
+    current_date = today or date.today()
+    try:
+        raw = json.loads(suppression_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        return set(), [f"Cannot read suppression file {suppression_path}: {exc}"]
+
+    entries = raw.get("suppressions") if isinstance(raw, dict) else None
+    if not isinstance(entries, list):
+        return set(), ["Suppression file must contain a 'suppressions' list"]
+
+    valid: set[FindingSuppression] = set()
+    errors: list[str] = []
+    root = repo_root.resolve()
+    for index, entry in enumerate(entries, 1):
+        prefix = f"Suppression #{index}"
+        if not isinstance(entry, dict):
+            errors.append(f"{prefix} must be an object")
+            continue
+
+        category = entry.get("category")
+        raw_path = entry.get("path")
+        line = entry.get("line")
+        reason = entry.get("reason")
+        expires = entry.get("expires")
+
+        if category not in _SUPPRESSIBLE_CATEGORIES:
+            errors.append(f"{prefix} has invalid category {category!r}")
+            continue
+        if not isinstance(raw_path, str) or not raw_path.strip():
+            errors.append(f"{prefix} requires a repository-relative path")
+            continue
+        relative_path = Path(raw_path)
+        if relative_path.is_absolute() or ".." in relative_path.parts:
+            errors.append(f"{prefix} path must stay within the repository")
+            continue
+        resolved_path = (root / relative_path).resolve()
+        try:
+            normalized_path = resolved_path.relative_to(root).as_posix()
+        except ValueError:
+            errors.append(f"{prefix} path must stay within the repository")
+            continue
+        if not isinstance(line, int) or isinstance(line, bool) or line < 1:
+            errors.append(f"{prefix} requires a positive integer line")
+            continue
+        if not isinstance(reason, str) or len(reason.strip()) < 10:
+            errors.append(f"{prefix} requires a specific reason of at least 10 characters")
+            continue
+        try:
+            expiry = date.fromisoformat(expires) if isinstance(expires, str) else None
+        except ValueError:
+            expiry = None
+        if expiry is None:
+            errors.append(f"{prefix} requires an ISO date in 'expires'")
+            continue
+        if expiry < current_date:
+            errors.append(f"{prefix} expired on {expiry.isoformat()}")
+            continue
+
+        valid.add(FindingSuppression(category, normalized_path, line))
+
+    return valid, errors
+
+
+def _finding_suppression(
+    finding: str,
+    category: str,
+    repo_root: Path,
+) -> FindingSuppression | None:
+    match = FINDING_PREFIX.match(finding)
+    if match is None:
+        return None
+    try:
+        relative_path = Path(match.group(1)).resolve().relative_to(repo_root.resolve()).as_posix()
+    except (OSError, ValueError):
+        return None
+    return FindingSuppression(category, relative_path, int(match.group(2)))
 
 
 def classify_placeholder_finding(finding: str) -> str:
@@ -130,7 +235,12 @@ def classify_placeholder_finding(finding: str) -> str:
         return "needs-review"
 
     filepath_str = m.group(1)
-    suffix = Path(filepath_str).suffix.lower()
+    finding_path = Path(filepath_str)
+    suffix = finding_path.suffix.lower()
+    parts = {part.lower() for part in finding_path.parts}
+
+    if parts.intersection({"docs", "tests", "archive", "archived"}):
+        return "documentation"
 
     if suffix in SOURCE_EXTENSIONS:
         return "source-code"
@@ -216,8 +326,11 @@ def scan_file(
                     continue
                 merge_issues.append(f"{filepath}:{i + 1}: {line[:50]}")
 
-        # Placeholders (with false-positive filtering)
-        for i, line in enumerate(lines, 1):
+        # Placeholders (with false-positive filtering). Dependency lockfiles
+        # contain package names such as ``cli-truncate`` and are generated,
+        # so their prose markers are not incomplete application code.
+        placeholder_lines = [] if filepath.name == "package-lock.json" else lines
+        for i, line in enumerate(placeholder_lines, 1):
             if PLACEHOLDER_MARKERS.search(line):
                 lowered = line.lower()
 
@@ -227,6 +340,29 @@ def scan_file(
 
                 # Skip: placeholder used as part of a variable/path name
                 if "placeholder" in lowered and ("_path" in lowered or "voice" in lowered):
+                    continue
+
+                # Skip legitimate HTML form placeholder attributes and
+                # redaction/sentinel terminology.
+                if "placeholder" in lowered and any(
+                    token in lowered
+                    for token in [
+                        "placeholder=",
+                        "_placeholder",
+                        "placeholder.split",
+                        "redact",
+                        "sentinel",
+                        "substitution token",
+                        "abbreviation",
+                    ]
+                ):
+                    continue
+
+                # Skip process instructions that intentionally refer to a
+                # task's TODO state rather than leaving this source incomplete.
+                if "todo" in lowered and any(
+                    token in lowered for token in ["mark the task", "task back to"]
+                ):
                     continue
 
                 # Skip: function/class definitions whose name contains the marker word
@@ -239,6 +375,7 @@ def scan_file(
                     w in lowered
                     for w in [
                         "output",
+                        "file",
                         "query",
                         "bytes",
                         "chars",
@@ -347,6 +484,19 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
             "repeated. Paths are resolved relative to the repo root."
         ),
     )
+    parser.add_argument(
+        "--release-gate",
+        action="store_true",
+        help="Exit nonzero for merge markers, secrets, or actionable source/config findings",
+    )
+    parser.add_argument(
+        "--suppressions",
+        metavar="FILE",
+        help=(
+            "JSON file of narrowly scoped placeholder suppressions with path, line, "
+            "reason, and expiry"
+        ),
+    )
     return parser.parse_args(argv)
 
 
@@ -365,7 +515,15 @@ def main(argv: list[str] | None = None) -> int:
             p = repo_root / p
         allowlisted_paths.add(p.resolve())
 
-    strict = args.strict_markdown_secrets
+    strict = args.strict_markdown_secrets or args.release_gate
+
+    suppressions: set[FindingSuppression] = set()
+    suppression_errors: list[str] = []
+    if args.suppressions:
+        suppression_path = Path(args.suppressions)
+        if not suppression_path.is_absolute():
+            suppression_path = repo_root / suppression_path
+        suppressions, suppression_errors = load_suppressions(suppression_path, repo_root)
 
     merge_findings: list[str] = []
     placeholder_findings: list[str] = []
@@ -379,6 +537,10 @@ def main(argv: list[str] | None = None) -> int:
         print("Mode: --strict-markdown-secrets enabled")
         if allowlisted_paths:
             print(f"Allowlisted: {', '.join(str(p) for p in sorted(allowlisted_paths))}")
+    if args.release_gate:
+        print("Release gate: enabled")
+    if args.suppressions:
+        print(f"Validated suppressions: {len(suppressions)}")
     print()
 
     scan_files, excluded_count = get_tracked_files(repo_root)
@@ -399,6 +561,17 @@ def main(argv: list[str] | None = None) -> int:
     print(f"Files excluded: {excluded_count}  (cache dirs, egg-info, untracked, self-excluded)")
     print()
 
+    suppressed_placeholders = 0
+    if suppressions:
+        unsuppressed: list[str] = []
+        for finding in placeholder_findings:
+            key = _finding_suppression(finding, "placeholder", repo_root)
+            if key in suppressions:
+                suppressed_placeholders += 1
+            else:
+                unsuppressed.append(finding)
+        placeholder_findings = unsuppressed
+
     print("=" * 70)
     print("MERGE CONFLICT MARKERS")
     print("=" * 70)
@@ -415,6 +588,7 @@ def main(argv: list[str] | None = None) -> int:
     print("=" * 70)
     print("PLACEHOLDER/INCOMPLETE CODE MARKERS")
     print("=" * 70)
+    actionable = 0
     if placeholder_findings:
         placeholder_findings.sort()
         buckets: dict[str, list[str]] = {
@@ -456,6 +630,8 @@ def main(argv: list[str] | None = None) -> int:
             print()
     else:
         print("CLEAN - No placeholder markers found")
+    if suppressed_placeholders:
+        print(f"Suppressed {suppressed_placeholders} validated placeholder finding(s)")
     print()
 
     print("=" * 70)
@@ -465,11 +641,32 @@ def main(argv: list[str] | None = None) -> int:
         print(f"FOUND {len(secret_findings)} potential secrets:")
         for issue in secret_findings:
             print(f"  {issue}")
-        return 1
-
-    print("CLEAN - No exposed secrets found")
+    else:
+        print("CLEAN - No exposed secrets found")
     print()
 
+    if suppression_errors:
+        print("INVALID SUPPRESSIONS:")
+        for error in suppression_errors:
+            print(f"  {error}")
+        print()
+
+    blockers: list[str] = []
+    if merge_findings:
+        blockers.append(f"{len(merge_findings)} merge marker(s)")
+    if secret_findings:
+        blockers.append(f"{len(secret_findings)} potential secret(s)")
+    if suppression_errors:
+        blockers.append(f"{len(suppression_errors)} invalid suppression(s)")
+    if args.release_gate and actionable:
+        blockers.append(f"{actionable} actionable placeholder finding(s)")
+
+    if blockers:
+        print(f"SECURITY GATE FAILED: {', '.join(blockers)}")
+        return 1
+
+    if args.release_gate:
+        print("SECURITY GATE PASSED")
     return 0
 
 

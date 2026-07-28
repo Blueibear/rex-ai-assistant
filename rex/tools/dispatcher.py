@@ -13,12 +13,13 @@ the current ``execute_tools()`` API is preserved for backward compatibility.
 
 from __future__ import annotations
 
-import concurrent.futures
 import logging
 import re
 import time
 from typing import Any
 
+from .execution import _is_auth_error as _is_auth_error
+from .execution import _is_transient_error as _is_transient_error
 from .registry import Tool, ToolRegistry
 
 logger = logging.getLogger(__name__)
@@ -76,46 +77,6 @@ _INTENT_RULES: list[tuple[str, re.Pattern[str]]] = [
 # ---------------------------------------------------------------------------
 # Error classification helpers
 # ---------------------------------------------------------------------------
-
-#: Exception types that indicate a transient network problem (retry once).
-_TRANSIENT_TYPES = (
-    TimeoutError,
-    ConnectionError,
-    ConnectionResetError,
-    ConnectionRefusedError,
-    ConnectionAbortedError,
-    OSError,
-)
-
-#: Exception types that indicate an auth failure (never retry).
-_AUTH_TYPES = (PermissionError,)
-
-
-def _is_transient_error(exc: BaseException) -> bool:
-    """Return True if *exc* is a retriable network/transient error.
-
-    Also recognises HTTP-style errors with a ``status_code`` attribute
-    whose value is >= 500 (server-side transient).
-    """
-    if isinstance(exc, _TRANSIENT_TYPES):
-        return True
-    # HTTP-style exception with a status code
-    status = getattr(exc, "status_code", None) or getattr(exc, "code", None)
-    if isinstance(status, int) and status >= 500:
-        return True
-    # Explicit opt-in marker on custom exceptions
-    return bool(getattr(exc, "is_transient", False))
-
-
-def _is_auth_error(exc: BaseException) -> bool:
-    """Return True if *exc* is an authentication / authorisation failure."""
-    if isinstance(exc, _AUTH_TYPES):
-        return True
-    status = getattr(exc, "status_code", None) or getattr(exc, "code", None)
-    if isinstance(status, int) and status in (401, 403):
-        return True
-    return bool(getattr(exc, "auth_error", False))
-
 
 # ---------------------------------------------------------------------------
 # ToolDispatcher
@@ -236,15 +197,26 @@ class ToolDispatcher:
         results: dict[str, Any] = {}
         for tool in tools:
             start = time.monotonic()
-            value, ok = self._invoke_with_timeout_retry(tool, message, user_id=user_id)
+            result = self.dispatch(
+                tool.name,
+                {"transcript": message},
+                {"user_id": user_id} if user_id is not None else {},
+            )
             duration = time.monotonic() - start
             logger.info(
                 "tool_dispatcher: %r %.3fs %s",
                 tool.name,
                 duration,
-                "ok" if ok else "failed",
+                "ok" if result.success else result.status,
             )
-            results[tool.name] = value
+            if result.success:
+                results[tool.name] = result.output
+            elif result.error == "Execution timed out":
+                results[tool.name] = f"I couldn't reach {tool.name} in time"
+            else:
+                results[tool.name] = (
+                    f"[tool error: {result.detail or result.error or 'unknown error'}]"
+                )
         return results
 
     def dispatch(
@@ -269,26 +241,21 @@ class ToolDispatcher:
             ``ToolResult(success=True, output=...)`` on success or
             ``ToolResult(success=False, error=...)`` on failure / timeout.
         """
+        from rex.tools.execution import ToolExecutionLifecycle
         from rex.tools.protocol import ToolResult  # local import — avoids circular dependency
 
         tool = self._registry.get(name)
         if tool is None:
             return ToolResult(success=False, error=f"Unknown tool: {name!r}")
 
-        timeout = self._timeout_seconds
-        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
-            future = executor.submit(tool.handler, **args)
-            try:
-                output = future.result(timeout=timeout)
-                logger.debug("tool_dispatcher: dispatch %r ok", name)
-                return ToolResult(success=True, output=output)
-            except concurrent.futures.TimeoutError:
-                future.cancel()
-                logger.warning("tool_dispatcher: dispatch %r timed out after %.1fs", name, timeout)
-                return ToolResult(success=False, error=f"Tool {name!r} timed out")
-            except Exception as exc:
-                logger.warning("tool_dispatcher: dispatch %r failed: %s", name, exc)
-                return ToolResult(success=False, error=str(exc))
+        available = self._config is None or tool in self._registry.available_tools(self._config)
+        return ToolExecutionLifecycle().execute(
+            tool,
+            args,
+            context,
+            timeout_seconds=self._timeout_seconds,
+            available=available,
+        )
 
     @staticmethod
     def format_tool_context(results: dict[str, Any]) -> str:
@@ -303,52 +270,3 @@ class ToolDispatcher:
             lines.append(f"  {name}: {value}")
         lines.append("]")
         return "\n".join(lines)
-
-    # ------------------------------------------------------------------
-    # Internal helpers
-    # ------------------------------------------------------------------
-
-    def _invoke_with_timeout_retry(
-        self, tool: Tool, message: str, *, user_id: str | None = None
-    ) -> tuple[Any, bool]:
-        """Invoke *tool* handler; retry once on transient errors.
-
-        Returns:
-            ``(result_value, success_bool)``
-        """
-        timeout = self._timeout_seconds
-        last_exc: BaseException | None = None
-
-        kwargs: dict[str, Any] = {"transcript": message}
-        if user_id is not None:
-            kwargs["_user_id"] = user_id
-
-        for attempt in range(2):
-            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
-                future = executor.submit(tool.handler, **kwargs)
-                try:
-                    result = future.result(timeout=timeout)
-                    return result, True
-                except concurrent.futures.TimeoutError:
-                    future.cancel()
-                    logger.warning(
-                        "tool_dispatcher: %r timed out after %.1fs",
-                        tool.name,
-                        timeout,
-                    )
-                    return f"I couldn't reach {tool.name} in time", False
-                except Exception as exc:
-                    last_exc = exc
-                    if attempt == 0 and _is_transient_error(exc) and not _is_auth_error(exc):
-                        logger.debug(
-                            "tool_dispatcher: %r transient error on attempt 1, retrying: %s",
-                            tool.name,
-                            exc,
-                        )
-                        continue
-                    # Non-transient or second attempt — fail fast
-                    break
-
-        exc_msg = str(last_exc) if last_exc is not None else "unknown error"
-        logger.warning("tool_dispatcher: %r failed: %s", tool.name, exc_msg)
-        return f"[tool error: {exc_msg}]", False

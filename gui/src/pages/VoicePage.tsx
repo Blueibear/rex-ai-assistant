@@ -4,7 +4,8 @@ import type { VoiceState } from '../components/voice/VoiceToggle'
 import { WaveformVisualizer } from '../components/voice/WaveformVisualizer'
 import { EmptyState } from '../components/ui/EmptyState'
 import { Tooltip } from '../components/ui/Tooltip'
-import type { VoiceTranscriptEntry } from '../types/ipc'
+import type { VoiceSettings, VoiceTranscriptEntry } from '../types/ipc'
+import { voiceProvider } from '../types/voiceProvider'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -228,12 +229,16 @@ interface PushToTalkButtonProps {
   selectedMicId: string
   onTranscript: (entry: VoiceTranscriptEntry) => void | Promise<void>
   onMicDevicesUpdated: (devices: MediaDeviceInfo[]) => void
+  onInterrupt: () => void
+  onTiming: (turnId: string, stage: string, durationMs: number) => void
 }
 
 const PushToTalkButton: React.FC<PushToTalkButtonProps> = ({
   selectedMicId,
   onTranscript,
   onMicDevicesUpdated,
+  onInterrupt,
+  onTiming,
 }) => {
   const [recording, setRecording] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -242,9 +247,12 @@ const PushToTalkButton: React.FC<PushToTalkButtonProps> = ({
   const chunksRef = useRef<BlobPart[]>([])
   const activePointerIdRef = useRef<number | null>(null)
   const stopRequestedRef = useRef(false)
+  const recordingStartedRef = useRef(0)
+  const recordingTurnRef = useRef('')
 
   const startRecording = useCallback(async () => {
     setError(null)
+    onInterrupt()
     try {
       const constraints: MediaStreamConstraints = {
         audio: selectedMicId ? { deviceId: { exact: selectedMicId } } : true,
@@ -268,6 +276,11 @@ const PushToTalkButton: React.FC<PushToTalkButtonProps> = ({
         stopRequestedRef.current = false
         stream.getTracks().forEach((t) => t.stop())
         setRecording(false)
+        onTiming(
+          recordingTurnRef.current,
+          'recording',
+          performance.now() - recordingStartedRef.current,
+        )
         if (chunksRef.current.length === 0) {
           setBusy(false)
           return
@@ -289,7 +302,9 @@ const PushToTalkButton: React.FC<PushToTalkButtonProps> = ({
             )
           }
           const b64 = btoa(binary)
+          const sttStarted = performance.now()
           const result = await window.rex.sendChatAudio(b64)
+          onTiming(recordingTurnRef.current, 'stt', performance.now() - sttStarted)
           if (result.ok && result.transcript) {
             await onTranscript({
               text: result.transcript,
@@ -307,6 +322,8 @@ const PushToTalkButton: React.FC<PushToTalkButtonProps> = ({
       }
 
       recorder.start()
+      recordingTurnRef.current = `hold-${Date.now()}`
+      recordingStartedRef.current = performance.now()
       recorderRef.current = recorder
       setRecording(true)
       if (stopRequestedRef.current && recorder.state !== 'inactive') {
@@ -316,7 +333,7 @@ const PushToTalkButton: React.FC<PushToTalkButtonProps> = ({
       stopRequestedRef.current = false
       setError(err instanceof Error ? err.message : 'Microphone access denied')
     }
-  }, [selectedMicId, onTranscript, onMicDevicesUpdated])
+  }, [selectedMicId, onTranscript, onMicDevicesUpdated, onInterrupt, onTiming])
 
   const stopRecording = useCallback(() => {
     const recorder = recorderRef.current
@@ -491,12 +508,14 @@ interface TranscriptListProps {
   entries: VoiceTranscriptEntry[]
   voiceState: VoiceState
   onClear: () => void
+  onReplay: (text: string) => void
 }
 
 const TranscriptList: React.FC<TranscriptListProps> = ({
   entries,
   voiceState,
-  onClear
+  onClear,
+  onReplay,
 }) => {
   const bottomRef = useRef<HTMLDivElement>(null)
 
@@ -540,9 +559,19 @@ const TranscriptList: React.FC<TranscriptListProps> = ({
                     <span className="inline-block w-1 h-1 rounded-full bg-accent animate-pulse" aria-hidden="true" />
                   </span>
                 ) : (
-                  entry.text
+                  <span>{entry.text}</span>
                 )}
               </div>
+              {!isUser && entry.text.trim() && (
+                <button
+                  type="button"
+                  onClick={() => onReplay(entry.text)}
+                  className="mt-1 text-xs text-text-muted hover:text-text-primary"
+                  aria-label="Replay this response"
+                >
+                  Replay
+                </button>
+              )}
               <span className="text-xs text-text-muted mt-0.5 px-1">
                 {isUser ? 'You' : 'Rex'} · {formatTime(entry.timestamp)}
               </span>
@@ -592,13 +621,85 @@ export function VoicePage(): React.ReactElement {
   const [error, setError] = useState<string | null>(null)
   const [micDevices, setMicDevices] = useState<MediaDeviceInfo[]>([])
   const [selectedMicId, setSelectedMicId] = useState<string>('')
+  const [holdToTalkError, setHoldToTalkError] = useState<string | null>(null)
+  const [deviceNotice, setDeviceNotice] = useState<string | null>(null)
+  const activeAudioRef = useRef<HTMLAudioElement | null>(null)
+  const activeTurnRef = useRef<AbortController | null>(null)
+
+  const logTiming = useCallback((turnId: string, stage: string, durationMs: number) => {
+    void window.rex.logVoiceTiming(turnId, stage, durationMs)
+  }, [])
+
+  const stopActiveResponse = useCallback(() => {
+    activeTurnRef.current?.abort()
+    activeTurnRef.current = null
+    const audio = activeAudioRef.current
+    activeAudioRef.current = null
+    if (audio) {
+      audio.pause()
+      audio.currentTime = 0
+    }
+    setVoiceState('idle')
+  }, [])
+
+  const speakResponse = useCallback(async (
+    text: string,
+    turnId: string,
+    signal: AbortSignal,
+  ): Promise<void> => {
+    const settings = await window.rex.getSettings('voice') as unknown as VoiceSettings
+    const synthesisStarted = performance.now()
+    const result = await window.rex.synthesizeSpeech(
+      voiceProvider(settings.ttsEngine),
+      settings.ttsVoice ?? '',
+      text,
+    )
+    logTiming(turnId, 'tts_synthesis', performance.now() - synthesisStarted)
+    if (signal.aborted) throw new DOMException('Speech cancelled', 'AbortError')
+    if (!result.ok || !result.audio_base64) {
+      throw new Error(`Speech synthesis failed: ${result.error ?? 'no audio returned'}`)
+    }
+
+    setVoiceState('speaking')
+    const playbackStarted = performance.now()
+    const mime = result.audio_base64.startsWith('UklGR') ? 'audio/wav' : 'audio/mpeg'
+    const audio = new Audio(`data:${mime};base64,${result.audio_base64}`)
+    activeAudioRef.current = audio
+    const sinkAudio = audio as HTMLAudioElement & { setSinkId?: (id: string) => Promise<void> }
+    if (settings.speakerDeviceId && typeof sinkAudio.setSinkId === 'function') {
+      await sinkAudio.setSinkId(settings.speakerDeviceId)
+    }
+    await new Promise<void>((resolve, reject) => {
+      const cancel = (): void => {
+        audio.pause()
+        reject(new DOMException('Speech cancelled', 'AbortError'))
+      }
+      signal.addEventListener('abort', cancel, { once: true })
+      audio.onended = () => {
+        signal.removeEventListener('abort', cancel)
+        resolve()
+      }
+      audio.onerror = () => {
+        signal.removeEventListener('abort', cancel)
+        reject(new Error('Speech playback failed on the selected output device'))
+      }
+      void audio.play().catch(reject)
+    })
+    activeAudioRef.current = null
+    logTiming(turnId, 'tts_playback', performance.now() - playbackStarted)
+  }, [logTiming])
 
   // Enumerate microphone devices on mount (labels may be empty until permission granted).
   useEffect(() => {
     const loadDevices = async (): Promise<void> => {
       try {
         const devices = await navigator.mediaDevices.enumerateDevices()
-        setMicDevices(devices.filter((d) => d.kind === 'audioinput'))
+        const inputs = devices.filter((d) => d.kind === 'audioinput')
+        setMicDevices(inputs)
+        if (selectedMicId && !inputs.some((device) => device.deviceId === selectedMicId)) {
+          setSelectedMicId('')
+          setDeviceNotice('Selected microphone disconnected; switched to system default.')
+        }
       } catch {
         // mediaDevices not available (e.g. non-secure context) — silently skip
       }
@@ -611,7 +712,7 @@ export function VoicePage(): React.ReactElement {
     return () => {
       navigator.mediaDevices.removeEventListener('devicechange', handleDeviceChange)
     }
-  }, [])
+  }, [selectedMicId])
 
   const handleMicDevicesUpdated = useCallback((devices: MediaDeviceInfo[]) => {
     setMicDevices(devices)
@@ -638,6 +739,11 @@ export function VoicePage(): React.ReactElement {
       )
     }
 
+    setHoldToTalkError(null)
+    stopActiveResponse()
+    const controller = new AbortController()
+    activeTurnRef.current = controller
+    const turnId = `hold-response-${Date.now()}`
     setVoiceState('processing')
     setTranscripts((prev) => [
       ...prev,
@@ -645,20 +751,54 @@ export function VoicePage(): React.ReactElement {
     ])
 
     try {
+      const responseStarted = performance.now()
       await window.rex.sendChatStream(message, (token) => {
         replyText += token
         updateReply(replyText)
-      })
+      }, controller.signal)
+      logTiming(turnId, 'assistant_response', performance.now() - responseStarted)
       if (!replyText.trim()) {
         updateReply('I did not receive a reply from the model.')
+      } else {
+        await speakResponse(replyText, turnId, controller.signal)
       }
     } catch (err) {
       const messageText = err instanceof Error ? err.message : String(err)
-      updateReply(`I could not get a reply: ${messageText}`)
+      if (err instanceof DOMException && err.name === 'AbortError') {
+        if (!replyText.trim()) updateReply('Response cancelled.')
+      } else {
+        setHoldToTalkError(messageText)
+        if (!replyText.trim()) updateReply(`I could not get a reply: ${messageText}`)
+      }
     } finally {
-      setVoiceState('idle')
+      if (activeTurnRef.current === controller) {
+        activeTurnRef.current = null
+        setVoiceState('idle')
+      }
     }
-  }, [])
+  }, [logTiming, speakResponse, stopActiveResponse])
+
+  const handleReplay = useCallback((text: string) => {
+    stopActiveResponse()
+    setHoldToTalkError(null)
+    const controller = new AbortController()
+    activeTurnRef.current = controller
+    const turnId = `hold-replay-${Date.now()}`
+    void speakResponse(text, turnId, controller.signal)
+      .catch((err: unknown) => {
+        if (!(err instanceof DOMException && err.name === 'AbortError')) {
+          setHoldToTalkError(err instanceof Error ? err.message : String(err))
+        }
+      })
+      .finally(() => {
+        if (activeTurnRef.current === controller) {
+          activeTurnRef.current = null
+          setVoiceState('idle')
+        }
+      })
+  }, [speakResponse, stopActiveResponse])
+
+  useEffect(() => () => stopActiveResponse(), [stopActiveResponse])
 
   const handleClearTranscripts = useCallback(() => {
     setTranscripts([])
@@ -873,12 +1013,36 @@ export function VoicePage(): React.ReactElement {
           onRequestPermission={() => void handleRequestMicPermission()}
         />
 
+        {deviceNotice && (
+          <p className="text-xs text-warning text-center" role="status">
+            {deviceNotice}
+          </p>
+        )}
+
         {/* Push-to-talk button (one-shot STT without wake word) */}
         <PushToTalkButton
           selectedMicId={selectedMicId}
           onTranscript={handlePushToTalkTranscript}
           onMicDevicesUpdated={handleMicDevicesUpdated}
+          onInterrupt={stopActiveResponse}
+          onTiming={logTiming}
         />
+
+        {(voiceState === 'processing' || voiceState === 'speaking') && (
+          <button
+            type="button"
+            onClick={stopActiveResponse}
+            className="text-xs px-3 py-1.5 rounded bg-danger/20 text-danger hover:bg-danger/30"
+          >
+            Cancel response
+          </button>
+        )}
+
+        {holdToTalkError && (
+          <p className="text-xs text-danger text-center" role="alert">
+            Hold-to-Talk: {holdToTalkError}
+          </p>
+        )}
       </div>
 
       {/* Transcript panel */}
@@ -887,6 +1051,7 @@ export function VoicePage(): React.ReactElement {
           entries={transcripts}
           voiceState={voiceState}
           onClear={handleClearTranscripts}
+          onReplay={handleReplay}
         />
       )}
     </div>

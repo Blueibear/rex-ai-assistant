@@ -313,14 +313,27 @@ def execute_tool(
             from rex.tools.dispatcher import ToolDispatcher
             from rex.tools.registry import get_default_registry as _get_default_registry
 
-            _tool_result = ToolDispatcher(_get_default_registry()).dispatch(tool, args)
-            if _tool_result.success:
-                _out = _tool_result.output
-                result = _out if isinstance(_out, dict) else {"result": _out}
-            else:
-                _err_msg = _tool_result.error or "dispatch failed"
-                result = _error_result(_err_msg, tool=tool, args=args)
-                error = _err_msg
+            dispatch_context = {
+                **default_context,
+                "request_id": action_id,
+                "user_id": default_context.get("user_id")
+                or default_context.get("user")
+                or requested_by,
+            }
+            _tool_result = ToolDispatcher(_get_default_registry()).dispatch(
+                tool, args, dispatch_context
+            )
+            result = {
+                "success": _tool_result.success,
+                "status": _tool_result.status,
+                "detail": _tool_result.detail,
+                "request_id": _tool_result.request_id,
+                "risk": _tool_result.risk,
+                "result": _tool_result.output,
+            }
+            if _tool_result.error:
+                result["error"] = _tool_result.error
+                error = _tool_result.error
     except Exception as e:
         result = _error_result(str(e), tool=tool, args=args)
         error = str(e)

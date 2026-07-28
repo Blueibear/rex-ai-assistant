@@ -18,11 +18,6 @@ import json
 import sys
 import traceback
 
-from rex.bridge_utils import repo_root, resolve_python
-
-_PYTHON_EXE = resolve_python()  # venv-aware interpreter path for subprocess calls
-_REPO_ROOT = repo_root()  # absolute repo root for resolving scripts and config
-
 
 def emit(obj: dict) -> None:  # noqa: ANN001
     print(json.dumps(obj), flush=True)
@@ -43,6 +38,9 @@ def main() -> None:
     try:
         payload = json.loads(sys.stdin.read())
         message = str(payload.get("message", ""))
+        user_id = str(payload.get("user") or "")
+        if payload.get("data_scope") != "private":
+            raise PermissionError("Chat requires private Electron data scope")
     except Exception as exc:
         emit({"type": "error", "error": f"Bad input: {exc}"})
         sys.exit(1)
@@ -50,7 +48,7 @@ def main() -> None:
     async def run() -> None:
         from rex import settings  # type: ignore[import]
         from rex.assistant import Assistant  # type: ignore[import]
-        from rex.identity import resolve_entrypoint_user_id  # type: ignore[import]
+        from rex.identity import validate_user_id  # type: ignore[import]
         from rex.logging_utils import configure_logging  # type: ignore[import]
         from rex.plugins import load_plugins, shutdown_plugins  # type: ignore[import]
         from rex.services import initialize_services  # type: ignore[import]
@@ -63,7 +61,7 @@ def main() -> None:
         assistant = Assistant(
             history_limit=settings.max_memory_items,
             plugins=plugin_specs,
-            user_id=resolve_entrypoint_user_id(settings),
+            user_id=validate_user_id(user_id),
         )
         try:
             # Prefer stream_reply (async generator) for true token-by-token streaming.

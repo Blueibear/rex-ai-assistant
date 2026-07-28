@@ -23,7 +23,7 @@ If deeper reference is required, consult:
 
 - docs/claude/COMMANDS_AND_ENTRYPOINTS.md
 - docs/claude/CONFIG_AND_SECURITY.md
-- docs/claude/INTEGRATIONS_STATUS.md
+- INTEGRATIONS_STATUS.md
 - docs/claude/TESTING_AND_QUALITY.md
 
 This file remains the primary control document for:
@@ -52,14 +52,15 @@ Install via: pip install .
 
 Current install/runtime compatibility policy:
 
-- Default supported install path: Python 3.11
+- End-user install path: packaged Windows Electron installer with managed Python 3.11 Voice runtime
+- Developer/operator install path: Python 3.11 and `pip install .`
 - Full Windows GPU + TTS path: Python 3.11 with `requirements-gpu-cu124.txt`
 - Do not claim Python 3.12+ support unless the dependency stack has been validated end-to-end and docs, CI, and package metadata are updated together
 
 Entry points:
 
 - rex -> rex.cli:main  # first-class: primary CLI
-- rex-gui -> rex.gui_app:main  # backend service: Electron-backed GUI server; not a standalone browser app
+- rex-gui -> rex.gui_app:main  # developer-only Flask API/dashboard; not used by Electron
 - rex-config -> rex.config:cli  # utility: config inspection and migration
 - rex-speak-api -> rex_speak_api:main  # backend service: TTS API with auth and rate limiting
 - rex-agent -> rex.computers.agent_server:main  # backend service: optional remote PC control API
@@ -72,9 +73,9 @@ Mobile API gateway (issue #323) runs via the CLI, not a console script:
 
 ### Core components
 
-API: Flask (Flask-CORS, Flask-Limiter)
+API: Flask (Flask-CORS, Flask-Limiter, Flask-Sock for the mobile WebSocket)
 
-GUI: Web dashboard via `rex.gui_app` (React + Flask). `gui.py` is deprecated.
+GUI: React + Electron under `gui/` is the primary packaged interface. `rex.gui_app` is a developer-only Flask API/dashboard and is not spawned by Electron. Archived Tkinter files are unsupported.
 
 Config: Pydantic v2, python-dotenv
 
@@ -136,7 +137,7 @@ External inputs include:
 Top-level directories:
 
 - rex/ — main package (CLI, services, workflows, integrations)
-- bridge/ — HTTP bridge modules for STT, TTS, calendar, and other external services
+- bridge/ — canonical Electron stdin/stdout JSON bridge processes (plus integration adapters)
 - archived/ — retired files kept for reference; not maintained (see `archived/ARCHIVED.md`)
 - scripts/ — operational and install scripts (platform scripts in `scripts/install/`)
 - plugins/ — optional plugins
@@ -188,6 +189,7 @@ Bridge compatibility wrappers (17) — exec canonical `bridge/<name>.py` in thei
 
 - rex/commands/ — CLI command modules, one per domain (US-REM-027); `rex/cli.py` keeps parser registration, `main()`, and re-exports, and `rex.cli.<name>` remains the import/monkeypatch surface for handlers and service getters
 - rex/voice/ — voice pipeline modules, one per concern (US-REM-028); `rex/voice_loop.py` is the facade and `rex.voice_loop.<name>` remains the import/monkeypatch surface (settings, lazy importers, sa/sd, pipeline classes)
+- rex/tools/execution.py — canonical typed tool lifecycle; all registered dispatch must pass availability, argument, identity, permission, risk, confirmation, execution, normalization, independent verification, truthful response, and redacted audit stages. Read-only success is `completed`; mutation success is `verified` only.
 - gui/src/main/ — Electron main-process modules, one per concern (US-REM-029); `index.ts` is a thin entrypoint (app lifecycle wiring only), `ipc.ts` aggregates handler registration, IPC handlers live in `gui/src/main/handlers/`, and settings/integration/HA logic lives in `configStore.ts`, `aiSettings.ts`, `voiceSettings.ts`, `settingsDefaults.ts`, `settingsMirror.ts`, `homeAssistant.ts`, `integrationStatus.ts`, `integrationInventory.ts`, `window.ts`
 - rex/email_backends/
 - rex/calendar_backends/
@@ -197,7 +199,7 @@ Bridge compatibility wrappers (17) — exec canonical `bridge/<name>.py` in thei
 - rex/identity.py
 - rex/voice_identity/
 - rex/computers/
-- rex/mobile_api/ — authenticated mobile API gateway (issue #323): injectable Flask app factory (`app.py`), typed config helpers, idempotent `users.db` migrations (`db.py`), per-device sessions + rotating hashed refresh tokens (`sessions.py`), short-lived access JWTs + request principal (`auth.py`), structured mobile errors (`errors.py`), truthful capabilities (`capabilities.py`), routes under `rex/mobile_api/routes/`. Session 1 implements auth only; chat/voice/TTS/HA routes are explicit 501 scaffolds.
+- rex/mobile_api/ — authenticated mobile API gateway (issue #323): injectable Flask app factory (`app.py`), typed config helpers, idempotent `users.db` migrations (`db.py`), per-device sessions + rotating hashed refresh tokens (`sessions.py`), short-lived access JWTs + request principal (`auth.py`), structured mobile errors (`errors.py`), truthful runtime-aware capabilities (`capabilities.py`), cross-transport `(user_id, message_id)` chat idempotency (`idempotency.py`, `mobile_message_requests` table), canonical Assistant adapter (`chat.py` — explicit `active_user_id`, never direct `LanguageModel` calls), canonical snake_case streaming events (`events.py`), first-frame-auth WebSocket protocol via Flask-Sock (`websocket.py`, close codes 4401/4403/4408/4429), STT/TTS adapters reusing the existing Whisper and XTTS/edge-tts/pyttsx3 stacks (`voice.py`), routes under `rex/mobile_api/routes/` (`chat.py`: POST /mobile/chat + SSE /mobile/chat/stream; `voice.py`: /mobile/voice/upload + /mobile/tts/playback). Home Assistant/notifications/approvals/tasks/workflows/audit/settings remain explicit 501 scaffolds with false capabilities; `live_voice` stays false. Cross-repo wire contract fixtures live in `tests/mobile_api/contract_vectors.json` (identical copy in the AskRex mobile repo).
 
 ### Assistant architecture
 
@@ -264,6 +266,20 @@ Health check:
 
 python -m rex doctor
 
+Release health gate:
+
+python -m rex doctor --release-gate
+python scripts/security_audit.py --release-gate
+
+Electron identity (required before launch):
+
+rex identify --user <id>
+
+Legacy Electron task/history ownership migration is dry-run first:
+
+python scripts/migrate_electron_data_ownership.py --user <id>
+python scripts/migrate_electron_data_ownership.py --user <id> --apply
+
 Text mode:
 
 python -m rex
@@ -271,6 +287,13 @@ python -m rex
 Voice mode:
 
 python rex_loop.py
+
+Electron Hold-to-Talk is the supported production voice path. It runs
+renderer recording -> persistent managed Whisper STT -> streamed assistant
+response -> configured TTS -> selected output-device playback. Preserve
+cancellation/barge-in, replay, microphone device-loss fallback, repeated turns,
+stage-specific errors, and structured timing events. Wake-word mode remains
+beta unless it is verified on physical audio hardware.
 
 GUI:
 
@@ -289,6 +312,35 @@ pytest -q
 Targeted tests:
 
 pytest -q tests/<file>.py
+
+Electron GUI quality gates (run from `gui/`):
+
+```powershell
+npm.cmd ci
+npm.cmd run lint
+npm.cmd run typecheck
+npm.cmd test -- --run
+npm.cmd run build
+npm.cmd audit --audit-level=high
+```
+
+The GUI uses the flat ESLint configuration in `gui/eslint.config.mjs`.
+
+Windows Electron distribution (run from `gui/`):
+
+```powershell
+npm.cmd run runtime:build   # managed Python 3.11 Voice profile
+npm.cmd run dist            # runtime + GUI + NSIS installer
+```
+
+Packaged Electron always resolves `resources/python/python.exe`; it must never
+fall back to machine Python or a checkout `.venv`. The installer bundles the
+AskRex wheel, canonical `bridge/` scripts, pinned Voice dependencies, and
+bundled FFmpeg. Validate packages with
+`scripts/verify_electron_package_contents.py` and
+`scripts/test_installed_electron_artifact.ps1`. Flask and user configuration,
+credentials, profiles, memories, transcripts, and logs are forbidden package
+contents. Generated runtimes live under ignored `gui/runtime/`.
 
 ## Setup and Installation (GPU)
 
@@ -339,9 +391,10 @@ Runtime configuration → config/rex_config.json
 
 The mobile gateway adds an eighth typed group, `config.mobile_api`
 (`MobileApiConfig`, JSON group `mobile_api` in `config/rex_config.json`):
-host/port, token TTLs, body limits, deny-by-default CORS origins, and
-route-specific rate-limit strings. It is canonical nested config with no flat
-equivalents. The mobile JWT signing secret is `REX_JWT_SECRET` in `.env`
+host/port, token TTLs, body limits, deny-by-default CORS origins,
+route-specific rate-limit strings, and `idempotency_retention_hours` (the
+retention window for cross-transport chat idempotency records, default 48).
+It is canonical nested config with no flat equivalents. The mobile JWT signing secret is `REX_JWT_SECRET` in `.env`
 (minimum 32 characters; the gateway fails closed without it). See
 `docs/mobile/MOBILE_API_SETUP_WINDOWS.md` for setup.
 
@@ -363,6 +416,12 @@ The following must degrade gracefully if not configured:
 - MQTT
 - Home Assistant
 - web search
+
+Integration readiness uses the shared state vocabulary in `rex/integration_state.py` and
+`gui/src/types/ipc.ts`: unavailable, unconfigured, configured, reachable, authenticated,
+degraded, read-only, write-capable, write-tested, and verified. Credentials alone mean
+`configured`, never connected or authenticated. Use `rex integrations` for the CLI inventory;
+`rex doctor` includes the same evidence without making live-provider claims.
 
 ### Do not add network exposure by default
 
@@ -416,6 +475,7 @@ Add a short rule here that would have prevented the mistake.
 - The root-level `voice_loop.py` and `rex/voice_loop.py` are two separate implementations. `rex/voice_loop.py` is the **canonical** implementation: `rex_loop.py` imports `build_voice_loop` from `rex.voice_loop` (the package). Root `voice_loop.py` is a legacy file kept only for `AsyncRexAssistant` backward-compat re-exports. Changes to root `voice_loop.py` do NOT affect the CLI voice loop startup path.
 - `AppConfig.whisper_device` defaults to `"auto"`. When device is `"auto"`, resolve to `"cuda"` or `"cpu"` at model load time using `torch.cuda.is_available()`.
 - The voice loop must use `Assistant.generate_reply()` (which includes tool routing and system context injection) rather than calling `LanguageModel.generate()` directly. Direct LLM calls bypass time/weather tools and produce hallucinated answers for factual questions.
+- Never dispatch a mutating canonical tool by calling its handler directly. Use `ToolDispatcher.dispatch()` / `ToolExecutionLifecycle`; HTTP acceptance or a returned object is `attempted_unverified` until an independent verifier succeeds.
 - The canonical wake-word implementation is `rex/wakeword/` (`rex.wakeword.utils`, `rex.wakeword.listener`). Root-level `wakeword_utils.py` and `wakeword_listener.py` were stale re-exports and have been deleted. Use `rex.wakeword_utils` (package shim) or `rex.wakeword.utils` directly.
 - Direct Ruff and Black installations in CI must use the same revisions as `.pre-commit-config.yaml`; never install unpinned formatters in a required check.
 - The repository dependency security gate must audit the local project explicitly with `pip-audit --strict .`; a bare `pip-audit` audits the runner environment and is not an acceptable project gate.

@@ -88,6 +88,7 @@ class TestMockNeverLoadedInProduction:
         assert raised, "Should have raised IntegrationNotConfiguredError, not returned mock"
 
 
+@pytest.mark.usefixtures("isolated_calendar_config")
 class TestAssistantCalendarHandling:
     def test_assistant_logs_not_configured_at_info(self, caplog):
         """When calendar not configured, assistant logs 'Calendar: not configured' at info."""

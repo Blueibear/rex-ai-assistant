@@ -71,9 +71,9 @@ def test_ipc_aggregator_imports_handler():
 
 
 def test_ipc_aggregator_calls_handler():
-    """ipc.ts calls registerQuickActionsHandlers()."""
+    """ipc.ts binds quick actions to the immutable Electron session."""
     content = _read(IPC_AGGREGATOR)
-    assert "registerQuickActionsHandlers()" in content
+    assert "registerQuickActionsHandlers(session)" in content
 
 
 def test_preload_exposes_list_quick_actions():

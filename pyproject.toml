@@ -26,6 +26,7 @@ dependencies = [
     "flask>=3.1.3",      # CVE-2026-27205 fixed in 3.1.3
     "flask-cors>=6.0.0", # CVE-2024-6839, CVE-2024-6844, CVE-2024-6866 fixed in 6.0.0
     "flask-limiter>=3.5.0",
+    "flask-sock>=0.7.0",  # mobile WebSocket chat (issue #323); pure-Python, validated on Windows/Py3.11
     "requests>=2.32.0",  # CVE-2024-35195 fixed in 2.32.0
 
     # Configuration & Validation
@@ -386,6 +387,7 @@ module = [
   "flask_cors",
   "flask_limiter",
   "flask_limiter.*",
+  "flask_sock",
   "playsound",
   "pytest",
   "setuptools",

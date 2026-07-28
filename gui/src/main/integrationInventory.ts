@@ -20,14 +20,28 @@ export function buildIntegrationInventory(): IntegrationInventoryItem[] {
   const ollama = rexConfig.ollama && typeof rexConfig.ollama === 'object'
     ? (rexConfig.ollama as Record<string, unknown>)
     : {}
+  const openclaw = rexConfig.openclaw && typeof rexConfig.openclaw === 'object'
+    ? (rexConfig.openclaw as Record<string, unknown>)
+    : {}
 
   const make = (
-    item: Omit<IntegrationInventoryItem, 'status' | 'testedAt' | 'error'>
+    item: Omit<
+      IntegrationInventoryItem,
+      'state' | 'testedAt' | 'error' | 'available' | 'read_capable' | 'write_capable'
+    >
   ): IntegrationInventoryItem => {
     const status = integrationStatusFor(item.key, stored)
+    const state = status.state === 'unconfigured' && item.configured
+      ? 'configured'
+      : status.state
+    const readCapable = ['authenticated', 'read_only', 'write_capable', 'write_tested', 'verified'].includes(state)
+    const writeCapable = ['write_capable', 'write_tested', 'verified'].includes(state)
     return {
       ...item,
-      status: status.status,
+      state,
+      available: state !== 'unavailable',
+      read_capable: readCapable,
+      write_capable: writeCapable,
       testedAt: status.testedAt,
       error: status.error
     }
@@ -60,7 +74,7 @@ export function buildIntegrationInventory(): IntegrationInventoryItem[] {
       key: 'sms',
       configured:
         (hasText(integrations.smsSid) && hasText(integrations.smsAuthToken) && hasText(integrations.smsFromNumber)) ||
-        (hasText(env.TWILIO_ACCOUNT_SID) && hasText(env.TWILIO_AUTH_TOKEN)),
+        (hasText(env.TWILIO_ACCOUNT_SID) && hasText(env.TWILIO_AUTH_TOKEN) && hasText(env.TWILIO_FROM_NUMBER)),
       configure_url: '/settings?section=integrations',
       testable: true
     }),
@@ -108,24 +122,27 @@ export function buildIntegrationInventory(): IntegrationInventoryItem[] {
       key: 'push',
       configured: hasText(integrations.pushProvider) && hasText(integrations.pushToken),
       configure_url: '/settings?section=integrations'
+    }),
+    make({
+      name: 'OpenClaw',
+      key: 'openclaw',
+      configured: hasText(openclaw.gateway_url),
+      configure_url: '/settings?section=ai'
     })
   ]
 }
 
 export function buildCapabilityInventory(): CapabilityInfo[] {
   const integrations = buildIntegrationInventory()
-  const configured = new Set(integrations.filter((item) => item.configured).map((item) => item.key))
-  const connected = new Set(
-    integrations
-      .filter((item) => item.configured && item.status === 'connected')
-      .map((item) => item.key)
-  )
+  const readable = new Set(integrations.filter((item) => item.read_capable).map((item) => item.key))
+  const stateFor = (key: string): IntegrationInventoryItem | undefined =>
+    integrations.find((item) => item.key === key)
   return [
     { name: 'chat', description: 'Text chat with Rex', category: 'Core', enabled: true },
     { name: 'voice', description: 'Wake-word and hold-to-talk voice interaction', category: 'Core', enabled: true },
-    { name: 'home_assistant', description: 'Control and inspect Home Assistant entities', category: 'Integrations', enabled: configured.has('homeassistant') },
-    { name: 'email', description: 'Read and draft email through configured accounts', category: 'Integrations', enabled: connected.has('email') },
-    { name: 'calendar', description: 'Read and create calendar events', category: 'Integrations', enabled: connected.has('calendar') },
-    { name: 'sms', description: 'Send SMS through Twilio', category: 'Integrations', enabled: configured.has('sms') }
+    { name: 'home_assistant', description: 'Inspect authenticated Home Assistant entities; writes use separate verification', category: 'Integrations', enabled: readable.has('homeassistant'), state: stateFor('homeassistant')?.state, read_capable: stateFor('homeassistant')?.read_capable, write_capable: stateFor('homeassistant')?.write_capable },
+    { name: 'email', description: 'Read and draft email through authenticated accounts; GUI sending is unavailable', category: 'Integrations', enabled: readable.has('email'), state: stateFor('email')?.state, read_capable: stateFor('email')?.read_capable, write_capable: false },
+    { name: 'calendar', description: 'Read calendar events after provider authentication', category: 'Integrations', enabled: readable.has('calendar'), state: stateFor('calendar')?.state, read_capable: stateFor('calendar')?.read_capable, write_capable: stateFor('calendar')?.write_capable },
+    { name: 'sms', description: 'Send SMS only after provider write capability is tested', category: 'Integrations', enabled: stateFor('sms')?.write_capable ?? false, state: stateFor('sms')?.state, read_capable: stateFor('sms')?.read_capable, write_capable: stateFor('sms')?.write_capable }
   ]
 }

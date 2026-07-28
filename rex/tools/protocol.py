@@ -45,16 +45,22 @@ class ToolResult:
     """Result of a single tool execution.
 
     Attributes:
-        success: ``True`` when the tool ran without raising an exception.
+        success: ``True`` for a completed read or independently verified mutation.
         output:  Return value of the tool handler (any JSON-serialisable
                  type).  ``None`` when *success* is ``False``.
-        error:   Human-readable error message.  ``None`` when *success* is
-                 ``True``.
+        error:   Human-readable execution error, if any.
+        status:  Normalized lifecycle outcome. Mutations are never marked
+                 successful merely because their handler returned.
     """
 
     success: bool
     output: Any = None
     error: str | None = None
+    status: str = "completed"
+    detail: str | None = None
+    request_id: str | None = None
+    risk: str = "safe"
+    stages: tuple[str, ...] = ()
 
 
 # ---------------------------------------------------------------------------

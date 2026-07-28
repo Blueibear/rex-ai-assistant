@@ -9,11 +9,9 @@ import pytest
 
 from tests.mobile_api.conftest import auth_header, create_user, login_tokens
 
+# Chat, streaming, voice, and TTS became real authenticated routes in
+# Session 2 and are covered by their own test modules.
 _SCAFFOLDS = [
-    ("post", "/mobile/chat"),
-    ("post", "/mobile/chat/stream"),
-    ("post", "/mobile/voice/upload"),
-    ("post", "/mobile/tts/playback"),
     ("get", "/mobile/home/entities"),
     ("post", "/mobile/home/command"),
     ("get", "/mobile/notifications"),

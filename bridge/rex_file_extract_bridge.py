@@ -15,11 +15,6 @@ import base64
 import json
 import sys
 
-from rex.bridge_utils import repo_root, resolve_python
-
-_PYTHON_EXE = resolve_python()  # venv-aware interpreter path for subprocess calls
-_REPO_ROOT = repo_root()  # absolute repo root for resolving scripts and config
-
 TEXT_MIME_TYPES = {
     "text/plain",
     "text/markdown",
@@ -68,6 +63,11 @@ def main() -> None:
         filename = str(payload.get("filename", ""))
         data_base64 = str(payload.get("data_base64", ""))
         mime_type = str(payload.get("mime_type", "")).lower().split(";")[0].strip()
+        from rex.identity import validate_user_id
+
+        validate_user_id(str(payload.get("user") or ""))
+        if payload.get("data_scope") != "private":
+            raise PermissionError("Uploaded documents require private Electron data scope")
     except Exception as exc:
         print(json.dumps({"ok": False, "error": f"Bad input: {exc}"}), flush=True)
         sys.exit(1)

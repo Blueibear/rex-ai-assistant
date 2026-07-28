@@ -30,7 +30,11 @@ def cmd_doctor(args: argparse.Namespace) -> int:
     from rex.doctor import run_diagnostics
 
     debug = getattr(args, "debug", False)
-    return run_diagnostics(verbose=args.verbose, debug=debug)
+    return run_diagnostics(
+        verbose=args.verbose,
+        debug=debug,
+        release_gate=getattr(args, "release_gate", False),
+    )
 
 
 def cmd_chat(args: argparse.Namespace) -> int:
@@ -166,6 +170,20 @@ def cmd_tools(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_integrations(_args: argparse.Namespace) -> int:
+    """Print evidence-based integration readiness without saying configured is connected."""
+    from rex.config import load_config
+    from rex.integration_state import build_integration_inventory
+
+    print("Rex Integration Status")
+    print("=" * 60)
+    for integration in build_integration_inventory(load_config()):
+        print(f"{integration.name}: {integration.state.value}")
+        if integration.detail:
+            print(f"  {integration.detail}")
+    return 0
+
+
 def register(subparsers: argparse._SubParsersAction) -> None:
     """Register this domain's subcommands on the top-level subparsers."""
     # doctor
@@ -182,6 +200,11 @@ def register(subparsers: argparse._SubParsersAction) -> None:
         action="store_true",
         default=argparse.SUPPRESS,
         help="Include additional low-level diagnostic info (log level, env vars)",
+    )
+    doctor_parser.add_argument(
+        "--release-gate",
+        action="store_true",
+        help="Exit nonzero for errors and actionable warnings",
     )
     doctor_parser.set_defaults(func=_cli().cmd_doctor)
 
@@ -221,3 +244,10 @@ def register(subparsers: argparse._SubParsersAction) -> None:
     )
     tools_parser.add_argument("-a", "--all", action="store_true", help="Include disabled tools")
     tools_parser.set_defaults(func=_cli().cmd_tools)
+
+    integrations_parser = subparsers.add_parser(
+        "integrations",
+        help="Show evidence-based integration readiness",
+        description="Distinguish configuration from reachability, authentication, and tested writes.",
+    )
+    integrations_parser.set_defaults(func=cmd_integrations)

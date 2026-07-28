@@ -15,6 +15,21 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
+
+def home_assistant_status_message(status: str, *, entity_id: str, detail: str | None = None) -> str:
+    """Render Home Assistant outcomes without overstating an unverified mutation."""
+    friendly = entity_id.replace("_", " ").replace(".", " ")
+    if status == "verified":
+        return f"Confirmed the requested state for {friendly}."
+    if status == "attempted_unverified":
+        return f"I tried to update {friendly}, but I could not verify the result."
+    if status == "confirmation_required":
+        return detail or f"Please confirm the requested change to {friendly}."
+    if status == "denied":
+        return f"I did not change {friendly}. {detail or 'The action was denied.'}"
+    return f"That failed for {friendly}. {detail or 'Home Assistant reported an error.'}"
+
+
 # ---------------------------------------------------------------------------
 # TTS cleaning helpers
 # ---------------------------------------------------------------------------
@@ -188,4 +203,9 @@ class ResponseBuilder:
         return []
 
 
-__all__ = ["FinalResponse", "ResponseBuilder", "_clean_for_tts"]
+__all__ = [
+    "FinalResponse",
+    "ResponseBuilder",
+    "_clean_for_tts",
+    "home_assistant_status_message",
+]

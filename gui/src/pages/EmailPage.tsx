@@ -335,12 +335,6 @@ export function EmailPage(): React.ReactElement {
     }
   }
 
-  function handleSendDraft(): void {
-    console.log('[Email stub] Would send draft:', draftBody)
-    setShowCompose(false)
-    setDraftBody('')
-  }
-
   if (loading) {
     return <PageLoadingFallback lines={6} />
   }
@@ -422,10 +416,10 @@ export function EmailPage(): React.ReactElement {
                 Discard
               </button>
               <button
-                onClick={handleSendDraft}
+                onClick={() => void navigator.clipboard.writeText(draftBody)}
                 className="px-4 py-2 rounded text-sm font-medium bg-accent text-white hover:bg-accent/90 transition-colors"
               >
-                Send
+                Copy draft
               </button>
             </div>
           }
@@ -436,6 +430,9 @@ export function EmailPage(): React.ReactElement {
             rows={10}
             className="w-full px-3 py-2 rounded bg-surface-raised border border-border text-text-primary text-sm focus:outline-none focus:border-accent resize-none"
           />
+          <p className="mt-2 text-xs text-text-secondary">
+            Sending is unavailable in this GUI. Copy the draft and send it from your mail client.
+          </p>
         </Modal>
       )}
     </div>

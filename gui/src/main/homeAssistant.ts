@@ -1,6 +1,10 @@
 import type { Settings } from '../types/ipc'
 import { readEnvFile, readGuiSettings, readRexConfig, writeEnvKey, writeGuiSettings } from './configStore'
 import { mirrorToRexConfig } from './settingsMirror'
+import { randomUUID } from 'crypto'
+import { spawn } from 'child_process'
+import { resolveBridgePath, resolvePythonCommand } from './bridgeResolver'
+import { privateSessionPayload, type ElectronSessionIdentity } from './sessionIdentity'
 
 export interface HaTestResult {
   ok: boolean
@@ -50,11 +54,18 @@ export function saveHomeAssistantCredentials(baseUrl: string, token: string): vo
   }
 }
 
-export type DeviceCommandStatus = 'attempted' | 'completed' | 'verified' | 'failed'
+export type DeviceCommandStatus =
+  | 'verified'
+  | 'attempted_unverified'
+  | 'confirmation_required'
+  | 'denied'
+  | 'failed'
 
 export interface DeviceCommandResponse {
   status: DeviceCommandStatus
   detail?: string
+  confirmationToken?: string
+  requestId?: string
 }
 
 function describeHaError(error: unknown): string {
@@ -82,60 +93,70 @@ async function requestHomeAssistant(
   }
 }
 
-async function postHomeAssistant(
-  baseUrl: string,
-  token: string,
-  path: string,
-  body: Record<string, unknown>,
-  timeoutMs = 5000
-): Promise<Response> {
-  const controller = new AbortController()
-  const timeout = setTimeout(() => controller.abort(), timeoutMs)
-  try {
-    return await fetch(`${baseUrl}${path}`, {
-      method: 'POST',
-      headers: {
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(body),
-      signal: controller.signal
-    })
-  } finally {
-    clearTimeout(timeout)
-  }
-}
-
-export async function callDeviceCommand(
+export function callDeviceCommand(
+  session: ElectronSessionIdentity,
   entityId: string,
   command: string,
-  payload?: { value?: number }
+  payload?: { value?: number },
+  confirmationToken?: string,
+  existingRequestId?: string
 ): Promise<DeviceCommandResponse> {
-  const { baseUrl, token } = readSavedHomeAssistantCredentials()
-  if (!baseUrl || !token) {
-    return { status: 'failed', detail: 'Home Assistant is not configured.' }
-  }
-
   const domain = entityId.split('.')[0]
   let service = command
-  const serviceBody: Record<string, unknown> = { entity_id: entityId }
+  const parameters: Record<string, unknown> = {}
 
   if (command === 'set_brightness' && payload?.value !== undefined) {
     service = 'turn_on'
-    serviceBody.brightness = payload.value
+    parameters.brightness = payload.value
   } else if (command === 'volume_set' && payload?.value !== undefined) {
-    serviceBody.volume_level = payload.value
+    parameters.volume_level = payload.value
   }
-
-  try {
-    const resp = await postHomeAssistant(baseUrl, token, `/api/services/${domain}/${service}`, serviceBody)
-    if (resp.ok) {
-      return { status: 'attempted', detail: `${domain}/${service} dispatched` }
-    }
-    return { status: 'failed', detail: `HA returned HTTP ${resp.status}` }
-  } catch (err) {
-    return { status: 'failed', detail: describeHaError(err) }
-  }
+  const requestId = existingRequestId ?? randomUUID()
+  return new Promise((resolve) => {
+    const py = spawn(resolvePythonCommand(), [resolveBridgePath('rex_ha_mutation_bridge.py')], {
+      stdio: ['pipe', 'pipe', 'pipe']
+    })
+    let stdout = ''
+    let stderr = ''
+    py.stdout.on('data', (chunk: Buffer) => { stdout += chunk.toString() })
+    py.stderr.on('data', (chunk: Buffer) => { stderr += chunk.toString() })
+    py.on('close', (code) => {
+      try {
+        const result = JSON.parse(stdout.trim()) as {
+          ok: boolean
+          status?: DeviceCommandStatus
+          detail?: string
+          confirmation_token?: string
+          request_id?: string
+          error?: string
+        }
+        if (code === 0 && result.ok && result.status) {
+          resolve({
+            status: result.status,
+            detail: result.detail,
+            confirmationToken: result.confirmation_token,
+            requestId: result.request_id
+          })
+          return
+        }
+        resolve({ status: 'failed', detail: result.error ?? stderr.slice(0, 300) })
+      } catch {
+        resolve({ status: 'failed', detail: stderr.slice(0, 300) || 'Invalid HA bridge response' })
+      }
+    })
+    py.on('error', (error) => {
+      resolve({ status: 'failed', detail: `Failed to start HA bridge: ${error.message}` })
+    })
+    py.stdin.write(JSON.stringify(privateSessionPayload(session, {
+      entity_id: entityId,
+      domain,
+      service,
+      parameters,
+      request_id: requestId,
+      confirmation_token: confirmationToken
+    })))
+    py.stdin.end()
+  })
 }
 
 export async function testHomeAssistantConnection(

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import os
 import socket
 import sys
@@ -150,6 +151,40 @@ def _tracked_modified_files() -> set[str]:
 def tracked_modifications_baseline() -> set[str]:
     """Tracked files already modified before tests started."""
     return _tracked_modified_files()
+
+
+@pytest.fixture
+def isolated_calendar_config(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    """Keep calendar tests independent from repository and user configuration."""
+    import rex.calendar_accounts as calendar_accounts
+    import rex.calendar_service as calendar_service
+    import rex.config_manager as config_manager
+
+    config_path = tmp_path / "config" / "rex_config.json"
+    config_path.parent.mkdir(parents=True)
+    config_path.write_text(
+        json.dumps({"calendar": {}, "users": {}}),
+        encoding="utf-8",
+    )
+
+    original_load_config = config_manager.load_config
+
+    def load_isolated_config(path: str | Path = "config/rex_config.json") -> dict:
+        requested = Path(path)
+        if requested == Path("config/rex_config.json"):
+            requested = config_path
+        return original_load_config(requested)
+
+    monkeypatch.setattr(config_manager, "load_config", load_isolated_config)
+    monkeypatch.setattr(calendar_accounts, "_CONFIG_PATH", config_path)
+    monkeypatch.setattr(
+        calendar_service,
+        "_runtime_calendar_path",
+        lambda user_id: tmp_path / "calendar" / f"{user_id}.json",
+    )
+    calendar_service.set_calendar_service(None)
+    yield config_path
+    calendar_service.set_calendar_service(None)
 
 
 def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:

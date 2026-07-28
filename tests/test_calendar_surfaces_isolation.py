@@ -139,7 +139,7 @@ class TestCalendarBridge:
     def test_malformed_explicit_user_resolves_to_none(self):
         import bridge.rex_calendar_bridge as bridge_mod
 
-        assert bridge_mod._resolve_user({"user": "../evil"}) is None
+        assert bridge_mod._resolve_user({"user": "../evil", "data_scope": "private"}) is None
 
 
 # ---------------------------------------------------------------------------
@@ -256,13 +256,13 @@ class TestLocalToolExecutor:
         from rex.local_tool_executor import execute_tool
 
         result = execute_tool("calendar_create_event", {"title": "Standup"})
-        assert "a valid user identity is required" in result
+        assert "a valid user identity is required" in result.lower()
 
     def test_invalid_user_fails_closed(self):
         from rex.local_tool_executor import execute_tool
 
         result = execute_tool("calendar_create_event", {"title": "Standup", "_user_id": "../evil"})
-        assert "a valid user identity is required" in result
+        assert "a valid user identity is required" in result.lower()
 
     def test_creates_in_requesting_users_store_only(self):
         from rex.calendar_service import CalendarService

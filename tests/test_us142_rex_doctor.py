@@ -289,15 +289,14 @@ class TestStatusSymbol:
     def test_ok_shows_pass(self):
         assert _status_symbol(Status.OK) == "[PASS]"
 
-    def test_info_shows_pass(self):
-        assert _status_symbol(Status.INFO) == "[PASS]"
+    def test_info_shows_info(self):
+        assert _status_symbol(Status.INFO) == "[INFO]"
 
-    def test_warning_shows_pass(self):
-        # Warnings are non-blocking; Rex can still run
-        assert _status_symbol(Status.WARNING) == "[PASS]"
+    def test_warning_shows_warn(self):
+        assert _status_symbol(Status.WARNING) == "[WARN]"
 
-    def test_error_shows_fail(self):
-        assert _status_symbol(Status.ERROR) == "[FAIL]"
+    def test_error_shows_error(self):
+        assert _status_symbol(Status.ERROR) == "[ERROR]"
 
 
 class TestCheckResultMessages:
@@ -390,7 +389,7 @@ class TestRunDiagnosticsOutput:
         assert exit_code == 1
         assert "not ready" in captured.out.lower()
 
-    def test_each_check_shows_pass_or_fail(self, capsys, tmp_path):
+    def test_each_check_shows_truthful_status(self, capsys, tmp_path):
         ok = CheckResult(name="x", status=Status.OK, message="ok")
         ok_list = [ok]
 
@@ -413,10 +412,51 @@ class TestRunDiagnosticsOutput:
             run_diagnostics()
 
         captured = capsys.readouterr()
-        # Every check line must contain [PASS] or [FAIL]
+        labels = {"[PASS]", "[INFO]", "[WARN]", "[ERROR]"}
         for line in captured.out.splitlines():
             if line.startswith("["):
-                assert "[PASS]" in line or "[FAIL]" in line, f"Line missing PASS/FAIL: {line!r}"
+                assert any(label in line for label in labels), f"Line missing status: {line!r}"
+
+    def test_release_gate_blocks_actionable_warning(self, capsys, monkeypatch, tmp_path):
+        import rex.doctor as doctor
+
+        ok = CheckResult(name="x", status=Status.OK, message="ok")
+        warning = CheckResult(
+            name="Config Permissions",
+            status=Status.WARNING,
+            message="unsafe permissions",
+            release_blocking=True,
+        )
+        single_checks = [
+            "check_python_version",
+            "check_package_installation",
+            "check_config_file",
+            "check_config_types",
+            "check_env_file",
+            "check_environment_variables",
+            "check_audio_input_device",
+            "check_audio_output_device",
+            "check_smart_speakers",
+            "check_lm_studio_reachability",
+            "check_ffmpeg_for_tts",
+            "check_wakeword_config",
+            "check_stt_backend",
+            "check_stt_warmup",
+            "check_gpu_availability",
+            "check_xtts_transformers_compat",
+        ]
+        monkeypatch.setattr(doctor, "_find_project_root", lambda: tmp_path)
+        for name in single_checks:
+            monkeypatch.setattr(doctor, name, lambda *args, result=ok: result)
+        monkeypatch.setattr(doctor, "check_config_permissions", lambda *args: warning)
+        monkeypatch.setattr(doctor, "check_core_dependencies", lambda *args: [ok])
+        monkeypatch.setattr(doctor, "check_external_dependencies", lambda *args: [ok])
+
+        assert run_diagnostics(release_gate=False) == 0
+        assert run_diagnostics(release_gate=True) == 1
+        output = capsys.readouterr().out
+        assert "[WARN]" in output
+        assert "NOT release-ready" in output
 
     def test_audio_and_lm_studio_checks_included(self, capsys, tmp_path):
         ok = CheckResult(name="x", status=Status.OK, message="ok")

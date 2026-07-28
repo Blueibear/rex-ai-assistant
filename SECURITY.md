@@ -2,7 +2,7 @@
 
 ## Security baseline
 
-The current `scripts/security_audit.py` baseline and triage inventory is tracked in [docs/security/AUDIT-INVENTORY.md](docs/security/AUDIT-INVENTORY.md).
+The current `scripts/security_audit.py` baseline and triage inventory is tracked in [docs/security/AUDIT-INVENTORY.md](docs/security/AUDIT-INVENTORY.md). Release validation must run `python scripts/security_audit.py --release-gate`; actionable findings and invalid or expired suppressions exit nonzero. Developer mode remains informative and does not substitute for the release gate.
 
 ## Reporting a vulnerability
 
@@ -33,7 +33,7 @@ The maintainer will make a best effort to:
 
 ## Supported versions
 
-AskRex Assistant is still in early development.
+AskRex Assistant is a release-candidate implementation under validation, not a signed public production release.
 
 At this time, only the latest code on the main development branch is actively considered for security fixes.
 

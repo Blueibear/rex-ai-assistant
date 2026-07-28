@@ -447,6 +447,7 @@ class TestCalendarServiceICSIntegration:
 # ---------------------------------------------------------------
 
 
+@pytest.mark.usefixtures("isolated_calendar_config")
 class TestStubCalendarBackend:
     """Tests for rex.calendar_backends.stub.StubCalendarBackend."""
 

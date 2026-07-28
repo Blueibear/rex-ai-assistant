@@ -2,6 +2,7 @@ import { ipcMain } from 'electron'
 import { spawn } from 'child_process'
 import type { Memory, MemoryUpdateInput } from '../../types/ipc'
 import { resolveBridgePath, resolvePythonCommand } from '../bridgeResolver'
+import { privateSessionPayload, type ElectronSessionIdentity } from '../sessionIdentity'
 
 /**
  * Call rex_memories_bridge.py with a JSON payload via stdin and resolve the
@@ -48,51 +49,51 @@ function callMemoriesBridge(payload: Record<string, unknown>): Promise<Record<st
   })
 }
 
-async function getMemories(): Promise<Memory[]> {
-  const result = await callMemoriesBridge({ command: 'list' })
+async function getMemories(session: ElectronSessionIdentity): Promise<Memory[]> {
+  const result = await callMemoriesBridge(privateSessionPayload(session, { command: 'list' }))
   if (!result.ok) {
     throw new Error((result.error as string | undefined) ?? 'Failed to list memories')
   }
   return (result.memories as Memory[]) ?? []
 }
 
-async function addMemory(data: MemoryUpdateInput): Promise<Memory> {
-  const result = await callMemoriesBridge({ command: 'add', data })
+async function addMemory(session: ElectronSessionIdentity, data: MemoryUpdateInput): Promise<Memory> {
+  const result = await callMemoriesBridge(privateSessionPayload(session, { command: 'add', data }))
   if (!result.ok) {
     throw new Error((result.error as string | undefined) ?? 'Failed to add memory')
   }
   return result.memory as Memory
 }
 
-async function updateMemory(id: string, data: MemoryUpdateInput): Promise<Memory> {
-  const result = await callMemoriesBridge({ command: 'update', id, data })
+async function updateMemory(session: ElectronSessionIdentity, id: string, data: MemoryUpdateInput): Promise<Memory> {
+  const result = await callMemoriesBridge(privateSessionPayload(session, { command: 'update', id, data }))
   if (!result.ok) {
     throw new Error((result.error as string | undefined) ?? 'Failed to update memory')
   }
   return result.memory as Memory
 }
 
-async function deleteMemory(id: string): Promise<void> {
-  const result = await callMemoriesBridge({ command: 'delete', id })
+async function deleteMemory(session: ElectronSessionIdentity, id: string): Promise<void> {
+  const result = await callMemoriesBridge(privateSessionPayload(session, { command: 'delete', id }))
   if (!result.ok) {
     throw new Error((result.error as string | undefined) ?? 'Failed to delete memory')
   }
 }
 
-export function registerMemoriesHandlers(): void {
+export function registerMemoriesHandlers(session: ElectronSessionIdentity): void {
   ipcMain.handle('rex:getMemories', async (): Promise<Memory[]> => {
-    return getMemories()
+    return getMemories(session)
   })
 
   ipcMain.handle('rex:addMemory', async (_event, data: MemoryUpdateInput): Promise<Memory> => {
-    return addMemory(data)
+    return addMemory(session, data)
   })
 
   ipcMain.handle('rex:updateMemory', async (_event, id: string, data: MemoryUpdateInput): Promise<Memory> => {
-    return updateMemory(id, data)
+    return updateMemory(session, id, data)
   })
 
   ipcMain.handle('rex:deleteMemory', async (_event, id: string): Promise<void> => {
-    return deleteMemory(id)
+    return deleteMemory(session, id)
   })
 }

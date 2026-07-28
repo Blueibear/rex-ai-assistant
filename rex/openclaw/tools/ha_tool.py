@@ -24,11 +24,14 @@ Typical usage::
 
 from __future__ import annotations
 
+import hashlib
 import logging
+import uuid
 from typing import Any
 
+from rex.ha.mutation_service import HAMutation, HAMutationService
 from rex.ha_bridge import HABridge as _HABridge
-from rex.ha_bridge import IntentMatch as _IntentMatch
+from rex.response.builder import home_assistant_status_message
 
 logger = logging.getLogger(__name__)
 
@@ -46,6 +49,24 @@ TOOL_DESCRIPTION = (
 def _get_ha_bridge() -> _HABridge:
     """Return a new HABridge instance (injectable in tests)."""
     return _HABridge()
+
+
+class _BridgeMutationClient:
+    def __init__(self, bridge: _HABridge) -> None:
+        self._bridge = bridge
+
+    def call_service(self, domain: str, service: str, data: dict[str, Any]) -> None:
+        self._bridge._request("POST", f"/api/services/{domain}/{service}", json=data)
+
+    def get_state(self, entity_id: str) -> dict[str, Any] | None:
+        value = self._bridge._request("GET", f"/api/states/{entity_id}")
+        return value if isinstance(value, dict) else None
+
+
+def _get_mutation_service(bridge: _HABridge) -> HAMutationService:
+    token = str(getattr(bridge, "_token", ""))
+    secret = hashlib.sha256(f"askrex-ha-confirmation:{token}".encode()).digest()
+    return HAMutationService(_BridgeMutationClient(bridge), confirmation_secret=secret)
 
 
 def ha_call_service(
@@ -85,17 +106,26 @@ def ha_call_service(
             "entity_id": entity_id,
         }
 
-    intent_data: dict[str, Any] = {"entity_id": entity_id}
-    if data:
-        intent_data.update(data)
-
-    intent = _IntentMatch(
-        domain=domain,
-        service=service,
-        entity_id=entity_id,
-        data=intent_data,
-        description=f"{domain}.{service} {entity_id}",
-        source="openclaw",
+    ambient = context or {}
+    user_id = str(ambient.get("user_id") or ambient.get("user") or "")
+    request_id = str(ambient.get("request_id") or uuid.uuid4())
+    confirmation_token = ambient.get("confirmation_token")
+    result = _get_mutation_service(bridge).execute(
+        HAMutation(
+            user_id=user_id,
+            domain=domain,
+            service=service,
+            entity_id=entity_id,
+            parameters=dict(data or {}),
+            request_id=request_id,
+            confirmation_token=(
+                str(confirmation_token) if confirmation_token is not None else None
+            ),
+        )
     )
-    success, message = bridge._execute_intent(intent)
-    return {"success": success, "message": message, "entity_id": entity_id}
+    return {
+        **result.to_dict(),
+        "message": home_assistant_status_message(
+            result.status.value, entity_id=result.entity_id, detail=result.detail
+        ),
+    }

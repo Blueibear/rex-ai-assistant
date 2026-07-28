@@ -15,10 +15,11 @@ def test_ui_surfaces_doc_exists_with_expected_rows() -> None:
 
     assert "| CLI (text chat) | `rex` | **Primary — keep** | Core text interface |" in text
     assert (
-        "| Voice loop | `python rex_loop.py` | **Primary — keep** | Core voice interface |" in text
+        "| Voice loop | `python rex_loop.py` | Developer / advanced | Source voice entry point; wake-word mode remains beta |"
+        in text
     )
     assert (
-        "| Electron desktop GUI | `cd gui && npm.cmd run dev` | **Primary GUI — keep** | Current user-facing React/Electron GUI, backed by Python bridge scripts at repo root |"
+        "| Electron desktop GUI | Installed AskRex app or `cd gui && npm.cmd run dev` | **Primary GUI — keep** | Packaged app uses canonical `resources/bridge/` scripts and its managed Python runtime; source command is development-only |"
         in text
     )
     assert (
@@ -30,7 +31,7 @@ def test_ui_surfaces_doc_exists_with_expected_rows() -> None:
         in text
     )
     assert (
-        "| TTS API | `rex-speak-api` | **Service component — keep** | Required by voice loop |"
+        "| TTS API | `rex-speak-api` | Developer-only service | Optional standalone authenticated TTS service; Electron voice does not require it |"
         in text
     )
     assert (
@@ -39,7 +40,7 @@ def test_ui_surfaces_doc_exists_with_expected_rows() -> None:
     )
 
 
-def test_readme_points_to_web_dashboard_as_canonical_gui() -> None:
+def test_readme_points_to_electron_as_canonical_gui() -> None:
     text = (ROOT / "README.md").read_text(encoding="utf-8")
 
     assert "current primary GUI" in text

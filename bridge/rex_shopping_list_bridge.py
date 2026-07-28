@@ -16,16 +16,18 @@ from __future__ import annotations
 import json
 import sys
 
-from rex.bridge_utils import bridge_error_response, repo_root, resolve_python
+from rex.bridge_utils import bridge_error_response
 from rex.shopping_list import ShoppingList
-
-_PYTHON_EXE = resolve_python()  # venv-aware interpreter path for subprocess calls
-_REPO_ROOT = repo_root()  # absolute repo root for resolving scripts and config
 
 
 def main() -> None:
     try:
         payload = json.loads(sys.stdin.read())
+        from rex.identity import validate_user_id
+
+        actor_user_id = validate_user_id(str(payload.get("user") or ""))
+        if payload.get("data_scope") != "shared_household":
+            raise PermissionError("Shopping list requires explicit shared_household scope")
     except Exception as exc:
         sys.stdout.write(json.dumps({"ok": False, "error": f"Bad input: {exc}"}))
         sys.exit(1)
@@ -45,7 +47,7 @@ def main() -> None:
                 return
             quantity = float(payload.get("quantity", 1.0))
             unit = str(payload.get("unit", ""))
-            item = sl.add_item(name, quantity=quantity, unit=unit, added_by="gui")
+            item = sl.add_item(name, quantity=quantity, unit=unit, added_by=actor_user_id)
             sys.stdout.write(json.dumps({"ok": True, "item": item.to_dict()}))
 
         elif command == "check":

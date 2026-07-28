@@ -6,10 +6,14 @@ import { defaultSettingsMap } from './settingsDefaults'
 
 export type TestableIntegration = 'email' | 'calendar' | 'sms' | 'homeassistant' | 'phone'
 
-export type IntegrationTestResult = { ok: boolean; error?: string }
+export type IntegrationTestResult = {
+  ok: boolean
+  state: IntegrationConnectionStatus
+  error?: string
+}
 
 export interface StoredIntegrationStatus {
-  status: IntegrationConnectionStatus
+  state: IntegrationConnectionStatus
   testedAt?: string
   error?: string
   fingerprint?: string
@@ -62,10 +66,10 @@ function unsupportedOutlookStatus(
 ): StoredIntegrationStatus | null {
   const integrations = integrationSettingsFrom(stored)
   if (type === 'email' && hasConfiguredOutlookEmail(integrations)) {
-    return { status: 'error', error: OUTLOOK_EMAIL_UNSUPPORTED }
+    return { state: 'unavailable', error: OUTLOOK_EMAIL_UNSUPPORTED }
   }
   if (type === 'calendar' && hasConfiguredOutlookCalendar(integrations)) {
-    return { status: 'error', error: OUTLOOK_CALENDAR_UNSUPPORTED }
+    return { state: 'unavailable', error: OUTLOOK_CALENDAR_UNSUPPORTED }
   }
   return null
 }
@@ -77,10 +81,17 @@ function readIntegrationStatuses(stored: Record<string, Settings>): Record<strin
   for (const [key, value] of Object.entries(raw as Record<string, unknown>)) {
     if (!value || typeof value !== 'object') continue
     const entry = value as Record<string, unknown>
-    const status = entry.status
-    if (status !== 'connected' && status !== 'error' && status !== 'untested') continue
+    const legacyStatus = entry.status
+    const state = entry.state ?? (
+      legacyStatus === 'connected' ? 'configured' :
+        legacyStatus === 'error' ? 'degraded' : 'unconfigured'
+    )
+    if (![
+      'unavailable', 'unconfigured', 'configured', 'reachable', 'authenticated',
+      'degraded', 'read_only', 'write_capable', 'write_tested', 'verified'
+    ].includes(String(state))) continue
     statuses[key] = {
-      status,
+      state: state as IntegrationConnectionStatus,
       testedAt: typeof entry.testedAt === 'string' ? entry.testedAt : undefined,
       error: typeof entry.error === 'string' ? entry.error : undefined,
       fingerprint: typeof entry.fingerprint === 'string' ? entry.fingerprint : undefined
@@ -147,6 +158,11 @@ function integrationFingerprint(
   } else if (type === 'push') {
     payload.pushProvider = integrations.pushProvider
     payload.pushToken = integrations.pushToken
+  } else if (type === 'openclaw') {
+    const openclaw = rexConfig.openclaw && typeof rexConfig.openclaw === 'object'
+      ? (rexConfig.openclaw as Record<string, unknown>)
+      : {}
+    payload.openclawGatewayUrl = openclaw.gateway_url
   }
 
   return createHash('sha256').update(JSON.stringify(payload)).digest('hex')
@@ -167,22 +183,22 @@ export function integrationStatusFor(
   if (unsupportedStatus) return unsupportedStatus
 
   const status = readIntegrationStatuses(stored)[type]
-  if (!status || status.status === 'untested') return { status: 'untested' }
+  if (!status) return { state: 'unconfigured' }
   if (status.fingerprint !== integrationFingerprint(type, stored)) {
-    return { status: 'untested' }
+    return { state: 'unconfigured' }
   }
   return status
 }
 
 export function writeIntegrationStatus(
   type: TestableIntegration,
-  result: { ok: boolean; error?: string },
+  result: { ok: boolean; state?: IntegrationConnectionStatus; error?: string },
   fingerprint = integrationFingerprint(type)
 ): void {
   const stored = readGuiSettings()
   const statuses = readIntegrationStatuses(stored)
   statuses[type] = {
-    status: result.ok ? 'connected' : 'error',
+    state: result.state ?? (result.ok ? 'authenticated' : 'degraded'),
     testedAt: new Date().toISOString(),
     error: result.ok ? undefined : result.error,
     fingerprint
@@ -261,19 +277,25 @@ function hasEnvPhoneCredentials(env: Record<string, string>): boolean {
 }
 
 function integrationConfiguredResult(configured: boolean): IntegrationTestResult {
-  return configured ? { ok: true } : { ok: false, error: 'No credentials configured' }
+  return configured
+    ? {
+        ok: false,
+        state: 'configured',
+        error: 'Credentials are present, but this check does not prove reachability or authentication.'
+      }
+    : { ok: false, state: 'unconfigured', error: 'No credentials configured' }
 }
 
 function testEmailIntegration(integrations: Record<string, unknown>): IntegrationTestResult {
   if (hasConfiguredOutlookEmail(integrations)) {
-    return { ok: false, error: OUTLOOK_EMAIL_UNSUPPORTED }
+    return { ok: false, state: 'unavailable', error: OUTLOOK_EMAIL_UNSUPPORTED }
   }
   return integrationConfiguredResult(hasDirectEmailCredentials(integrations) || hasConfiguredEmail(integrations))
 }
 
 function testCalendarIntegration(integrations: Record<string, unknown>): IntegrationTestResult {
   if (hasConfiguredOutlookCalendar(integrations)) {
-    return { ok: false, error: OUTLOOK_CALENDAR_UNSUPPORTED }
+    return { ok: false, state: 'unavailable', error: OUTLOOK_CALENDAR_UNSUPPORTED }
   }
   return integrationConfiguredResult(hasDirectCalendarCredentials(integrations))
 }
@@ -298,7 +320,16 @@ export async function testIntegrationByType(
   if (type === 'phone') return { type, result: testPhoneIntegration(integrations) }
   if (type === 'homeassistant') {
     const { baseUrl, token } = readSavedHomeAssistantCredentials()
-    return { type, result: await testHomeAssistantConnection(baseUrl, token) }
+    const result = await testHomeAssistantConnection(baseUrl, token)
+    return {
+      type,
+      result: result.ok
+        ? { ...result, state: 'authenticated' }
+        : {
+            ...result,
+            state: hasText(baseUrl) && hasText(token) ? 'degraded' : 'unconfigured'
+          }
+    }
   }
-  return { result: { ok: false, error: 'Unknown integration type' } }
+  return { result: { ok: false, state: 'unavailable', error: 'Unknown integration type' } }
 }

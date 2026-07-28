@@ -28,8 +28,13 @@ def main() -> None:
     if command == "list":
         limit = int(req.get("limit", 50))
         try:
+            from rex.identity import validate_user_id
+
+            user_id = validate_user_id(str(req.get("user") or ""))
+            if req.get("data_scope") != "private":
+                raise PermissionError("Command history requires private Electron data scope")
             store = CommandHistoryStore()
-            history = store.get_recent(limit=limit)
+            history = store.get_recent(limit=limit, user_id=user_id)
             print(json.dumps({"ok": True, "history": history}))
         except Exception as exc:
             print(json.dumps({"ok": False, "error": str(exc), "history": []}))

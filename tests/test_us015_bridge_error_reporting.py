@@ -93,7 +93,10 @@ class TestTasksBridgeTraceback:
         with patch.object(
             rex_tasks_bridge, "_handle_list", side_effect=RuntimeError("scheduler exploded")
         ):
-            result = _run_main("rex_tasks_bridge", '{"command": "list"}')
+            result = _run_main(
+                "rex_tasks_bridge",
+                '{"command": "list", "user": "james", "data_scope": "private"}',
+            )
 
         assert result["ok"] is False
         assert "scheduler exploded" in result["error"]
@@ -104,7 +107,10 @@ class TestTasksBridgeTraceback:
         import rex_tasks_bridge
 
         with patch.object(rex_tasks_bridge, "_handle_list", side_effect=ValueError("bad value")):
-            result = _run_main("rex_tasks_bridge", '{"command": "list"}')
+            result = _run_main(
+                "rex_tasks_bridge",
+                '{"command": "list", "user": "james", "data_scope": "private"}',
+            )
 
         assert "ValueError" in result["traceback"]
 
@@ -136,7 +142,10 @@ class TestMemoriesBridgeTraceback:
         import rex_memories_bridge
 
         with patch.object(rex_memories_bridge, "_handle_list", side_effect=OSError("disk full")):
-            result = _run_main("rex_memories_bridge", '{"command": "list", "user": "default"}')
+            result = _run_main(
+                "rex_memories_bridge",
+                '{"command": "list", "user": "default", "data_scope": "private"}',
+            )
 
         assert result["ok"] is False
         assert "disk full" in result["error"]
@@ -168,11 +177,19 @@ class TestGuiBackendStderrCapture:
             patch("sys.exit"),
         ):
             # Make asyncio.run raise the error directly
-            mock_asyncio.run.side_effect = RuntimeError("LLM down")
+            def fail_run(coroutine):
+                coroutine.close()
+                raise RuntimeError("LLM down")
+
+            mock_asyncio.run.side_effect = fail_run
 
             captured = StringIO()
             with (
-                patch.object(sys, "stdin", StringIO('{"message": "hello"}')),
+                patch.object(
+                    sys,
+                    "stdin",
+                    StringIO('{"message": "hello", "user": "james", "data_scope": "private"}'),
+                ),
                 patch.object(sys, "stdout", captured),
             ):
                 rex_chat_bridge.main()

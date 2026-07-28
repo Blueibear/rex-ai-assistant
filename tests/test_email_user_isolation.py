@@ -755,12 +755,12 @@ class TestElectronBridgeIdentity:
     def test_explicit_user_payload_wins(self):
         from bridge import rex_email_bridge
 
-        assert rex_email_bridge._resolve_user({"user": ALICE}) == ALICE
+        assert rex_email_bridge._resolve_user({"user": ALICE, "data_scope": "private"}) == ALICE
 
     def test_invalid_explicit_user_fails_closed(self):
         from bridge import rex_email_bridge
 
-        assert rex_email_bridge._resolve_user({"user": "../evil"}) is None
+        assert rex_email_bridge._resolve_user({"user": "../evil", "data_scope": "private"}) is None
 
     def test_list_for_named_user_without_provider_is_unconfigured(self, monkeypatch):
         import rex.config_manager as config_manager

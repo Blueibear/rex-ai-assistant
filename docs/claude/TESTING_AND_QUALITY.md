@@ -19,6 +19,25 @@ python -m rex doctor
 python scripts/security_audit.py
 ```
 
+Release candidates use the stricter gates:
+
+```bash
+python -m rex doctor --release-gate
+python scripts/security_audit.py --release-gate
+```
+
+Developer-mode doctor warnings remain non-blocking but render as `[WARN]`, not
+`[PASS]`. The doctor release gate also exits nonzero for warnings explicitly
+classified as actionable. The security release gate scans Markdown fences and
+fails on merge markers, potential secrets, invalid suppressions, and actionable
+placeholder markers in source or configuration files.
+
+Security-audit suppressions are optional JSON passed with `--suppressions`.
+Each entry must contain `category: "placeholder"`, a repository-relative
+`path`, an exact positive `line`, a specific `reason` of at least 10 characters,
+and a non-expired ISO `expires` date. Merge markers and secrets cannot be
+suppressed.
+
 For docs-only changes, `git diff --check` is usually enough unless the doc
 change modifies commands that should be smoke-tested.
 

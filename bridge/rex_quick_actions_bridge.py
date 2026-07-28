@@ -23,18 +23,17 @@ import sys
 import uuid
 from typing import Any
 
-from rex.bridge_utils import bridge_error_response, repo_root, resolve_python
-
-_PYTHON_EXE = resolve_python()
-_REPO_ROOT = repo_root()
+from rex.bridge_utils import bridge_error_response
 
 
-def _resolve_user_id() -> str | None:
+def _resolve_user_id(payload: dict[str, Any]) -> str | None:
     """Return a deliberately selected user ID, or ``None`` when missing."""
     try:
-        from rex.identity import resolve_active_user
+        from rex.identity import validate_user_id
 
-        return resolve_active_user()
+        if payload.get("data_scope") != "private":
+            return None
+        return validate_user_id(str(payload.get("user") or ""))
     except Exception:
         return None
 
@@ -62,7 +61,7 @@ def main() -> None:
         sys.exit(1)
 
     command = str(payload.get("command", ""))
-    user_id = _resolve_user_id()
+    user_id = _resolve_user_id(payload)
 
     try:
         if user_id is None:

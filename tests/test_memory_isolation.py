@@ -600,6 +600,13 @@ def _run_bridge(stdin_data: str) -> dict:
     """Invoke the memories bridge main() with the given stdin JSON."""
     mod = importlib.import_module("rex_memories_bridge")
 
+    try:
+        payload = json.loads(stdin_data)
+        payload.setdefault("data_scope", "private")
+        stdin_data = json.dumps(payload)
+    except json.JSONDecodeError:
+        pass
+
     captured = StringIO()
     with patch("sys.stdin", StringIO(stdin_data)):
         with patch("sys.stdout", captured):

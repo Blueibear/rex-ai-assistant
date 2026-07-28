@@ -20,10 +20,7 @@ import base64
 import json
 import sys
 
-from rex.bridge_utils import bridge_error_response, repo_root, resolve_python
-
-_PYTHON_EXE = resolve_python()  # venv-aware interpreter path for subprocess calls
-_REPO_ROOT = repo_root()  # absolute repo root for resolving scripts and config
+from rex.bridge_utils import bridge_error_response
 
 
 def main() -> None:
@@ -31,19 +28,20 @@ def main() -> None:
         payload = json.loads(sys.stdin.read())
         provider = str(payload.get("provider", "xtts"))
         voice_id = str(payload.get("voice_id", ""))
-        text = str(payload.get("text", "Hello, I'm your Rex assistant."))[:80]
+        text = str(payload.get("text", "Hello, I'm your Rex assistant."))
     except Exception as exc:
         print(json.dumps({"ok": False, "error": f"Bad input: {exc}"}), flush=True)
         sys.exit(1)
 
-    if not voice_id:
+    if not voice_id and provider.lower().strip() != "pyttsx3":
         print(json.dumps({"ok": False, "error": "voice_id is required"}), flush=True)
         sys.exit(1)
 
     try:
-        from rex.tts_voices import synthesize_sample
+        from rex.tts_voices import synthesize_sample, synthesize_speech
 
-        audio_bytes = asyncio.run(synthesize_sample(provider, voice_id, text))
+        synthesis = synthesize_speech if payload.get("mode") == "response" else synthesize_sample
+        audio_bytes = asyncio.run(synthesis(provider, voice_id, text))
         audio_base64 = base64.b64encode(audio_bytes).decode("ascii")
         print(json.dumps({"ok": True, "audio_base64": audio_base64}), flush=True)
     except Exception as exc:

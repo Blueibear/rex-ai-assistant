@@ -41,12 +41,14 @@ import type {
   QuickActionRunResponse,
   SetupStatusResponse,
   SetupCompletePayload,
-  SetupCompleteResponse
+  SetupCompleteResponse,
+  IntegrationConnectionStatus
 } from '../types/ipc'
 
 function makeSendChatStream(
   message: string,
-  onToken: (token: string) => void
+  onToken: (token: string) => void,
+  signal?: AbortSignal
 ): Promise<void> {
   return new Promise<void>((resolve, reject) => {
     const streamId = `${Date.now()}-${Math.random()}`
@@ -71,11 +73,23 @@ function makeSendChatStream(
       ipcRenderer.removeListener('rex:chatToken', tokenHandler)
       ipcRenderer.removeListener('rex:chatDone', doneHandler)
       ipcRenderer.removeListener('rex:chatError', errorHandler)
+      signal?.removeEventListener('abort', abortHandler)
+    }
+
+    function abortHandler(): void {
+      cleanup()
+      void ipcRenderer.invoke('rex:cancelChatStream', streamId)
+      reject(new DOMException('Chat response cancelled', 'AbortError'))
     }
 
     ipcRenderer.on('rex:chatToken', tokenHandler)
     ipcRenderer.on('rex:chatDone', doneHandler)
     ipcRenderer.on('rex:chatError', errorHandler)
+    if (signal?.aborted) {
+      abortHandler()
+      return
+    }
+    signal?.addEventListener('abort', abortHandler, { once: true })
 
     ipcRenderer.invoke('rex:startChatStream', { message, streamId }).catch((err: unknown) => {
       cleanup()
@@ -223,7 +237,7 @@ const rexAPI = {
     ipcRenderer.invoke('rex:getCommandHistory', limit),
   testVoice: (settings: VoiceSettings): Promise<{ ok: boolean; error?: string }> =>
     ipcRenderer.invoke('rex:testVoice', settings),
-  testIntegration: (type: 'email' | 'calendar' | 'sms' | 'homeassistant' | 'phone'): Promise<{ ok: boolean; error?: string }> =>
+  testIntegration: (type: 'email' | 'calendar' | 'sms' | 'homeassistant' | 'phone'): Promise<{ ok: boolean; state?: IntegrationConnectionStatus; error?: string }> =>
     ipcRenderer.invoke('rex:testIntegration', type),
   getIntegrations: () => ipcRenderer.invoke('rex:getIntegrations'),
   getCapabilities: () => ipcRenderer.invoke('rex:getCapabilities'),
@@ -241,7 +255,7 @@ const rexAPI = {
     ipcRenderer.invoke('rex:uploadContactsFile'),
   pickFolder: (): Promise<{ ok: boolean; path?: string; error?: string }> =>
     ipcRenderer.invoke('rex:pickFolder'),
-  testEmailAccount: (id: string): Promise<{ ok: boolean; error?: string }> =>
+  testEmailAccount: (id: string): Promise<{ ok: boolean; state?: IntegrationConnectionStatus; error?: string }> =>
     ipcRenderer.invoke('rex:testEmailAccount', id),
   getPreferenceSuggestions: (): Promise<PreferenceSuggestion[]> =>
     ipcRenderer.invoke('rex:getPreferenceSuggestions'),
@@ -277,6 +291,14 @@ const rexAPI = {
     voiceId: string
   ): Promise<{ ok: boolean; audio_base64?: string; error?: string }> =>
     ipcRenderer.invoke('rex:previewVoice', provider, voiceId),
+  synthesizeSpeech: (
+    provider: string,
+    voiceId: string,
+    text: string
+  ): Promise<{ ok: boolean; audio_base64?: string; error?: string }> =>
+    ipcRenderer.invoke('rex:synthesizeSpeech', provider, voiceId, text),
+  logVoiceTiming: (turnId: string, stage: string, durationMs: number): Promise<{ ok: boolean }> =>
+    ipcRenderer.invoke('rex:logVoiceTiming', turnId, stage, durationMs),
   getVoiceEnrollments: (): Promise<{
     ok: boolean
     active_user_id: string
@@ -365,9 +387,11 @@ const rexAPI = {
   sendDeviceCommand: (
     entityId: string,
     command: string,
-    payload?: { value?: number }
+    payload?: { value?: number },
+    confirmationToken?: string,
+    requestId?: string
   ): Promise<DeviceCommandResponse> =>
-    ipcRenderer.invoke('rex:sendDeviceCommand', entityId, command, payload),
+    ipcRenderer.invoke('rex:sendDeviceCommand', entityId, command, payload, confirmationToken, requestId),
   getSetupStatus: (): Promise<SetupStatusResponse> => ipcRenderer.invoke('rex:getSetupStatus'),
   completeSetup: (payload: SetupCompletePayload): Promise<SetupCompleteResponse> =>
     ipcRenderer.invoke('rex:completeSetup', payload)
@@ -381,8 +405,8 @@ if (process.contextIsolated) {
     console.error(error)
   }
 } else {
-  // @ts-ignore (define in dts)
+  // @ts-expect-error -- fallback assignment when context isolation is disabled
   window.electron = electronAPI
-  // @ts-ignore (define in dts)
+  // @ts-expect-error -- fallback assignment when context isolation is disabled
   window.rex = rexAPI
 }
