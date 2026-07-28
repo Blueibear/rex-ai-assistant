@@ -69,3 +69,11 @@ def test_installed_artifact_harness_pins_build_python_before_path_isolation() ->
     isolate_position = harness.index("$env:PATH = Join-Path $env:SystemRoot 'System32'")
     assert resolve_position < isolate_position
     assert harness.count("& $buildPythonPath") == 2
+
+
+def test_installed_artifact_harness_does_not_turn_cleanup_locks_into_product_failure() -> None:
+    harness = (ROOT / "scripts/test_installed_electron_artifact.ps1").read_text(encoding="utf-8")
+    assert "function Remove-SmokeTestRoot" in harness
+    assert "$attempt -le 10" in harness
+    assert "Write-Warning \"Could not fully remove temporary smoke directory" in harness
+    assert "Remove-SmokeTestRoot $testRoot" in harness
