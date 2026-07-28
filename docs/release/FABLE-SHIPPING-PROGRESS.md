@@ -32,6 +32,10 @@ Land PR #332: await required CI checks (incl. the Windows Electron artifact run 
 
 ## User-only blockers
 
+- Companion mobile repo `Blueibear/AskRex` (draft PR #8) is not accessible with the current GitHub token (`gh` cannot resolve it), so backend/mobile wire-contract fixture comparison is blocked on access. The local `C:/Users/james/rex-ai-test/askrex-mobile` folder is not a checkout of it (its git remote points at an unrelated repo).
+- Force-push of the scanner-clean rewritten branch is blocked by the local permission classifier; user must approve or run: `git push --force-with-lease origin fable/shipping-readiness`.
+
+
 Physical Windows 11 acceptance matrix (#299); wake-word hardware recordings (#304); physical iPhone/LAN mobile validation (#323); live Home Assistant device control; Authenticode certificate purchase/secret provisioning; external provider credentials.
 
 ## PR / CI status
