@@ -44,7 +44,7 @@ function Stop-InstalledProcesses([string]$RootPath) {
 
 function Invoke-Installer(
     [string[]]$Arguments,
-    [int]$TimeoutSeconds = 180
+    [int]$TimeoutSeconds = 600
 ) {
     $process = Start-Process -FilePath $installerPath -ArgumentList $Arguments -PassThru
     if (-not $process.WaitForExit($TimeoutSeconds * 1000)) {
@@ -185,9 +185,9 @@ try {
 
     Stop-InstalledProcesses $installPath
     $uninstallProcess = Start-Process -FilePath $uninstaller -ArgumentList @('/S') -PassThru
-    if (-not $uninstallProcess.WaitForExit(120000)) {
+    if (-not $uninstallProcess.WaitForExit(300000)) {
         Stop-ProcessTree $uninstallProcess
-        throw 'Uninstaller timed out after 120 seconds.'
+        throw 'Uninstaller timed out after 300 seconds.'
     }
     if ($uninstallProcess.ExitCode -ne 0) {
         throw "Uninstaller exited with code $($uninstallProcess.ExitCode)"
