@@ -24,6 +24,34 @@ def test_windows_artifact_workflow_exercises_installed_release() -> None:
         assert required in workflow
 
 
+def test_signing_activates_only_when_certificate_secret_exists() -> None:
+    """Authenticode signing is conditional on the certificate secret.
+
+    Without WINDOWS_CSC_LINK the workflow must build the same unsigned
+    artifact as before; with it, electron-builder receives CSC_LINK and the
+    verification step fails closed if the produced installer is not Valid.
+    """
+    workflow = (ROOT / ".github/workflows/windows-electron-artifact.yml").read_text(
+        encoding="utf-8"
+    )
+    for required in (
+        "secrets.WINDOWS_CSC_LINK",
+        "secrets.WINDOWS_CSC_KEY_PASSWORD",
+        "IsNullOrWhiteSpace($env:WINDOWS_CSC_LINK)",
+        "CSC_LINK=$env:WINDOWS_CSC_LINK",
+        "Get-AuthenticodeSignature",
+        "Verify Authenticode signature truthfully",
+    ):
+        assert required in workflow
+    # The conditional export must come before the build so electron-builder
+    # sees CSC_LINK, and verification must come after the build.
+    assert workflow.index("CSC_LINK=$env:WINDOWS_CSC_LINK") < workflow.index("npm run dist")
+    assert workflow.index("npm run dist") < workflow.index("Get-AuthenticodeSignature")
+    # Signed builds must be timestamped so signatures outlive the cert.
+    package_json = (ROOT / "gui/package.json").read_text(encoding="utf-8")
+    assert "rfc3161TimeStampServer" in package_json
+
+
 def test_release_automation_is_gated_by_windows_artifact() -> None:
     workflow = (ROOT / ".github/workflows/release-please.yml").read_text(encoding="utf-8")
     assert "uses: ./.github/workflows/windows-electron-artifact.yml" in workflow

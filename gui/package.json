@@ -96,7 +96,10 @@
     ],
     "win": {
       "icon": "build/icon.ico",
-      "target": "nsis"
+      "target": "nsis",
+      "signtoolOptions": {
+        "rfc3161TimeStampServer": "http://timestamp.digicert.com"
+      }
     }
   }
 }
