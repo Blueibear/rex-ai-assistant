@@ -1042,11 +1042,11 @@ pytest tests/test_logs_auth.py -q
 - `tests/test_ha_auth.py` (new or updated)
 
 **Acceptance Criteria:**
-- [ ] HA test, save, and control routes return 401 without a valid token.
-- [ ] IPC equivalents enforce the same auth via the main-process token store.
-- [ ] Negative tests cover each route.
-- [ ] `docs/home_assistant.md` documents the auth requirement.
-- [ ] All relevant GitHub checks pass.
+- [x] HA test, save, and control routes return 401 without a valid token. *(`rex/routes/ha.py` calls `_require_auth()` on all three routes; `tests/test_rr009_ha_test_auth.py`.)*
+- [x] IPC equivalents enforce the same auth via the main-process token store. *(Delivered by the superseding PR #331 design: Electron IPC device control is bound to the immutable local OS session identity (`gui/src/main/sessionIdentity.ts`) and HA mutations require signed action-bound confirmation tokens via the mutation bridge — a stricter control than a shared proxy token. `tests/test_ha_mutation_service.py`.)*
+- [x] Negative tests cover each route. *(`tests/test_rr009_ha_test_auth.py` et al.)*
+- [x] `docs/home_assistant.md` documents the auth requirement. *(2026-07-28: "Rex endpoint authentication" section.)*
+- [ ] All relevant GitHub checks pass. *(Pending PR #332 CI.)*
 
 **Validation commands:**
 ```bash
@@ -1070,12 +1070,12 @@ pytest tests/test_ha_auth.py -q
 **Implementation notes:** Define "destructive" as: filesystem deletion outside per-user data dirs, HA locks/garage/alarms, broad HA scripts/scenes, outbound SMS/email, financial actions, autonomy plan execution. Require an explicit `confirmation_token` or a user-visible GUI confirmation before dispatch. Default refusal must be a clear, user-visible error, not a silent skip.
 
 **Acceptance Criteria:**
-- [ ] A registry of destructive tools exists and is documented.
-- [ ] Calling a destructive tool without confirmation returns a `requires_confirmation` response with a token.
-- [ ] Calling with the matching token completes the action.
-- [ ] A negative test asserts that the first call does not execute the side effect.
-- [ ] `README.md` and `docs/tools.md` document the gate.
-- [ ] All relevant GitHub checks pass.
+- [x] A registry of destructive tools exists and is documented. *(Delivered as the `risk` field on every `ToolSpec` in `rex/tools/registry.py` (`safe`/`sensitive`/`prohibited`); documented 2026-07-28 in `docs/tools.md` "Risk Classes and Confirmation Gates".)*
+- [x] Calling a destructive tool without confirmation returns a `requires_confirmation` response with a token. *(Delivered as outcome `confirmation_required` from the canonical lifecycle in `rex/tools/execution.py`; Home Assistant mutations use signed single-use action-bound confirmation tokens in `rex/ha/mutation_service.py`.)*
+- [x] Calling with the matching token completes the action. *(Confirmed calls execute; HA token round-trip covered by `tests/test_ha_mutation_service.py`.)*
+- [x] A negative test asserts that the first call does not execute the side effect. *(`tests/test_tool_execution_lifecycle.py`, `tests/test_ha_mutation_service.py`.)*
+- [x] `README.md` and `docs/tools.md` document the gate. *(2026-07-28 additions.)*
+- [ ] All relevant GitHub checks pass. *(Pending PR #332 CI.)*
 
 **Validation commands:**
 ```bash
@@ -1100,12 +1100,12 @@ pytest tests/test_destructive_tool_confirmation.py -q
 - `tests/test_twilio_fail_closed.py` (new or updated)
 
 **Acceptance Criteria:**
-- [ ] Importing the Twilio backend without the `twilio` package raises a clear `IntegrationUnavailable("twilio not installed")`.
-- [ ] Sending without `TWILIO_*` env vars raises a clear error to the caller.
-- [ ] No code path returns `success` on a missing-config send.
-- [ ] A test asserts a missing-dep send fails with a user-visible error.
-- [ ] `docs/messaging.md` documents the behavior.
-- [ ] All relevant GitHub checks pass.
+- [x] Importing the Twilio backend without the `twilio` package raises a clear `IntegrationUnavailable("twilio not installed")`. *(Delivered as `ImportError` with install instructions at `TwilioSMSBackend` construction — same fail-closed behavior under the standard exception name; `tests/test_twilio_sms_backend.py`.)*
+- [x] Sending without `TWILIO_*` env vars raises a clear error to the caller. *(`SMSSendError` naming each missing credential; values never logged.)*
+- [x] No code path returns `success` on a missing-config send. *(Construction/credential resolution raise before any send path.)*
+- [x] A test asserts a missing-dep send fails with a user-visible error. *(`tests/test_twilio_sms_backend.py`, `tests/test_ph001_twilio_handler.py`.)*
+- [x] `docs/messaging.md` documents the behavior. *(2026-07-28: "Twilio Fail-Closed Behavior" section.)*
+- [ ] All relevant GitHub checks pass. *(Pending PR #332 CI.)*
 
 **Validation commands:**
 ```bash
