@@ -72,7 +72,19 @@ jobs:
 
       - name: Exercise installed artifact without machine Python or Node
         shell: powershell
-        run: scripts/test_installed_electron_artifact.ps1 -Installer "gui/dist/AskRex Setup 1.0.0.exe" -BuildPython python
+        run: |
+          scripts/test_installed_electron_artifact.ps1 `
+            -Installer "gui/dist/AskRex Setup 1.0.0.exe" `
+            -BuildPython python `
+            -DiagnosticsPath "$env:RUNNER_TEMP\askrex-artifact-smoke.json"
+
+      - name: Upload smoke diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: askrex-windows-smoke-diagnostics
+          path: ${{ runner.temp }}\askrex-artifact-smoke.json
+          if-no-files-found: warn
 
       - name: Upload installer evidence
         uses: actions/upload-artifact@v4
