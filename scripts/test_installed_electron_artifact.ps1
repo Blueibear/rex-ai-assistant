@@ -8,6 +8,7 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $installerPath = (Resolve-Path -LiteralPath $Installer).Path
+$buildPythonPath = (Get-Command $BuildPython -ErrorAction Stop).Source
 $testRoot = Join-Path ([System.IO.Path]::GetTempPath()) ('askrex-installed-smoke-' + [guid]::NewGuid())
 $installPath = Join-Path $testRoot 'AskRex'
 $localAppData = Join-Path $testRoot 'LocalAppData'
@@ -174,7 +175,7 @@ try {
     }
 
     Set-SmokePhase 'installed-resource-verification'
-    & $BuildPython (Join-Path $PSScriptRoot 'verify_electron_package_contents.py') $resources
+    & $buildPythonPath (Join-Path $PSScriptRoot 'verify_electron_package_contents.py') $resources
     if ($LASTEXITCODE -ne 0) { throw 'Installed resource verification failed.' }
 
     $env:LOCALAPPDATA = $localAppData
@@ -246,7 +247,7 @@ try {
             throw "Reinstalled artifact is missing: $required"
         }
     }
-    & $BuildPython (Join-Path $PSScriptRoot 'verify_electron_package_contents.py') $resources
+    & $buildPythonPath (Join-Path $PSScriptRoot 'verify_electron_package_contents.py') $resources
     if ($LASTEXITCODE -ne 0) { throw 'Reinstalled resource verification failed.' }
 
     Set-SmokePhase 'final-uninstall'
