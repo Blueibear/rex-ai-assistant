@@ -19,6 +19,7 @@ def test_windows_artifact_workflow_exercises_installed_release() -> None:
         "npm run dist",
         "verify_electron_package_contents.py",
         "test_installed_electron_artifact.ps1",
+        "askrex-windows-smoke-diagnostics",
     ):
         assert required in workflow
 
@@ -35,6 +36,7 @@ def test_installed_artifact_harness_retries_identity_with_diagnostics() -> None:
     assert "failed after 3 attempts" in harness
     assert "$identityResult.Stdout.Trim()" in harness
     assert "$identityResult.Stderr.Trim()" in harness
+    assert "Write-SmokeDiagnostics 'failure'" in harness
 
 
 def test_installed_artifact_harness_uses_utf8_file_backed_stdin() -> None:
@@ -45,3 +47,17 @@ def test_installed_artifact_harness_uses_utf8_file_backed_stdin() -> None:
     assert "Start-Process @startProcessArguments" in harness
     assert "StandardInputEncoding" not in harness
     assert "StandardInput.BaseStream" not in harness
+
+
+def test_installed_artifact_harness_uses_clean_reinstall_lifecycle() -> None:
+    harness = (ROOT / "scripts/test_installed_electron_artifact.ps1").read_text(encoding="utf-8")
+    phases = (
+        "initial-install",
+        "first-uninstall",
+        "reinstall",
+        "final-uninstall",
+    )
+    positions = [harness.index(phase) for phase in phases]
+    assert positions == sorted(positions)
+    assert "function Invoke-Uninstaller" in harness
+    assert "function Assert-Uninstalled" in harness
