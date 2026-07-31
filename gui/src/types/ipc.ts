@@ -548,12 +548,24 @@ export interface SetupCompleteResponse {
   error?: string
 }
 
+// AbortSignal instances do not survive Electron's contextBridge isolation
+// boundary with their EventTarget prototype methods intact (calling
+// addEventListener/removeEventListener on a signal that crossed the bridge
+// throws "is not a function"). Callers pass a plain callback-shaped handle
+// instead, built from a real AbortSignal in the renderer's own realm, since
+// function arguments are proxied correctly across the bridge.
+export interface ChatStreamCancelHandle {
+  isAborted: () => boolean
+  onAbort: (cb: () => void) => void
+  offAbort: (cb: () => void) => void
+}
+
 export interface RexAPI {
   sendChat: (message: string) => Promise<string>
   sendChatStream: (
     message: string,
     onToken: (token: string) => void,
-    signal?: AbortSignal
+    cancel?: ChatStreamCancelHandle
   ) => Promise<void>
   getStatus: () => Promise<StatusResponse>
   onStatusChange: (cb: (status: string) => void) => (() => void)

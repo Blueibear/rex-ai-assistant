@@ -42,13 +42,14 @@ import type {
   SetupStatusResponse,
   SetupCompletePayload,
   SetupCompleteResponse,
-  IntegrationConnectionStatus
+  IntegrationConnectionStatus,
+  ChatStreamCancelHandle
 } from '../types/ipc'
 
 function makeSendChatStream(
   message: string,
   onToken: (token: string) => void,
-  signal?: AbortSignal
+  cancel?: ChatStreamCancelHandle
 ): Promise<void> {
   return new Promise<void>((resolve, reject) => {
     const streamId = `${Date.now()}-${Math.random()}`
@@ -73,7 +74,7 @@ function makeSendChatStream(
       ipcRenderer.removeListener('rex:chatToken', tokenHandler)
       ipcRenderer.removeListener('rex:chatDone', doneHandler)
       ipcRenderer.removeListener('rex:chatError', errorHandler)
-      signal?.removeEventListener('abort', abortHandler)
+      if (typeof cancel?.offAbort === 'function') cancel.offAbort(abortHandler)
     }
 
     function abortHandler(): void {
@@ -85,11 +86,14 @@ function makeSendChatStream(
     ipcRenderer.on('rex:chatToken', tokenHandler)
     ipcRenderer.on('rex:chatDone', doneHandler)
     ipcRenderer.on('rex:chatError', errorHandler)
-    if (signal?.aborted) {
+    // Defensive: a malformed cancel handle (e.g. a raw AbortSignal-shaped
+    // object degraded by the contextBridge boundary, missing these methods)
+    // must degrade to "no cancellation available" rather than crash the turn.
+    if (typeof cancel?.isAborted === 'function' && cancel.isAborted()) {
       abortHandler()
       return
     }
-    signal?.addEventListener('abort', abortHandler, { once: true })
+    if (typeof cancel?.onAbort === 'function') cancel.onAbort(abortHandler)
 
     ipcRenderer.invoke('rex:startChatStream', { message, streamId }).catch((err: unknown) => {
       cleanup()
