@@ -60,6 +60,75 @@ def _normalize_device_name(name: str) -> str:
     return re.sub(r"[^a-z0-9]+", " ", value.casefold()).strip()
 
 
+_HOSTAPI_INPUT_PRIORITY = {
+    # DirectSound/MME are the most reliable shared-mode choices for the
+    # blocking ``sounddevice.rec`` path used by wake-word capture on
+    # Windows. WASAPI can fail intermittently when Chromium has touched
+    # the same Bluetooth/USB device, and WDM-KS is often exclusive.
+    "windows directsound": 40,
+    "mme": 30,
+    "windows wasapi": 20,
+    "windows wdm ks": 10,
+}
+
+
+def _load_audio_inventory(
+    devices: list[dict] | None,
+    hostapis: list[dict] | None,
+) -> tuple[list[dict], list[dict]]:
+    sounddevice = None
+    if devices is None:
+        sounddevice = _require_sounddevice()
+        try:
+            devices = sounddevice.query_devices()
+        except Exception as exc:
+            raise AudioDeviceError(f"Failed to query audio devices: {exc}") from exc
+
+    if hostapis is not None:
+        return devices, hostapis
+
+    if sounddevice is None:
+        sounddevice = _require_sounddevice()
+    try:
+        return devices, sounddevice.query_hostapis()
+    except Exception:
+        return devices, []
+
+
+def _device_name_match_score(requested: str, candidate: str) -> int | None:
+    if candidate == requested:
+        return 100
+    if candidate in requested or requested in candidate:
+        return 80
+
+    overlap = len(set(requested.split()) & set(candidate.split()))
+    return 50 + overlap if overlap >= 3 else None
+
+
+def _device_hostapi_priority(device: dict, hostapis: list[dict]) -> int:
+    hostapi_index = int(device.get("hostapi", -1) or -1)
+    if not 0 <= hostapi_index < len(hostapis):
+        return 0
+    hostapi_name = _normalize_device_name(str(hostapis[hostapi_index].get("name", "")))
+    return _HOSTAPI_INPUT_PRIORITY.get(hostapi_name, 0)
+
+
+def _input_device_candidate_score(
+    requested: str,
+    device: dict,
+    hostapis: list[dict],
+) -> int | None:
+    if int(device.get("max_input_channels", 0) or 0) < 1:
+        return None
+    candidate = _normalize_device_name(str(device.get("name", "")))
+    if not candidate:
+        return None
+    name_score = _device_name_match_score(requested, candidate)
+    if name_score is None:
+        return None
+    return name_score + _device_hostapi_priority(device, hostapis)
+
+
 def resolve_input_device_index_by_name(
     device_name: str | None,
     *,
@@ -77,64 +146,18 @@ def resolve_input_device_index_by_name(
     if not requested:
         return None
 
-    sounddevice = None
-    if devices is None:
-        sounddevice = _require_sounddevice()
-        try:
-            devices = sounddevice.query_devices()
-        except Exception as exc:
-            raise AudioDeviceError(f"Failed to query audio devices: {exc}") from exc
-
-    if hostapis is None:
-        if sounddevice is None:
-            sounddevice = _require_sounddevice()
-        try:
-            hostapis = sounddevice.query_hostapis()
-        except Exception:
-            hostapis = []
-
-    hostapi_priority = {
-        # DirectSound/MME are the most reliable shared-mode choices for the
-        # blocking ``sounddevice.rec`` path used by wake-word capture on
-        # Windows. WASAPI can fail intermittently when Chromium has touched
-        # the same Bluetooth/USB device, and WDM-KS is often exclusive.
-        "windows directsound": 40,
-        "mme": 30,
-        "windows wasapi": 20,
-        "windows wdm ks": 10,
-    }
-    candidates: list[tuple[int, int]] = []
-    for index, device in enumerate(devices):
-        if int(device.get("max_input_channels", 0) or 0) < 1:
-            continue
-        candidate = _normalize_device_name(str(device.get("name", "")))
-        if not candidate:
-            continue
-        if candidate == requested:
-            match_score = 100
-        elif candidate in requested or requested in candidate:
-            match_score = 80
-        else:
-            requested_tokens = set(requested.split())
-            candidate_tokens = set(candidate.split())
-            overlap = len(requested_tokens & candidate_tokens)
-            if overlap < 3:
-                continue
-            match_score = 50 + overlap
-
-        hostapi_index = int(device.get("hostapi", -1) or -1)
-        hostapi_name = ""
-        if 0 <= hostapi_index < len(hostapis):
-            hostapi_name = _normalize_device_name(str(hostapis[hostapi_index].get("name", "")))
-        candidates.append((match_score + hostapi_priority.get(hostapi_name, 0), index))
-
+    resolved_devices, resolved_hostapis = _load_audio_inventory(devices, hostapis)
+    candidates = [
+        (score, index)
+        for index, device in enumerate(resolved_devices)
+        if (score := _input_device_candidate_score(requested, device, resolved_hostapis))
+        is not None
+    ]
     if not candidates:
         raise AudioDeviceError(
             f"Selected microphone is unavailable to the wake-word backend: {device_name}"
         )
-
-    candidates.sort(reverse=True)
-    return candidates[0][1]
+    return max(candidates)[1]
 
 
 def get_selected_input_device_index(config: dict) -> int | None:

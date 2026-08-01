@@ -10,6 +10,29 @@ let currentVoiceState = 'idle'
 
 type BridgeResult<T> = T & { ok: boolean; error?: string }
 type VoiceStartOptions = { microphoneLabel?: string }
+type VoiceBridgeEvent = {
+  type: string
+  state?: string
+  text?: string
+  role?: string
+  timestamp?: number
+  error?: string
+  status?: string
+  level?: string
+  message?: string
+  extra?: Record<string, unknown>
+  traceback?: string
+}
+type VoiceBridgeEventContext = {
+  process: ChildProcess
+  settleStartup: (result: { ok: boolean; error?: string }) => void
+  failStartup: (error: string) => void
+  setStartupStatus: (status: string) => void
+}
+type VoiceBridgeEventHandler = (
+  event: VoiceBridgeEvent,
+  context: VoiceBridgeEventContext
+) => void
 
 function normalizeMicrophoneLabel(options: VoiceStartOptions | undefined): string | undefined {
   const label = typeof options?.microphoneLabel === 'string' ? options.microphoneLabel.trim() : ''
@@ -42,6 +65,118 @@ function broadcastVoiceEvent(channel: string, data: unknown): void {
 function setVoiceState(state: string): void {
   currentVoiceState = state
   broadcastVoiceEvent('rex:voiceState', { state })
+}
+
+function parseVoiceBridgeEvent(line: string): VoiceBridgeEvent | null {
+  try {
+    const parsed = JSON.parse(line) as unknown
+    if (typeof parsed !== 'object' || parsed === null) return null
+    const event = parsed as VoiceBridgeEvent
+    return typeof event.type === 'string' ? event : null
+  } catch {
+    return null
+  }
+}
+
+function handleVoiceReadyEvent(
+  _event: VoiceBridgeEvent,
+  context: VoiceBridgeEventContext
+): void {
+  appendElectronLog('INFO', 'GUI voice bridge reported wake listener ready', {
+    event: 'voice_bridge_ready',
+    pid: context.process.pid
+  })
+  context.settleStartup({ ok: true })
+}
+
+function handleVoiceStatusEvent(
+  event: VoiceBridgeEvent,
+  context: VoiceBridgeEventContext
+): void {
+  if (!event.status) return
+  context.setStartupStatus(event.status.replace(/_/g, ' '))
+  appendElectronLog('DEBUG', 'GUI voice bridge status', {
+    event: 'voice_bridge_status',
+    status: event.status,
+    pid: context.process.pid
+  })
+  broadcastVoiceEvent('rex:voiceStatus', {
+    status: event.status,
+    label: formatVoiceStatus(event.status)
+  })
+}
+
+function handleVoiceLogEvent(event: VoiceBridgeEvent, context: VoiceBridgeEventContext): void {
+  appendElectronLog(event.level ?? 'INFO', event.message ?? 'GUI voice bridge log', {
+    ...(event.extra ?? {}),
+    source_logger: 'rex_voice_bridge',
+    pid: context.process.pid
+  })
+}
+
+function handleVoiceStateEvent(
+  event: VoiceBridgeEvent,
+  context: VoiceBridgeEventContext
+): void {
+  if (!event.state) return
+  const normalizedState = normalizeBridgeVoiceState(event.state)
+  setVoiceState(normalizedState)
+  appendElectronLog('DEBUG', 'GUI voice bridge state', {
+    event: 'voice_bridge_state',
+    state: normalizedState,
+    raw_state: event.state,
+    pid: context.process.pid
+  })
+  if (normalizedState === 'wake_listening') {
+    appendElectronLog('INFO', 'GUI voice bridge wake listen acknowledged', {
+      event: 'voice_listen_acknowledged',
+      pid: context.process.pid
+    })
+  }
+}
+
+function handleVoiceTranscriptEvent(
+  event: VoiceBridgeEvent,
+  context: VoiceBridgeEventContext
+): void {
+  const transcript = {
+    text: event.text ?? '',
+    role: event.role ?? 'rex',
+    timestamp: event.timestamp ?? Date.now()
+  }
+  appendElectronLog('INFO', 'GUI voice bridge transcript event', {
+    event: 'voice_bridge_transcript',
+    ...transcript,
+    pid: context.process.pid
+  })
+  broadcastVoiceEvent('rex:voiceTranscript', transcript)
+}
+
+function handleVoiceErrorEvent(event: VoiceBridgeEvent, context: VoiceBridgeEventContext): void {
+  const error = event.error ?? 'Unknown voice error'
+  appendElectronLog('ERROR', 'GUI voice bridge error event', {
+    event: 'voice_bridge_error',
+    error,
+    traceback: event.traceback,
+    pid: context.process.pid
+  })
+  context.failStartup(error)
+}
+
+const VOICE_BRIDGE_EVENT_HANDLERS: Record<string, VoiceBridgeEventHandler> = {
+  ready: handleVoiceReadyEvent,
+  status: handleVoiceStatusEvent,
+  log: handleVoiceLogEvent,
+  state: handleVoiceStateEvent,
+  transcript: handleVoiceTranscriptEvent,
+  error: handleVoiceErrorEvent
+}
+
+function dispatchVoiceBridgeEvent(
+  event: VoiceBridgeEvent,
+  context: VoiceBridgeEventContext
+): void {
+  VOICE_BRIDGE_EVENT_HANDLERS[event.type]?.(event, context)
 }
 
 function killVoiceProcess(): void {
@@ -166,91 +301,22 @@ export function registerVoiceHandlers(session: ElectronSessionIdentity): void {
 
       let lineBuffer = ''
 
+      const bridgeEventContext: VoiceBridgeEventContext = {
+        process: py,
+        settleStartup,
+        failStartup,
+        setStartupStatus: (status) => {
+          startupStatus = status
+        }
+      }
+
       py.stdout.on('data', (chunk: Buffer) => {
         lineBuffer += chunk.toString()
         const lines = lineBuffer.split('\n')
         lineBuffer = lines.pop() ?? ''
         for (const line of lines) {
-          const trimmed = line.trim()
-          if (!trimmed) continue
-          try {
-            const obj = JSON.parse(trimmed) as {
-              type: string
-              state?: string
-              text?: string
-              role?: string
-              timestamp?: number
-              error?: string
-              status?: string
-              level?: string
-              message?: string
-              extra?: Record<string, unknown>
-              traceback?: string
-            }
-            if (obj.type === 'ready') {
-              appendElectronLog('INFO', 'GUI voice bridge reported wake listener ready', {
-                event: 'voice_bridge_ready',
-                pid: py.pid
-              })
-              settleStartup({ ok: true })
-            } else if (obj.type === 'status' && obj.status) {
-              startupStatus = obj.status.replace(/_/g, ' ')
-              appendElectronLog('DEBUG', 'GUI voice bridge status', {
-                event: 'voice_bridge_status',
-                status: obj.status,
-                pid: py.pid
-              })
-              broadcastVoiceEvent('rex:voiceStatus', {
-                status: obj.status,
-                label: formatVoiceStatus(obj.status)
-              })
-            } else if (obj.type === 'log') {
-              appendElectronLog(obj.level ?? 'INFO', obj.message ?? 'GUI voice bridge log', {
-                ...(obj.extra ?? {}),
-                source_logger: 'rex_voice_bridge',
-                pid: py.pid
-              })
-            } else if (obj.type === 'state' && obj.state) {
-              const normalizedState = normalizeBridgeVoiceState(obj.state)
-              setVoiceState(normalizedState)
-              appendElectronLog('DEBUG', 'GUI voice bridge state', {
-                event: 'voice_bridge_state',
-                state: normalizedState,
-                raw_state: obj.state,
-                pid: py.pid
-              })
-              if (normalizedState === 'wake_listening') {
-                appendElectronLog('INFO', 'GUI voice bridge wake listen acknowledged', {
-                  event: 'voice_listen_acknowledged',
-                  pid: py.pid
-                })
-              }
-            } else if (obj.type === 'transcript') {
-              appendElectronLog('INFO', 'GUI voice bridge transcript event', {
-                event: 'voice_bridge_transcript',
-                role: obj.role ?? 'rex',
-                text: obj.text ?? '',
-                timestamp: obj.timestamp ?? Date.now(),
-                pid: py.pid
-              })
-              broadcastVoiceEvent('rex:voiceTranscript', {
-                text: obj.text ?? '',
-                role: obj.role ?? 'rex',
-                timestamp: obj.timestamp ?? Date.now()
-              })
-            } else if (obj.type === 'error') {
-              const error = obj.error ?? 'Unknown voice error'
-              appendElectronLog('ERROR', 'GUI voice bridge error event', {
-                event: 'voice_bridge_error',
-                error,
-                traceback: obj.traceback,
-                pid: py.pid
-              })
-              failStartup(error)
-            }
-          } catch {
-            // skip malformed NDJSON lines
-          }
+          const event = parseVoiceBridgeEvent(line.trim())
+          if (event) dispatchVoiceBridgeEvent(event, bridgeEventContext)
         }
       })
 

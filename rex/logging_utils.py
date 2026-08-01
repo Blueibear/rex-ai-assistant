@@ -158,7 +158,7 @@ try:  # pragma: no cover - avoid circular imports during package init
 
     settings = getattr(_config_module, "settings", None)
 except Exception:  # pragma: no cover - fallback when config not initialised
-    pass
+    settings = None
 
 
 def _current_settings() -> Any | None:
