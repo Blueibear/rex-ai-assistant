@@ -16,14 +16,13 @@ The first registered user is automatically granted ``admin``.
 from __future__ import annotations
 
 import logging
-import os
 import sqlite3
 from enum import StrEnum
 from pathlib import Path
 
-logger = logging.getLogger(__name__)
+from rex.runtime_paths import household_data_path
 
-_DB_PATH = Path(os.getenv("REX_DATA_DIR", "data")) / "users.db"
+logger = logging.getLogger(__name__)
 
 
 class Permission(StrEnum):
@@ -42,10 +41,8 @@ class Permission(StrEnum):
 
 
 def _get_db_path() -> Path:
-    raw = os.getenv("REX_DATA_DIR")
-    if raw:
-        return Path(raw) / "users.db"
-    return _DB_PATH
+    """Return the canonical household users database path."""
+    return household_data_path("users.db")
 
 
 def _open_db() -> sqlite3.Connection:

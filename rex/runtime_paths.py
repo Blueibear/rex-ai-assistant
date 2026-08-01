@@ -4,6 +4,12 @@ Runtime state must never depend on the process working directory. Electron
 sets ``ASKREX_RUNTIME_DIR`` to its per-user data directory. Source checkouts
 fall back to the repository root, while installed CLI use falls back to the
 platform user-data directory.
+
+Within ``data/``, household-shared state and private per-Rex-user state are
+separated explicitly::
+
+    data/household/...          shared configuration and service state
+    data/users/<user_id>/...    private user-owned state
 """
 
 from __future__ import annotations
@@ -17,6 +23,8 @@ _CONFIG_PATH_ENV = "ASKREX_CONFIG_PATH"
 _ENV_PATH_ENV = "ASKREX_ENV_PATH"
 _PROFILES_DIR_ENV = "ASKREX_PROFILES_DIR"
 _DATA_DIR_ENV = "REX_DATA_DIR"
+_HOUSEHOLD_DATA_DIR_ENV = "ASKREX_HOUSEHOLD_DATA_DIR"
+_USERS_DATA_DIR_ENV = "ASKREX_USERS_DATA_DIR"
 _MEMORY_DIR_ENV = "ASKREX_MEMORY_DIR"
 
 
@@ -38,8 +46,10 @@ def source_checkout_root(start: Path | None = None) -> Path | None:
 def _platform_user_data_root() -> Path:
     home = Path.home()
     if sys.platform == "win32":
-        base = os.getenv("APPDATA") or os.getenv("LOCALAPPDATA")
-        return _expanded_path(base) / "AskRex" if base else home / "AppData" / "Roaming" / "AskRex"
+        # LOCALAPPDATA is the correct boundary for machine-local application
+        # state. APPDATA is only a compatibility fallback.
+        base = os.getenv("LOCALAPPDATA") or os.getenv("APPDATA")
+        return _expanded_path(base) / "AskRex" if base else home / "AppData" / "Local" / "AskRex"
     if sys.platform == "darwin":
         return home / "Library" / "Application Support" / "AskRex"
     base = os.getenv("XDG_DATA_HOME")
@@ -57,7 +67,7 @@ def runtime_root() -> Path:
 
 def _resolve(value: str | os.PathLike[str] | None, default: str) -> Path:
     if value is None:
-        return runtime_root() / default
+        return (runtime_root() / default).resolve(strict=False)
     path = Path(value).expanduser()
     return (
         path.resolve(strict=False)
@@ -90,6 +100,44 @@ def data_dir(value: str | os.PathLike[str] | None = None) -> Path:
     return _resolve(value, "data")
 
 
+def household_data_dir(value: str | os.PathLike[str] | None = None) -> Path:
+    """Return shared state, preserving the legacy ``REX_DATA_DIR`` contract."""
+    if value is None and os.getenv(_HOUSEHOLD_DATA_DIR_ENV):
+        value = os.environ[_HOUSEHOLD_DATA_DIR_ENV]
+    if value is not None:
+        return _resolve(value, "data/household")
+    if os.getenv(_DATA_DIR_ENV):
+        return data_dir()
+    return _resolve(None, "data/household")
+
+
+def users_data_dir(value: str | os.PathLike[str] | None = None) -> Path:
+    """Return the parent directory for private Rex-user state."""
+    if value is None and os.getenv(_USERS_DATA_DIR_ENV):
+        value = os.environ[_USERS_DATA_DIR_ENV]
+    if value is not None:
+        return _resolve(value, "data/users")
+    return (data_dir() / "users").resolve(strict=False)
+
+
+def user_data_dir(user_id: str) -> Path:
+    """Return private storage for a validated Rex user."""
+    # Lazy import avoids a config/runtime_paths import cycle.
+    from rex.identity import validate_user_id
+
+    return users_data_dir() / validate_user_id(user_id)
+
+
+def household_data_path(*parts: str | os.PathLike[str]) -> Path:
+    """Resolve a path beneath household-shared storage."""
+    return household_data_dir().joinpath(*map(Path, parts)).resolve(strict=False)
+
+
+def user_data_path(user_id: str, *parts: str | os.PathLike[str]) -> Path:
+    """Resolve a path beneath one validated user's private storage."""
+    return user_data_dir(user_id).joinpath(*map(Path, parts)).resolve(strict=False)
+
+
 def memory_dir(value: str | os.PathLike[str] | None = None) -> Path:
     if value is None and os.getenv(_MEMORY_DIR_ENV):
         value = os.environ[_MEMORY_DIR_ENV]
@@ -100,8 +148,13 @@ __all__ = [
     "config_path",
     "data_dir",
     "env_path",
+    "household_data_dir",
+    "household_data_path",
     "memory_dir",
     "profiles_dir",
     "runtime_root",
     "source_checkout_root",
+    "user_data_dir",
+    "user_data_path",
+    "users_data_dir",
 ]

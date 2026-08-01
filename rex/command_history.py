@@ -12,22 +12,18 @@ Public API
 from __future__ import annotations
 
 import logging
-import os
 import sqlite3
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-logger = logging.getLogger(__name__)
+from rex.runtime_paths import household_data_path
 
-_DEFAULT_DB = Path("data") / "command_history.db"
+logger = logging.getLogger(__name__)
 
 
 def _get_db_path() -> Path:
-    raw = os.getenv("REX_DATA_DIR")
-    if raw:
-        return Path(raw) / "command_history.db"
-    return _DEFAULT_DB
+    return household_data_path("command_history.db")
 
 
 class CommandHistoryStore:
@@ -35,7 +31,7 @@ class CommandHistoryStore:
 
     Args:
         db_path: Path to the SQLite database file.
-                 Defaults to ``data/command_history.db``.
+                 Defaults to ``data/household/command_history.db``.
     """
 
     def __init__(self, db_path: str | Path | None = None) -> None:

@@ -24,6 +24,7 @@ from .llm_client import LanguageModel
 from .memory import trim_history
 from .model_router import ModelRouter
 from .plugins import PluginSpec
+from .runtime_paths import household_data_path
 
 logger = logging.getLogger(__name__)
 
@@ -128,9 +129,7 @@ class Assistant:
             try:
                 db_path = getattr(self._settings, "history_db_path", None)
                 if db_path is None:
-                    from pathlib import Path as _Path
-
-                    db_path = _Path("data/history.db")
+                    db_path = household_data_path("history.db")
                 self._history_store = HistoryStore(db_path=db_path)
                 if self._user_id is not None:
                     # Preload the last 50 turns into in-memory history

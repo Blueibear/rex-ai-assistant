@@ -101,6 +101,10 @@ describe('runtime path isolation', () => {
     const options = bridgeSpawnOptions()
     expect(options.cwd).toBe('/fake/user-data')
     expect(options.env.REX_DATA_DIR).toBe(join('/fake/user-data', 'data'))
+    expect(options.env.ASKREX_HOUSEHOLD_DATA_DIR).toBe(
+      join('/fake/user-data', 'data', 'household')
+    )
+    expect(options.env.ASKREX_USERS_DATA_DIR).toBe(join('/fake/user-data', 'data', 'users'))
     expect(options.env.ASKREX_MEMORY_DIR).toBe(join('/fake/user-data', 'Memory'))
   })
 })

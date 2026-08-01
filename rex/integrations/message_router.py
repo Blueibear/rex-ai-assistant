@@ -2,11 +2,11 @@
 
 Routes a message to the correct channel based on an explicit
 ``preferred_channel`` argument, a contacts file
-(``~/.rex/contacts.json``), or availability of configured services.
+(the household contacts store), or availability of configured services.
 
 Priority:
 1. ``preferred_channel`` parameter — used directly if supplied.
-2. Contact entry in ``~/.rex/contacts.json`` — uses the stored
+2. Contact entry in the household contacts store — uses the stored
    ``preferred_channel`` for that contact (matched by name or number).
 3. Service availability — email if :class:`EmailService` is configured;
    SMS if :class:`SMSService` is configured; raises :exc:`NoChannelError`
@@ -21,6 +21,8 @@ from pathlib import Path
 from typing import Protocol, runtime_checkable
 
 from pydantic import BaseModel
+
+from rex.runtime_paths import household_data_path
 
 logger = logging.getLogger(__name__)
 
@@ -79,14 +81,19 @@ class EmailChannel(Protocol):
 # Contacts helper
 # ---------------------------------------------------------------------------
 
-_CONTACTS_PATH = Path.home() / ".rex" / "contacts.json"
+_CONTACTS_PATH: Path | None = None
+
+
+def _contacts_path() -> Path:
+    return _CONTACTS_PATH or household_data_path("contacts.json")
 
 
 def _load_contacts() -> list[dict[str, str]]:
-    """Load contacts from ``~/.rex/contacts.json`` (returns empty list on error)."""
+    """Load household contacts, returning an empty list on error."""
+    path = _contacts_path()
     try:
-        if _CONTACTS_PATH.exists():
-            raw = _CONTACTS_PATH.read_text(encoding="utf-8")
+        if path.exists():
+            raw = path.read_text(encoding="utf-8")
             data = json.loads(raw)
             if isinstance(data, list):
                 return [c for c in data if isinstance(c, dict)]
@@ -147,7 +154,7 @@ class MessageRouter:
         Args:
             contact: Recipient identifier — an email address, a phone
                 number in E.164 format, or a display name that can be
-                looked up in ``~/.rex/contacts.json``.
+                looked up in the household contacts store.
             body: Message body text.
             preferred_channel: Explicit channel override (``"sms"`` or
                 ``"email"``).  When supplied, skips all routing logic.

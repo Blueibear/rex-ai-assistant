@@ -6,8 +6,8 @@ Provides:
 - :class:`PreferenceStore` — a JSON-backed store for loading and saving a
   :class:`UserPreferenceProfile`.
 
-The backing file is created automatically at ``~/.rex/preferences.json`` on
-first save.
+The backing file is created automatically beneath the validated user's private
+runtime directory on first save.
 """
 
 from __future__ import annotations
@@ -18,14 +18,13 @@ from pathlib import Path
 
 from pydantic import BaseModel, Field
 
+from rex.runtime_paths import user_data_path
+
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
-
-_DEFAULT_PREFS_PATH = Path.home() / ".rex" / "preferences.json"
-
 
 # ---------------------------------------------------------------------------
 # UserPreferenceProfile
@@ -63,13 +62,16 @@ class PreferenceStore:
     """JSON-backed store for a :class:`UserPreferenceProfile`.
 
     Args:
-        prefs_path: Path to the JSON file.  Defaults to
-            ``~/.rex/preferences.json``.  The parent directory is created
-            automatically on :meth:`save`.
+        prefs_path: Explicit JSON path, primarily for tests and migrations.
+        user_id: Validated owner used when ``prefs_path`` is omitted.
     """
 
-    def __init__(self, prefs_path: Path | None = None) -> None:
-        self._path: Path = prefs_path or _DEFAULT_PREFS_PATH
+    def __init__(self, prefs_path: Path | None = None, *, user_id: str = "default") -> None:
+        self._path = (
+            Path(prefs_path)
+            if prefs_path is not None
+            else user_data_path(user_id, "autonomy", "preferences.json")
+        )
 
     def load(self) -> UserPreferenceProfile:
         """Load the preference profile from disk.

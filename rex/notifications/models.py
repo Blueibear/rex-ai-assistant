@@ -3,7 +3,7 @@
 ``Notification`` holds all metadata needed by the notification engine to
 make routing, quiet-hours, and escalation decisions.
 
-``NotificationStore`` persists notifications to ``~/.rex/notifications.db``
+``NotificationStore`` persists notifications to the household runtime database
 using the standard library ``sqlite3`` module — no extra dependencies.
 """
 
@@ -17,6 +17,8 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
+from rex.runtime_paths import household_data_path
+
 # ---------------------------------------------------------------------------
 # Type aliases
 # ---------------------------------------------------------------------------
@@ -27,8 +29,6 @@ NotificationChannel = Literal["desktop", "digest", "sms", "email"]
 # ---------------------------------------------------------------------------
 # Notification model
 # ---------------------------------------------------------------------------
-
-_DB_PATH = Path.home() / ".rex" / "notifications.db"
 
 
 class Notification(BaseModel):
@@ -135,12 +135,13 @@ class NotificationStore:
     """SQLite-backed persistence for :class:`Notification` objects.
 
     Args:
-        db_path: Path to the SQLite database file.  Defaults to
-            ``~/.rex/notifications.db``.
+        db_path: Explicit SQLite path. Defaults to the household runtime store.
     """
 
-    def __init__(self, db_path: Path = _DB_PATH) -> None:
-        self._db_path = db_path
+    def __init__(self, db_path: Path | None = None) -> None:
+        self._db_path = (
+            Path(db_path) if db_path is not None else household_data_path("notifications.db")
+        )
         self._db_path.parent.mkdir(parents=True, exist_ok=True)
         with self._connect() as con:
             con.execute(_CREATE_TABLE)

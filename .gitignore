@@ -187,3 +187,7 @@ data/shopping_list.json
 bridge/data/
 
 /gui/profiles/
+
+# Canonical AskRex runtime data
+data/household/
+data/users/

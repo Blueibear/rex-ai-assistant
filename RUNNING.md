@@ -29,6 +29,17 @@ source .venv/bin/activate
 | OpenClaw tool server | `rex-tool-server` | HTTP tool adapter service on port 18790 |
 | Windows computer agent | `rex-agent` | Optional remote PC control agent |
 
+## Runtime data locations
+
+Packaged Electron bridges write only beneath Electron's `userData` directory.
+Shared state resolves to `data/household/`; private state resolves to
+`data/users/<validated-user-id>/`. Developer source runs use the repository as
+the runtime root unless `ASKREX_RUNTIME_DIR` is set. `REX_DATA_DIR` remains a
+compatibility override for the exact shared-data root.
+
+Use `python scripts/migrate_runtime_data.py --user <user-id>` for a dry-run of
+legacy `data/` and `~/.rex` moves. Add `--apply` only after reviewing the plan.
+
 The old Tkinter launchers are archived under `archived/tkinter_gui/` and are not supported.
 
 ## Text Chat

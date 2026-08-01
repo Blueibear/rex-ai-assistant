@@ -45,6 +45,7 @@ from rex.config_manager import get_legacy_env_warnings
 from rex.log_paths import DEFAULT_ERROR_LOG_FILE, DEFAULT_RUNTIME_LOG_FILE
 from rex.logging_utils import get_logger, set_global_level
 from rex.runtime_paths import env_path as resolve_env_path
+from rex.runtime_paths import household_data_path
 
 from rex.profile_manager import (
     DEFAULT_PROFILES_DIR,
@@ -458,7 +459,7 @@ class AppConfig:
 
     # Conversation history persistence
     persist_history: bool = True
-    history_db_path: Path = field(default_factory=lambda: Path("data/history.db"))
+    history_db_path: Path = field(default_factory=lambda: household_data_path("history.db"))
     history_retention_days: int = 30
 
     # Autonomy budget limits (0 = unlimited)
@@ -1233,7 +1234,11 @@ def build_app_config(json_config: dict) -> AppConfig:
         # History persistence
         persist_history=bool(_get_nested(json_config, "runtime.persist_history", True)),
         history_db_path=Path(
-            _get_nested(json_config, "runtime.history_db_path", "data/history.db")
+            _get_nested(
+                json_config,
+                "runtime.history_db_path",
+                str(household_data_path("history.db")),
+            )
         ),
         history_retention_days=_coerce_int(json_config, "runtime.history_retention_days", 30),
         # Model routing
