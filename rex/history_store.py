@@ -3,7 +3,7 @@
 Stores conversation turns (user / assistant messages) per user so that
 sessions can be resumed after restarts.
 
-Default database path: ``data/history.db`` (configurable via ``db_path``).
+Default database path: ``data/household/history.db`` (configurable via ``db_path``).
 """
 
 from __future__ import annotations
@@ -15,10 +15,10 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from rex.identity import validate_user_id
+from rex.runtime_paths import household_data_path
 
 logger = logging.getLogger(__name__)
 
-_DEFAULT_DB_PATH = Path("data/history.db")
 
 _CREATE_TABLE_SQL = """
 CREATE TABLE IF NOT EXISTS turns (
@@ -40,14 +40,14 @@ class HistoryStore:
 
     Args:
         db_path: Path to the SQLite database file.  Defaults to
-            ``data/history.db``.  Parent directories are created if they
+            ``data/household/history.db``. Parent directories are created if they
             do not exist.
     """
 
-    def __init__(self, db_path: Path = _DEFAULT_DB_PATH) -> None:
-        self._db_path = db_path
+    def __init__(self, db_path: Path | None = None) -> None:
+        self._db_path = Path(db_path) if db_path is not None else household_data_path("history.db")
         self._lock = threading.Lock()
-        db_path.parent.mkdir(parents=True, exist_ok=True)
+        self._db_path.parent.mkdir(parents=True, exist_ok=True)
         with self._connect() as conn:
             conn.execute(_CREATE_TABLE_SQL)
             conn.execute(_CREATE_INDEX_SQL)

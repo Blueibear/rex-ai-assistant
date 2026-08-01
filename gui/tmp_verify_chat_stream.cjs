@@ -11,7 +11,11 @@ function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-function registerDeterministicChatStreamHandler() {
+function registerDeterministicAppHandlers() {
+  ipcMain.removeHandler('rex:getSetupStatus');
+  ipcMain.handle('rex:getSetupStatus', async () => ({ ok: true, needs_setup: false }));
+  ipcMain.removeHandler('rex:getStatus');
+  ipcMain.handle('rex:getStatus', async () => ({ ok: true, status: 'ready' }));
   ipcMain.removeHandler('rex:startChatStream');
   ipcMain.handle('rex:startChatStream', async (event, { message, streamId }) => {
     process.stdout.write(JSON.stringify({ handler: 'rex:startChatStream', message }) + '\n');
@@ -39,8 +43,9 @@ app.whenReady().then(async () => {
   let ok = false;
   try {
     const win = await waitForWindow();
+    registerDeterministicAppHandlers();
+    await win.reload();
     await sleep(1500);
-    registerDeterministicChatStreamHandler();
     const result = await win.webContents.executeJavaScript(`
       (async () => {
         const prompt = 'Smoke test message';

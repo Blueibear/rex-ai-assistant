@@ -93,6 +93,7 @@ Priority key: **P0** release blocker / security-critical, **P1** required for sh
 - Tests: `tests/test_memory_isolation.py`, `tests/test_electron_session_isolation.py`, `tests/test_command_history.py`
 - Validation commands: `py -3.11 -m pytest -q tests/test_memory_isolation.py tests/test_electron_session_isolation.py tests/test_command_history.py`; `cd gui; npm.cmd test; npm.cmd run build`
 - DoD: two Rex users and two Windows OS users cannot read each other's private data; migration is dry-run-first, idempotent, and backed up; packaged Electron writes only under the approved root
+- **Implemented 2026-08-01:** canonical runtime paths now separate `data/household/` from `data/users/<validated-user-id>/`; Electron passes explicit runtime, household, and users roots; legacy `REX_DATA_DIR` semantics remain compatible; `scripts/migrate_runtime_data.py` provides backed-up, conflict-safe dry-run/apply migration. Local evidence: 8,109 CI-selected tests passed at 82.49% coverage, 36 integration tests passed, 26 GUI tests passed, Electron streaming verification passed, and Ruff/Black/mypy/security gates passed. GitHub PR checks remain required before final completion.
 
 **S4 — Move desktop secrets into an OS-backed credential vault** (P1)
 - Files/areas: `gui/src/main/configStore.ts:59-114`; `gui/src/main/handlers/settings.ts:31-55`; `gui/src/main/settingsMirror.ts:95-116,143-145`; `rex/credentials.py:1-7,26-46,111-233`

@@ -6,7 +6,6 @@ import base64
 import hashlib
 import hmac
 import json
-import os
 import sqlite3
 import time
 import uuid
@@ -18,6 +17,7 @@ from pathlib import Path
 from typing import Any, Protocol
 
 from rex.identity import validate_user_id
+from rex.runtime_paths import household_data_dir
 
 
 class HARisk(StrEnum):
@@ -91,14 +91,7 @@ _PROHIBITED_DOMAINS = {
 
 
 def _runtime_data_dir() -> Path:
-    configured = os.environ.get("REX_DATA_DIR")
-    if configured:
-        return Path(configured)
-    if os.name == "nt":
-        base = Path(os.environ.get("LOCALAPPDATA", str(Path.home() / "AppData" / "Local")))
-    else:
-        base = Path(os.environ.get("XDG_DATA_HOME", str(Path.home() / ".local" / "share")))
-    return base / "rex-ai"
+    return household_data_dir()
 
 
 def classify_ha_risk(domain: str, service: str) -> HARisk:

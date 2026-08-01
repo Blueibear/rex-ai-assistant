@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Any
 
 from rex.audio.speaker_discovery import start_smart_speaker_discovery
+from rex.runtime_paths import household_data_dir
 
 _DEFAULT_HOST = "127.0.0.1"
 _DEFAULT_PORT = 8765
@@ -137,7 +138,7 @@ def _create_flask_app(ui_enabled: bool = True) -> Any:
     app = Flask(__name__, static_folder=None)
     app.secret_key = "rex-gui-local"  # local-only; not security-sensitive
     app.config["SETUP_TOKEN"] = secrets.token_urlsafe(32)
-    data_dir = Path(os.getenv("REX_DATA_DIR", "data"))
+    data_dir = household_data_dir()
     history_store = HistoryStore(db_path=data_dir / "history.db")
     _register_core_routes(app, ui_enabled=ui_enabled)
     _register_api_blueprints(app, data_dir=data_dir, history_store=history_store)

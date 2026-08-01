@@ -17,14 +17,37 @@ network exposure, service auth, packaging, or security controls.
 - Core config, `.env`, and profile defaults resolve through `rex.runtime_paths`.
 - `ASKREX_RUNTIME_DIR` overrides the runtime root for packaged or managed launches.
 - `ASKREX_CONFIG_PATH`, `ASKREX_ENV_PATH`, `ASKREX_PROFILES_DIR`, `REX_DATA_DIR`,
-  and `ASKREX_MEMORY_DIR` may override individual paths.
+  `ASKREX_HOUSEHOLD_DATA_DIR`, `ASKREX_USERS_DATA_DIR`, and `ASKREX_MEMORY_DIR`
+  may override individual paths.
 - Source checkouts default to the repository root. Installed Python use falls back
   to the platform user-data directory.
 - Electron development bridges use the repository root; packaged bridges use
-  `app.getPath('userData')` through `bridgeSpawnOptions()`. The canonical CWD keeps
-  legacy relative `data/` stores under that runtime root until they are migrated.
+  `app.getPath('userData')` through `bridgeSpawnOptions()`.
+- Shared state belongs under `data/household/`; private state belongs under
+  `data/users/<validated-user-id>/`. `REX_DATA_DIR` retains its historical
+  meaning as the exact shared-data root when the explicit household override is
+  absent; its private sibling is `<REX_DATA_DIR>/users/` unless overridden.
 - New persistence code must use `rex.runtime_paths`. Never use the bridge script
   directory, application archive, or packaged resources as writable storage.
+
+### Runtime-data migration
+
+Preview the known legacy `data/` and `~/.rex` moves without writing anything:
+
+```bash
+python scripts/migrate_runtime_data.py --user <user-id>
+```
+
+Apply only after reviewing the complete plan:
+
+```bash
+python scripts/migrate_runtime_data.py --user <user-id> --apply
+```
+
+The tool validates the owner, creates adjacent `.pre-runtime-root-migration.bak`
+backups, retains every source, copies through a temporary path, treats identical
+targets as already migrated, and refuses conflicting destinations. Re-running
+it is safe.
 
 ## Canonical Secret-Loading Path
 
@@ -297,7 +320,7 @@ Deprecated flat-field aliases that currently emit `DeprecationWarning`:
 | `error_log_path` | `runtime.error_log_path` | json-only | runtime | platform default |
 | `memory_max_bytes` | `runtime.memory_max_bytes` | json-only | runtime | `131072` |
 | `persist_history` | `runtime.persist_history` | json-only | runtime | `True` |
-| `history_db_path` | `runtime.history_db_path` | json-only | runtime | `"data/history.db"` |
+| `history_db_path` | `runtime.history_db_path` | json-only | runtime | canonical household `history.db` |
 | `history_retention_days` | `runtime.history_retention_days` | json-only | runtime | `30` |
 | `response_cache_ttl` | `response_cache.ttl` | json-only | runtime | `300.0` |
 

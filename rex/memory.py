@@ -71,6 +71,7 @@ from typing import Any
 from pydantic import BaseModel, Field
 
 from rex.identity import validate_user_id
+from rex.runtime_paths import data_dir, user_data_dir, users_data_dir
 
 # Re-export existing memory utilities for backward compatibility
 from .memory_utils import (  # noqa: F401
@@ -87,8 +88,16 @@ from .memory_utils import (  # noqa: F401
 
 logger = logging.getLogger(__name__)
 
-# Default data directory for structured memory
-_DATA_DIR = Path("data/memory")
+# Compatibility seam for callers/tests that replace the structured-memory
+# root. Production defaults use the canonical private-user layout.
+_DATA_DIR = data_dir() / "memory"
+_INITIAL_DATA_DIR = _DATA_DIR
+
+
+def _legacy_memory_dir() -> Path:
+    """Return the pre-canonical structured-memory root."""
+    return _DATA_DIR
+
 
 # The distinct profile that owns pre-isolation legacy data. Never used as an
 # implicit fallback; callers must select it explicitly.
@@ -122,8 +131,12 @@ def _reject_case_conflicts(user_id: str) -> None:
     """
     folded = user_id.casefold()
     known_ids: set[str] = set(_working_memories) | set(_long_term_memories)
-    if _DATA_DIR.is_dir():
-        known_ids.update(entry.name for entry in _DATA_DIR.iterdir() if entry.is_dir())
+    private_root = users_data_dir()
+    if private_root.is_dir():
+        known_ids.update(entry.name for entry in private_root.iterdir() if entry.is_dir())
+    legacy_root = _legacy_memory_dir()
+    if legacy_root.is_dir():
+        known_ids.update(entry.name for entry in legacy_root.iterdir() if entry.is_dir())
     for existing in known_ids:
         if existing != user_id and existing.casefold() == folded:
             raise ValueError(
@@ -132,10 +145,18 @@ def _reject_case_conflicts(user_id: str) -> None:
 
 
 def _user_memory_dir(user_id: str) -> Path:
-    """Return the per-user memory directory for a validated user ID."""
+    """Return private memory storage and copy a legacy user store on first access."""
     user_id = validate_user_id(user_id)
     _reject_case_conflicts(user_id)
-    return _DATA_DIR / user_id
+    target = (
+        _DATA_DIR / user_id if _DATA_DIR != _INITIAL_DATA_DIR else user_data_dir(user_id) / "memory"
+    )
+    legacy = _legacy_memory_dir() / user_id
+    if legacy.is_dir() and not target.exists():
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copytree(legacy, target)
+        logger.info("Copied legacy memory profile '%s' into canonical private storage", user_id)
+    return target
 
 
 def _migrate_legacy_default_store(filename: str) -> None:
@@ -154,11 +175,12 @@ def _migrate_legacy_default_store(filename: str) -> None:
        If the move fails, the original stays in place and the move is
        retried later; migration itself is already complete.
     """
-    legacy = _DATA_DIR / filename
+    legacy_root = _legacy_memory_dir()
+    legacy = legacy_root / filename
     if not legacy.is_file():
         return
 
-    target = _DATA_DIR / DEFAULT_PROFILE / filename
+    target = _user_memory_dir(DEFAULT_PROFILE) / filename
     if not target.exists():
         target.parent.mkdir(parents=True, exist_ok=True)
         # PID-unique temp file: concurrent first-time migrations (e.g. two
@@ -172,7 +194,7 @@ def _migrate_legacy_default_store(filename: str) -> None:
             tmp_copy.unlink(missing_ok=True)
         logger.info("Migrated legacy shared %s into the 'default' profile store", filename)
 
-    backup = _DATA_DIR / (filename + LEGACY_BACKUP_SUFFIX)
+    backup = legacy_root / (filename + LEGACY_BACKUP_SUFFIX)
     if not backup.exists():
         try:
             legacy.rename(backup)
@@ -923,10 +945,11 @@ def list_memory_user_ids() -> list[str]:
     returned; anything else (including the legacy shared files and their
     backups at the data-dir root) is ignored and never treated as a user.
     """
-    if not _DATA_DIR.is_dir():
+    root = _DATA_DIR if _DATA_DIR != _INITIAL_DATA_DIR else users_data_dir()
+    if not root.is_dir():
         return []
     users: list[str] = []
-    for entry in sorted(_DATA_DIR.iterdir()):
+    for entry in sorted(root.iterdir()):
         if not entry.is_dir():
             continue
         try:

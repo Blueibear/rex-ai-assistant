@@ -177,6 +177,20 @@ Use:
 - `.env` for secrets: API keys, tokens, and shared service keys.
 - `profiles/*.json` for profile capabilities and runtime overrides.
 
+### Existing runtime data
+
+AskRex now separates shared state under `data/household/` from private state
+under `data/users/<user-id>/`. Before upgrading an existing installation,
+preview the migration plan:
+
+```bash
+python scripts/migrate_runtime_data.py --user <user-id>
+```
+
+After reviewing every source and destination, apply it with `--apply`. The tool
+creates adjacent backups, retains the original files, is safe to rerun, and
+refuses to overwrite conflicting targets.
+
 Useful commands:
 
 ```bash

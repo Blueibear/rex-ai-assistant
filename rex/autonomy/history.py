@@ -6,8 +6,8 @@ Provides:
 - :class:`HistoryStore` — an async SQLite-backed store for
   :class:`ExecutionRecord` objects.
 
-The backing database is created automatically at ``~/.rex/execution_history.db``
-on first access.  The migration (table creation) also runs on first access so
+The backing database is created automatically beneath the validated user's private
+runtime directory on first access.  The migration (table creation) also runs on first access so
 callers never need to manage schema versions.
 """
 
@@ -23,14 +23,13 @@ import aiosqlite
 from pydantic import BaseModel, Field
 
 from rex.autonomy.models import Plan
+from rex.runtime_paths import user_data_path
 
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
-
-_DEFAULT_DB_PATH = Path.home() / ".rex" / "execution_history.db"
 
 OutcomeType = Literal["success", "partial", "failed"]
 
@@ -93,13 +92,16 @@ class HistoryStore:
     """Async SQLite-backed store for :class:`ExecutionRecord` objects.
 
     Args:
-        db_path: Path to the SQLite database file.  Defaults to
-            ``~/.rex/execution_history.db``.  The parent directory is
-            created automatically if it does not exist.
+        db_path: Explicit SQLite path, primarily for tests and migrations.
+        user_id: Validated owner used when ``db_path`` is omitted.
     """
 
-    def __init__(self, db_path: Path | None = None) -> None:
-        self._db_path: Path = db_path or _DEFAULT_DB_PATH
+    def __init__(self, db_path: Path | None = None, *, user_id: str = "default") -> None:
+        self._db_path = (
+            Path(db_path)
+            if db_path is not None
+            else user_data_path(user_id, "autonomy", "execution_history.db")
+        )
 
     # ------------------------------------------------------------------
     # Migration / initialisation

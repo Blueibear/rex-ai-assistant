@@ -95,6 +95,8 @@ export function bridgeSpawnOptions(): { cwd: string; env: NodeJS.ProcessEnv } {
       ASKREX_ENV_PATH: join(runtimeRoot, '.env'),
       ASKREX_PROFILES_DIR: join(runtimeRoot, 'profiles'),
       REX_DATA_DIR: join(runtimeRoot, 'data'),
+      ASKREX_HOUSEHOLD_DATA_DIR: join(runtimeRoot, 'data', 'household'),
+      ASKREX_USERS_DATA_DIR: join(runtimeRoot, 'data', 'users'),
       ASKREX_MEMORY_DIR: join(runtimeRoot, 'Memory')
     }
   }

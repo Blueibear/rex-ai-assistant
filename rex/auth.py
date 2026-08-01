@@ -20,9 +20,10 @@ from typing import Any
 import bcrypt
 import jwt
 
+from rex.runtime_paths import household_data_path
+
 logger = logging.getLogger(__name__)
 
-_DB_PATH = Path(os.getenv("REX_DATA_DIR", "data")) / "users.db"
 _JWT_ALGORITHM = "HS256"
 _TOKEN_EXPIRY_HOURS = 24
 
@@ -47,11 +48,8 @@ def get_jwt_secret() -> str:
 
 
 def _get_db_path() -> Path:
-    """Return the resolved path to the users database."""
-    raw = os.getenv("REX_DATA_DIR")
-    if raw:
-        return Path(raw) / "users.db"
-    return _DB_PATH
+    """Return the canonical household users database path."""
+    return household_data_path("users.db")
 
 
 def _open_db() -> sqlite3.Connection:

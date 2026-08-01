@@ -15,9 +15,10 @@ Raw refresh tokens are never stored; only SHA-256 hashes.
 from __future__ import annotations
 
 import logging
-import os
 import sqlite3
 from pathlib import Path
+
+from rex.runtime_paths import household_data_path
 
 logger = logging.getLogger(__name__)
 
@@ -25,8 +26,8 @@ _BUSY_TIMEOUT_MS = 5000
 
 
 def default_users_db_path() -> Path:
-    """Return the canonical users database path (honours ``REX_DATA_DIR``)."""
-    return Path(os.getenv("REX_DATA_DIR", "data")) / "users.db"
+    """Return the canonical household users database path."""
+    return household_data_path("users.db")
 
 
 def connect(db_path: Path | str) -> sqlite3.Connection:
