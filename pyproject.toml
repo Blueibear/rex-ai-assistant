@@ -32,6 +32,7 @@ dependencies = [
     # Configuration & Validation
     "pydantic>=2.0.0",  # Upgraded to v2 for security and performance
     "python-dotenv>=1.0.1",
+    "tzdata>=2024.1",  # IANA timezone database for Windows (zoneinfo has no OS database there)
 
     # Web Scraping
     "beautifulsoup4>=4.12.0",
