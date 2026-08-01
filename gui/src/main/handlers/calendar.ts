@@ -1,6 +1,6 @@
 import { ipcMain } from 'electron'
 import { spawn } from 'child_process'
-import { resolveBridgePath, resolvePythonCommand } from '../bridgeResolver'
+import { bridgeSpawnOptions, resolveBridgePath, resolvePythonCommand } from '../bridgeResolver'
 import type { CalendarEvent, CalendarEventInput, FindMeetingSlotsParams, TimeSlot } from '../../types/ipc'
 import { privateSessionPayload, type ElectronSessionIdentity } from '../sessionIdentity'
 
@@ -11,6 +11,7 @@ function callCalendarBridge(session: ElectronSessionIdentity, command: string, e
   return new Promise((resolve, reject) => {
     const scriptPath = resolveBridgePath('rex_calendar_bridge.py')
     const py = spawn(resolvePythonCommand(), [scriptPath], {
+      ...bridgeSpawnOptions(),
       stdio: ['pipe', 'pipe', 'pipe']
     })
 

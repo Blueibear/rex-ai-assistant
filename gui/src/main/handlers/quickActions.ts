@@ -1,7 +1,7 @@
 import { ipcMain } from 'electron'
 import { spawn } from 'child_process'
 import type { QuickAction, QuickActionRunResponse } from '../../types/ipc'
-import { resolveBridgePath, resolvePythonCommand } from '../bridgeResolver'
+import { bridgeSpawnOptions, resolveBridgePath, resolvePythonCommand } from '../bridgeResolver'
 import { privateSessionPayload, type ElectronSessionIdentity } from '../sessionIdentity'
 
 function callQuickActionsBridge(payload: Record<string, unknown>): Promise<Record<string, unknown>> {
@@ -9,6 +9,7 @@ function callQuickActionsBridge(payload: Record<string, unknown>): Promise<Recor
     const scriptPath = resolveBridgePath('rex_quick_actions_bridge.py')
 
     const py = spawn(resolvePythonCommand(), [scriptPath], {
+      ...bridgeSpawnOptions(),
       stdio: ['pipe', 'pipe', 'pipe']
     })
 

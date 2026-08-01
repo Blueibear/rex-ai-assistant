@@ -1,6 +1,6 @@
 import { ipcMain } from 'electron'
 import { spawn } from 'child_process'
-import { resolveBridgePath, resolvePythonCommand } from '../bridgeResolver'
+import { bridgeSpawnOptions, resolveBridgePath, resolvePythonCommand } from '../bridgeResolver'
 import type { EmailMessage } from '../../types/ipc'
 import { privateSessionPayload, type ElectronSessionIdentity } from '../sessionIdentity'
 
@@ -8,6 +8,7 @@ function callEmailBridge(session: ElectronSessionIdentity, command: string, extr
   return new Promise((resolve, reject) => {
     const scriptPath = resolveBridgePath('rex_email_bridge.py')
     const py = spawn(resolvePythonCommand(), [scriptPath], {
+      ...bridgeSpawnOptions(),
       stdio: ['pipe', 'pipe', 'pipe']
     })
 

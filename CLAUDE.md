@@ -120,6 +120,15 @@ Runtime settings belong in:
 
 config/rex_config.json
 
+Core config, `.env`, and profile paths must resolve through
+`rex.runtime_paths`, not the process working directory. Electron must launch
+every Python bridge with `bridgeSpawnOptions()` so development uses the
+repository root and packaged builds use Electron `userData`; this also keeps
+legacy relative `data/` stores inside the canonical runtime root. New
+persistence code must use `rex.runtime_paths`, and existing legacy stores
+should be migrated when touched. Never write runtime state beneath `bridge/`,
+the application archive, or packaged resources.
+
 Principles:
 
 - least privilege defaults

@@ -1,13 +1,14 @@
 import { ipcMain } from 'electron'
 import { spawn } from 'child_process'
 import type { SetupCompletePayload, SetupCompleteResponse, SetupStatusResponse } from '../../types/ipc'
-import { resolveBridgePath, resolvePythonCommand } from '../bridgeResolver'
+import { bridgeSpawnOptions, resolveBridgePath, resolvePythonCommand } from '../bridgeResolver'
 
 function callSetupBridge(payload: Record<string, unknown>): Promise<Record<string, unknown>> {
   return new Promise((resolve) => {
     const scriptPath = resolveBridgePath('rex_setup_bridge.py')
 
     const py = spawn(resolvePythonCommand(), [scriptPath], {
+      ...bridgeSpawnOptions(),
       stdio: ['pipe', 'pipe', 'pipe']
     })
 

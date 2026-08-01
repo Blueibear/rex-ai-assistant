@@ -1,8 +1,7 @@
 import { BrowserWindow, ipcMain } from 'electron'
 import { spawn } from 'child_process'
 import type { ChildProcess } from 'child_process'
-import { dirname } from 'path'
-import { resolveBridgePath, resolvePythonCommand } from '../bridgeResolver'
+import { bridgeSpawnOptions, resolveBridgePath, resolvePythonCommand } from '../bridgeResolver'
 import { appendElectronLog } from './logs'
 import { privateSessionPayload, type ElectronSessionIdentity } from '../sessionIdentity'
 
@@ -87,7 +86,8 @@ export function registerVoiceHandlers(session: ElectronSessionIdentity): void {
     }
 
     const scriptPath = resolveBridgeScript('rex_voice_bridge.py')
-    const bridgeCwd = dirname(scriptPath)
+    const voiceBridgeOptions = bridgeSpawnOptions()
+    const bridgeCwd = voiceBridgeOptions.cwd
     const microphoneLabel = normalizeMicrophoneLabel(options)
     appendElectronLog('INFO', 'Starting GUI voice bridge process', {
       event: 'voice_bridge_start_requested',
@@ -107,7 +107,7 @@ export function registerVoiceHandlers(session: ElectronSessionIdentity): void {
       bridgeArgs.push('--microphone-label', microphoneLabel)
     }
     const py = spawn(resolvePythonCommand(), bridgeArgs, {
-      cwd: bridgeCwd,
+      ...voiceBridgeOptions,
       stdio: ['pipe', 'pipe', 'pipe']
     })
 
@@ -301,6 +301,7 @@ export function registerVoiceHandlers(session: ElectronSessionIdentity): void {
     const scriptPath = resolveBridgeScript('rex_voices_bridge.py')
     return new Promise((resolve) => {
       const py = spawn(resolvePythonCommand(), [scriptPath], {
+        ...bridgeSpawnOptions(),
         stdio: ['pipe', 'pipe', 'pipe']
       })
       let stdout = ''
@@ -355,6 +356,7 @@ export function registerVoiceHandlers(session: ElectronSessionIdentity): void {
     const scriptPath = resolveBridgeScript('rex_voice_sample_bridge.py')
     return new Promise((resolve) => {
       const py = spawn(resolvePythonCommand(), [scriptPath], {
+        ...bridgeSpawnOptions(),
         stdio: ['pipe', 'pipe', 'pipe']
       })
       let stdout = ''
@@ -406,6 +408,7 @@ export function registerVoiceHandlers(session: ElectronSessionIdentity): void {
       const scriptPath = resolveBridgeScript('rex_voice_sample_bridge.py')
       return new Promise((resolve) => {
         const py = spawn(resolvePythonCommand(), [scriptPath], {
+          ...bridgeSpawnOptions(),
           stdio: ['pipe', 'pipe', 'pipe']
         })
         let stdout = ''
@@ -464,6 +467,7 @@ export function registerVoiceHandlers(session: ElectronSessionIdentity): void {
       const scriptPath = resolveBridgeScript('rex_wakeword_list_bridge.py')
       return new Promise((resolve) => {
         const py = spawn(resolvePythonCommand(), [scriptPath], {
+          ...bridgeSpawnOptions(),
           stdio: ['pipe', 'pipe', 'pipe']
         })
         let stdout = ''
@@ -533,6 +537,7 @@ export function registerVoiceHandlers(session: ElectronSessionIdentity): void {
       const scriptPath = resolveBridgeScript('rex_voice_upload_bridge.py')
       return new Promise((resolve) => {
         const py = spawn(resolvePythonCommand(), [scriptPath], {
+          ...bridgeSpawnOptions(),
           stdio: ['pipe', 'pipe', 'pipe']
         })
         let stdout = ''
@@ -590,6 +595,7 @@ export function registerVoiceHandlers(session: ElectronSessionIdentity): void {
       const scriptPath = resolveBridgeScript('rex_wakeword_sample_bridge.py')
       return new Promise((resolve) => {
         const py = spawn(resolvePythonCommand(), [scriptPath], {
+          ...bridgeSpawnOptions(),
           stdio: ['pipe', 'pipe', 'pipe']
         })
         let stdout = ''
@@ -648,6 +654,7 @@ export function registerVoiceHandlers(session: ElectronSessionIdentity): void {
       const scriptPath = resolveBridgeScript('rex_wakeword_train_bridge.py')
       return new Promise((resolve) => {
         const py = spawn(resolvePythonCommand(), [scriptPath], {
+          ...bridgeSpawnOptions(),
           stdio: ['pipe', 'pipe', 'pipe']
         })
         let stdout = ''
@@ -745,6 +752,7 @@ function callEnrollmentBridge(payload: Record<string, unknown>): Promise<BridgeR
   const scriptPath = resolveBridgeScript('rex_voice_enrollment_bridge.py')
   return new Promise((resolve) => {
     const py = spawn(resolvePythonCommand(), [scriptPath], {
+      ...bridgeSpawnOptions(),
       stdio: ['pipe', 'pipe', 'pipe']
     })
     let stdout = ''

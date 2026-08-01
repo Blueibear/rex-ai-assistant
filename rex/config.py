@@ -44,6 +44,8 @@ from rex.assistant_errors import ConfigurationError
 from rex.config_manager import get_legacy_env_warnings
 from rex.log_paths import DEFAULT_ERROR_LOG_FILE, DEFAULT_RUNTIME_LOG_FILE
 from rex.logging_utils import get_logger, set_global_level
+from rex.runtime_paths import env_path as resolve_env_path
+
 from rex.profile_manager import (
     DEFAULT_PROFILES_DIR,
     apply_profile,
@@ -53,7 +55,7 @@ from rex.profile_manager import (
 )
 
 LOGGER = get_logger(__name__)
-ENV_PATH = Path(__file__).resolve().parent.parent / ".env"
+ENV_PATH = resolve_env_path()
 
 
 def _parse_int(name: str, value: Optional[str], *, default: int = 0) -> int:
@@ -1309,10 +1311,10 @@ def load_config(
                 file=sys.stderr,
             )
 
-        try:
-            json_config = _merge_profile_config(json_config)
-        except Exception as exc:
-            raise ConfigurationError(f"Profile loading failed: {exc}") from exc
+    try:
+        json_config = _merge_profile_config(json_config)
+    except Exception as exc:
+        raise ConfigurationError(f"Profile loading failed: {exc}") from exc
 
     config = build_app_config(json_config)
 

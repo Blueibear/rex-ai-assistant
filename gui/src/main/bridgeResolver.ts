@@ -73,6 +73,33 @@ export function resolveBridgePath(scriptFilename: string): string {
   return join(app.getAppPath(), '..', 'bridge', scriptFilename)
 }
 
+
+/** Return the writable runtime root shared by Electron and Python bridges. */
+export function resolveRuntimeRoot(): string {
+  return app.isPackaged ? app.getPath('userData') : join(app.getAppPath(), '..')
+}
+
+/**
+ * Return the canonical CWD and path environment for every Python bridge.
+ * This prevents config, profiles, data, and memory from being created beneath
+ * whichever bridge directory happened to launch the process.
+ */
+export function bridgeSpawnOptions(): { cwd: string; env: NodeJS.ProcessEnv } {
+  const runtimeRoot = resolveRuntimeRoot()
+  return {
+    cwd: runtimeRoot,
+    env: {
+      ...process.env,
+      ASKREX_RUNTIME_DIR: runtimeRoot,
+      ASKREX_CONFIG_PATH: join(runtimeRoot, 'config', 'rex_config.json'),
+      ASKREX_ENV_PATH: join(runtimeRoot, '.env'),
+      ASKREX_PROFILES_DIR: join(runtimeRoot, 'profiles'),
+      REX_DATA_DIR: join(runtimeRoot, 'data'),
+      ASKREX_MEMORY_DIR: join(runtimeRoot, 'Memory')
+    }
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Python executable resolution
 // ---------------------------------------------------------------------------

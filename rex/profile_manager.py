@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any
 
 from rex.logging_utils import get_logger
+from rex.runtime_paths import profiles_dir as resolve_profiles_dir
 
 DEFAULT_PROFILES_DIR = "profiles"
 
@@ -65,7 +66,7 @@ _MINIMAL_DEFAULT_PROFILE: dict[str, Any] = {
 }
 
 
-def ensure_default_profile(profiles_dir: str = DEFAULT_PROFILES_DIR) -> bool:
+def ensure_default_profile(profiles_dir: str | Path | None = None) -> bool:
     """Ensure ``profiles/default.json`` exists, creating it if necessary.
 
     Creation order:
@@ -77,25 +78,27 @@ def ensure_default_profile(profiles_dir: str = DEFAULT_PROFILES_DIR) -> bool:
     Returns:
         True if the file was created, False if it already existed.
     """
-    dest = Path(profiles_dir) / "default.json"
+    resolved_dir = resolve_profiles_dir(profiles_dir)
+    dest = resolved_dir / "default.json"
     if dest.exists():
         return False
 
     dest.parent.mkdir(parents=True, exist_ok=True)
 
-    example = Path(profiles_dir) / "default.example.json"
+    example = resolved_dir / "default.example.json"
     if example.exists():
         dest.write_text(example.read_text(encoding="utf-8"), encoding="utf-8")
-        logger.info("Created profiles/default.json from default.example.json")
+        logger.info("Created default profile from %s", example)
     else:
         dest.write_text(json.dumps(_MINIMAL_DEFAULT_PROFILE, indent=2), encoding="utf-8")
-        logger.info("Created profiles/default.json with minimal defaults")
+        logger.info("Created minimal default profile at %s", dest)
 
     return True
 
 
-def load_profile(name: str, profiles_dir: str = DEFAULT_PROFILES_DIR) -> dict[str, Any]:
-    profile_path = Path(profiles_dir) / f"{name}.json"
+def load_profile(name: str, profiles_dir: str | Path | None = None) -> dict[str, Any]:
+    resolved_dir = resolve_profiles_dir(profiles_dir)
+    profile_path = resolved_dir / f"{name}.json"
     if not profile_path.exists():
         raise FileNotFoundError(
             "Profile file not found: "
@@ -103,7 +106,7 @@ def load_profile(name: str, profiles_dir: str = DEFAULT_PROFILES_DIR) -> dict[st
         )
 
     profile = json.loads(profile_path.read_text(encoding="utf-8"))
-    schema_path = Path(profiles_dir) / "profile.schema.json"
+    schema_path = resolved_dir / "profile.schema.json"
     _validate_profile(profile, schema_path)
     return profile  # type: ignore[no-any-return]
 

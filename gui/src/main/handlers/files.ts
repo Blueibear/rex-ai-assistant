@@ -1,6 +1,6 @@
 import { ipcMain } from 'electron'
 import { spawn } from 'child_process'
-import { resolveBridgePath, resolvePythonCommand } from '../bridgeResolver'
+import { bridgeSpawnOptions, resolveBridgePath, resolvePythonCommand } from '../bridgeResolver'
 import { privateSessionPayload, type ElectronSessionIdentity } from '../sessionIdentity'
 
 const FILE_SIZE_LIMIT_BYTES = 10 * 1024 * 1024 // 10 MB
@@ -23,6 +23,7 @@ function callExtractBridge(
   return new Promise((resolve) => {
     const scriptPath = resolveBridgePath('rex_file_extract_bridge.py')
     const py = spawn(resolvePythonCommand(), [scriptPath], {
+      ...bridgeSpawnOptions(),
       stdio: ['pipe', 'pipe', 'pipe']
     })
     let stdout = ''

@@ -12,6 +12,20 @@ network exposure, service auth, packaging, or security controls.
   `rex-config migrate-legacy-env`.
 - The canonical wake-word section is `wakeword`; `wake_word` is legacy.
 
+## Canonical Runtime Paths
+
+- Core config, `.env`, and profile defaults resolve through `rex.runtime_paths`.
+- `ASKREX_RUNTIME_DIR` overrides the runtime root for packaged or managed launches.
+- `ASKREX_CONFIG_PATH`, `ASKREX_ENV_PATH`, `ASKREX_PROFILES_DIR`, `REX_DATA_DIR`,
+  and `ASKREX_MEMORY_DIR` may override individual paths.
+- Source checkouts default to the repository root. Installed Python use falls back
+  to the platform user-data directory.
+- Electron development bridges use the repository root; packaged bridges use
+  `app.getPath('userData')` through `bridgeSpawnOptions()`. The canonical CWD keeps
+  legacy relative `data/` stores under that runtime root until they are migrated.
+- New persistence code must use `rex.runtime_paths`. Never use the bridge script
+  directory, application archive, or packaged resources as writable storage.
+
 ## Canonical Secret-Loading Path
 
 **Secrets must come from `.env` only.** Never from `rex_config.json` or
