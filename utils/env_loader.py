@@ -8,6 +8,7 @@ The .env file is automatically loaded when this module is first imported.
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 try:
@@ -34,12 +35,19 @@ def load() -> None:
     if _loaded:
         return
 
-    # Try to find .env using find_dotenv with usecwd=True
-    dotenv_path = find_dotenv(usecwd=True)
+    explicit_path = os.getenv("ASKREX_ENV_PATH", "").strip()
+    runtime_root = os.getenv("ASKREX_RUNTIME_DIR", "").strip()
+    dotenv_path = explicit_path
 
-    # Fallback to <repo_root>/.env if not found
+    if not dotenv_path and runtime_root:
+        runtime_path = Path(runtime_root).expanduser() / ".env"
+        if runtime_path.exists():
+            dotenv_path = str(runtime_path)
+
     if not dotenv_path:
-        # Determine repository root (parent of utils/ directory)
+        dotenv_path = find_dotenv(usecwd=True)
+
+    if not dotenv_path:
         repo_root = Path(__file__).resolve().parent.parent
         fallback_path = repo_root / ".env"
         if fallback_path.exists():

@@ -1,7 +1,7 @@
 import { ipcMain } from 'electron'
 import { spawn } from 'child_process'
 import type { SmartSpeaker } from '../../types/ipc'
-import { resolveBridgePath, resolvePythonCommand } from '../bridgeResolver'
+import { bridgeSpawnOptions, resolveBridgePath, resolvePythonCommand } from '../bridgeResolver'
 
 function callSpeakerBridge(
   payload: Record<string, unknown>
@@ -10,6 +10,7 @@ function callSpeakerBridge(
     const scriptPath = resolveBridgePath('rex_speaker_bridge.py')
 
     const py = spawn(resolvePythonCommand(), [scriptPath], {
+      ...bridgeSpawnOptions(),
       stdio: ['pipe', 'pipe', 'pipe']
     })
 

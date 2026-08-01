@@ -11,6 +11,7 @@ from utils.env_loader import load as _load_env  # noqa: E402
 _load_env()
 
 import argparse  # noqa: E402
+import re  # noqa: E402
 import sys  # noqa: E402
 from importlib import import_module  # noqa: E402
 from importlib.util import find_spec  # noqa: E402
@@ -52,6 +53,111 @@ def list_devices() -> list[dict]:
         return sounddevice.query_devices()  # type: ignore[no-any-return]
     except Exception as exc:
         raise AudioDeviceError(f"Failed to query audio devices: {exc}") from exc
+
+
+def _normalize_device_name(name: str) -> str:
+    value = re.sub(r"^default\s*-\s*", "", name.strip(), flags=re.IGNORECASE)
+    return re.sub(r"[^a-z0-9]+", " ", value.casefold()).strip()
+
+
+_HOSTAPI_INPUT_PRIORITY = {
+    # DirectSound/MME are the most reliable shared-mode choices for the
+    # blocking ``sounddevice.rec`` path used by wake-word capture on
+    # Windows. WASAPI can fail intermittently when Chromium has touched
+    # the same Bluetooth/USB device, and WDM-KS is often exclusive.
+    "windows directsound": 40,
+    "mme": 30,
+    "windows wasapi": 20,
+    "windows wdm ks": 10,
+}
+
+
+def _load_audio_inventory(
+    devices: list[dict] | None,
+    hostapis: list[dict] | None,
+) -> tuple[list[dict], list[dict]]:
+    sounddevice = None
+    if devices is None:
+        sounddevice = _require_sounddevice()
+        try:
+            devices = sounddevice.query_devices()
+        except Exception as exc:
+            raise AudioDeviceError(f"Failed to query audio devices: {exc}") from exc
+
+    if hostapis is not None:
+        return devices, hostapis
+
+    if sounddevice is None:
+        sounddevice = _require_sounddevice()
+    try:
+        return devices, sounddevice.query_hostapis()
+    except Exception:
+        return devices, []
+
+
+def _device_name_match_score(requested: str, candidate: str) -> int | None:
+    if candidate == requested:
+        return 100
+    if candidate in requested or requested in candidate:
+        return 80
+
+    overlap = len(set(requested.split()) & set(candidate.split()))
+    return 50 + overlap if overlap >= 3 else None
+
+
+def _device_hostapi_priority(device: dict, hostapis: list[dict]) -> int:
+    hostapi_index = int(device.get("hostapi", -1) or -1)
+    if not 0 <= hostapi_index < len(hostapis):
+        return 0
+    hostapi_name = _normalize_device_name(str(hostapis[hostapi_index].get("name", "")))
+    return _HOSTAPI_INPUT_PRIORITY.get(hostapi_name, 0)
+
+
+def _input_device_candidate_score(
+    requested: str,
+    device: dict,
+    hostapis: list[dict],
+) -> int | None:
+    if int(device.get("max_input_channels", 0) or 0) < 1:
+        return None
+    candidate = _normalize_device_name(str(device.get("name", "")))
+    if not candidate:
+        return None
+    name_score = _device_name_match_score(requested, candidate)
+    if name_score is None:
+        return None
+    return name_score + _device_hostapi_priority(device, hostapis)
+
+
+def resolve_input_device_index_by_name(
+    device_name: str | None,
+    *,
+    devices: list[dict] | None = None,
+    hostapis: list[dict] | None = None,
+) -> int | None:
+    """Resolve a browser/OS microphone label to a sounddevice input index.
+
+    Chromium exposes stable human-readable labels but not PortAudio indices.
+    Match the label against input-capable devices and prefer Windows DirectSound,
+    then MME, WASAPI, and WDM-KS when multiple host APIs expose the same
+    physical microphone.
+    """
+    requested = _normalize_device_name(device_name or "")
+    if not requested:
+        return None
+
+    resolved_devices, resolved_hostapis = _load_audio_inventory(devices, hostapis)
+    candidates = [
+        (score, index)
+        for index, device in enumerate(resolved_devices)
+        if (score := _input_device_candidate_score(requested, device, resolved_hostapis))
+        is not None
+    ]
+    if not candidates:
+        raise AudioDeviceError(
+            f"Selected microphone is unavailable to the wake-word backend: {device_name}"
+        )
+    return max(candidates)[1]
 
 
 def get_selected_input_device_index(config: dict) -> int | None:

@@ -1,7 +1,7 @@
 import { ipcMain } from 'electron'
 import { spawn } from 'child_process'
 import type { ShoppingItem } from '../../types/ipc'
-import { resolveBridgePath, resolvePythonCommand } from '../bridgeResolver'
+import { bridgeSpawnOptions, resolveBridgePath, resolvePythonCommand } from '../bridgeResolver'
 import { sharedHouseholdPayload, type ElectronSessionIdentity } from '../sessionIdentity'
 
 function callShoppingBridge(payload: Record<string, unknown>): Promise<Record<string, unknown>> {
@@ -9,6 +9,7 @@ function callShoppingBridge(payload: Record<string, unknown>): Promise<Record<st
     const scriptPath = resolveBridgePath('rex_shopping_list_bridge.py')
 
     const py = spawn(resolvePythonCommand(), [scriptPath], {
+      ...bridgeSpawnOptions(),
       stdio: ['pipe', 'pipe', 'pipe']
     })
 

@@ -18,6 +18,8 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from rex.logging_utils import get_logger
+from rex.runtime_paths import config_path as resolve_config_path
+from rex.runtime_paths import env_path as resolve_env_path
 
 logger = get_logger(__name__)
 
@@ -253,7 +255,7 @@ def _parse_float(value: str) -> Optional[float]:
         return None
 
 
-def load_config(path: str | Path = "config/rex_config.json") -> Dict[str, Any]:
+def load_config(path: str | Path | None = None) -> Dict[str, Any]:
     """Load configuration from JSON file.
 
     Args:
@@ -267,7 +269,7 @@ def load_config(path: str | Path = "config/rex_config.json") -> Dict[str, Any]:
         - Creates default file if missing
         - If invalid JSON, renames to .invalid.<timestamp>.json and recreates defaults
     """
-    config_path = Path(path)
+    config_path = resolve_config_path(path)
 
     # Ensure config directory exists
     config_path.parent.mkdir(parents=True, exist_ok=True)
@@ -309,7 +311,7 @@ def load_config(path: str | Path = "config/rex_config.json") -> Dict[str, Any]:
         return copy.deepcopy(DEFAULT_CONFIG)
 
 
-def save_config(config: Dict[str, Any], path: str | Path = "config/rex_config.json") -> None:
+def save_config(config: Dict[str, Any], path: str | Path | None = None) -> None:
     """Save configuration to JSON file.
 
     Args:
@@ -321,7 +323,7 @@ def save_config(config: Dict[str, Any], path: str | Path = "config/rex_config.js
         - Sorted keys for stable ordering
         - Newline at end of file
     """
-    config_path = Path(path)
+    config_path = resolve_config_path(path)
 
     # Ensure config directory exists
     config_path.parent.mkdir(parents=True, exist_ok=True)
@@ -397,8 +399,8 @@ def _normalize_wake_word_config(config: Dict[str, Any]) -> None:
 
 
 def migrate_legacy_env_to_config(
-    env_path: str | Path = ".env",
-    config_path: str | Path = "config/rex_config.json",
+    env_path: str | Path | None = None,
+    config_path: str | Path | None = None,
     *,
     dry_run: bool = False,
 ) -> List[str]:
@@ -423,7 +425,7 @@ def migrate_legacy_env_to_config(
         - In dry_run=True mode: returns planned actions without writing files.
         - In dry_run=False mode: writes updated config and returns action notes.
     """
-    env_file = Path(env_path)
+    env_file = resolve_env_path(env_path)
     if not env_file.exists():
         return ["No .env file found, no migration needed"]
 
@@ -431,11 +433,11 @@ def migrate_legacy_env_to_config(
 
     # Load current config.  In dry_run mode we must not create the file if it
     # does not exist, so we short-circuit to DEFAULT_CONFIG in that case.
-    cfg_path = Path(config_path)
+    cfg_path = resolve_config_path(config_path)
     if dry_run and not cfg_path.exists():
         config = _deep_merge(copy.deepcopy(DEFAULT_CONFIG), {})
     else:
-        config = load_config(config_path)
+        config = load_config(cfg_path)
 
     # Read .env file directly — same source for both dry-run and real migration.
     env_vars: Dict[str, str] = {}
@@ -540,8 +542,8 @@ def migrate_legacy_env_to_config(
 
     # Save config if anything was migrated
     if migrated_count > 0:
-        save_config(config, config_path)
-        notes.append(f"\nMigrated {migrated_count} settings from .env to {config_path}")
+        save_config(config, cfg_path)
+        notes.append(f"\nMigrated {migrated_count} settings from .env to {cfg_path}")
         notes.append(
             "These environment variables are now ignored. Use rex_config.json for runtime settings."
         )

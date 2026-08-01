@@ -14,6 +14,7 @@ const { mockApp } = vi.hoisted(() => ({
   mockApp: {
     isPackaged: false,
     getAppPath: vi.fn().mockReturnValue('/fake/app'),
+    getPath: vi.fn().mockReturnValue('/fake/user-data'),
   },
 }))
 
@@ -26,12 +27,18 @@ vi.mock('electron', () => ({ app: mockApp }))
 vi.mock('fs', () => ({ existsSync: mockExistsSync }))
 
 // Import after mocks are registered.
-import { resolveBridgePath, resolvePythonCommand } from '../src/main/bridgeResolver'
+import {
+  bridgeSpawnOptions,
+  resolveBridgePath,
+  resolvePythonCommand,
+  resolveRuntimeRoot
+} from '../src/main/bridgeResolver'
 
 describe('resolveBridgePath', () => {
   beforeEach(() => {
     mockApp.isPackaged = false
     mockApp.getAppPath.mockReturnValue('/fake/app')
+    mockApp.getPath.mockReturnValue('/fake/user-data')
     // process.resourcesPath is an Electron global absent in plain Node.
     Object.defineProperty(process, 'resourcesPath', {
       value: '/fake/resources',
@@ -67,5 +74,33 @@ describe('resolveBridgePath', () => {
     const venvPython = join('/fake/app', '..', '.venv', 'Scripts', 'python.exe')
     mockExistsSync.mockImplementation((path) => path === venvPython)
     expect(resolvePythonCommand()).toBe(venvPython)
+  })
+})
+
+
+describe('runtime path isolation', () => {
+  beforeEach(() => {
+    mockApp.isPackaged = false
+    mockApp.getAppPath.mockReturnValue('/fake/app')
+    mockApp.getPath.mockReturnValue('/fake/user-data')
+  })
+
+  it('uses the repository root for development bridges', () => {
+    expect(resolveRuntimeRoot()).toBe(join('/fake/app', '..'))
+    const options = bridgeSpawnOptions()
+    expect(options.cwd).toBe(join('/fake/app', '..'))
+    expect(options.env.ASKREX_CONFIG_PATH).toBe(
+      join('/fake/app', '..', 'config', 'rex_config.json')
+    )
+    expect(options.env.ASKREX_PROFILES_DIR).toBe(join('/fake/app', '..', 'profiles'))
+  })
+
+  it('uses Electron userData for packaged writable state', () => {
+    mockApp.isPackaged = true
+    expect(resolveRuntimeRoot()).toBe('/fake/user-data')
+    const options = bridgeSpawnOptions()
+    expect(options.cwd).toBe('/fake/user-data')
+    expect(options.env.REX_DATA_DIR).toBe(join('/fake/user-data', 'data'))
+    expect(options.env.ASKREX_MEMORY_DIR).toBe(join('/fake/user-data', 'Memory'))
   })
 })

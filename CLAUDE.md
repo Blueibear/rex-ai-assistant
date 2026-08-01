@@ -54,6 +54,7 @@ Current install/runtime compatibility policy:
 
 - End-user install path: packaged Windows Electron installer with managed Python 3.11 Voice runtime
 - Developer/operator install path: Python 3.11 and `pip install .`
+- The base install includes `tzdata` so IANA city/timezone tools work on Windows, where `zoneinfo` has no OS timezone database.
 - Full Windows GPU + TTS path: Python 3.11 with `requirements-gpu-cu124.txt`
 - Do not claim Python 3.12+ support unless the dependency stack has been validated end-to-end and docs, CI, and package metadata are updated together
 
@@ -119,6 +120,15 @@ Secrets belong in `.env` only.
 Runtime settings belong in:
 
 config/rex_config.json
+
+Core config, `.env`, and profile paths must resolve through
+`rex.runtime_paths`, not the process working directory. Electron must launch
+every Python bridge with `bridgeSpawnOptions()` so development uses the
+repository root and packaged builds use Electron `userData`; this also keeps
+legacy relative `data/` stores inside the canonical runtime root. New
+persistence code must use `rex.runtime_paths`, and existing legacy stores
+should be migrated when touched. Never write runtime state beneath `bridge/`,
+the application archive, or packaged resources.
 
 Principles:
 
@@ -292,8 +302,11 @@ Electron Hold-to-Talk is the supported production voice path. It runs
 renderer recording -> persistent managed Whisper STT -> streamed assistant
 response -> configured TTS -> selected output-device playback. Preserve
 cancellation/barge-in, replay, microphone device-loss fallback, repeated turns,
-stage-specific errors, and structured timing events. Wake-word mode remains
-beta unless it is verified on physical audio hardware.
+stage-specific errors, and structured timing events. The Voice-page microphone
+selector must route to both Hold-to-Talk and the Python wake-word capture path;
+never assume a Chromium device selection automatically changes PortAudio's
+default device. Wake-word mode remains beta unless it is verified on physical
+audio hardware.
 
 GUI:
 
@@ -526,3 +539,13 @@ black $files
 black --check --diff $files
 
 Both Ruff and Black must pass.
+
+## Authoritative Product Planning
+
+For product scope, delivery order, and non-negotiable behavior, read these before planning or implementation work:
+
+- `docs/planning/source-of-truth/REX_Unified_Build_Spec_UPDATED.md`
+- `docs/planning/source-of-truth/REX_ACTIVE_CHECKLIST.md`
+- `docs/planning/TEAM_LEAD_OPERATING_RULES.md`
+
+The first two files are the product sources of truth. Other PRDs are supporting history and feature inputs only. Do not mark a feature complete from a checklist alone; verify current code, tests, packaged behavior, and user-visible truth.

@@ -23,7 +23,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any, Literal
-from zoneinfo import ZoneInfo
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from rex.audit import LogEntry, get_audit_logger
 from rex.contracts import ToolCall
@@ -534,7 +534,13 @@ def _execute_time_now(args: dict[str, Any], default_context: dict[str, Any]) -> 
 
     try:
         zone = ZoneInfo(timezone)
-    except Exception:
+    except ZoneInfoNotFoundError:
+        return _error_result(
+            "Timezone database unavailable; install the required tzdata package",
+            tool="time_now",
+            args=args,
+        )
+    except (TypeError, ValueError):
         return _error_result("Invalid timezone for time_now", tool="time_now", args=args)
 
     now = datetime.now(tz=zone)

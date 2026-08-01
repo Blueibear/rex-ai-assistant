@@ -4,7 +4,7 @@ import type { VoiceState } from '../components/voice/VoiceToggle'
 import { WaveformVisualizer } from '../components/voice/WaveformVisualizer'
 import { EmptyState } from '../components/ui/EmptyState'
 import { Tooltip } from '../components/ui/Tooltip'
-import type { VoiceSettings, VoiceTranscriptEntry } from '../types/ipc'
+import type { ChatStreamCancelHandle, VoiceSettings, VoiceTranscriptEntry } from '../types/ipc'
 import { voiceProvider } from '../types/voiceProvider'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -752,10 +752,18 @@ export function VoicePage(): React.ReactElement {
 
     try {
       const responseStarted = performance.now()
+      // AbortSignal doesn't survive the preload contextBridge boundary with its
+      // EventTarget methods intact, so pass a plain-callback handle instead
+      // (built here, in the renderer's own realm, where controller.signal is real).
+      const cancelHandle: ChatStreamCancelHandle = {
+        isAborted: () => controller.signal.aborted,
+        onAbort: (cb) => controller.signal.addEventListener('abort', cb, { once: true }),
+        offAbort: (cb) => controller.signal.removeEventListener('abort', cb),
+      }
       await window.rex.sendChatStream(message, (token) => {
         replyText += token
         updateReply(replyText)
-      }, controller.signal)
+      }, cancelHandle)
       logTiming(turnId, 'assistant_response', performance.now() - responseStarted)
       if (!replyText.trim()) {
         updateReply('I did not receive a reply from the model.')
@@ -874,11 +882,15 @@ export function VoicePage(): React.ReactElement {
       setVoiceState('starting')
       setVoiceStatusLabel('Starting bridge process')
       try {
+        const microphoneLabel = selectedMicId
+          ? micDevices.find((device) => device.deviceId === selectedMicId)?.label.trim()
+          : undefined
         await window.rex.startVoice(
           handleVoiceState,
           handleVoiceTranscript,
           handleVoiceError,
-          handleVoiceStatus
+          handleVoiceStatus,
+          microphoneLabel ? { microphoneLabel } : undefined
         )
         setIsActive(true)
         setVoiceState('wake_listening')
@@ -898,6 +910,8 @@ export function VoicePage(): React.ReactElement {
   }, [
     isActive,
     startingWakeMode,
+    selectedMicId,
+    micDevices,
     handleVoiceState,
     handleVoiceTranscript,
     handleVoiceError,

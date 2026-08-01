@@ -35,6 +35,7 @@ _VOICE_BRIDGE_SESSION_ID = (
 )
 logger = logging.getLogger(__name__)
 _SESSION_USER_ID: str | None = None
+_MICROPHONE_LABEL: str | None = None
 _ResourceT = TypeVar("_ResourceT")
 _INTERNAL_TOOL_SYNTAX_RE = re.compile(r"\bTOOL_(?:REQUEST|RESULT)\s*:", re.IGNORECASE)
 _SENTENCE_SPLIT_RE = re.compile(r"(?<=[.!?])\s+")
@@ -382,6 +383,7 @@ async def _run_real_loop() -> None:
     emit({"type": "status", "status": "importing_assistant"})
     from rex import config as rex_config_module
     from rex.assistant import Assistant
+    from rex.audio_config import resolve_input_device_index_by_name
     from rex.config import load_config as load_runtime_config
     from rex.logging_utils import configure_logging
     from rex.plugins import load_plugins
@@ -440,6 +442,13 @@ async def _run_real_loop() -> None:
     language = str(getattr(active_settings, "whisper_language", "en") or "en")
     detection_hop_seconds = max(0.125, detection_seconds / 8)
     wakeword_threshold = float(getattr(active_settings, "wakeword_threshold", None) or 0.1)
+    microphone_label = (_MICROPHONE_LABEL or "").strip() or None
+    configured_device_index = getattr(active_settings, "input_device_index", None)
+    microphone_device_index = (
+        resolve_input_device_index_by_name(microphone_label)
+        if microphone_label
+        else configured_device_index
+    )
 
     logger.info(
         "GUI voice bridge runtime configuration resolved",
@@ -450,6 +459,8 @@ async def _run_real_loop() -> None:
             "detection_frame_seconds": detection_seconds,
             "detection_hop_seconds": detection_hop_seconds,
             "capture_seconds": capture_seconds,
+            "microphone_label": microphone_label,
+            "microphone_device_index": microphone_device_index,
             "wakeword_backend": getattr(active_settings, "wakeword_backend", None),
             "wakeword_threshold": wakeword_threshold,
             "wakeword_keyword": getattr(active_settings, "wakeword_keyword", None)
@@ -479,6 +490,8 @@ async def _run_real_loop() -> None:
             "detection_frame_seconds": detection_seconds,
             "detection_hop_seconds": detection_hop_seconds,
             "capture_seconds": capture_seconds,
+            "microphone_label": microphone_label,
+            "microphone_device_index": microphone_device_index,
             "wakeword_backend": getattr(active_settings, "wakeword_backend", None),
             "wakeword_threshold": wakeword_threshold,
             "wakeword_keyword": getattr(active_settings, "wakeword_keyword", None)
@@ -520,6 +533,7 @@ async def _run_real_loop() -> None:
         detection_seconds=detection_seconds,
         detection_hop_seconds=detection_hop_seconds,
         capture_seconds=capture_seconds,
+        device_index=microphone_device_index,
     )
 
     emit({"type": "status", "status": "loading_wakeword_detector"})
@@ -847,13 +861,19 @@ async def _run_real_loop() -> None:
 
 
 def main() -> None:
-    global _SESSION_USER_ID
+    global _MICROPHONE_LABEL, _SESSION_USER_ID
     parser = argparse.ArgumentParser(description="AskRex Electron voice bridge")
     parser.add_argument("--user", required=True, help="Validated Electron session user")
+    parser.add_argument(
+        "--microphone-label",
+        default=None,
+        help="Selected Chromium microphone label to map to the wake-word audio backend",
+    )
     args = parser.parse_args()
     from rex.identity import validate_user_id
 
     _SESSION_USER_ID = validate_user_id(args.user)
+    _MICROPHONE_LABEL = (args.microphone_label or "").strip() or None
     # Try to use the real voice loop. GUI wake-word mode should never silently
     # simulate listening because that hides microphone/dependency failures.
     try:

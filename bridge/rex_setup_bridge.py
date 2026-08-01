@@ -17,10 +17,9 @@ from __future__ import annotations
 import json
 import logging
 import sys
-from pathlib import Path
 from typing import Any
 
-from rex.bridge_utils import bridge_error_response, repo_root
+from rex.bridge_utils import bridge_error_response
 
 logger = logging.getLogger(__name__)
 
@@ -103,10 +102,9 @@ def _handle_complete(payload: dict[str, Any]) -> None:
     except Exception:
         logger.debug("Failed to persist setup wizard configuration", exc_info=True)
 
-    try:
-        env_path = repo_root() / ".env"
-    except Exception:
-        env_path = Path(".env")
+    from rex.runtime_paths import env_path as resolve_env_path
+
+    env_path = resolve_env_path()
 
     from rex.gui_app import _write_env_secrets  # noqa: PLC2701
 

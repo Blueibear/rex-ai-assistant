@@ -1,7 +1,7 @@
 import { ipcMain } from 'electron'
 import { spawn } from 'child_process'
 import type { Task, TaskInput, TaskRun } from '../../types/ipc'
-import { resolveBridgePath, resolvePythonCommand } from '../bridgeResolver'
+import { bridgeSpawnOptions, resolveBridgePath, resolvePythonCommand } from '../bridgeResolver'
 import { privateSessionPayload, type ElectronSessionIdentity } from '../sessionIdentity'
 
 /**
@@ -13,6 +13,7 @@ function callTasksBridge(payload: Record<string, unknown>): Promise<Record<strin
     const scriptPath = resolveBridgePath('rex_tasks_bridge.py')
 
     const py = spawn(resolvePythonCommand(), [scriptPath], {
+      ...bridgeSpawnOptions(),
       stdio: ['pipe', 'pipe', 'pipe']
     })
 

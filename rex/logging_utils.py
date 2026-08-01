@@ -152,8 +152,11 @@ def apply_module_log_levels(module_levels: Mapping[str, int | str]) -> None:
         logging.getLogger(module).setLevel(resolved)
 
 
+settings: Any | None = None
 try:  # pragma: no cover - avoid circular imports during package init
-    from .config import settings as settings
+    from . import config as _config_module
+
+    settings = getattr(_config_module, "settings", None)
 except Exception:  # pragma: no cover - fallback when config not initialised
     settings = None
 

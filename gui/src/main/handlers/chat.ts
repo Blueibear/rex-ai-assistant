@@ -1,6 +1,6 @@
 import { ipcMain } from 'electron'
 import { spawn, ChildProcess } from 'child_process'
-import { resolveBridgePath, resolvePythonCommand } from '../bridgeResolver'
+import { bridgeSpawnOptions, resolveBridgePath, resolvePythonCommand } from '../bridgeResolver'
 import { privateSessionPayload, type ElectronSessionIdentity } from '../sessionIdentity'
 
 /**
@@ -12,6 +12,7 @@ function callRexBackend(message: string, session: ElectronSessionIdentity): Prom
     const scriptPath = resolveBridgePath('rex_chat_bridge.py')
 
     const py = spawn(resolvePythonCommand(), [scriptPath], {
+      ...bridgeSpawnOptions(),
       stdio: ['pipe', 'pipe', 'pipe']
     })
 
@@ -89,6 +90,7 @@ function ensureSTTProcess(): Promise<void> {
   return new Promise((resolve, reject) => {
     const scriptPath = resolveBridgePath('rex_stt_bridge.py')
     sttProcess = spawn(resolvePythonCommand(), [scriptPath], {
+      ...bridgeSpawnOptions(),
       stdio: ['pipe', 'pipe', 'pipe']
     })
     sttReady = false
@@ -181,6 +183,7 @@ export function registerChatHandlers(session: ElectronSessionIdentity): void {
     const scriptPath = resolveBridgePath('rex_chat_stream_bridge.py')
 
     const py = spawn(resolvePythonCommand(), [scriptPath], {
+      ...bridgeSpawnOptions(),
       stdio: ['pipe', 'pipe', 'pipe']
     })
     chatStreamProcesses.set(streamId, py)

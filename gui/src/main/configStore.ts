@@ -1,16 +1,15 @@
-import { app } from 'electron'
 import { join } from 'path'
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs'
 import type { Settings } from '../types/ipc'
 import { redactSecretSettings } from './settingsRedaction'
+import { resolveRuntimeRoot } from './bridgeResolver'
 
 // ---------------------------------------------------------------------------
 // Config file helpers
 // ---------------------------------------------------------------------------
 
 export function getConfigDir(): string {
-  // app.getAppPath() returns the gui/ directory in dev; ../config is the Rex config dir
-  return join(app.getAppPath(), '..', 'config')
+  return join(resolveRuntimeRoot(), 'config')
 }
 
 function getGuiSettingsPath(): string {
@@ -61,7 +60,7 @@ export function writeRexConfig(config: Record<string, unknown>): void {
 // ---------------------------------------------------------------------------
 
 function getEnvFilePath(): string {
-  return join(app.getAppPath(), '..', '.env')
+  return join(resolveRuntimeRoot(), '.env')
 }
 
 export function readEnvFile(): Record<string, string> {

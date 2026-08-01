@@ -3,7 +3,7 @@ import { readEnvFile, readGuiSettings, readRexConfig, writeEnvKey, writeGuiSetti
 import { mirrorToRexConfig } from './settingsMirror'
 import { randomUUID } from 'crypto'
 import { spawn } from 'child_process'
-import { resolveBridgePath, resolvePythonCommand } from './bridgeResolver'
+import { bridgeSpawnOptions, resolveBridgePath, resolvePythonCommand } from './bridgeResolver'
 import { privateSessionPayload, type ElectronSessionIdentity } from './sessionIdentity'
 
 export interface HaTestResult {
@@ -114,6 +114,7 @@ export function callDeviceCommand(
   const requestId = existingRequestId ?? randomUUID()
   return new Promise((resolve) => {
     const py = spawn(resolvePythonCommand(), [resolveBridgePath('rex_ha_mutation_bridge.py')], {
+      ...bridgeSpawnOptions(),
       stdio: ['pipe', 'pipe', 'pipe']
     })
     let stdout = ''
