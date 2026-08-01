@@ -34,6 +34,62 @@ def test_list_devices_requires_sounddevice(monkeypatch):
         audio_config.list_devices()
 
 
+def test_resolve_input_device_index_prefers_directsound_exact_match():
+    devices = [
+        {"name": "Headset Microphone (Bose Flex S", "max_input_channels": 1, "hostapi": 0},
+        {
+            "name": "Headset Microphone (Bose Flex SoundLink)",
+            "max_input_channels": 1,
+            "hostapi": 1,
+        },
+        {
+            "name": "Headset Microphone (Bose Flex SoundLink)",
+            "max_input_channels": 1,
+            "hostapi": 2,
+        },
+    ]
+    hostapis = [
+        {"name": "MME"},
+        {"name": "Windows DirectSound"},
+        {"name": "Windows WASAPI"},
+    ]
+
+    result = audio_config.resolve_input_device_index_by_name(
+        "Headset Microphone (Bose Flex SoundLink)",
+        devices=devices,
+        hostapis=hostapis,
+    )
+
+    assert result == 1
+
+
+def test_resolve_input_device_index_handles_chromium_default_prefix():
+    devices = [
+        {
+            "name": "Microphone (C922 Pro Stream Webcam)",
+            "max_input_channels": 2,
+            "hostapi": 0,
+        }
+    ]
+
+    result = audio_config.resolve_input_device_index_by_name(
+        "Default - Microphone (C922 Pro Stream Webcam)",
+        devices=devices,
+        hostapis=[{"name": "Windows WASAPI"}],
+    )
+
+    assert result == 0
+
+
+def test_resolve_input_device_index_fails_closed_for_unknown_device():
+    with pytest.raises(audio_config.AudioDeviceError, match="unavailable"):
+        audio_config.resolve_input_device_index_by_name(
+            "Missing microphone",
+            devices=[{"name": "Other mic", "max_input_channels": 1, "hostapi": 0}],
+            hostapis=[{"name": "MME"}],
+        )
+
+
 def test_main_updates_json_config(monkeypatch, tmp_path):
     """Test that audio_config.main updates rex_config.json instead of .env."""
     # Create a temporary config file

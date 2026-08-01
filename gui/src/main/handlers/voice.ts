@@ -10,6 +10,12 @@ let voiceProcess: ChildProcess | null = null
 let currentVoiceState = 'idle'
 
 type BridgeResult<T> = T & { ok: boolean; error?: string }
+type VoiceStartOptions = { microphoneLabel?: string }
+
+function normalizeMicrophoneLabel(options: VoiceStartOptions | undefined): string | undefined {
+  const label = typeof options?.microphoneLabel === 'string' ? options.microphoneLabel.trim() : ''
+  return label ? label.slice(0, 256) : undefined
+}
 
 function resolveBridgeScript(scriptName: string): string {
   return resolveBridgePath(scriptName)
@@ -58,7 +64,9 @@ function killVoiceProcess(): void {
 }
 
 export function registerVoiceHandlers(session: ElectronSessionIdentity): void {
-  ipcMain.handle('rex:startVoice', async (event): Promise<{ ok: boolean; error?: string }> => {
+  ipcMain.handle(
+    'rex:startVoice',
+    async (event, options?: VoiceStartOptions): Promise<{ ok: boolean; error?: string }> => {
     if (voiceProcess) {
       const existingState = getCurrentVoiceState()
       if (existingState !== 'idle' && existingState !== 'error') {
@@ -80,18 +88,25 @@ export function registerVoiceHandlers(session: ElectronSessionIdentity): void {
 
     const scriptPath = resolveBridgeScript('rex_voice_bridge.py')
     const bridgeCwd = dirname(scriptPath)
+    const microphoneLabel = normalizeMicrophoneLabel(options)
     appendElectronLog('INFO', 'Starting GUI voice bridge process', {
       event: 'voice_bridge_start_requested',
       script_path: scriptPath,
-      cwd: bridgeCwd
+      cwd: bridgeCwd,
+      microphone_label: microphoneLabel ?? null
     })
     appendElectronLog('INFO', 'GUI wake listen requested by renderer', {
       event: 'voice_listen_requested',
       script_path: scriptPath,
-      cwd: bridgeCwd
+      cwd: bridgeCwd,
+      microphone_label: microphoneLabel ?? null
     })
 
-    const py = spawn(resolvePythonCommand(), [scriptPath, '--user', session.userId], {
+    const bridgeArgs = [scriptPath, '--user', session.userId]
+    if (microphoneLabel) {
+      bridgeArgs.push('--microphone-label', microphoneLabel)
+    }
+    const py = spawn(resolvePythonCommand(), bridgeArgs, {
       cwd: bridgeCwd,
       stdio: ['pipe', 'pipe', 'pipe']
     })

@@ -43,7 +43,8 @@ import type {
   SetupCompletePayload,
   SetupCompleteResponse,
   IntegrationConnectionStatus,
-  ChatStreamCancelHandle
+  ChatStreamCancelHandle,
+  VoiceStartOptions
 } from '../types/ipc'
 
 function makeSendChatStream(
@@ -153,7 +154,8 @@ function makeStartVoice(
   onStateChange: (state: string) => void,
   onTranscript: (entry: VoiceTranscriptEntry) => void,
   onError: (error: string) => void,
-  onStatus?: (status: string, label: string) => void
+  onStatus?: (status: string, label: string) => void,
+  options?: VoiceStartOptions
 ): Promise<void> {
   return new Promise<void>((resolve, reject) => {
     const cleanup =
@@ -162,7 +164,7 @@ function makeStartVoice(
         : null
 
     ipcRenderer
-      .invoke('rex:startVoice')
+      .invoke('rex:startVoice', options ?? {})
       .then((result: { ok: boolean; error?: string }) => {
         if (result.ok) {
           resolve()

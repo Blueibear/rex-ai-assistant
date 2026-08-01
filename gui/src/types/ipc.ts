@@ -166,6 +166,10 @@ export interface GeneralSettings {
   startMinimized: boolean
 }
 
+export interface VoiceStartOptions {
+  microphoneLabel?: string
+}
+
 export interface VoiceSettings {
   microphoneDeviceId: string
   speakerDeviceId: string
@@ -575,7 +579,8 @@ export interface RexAPI {
     onStateChange: (state: string) => void,
     onTranscript: (entry: VoiceTranscriptEntry) => void,
     onError: (error: string) => void,
-    onStatus?: (status: string, label: string) => void
+    onStatus?: (status: string, label: string) => void,
+    options?: VoiceStartOptions
   ) => Promise<void>
   attachVoiceSession: (
     onStateChange: (state: string) => void,

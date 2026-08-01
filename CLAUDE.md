@@ -292,8 +292,11 @@ Electron Hold-to-Talk is the supported production voice path. It runs
 renderer recording -> persistent managed Whisper STT -> streamed assistant
 response -> configured TTS -> selected output-device playback. Preserve
 cancellation/barge-in, replay, microphone device-loss fallback, repeated turns,
-stage-specific errors, and structured timing events. Wake-word mode remains
-beta unless it is verified on physical audio hardware.
+stage-specific errors, and structured timing events. The Voice-page microphone
+selector must route to both Hold-to-Talk and the Python wake-word capture path;
+never assume a Chromium device selection automatically changes PortAudio's
+default device. Wake-word mode remains beta unless it is verified on physical
+audio hardware.
 
 GUI:
 

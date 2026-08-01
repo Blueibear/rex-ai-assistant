@@ -882,11 +882,15 @@ export function VoicePage(): React.ReactElement {
       setVoiceState('starting')
       setVoiceStatusLabel('Starting bridge process')
       try {
+        const microphoneLabel = selectedMicId
+          ? micDevices.find((device) => device.deviceId === selectedMicId)?.label.trim()
+          : undefined
         await window.rex.startVoice(
           handleVoiceState,
           handleVoiceTranscript,
           handleVoiceError,
-          handleVoiceStatus
+          handleVoiceStatus,
+          microphoneLabel ? { microphoneLabel } : undefined
         )
         setIsActive(true)
         setVoiceState('wake_listening')
@@ -906,6 +910,8 @@ export function VoicePage(): React.ReactElement {
   }, [
     isActive,
     startingWakeMode,
+    selectedMicId,
+    micDevices,
     handleVoiceState,
     handleVoiceTranscript,
     handleVoiceError,
