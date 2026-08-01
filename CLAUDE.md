@@ -526,3 +526,13 @@ black $files
 black --check --diff $files
 
 Both Ruff and Black must pass.
+
+## Authoritative Product Planning
+
+For product scope, delivery order, and non-negotiable behavior, read these before planning or implementation work:
+
+- `docs/planning/source-of-truth/REX_Unified_Build_Spec_UPDATED.md`
+- `docs/planning/source-of-truth/REX_ACTIVE_CHECKLIST.md`
+- `docs/planning/TEAM_LEAD_OPERATING_RULES.md`
+
+The first two files are the product sources of truth. Other PRDs are supporting history and feature inputs only. Do not mark a feature complete from a checklist alone; verify current code, tests, packaged behavior, and user-visible truth.
