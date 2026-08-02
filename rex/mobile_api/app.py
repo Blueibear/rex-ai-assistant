@@ -29,6 +29,7 @@ from rex.mobile_api.errors import install_mobile_error_handlers
 from rex.mobile_api.routes import (
     build_auth_blueprint,
     build_chat_blueprint,
+    build_pairing_blueprint,
     build_scaffolds_blueprint,
     build_status_blueprint,
     build_voice_blueprint,
@@ -156,6 +157,7 @@ def create_mobile_app(
 
     app.register_blueprint(build_status_blueprint(services))
     app.register_blueprint(build_auth_blueprint(services, limiter))
+    app.register_blueprint(build_pairing_blueprint(services, limiter))
     app.register_blueprint(build_chat_blueprint(services, limiter))
     app.register_blueprint(build_voice_blueprint(services, limiter))
     app.register_blueprint(build_scaffolds_blueprint(services))

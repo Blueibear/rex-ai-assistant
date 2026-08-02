@@ -137,6 +137,101 @@ def migrate_users_db(db_path: Path | str) -> None:
             CREATE INDEX IF NOT EXISTS idx_mobile_message_requests_created
             ON mobile_message_requests(created_at)
             """)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS mobile_pairing_authority (
+                singleton INTEGER PRIMARY KEY CHECK (singleton = 1),
+                desktop_id TEXT UNIQUE NOT NULL,
+                created_at TEXT NOT NULL
+            )
+            """)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS mobile_pairing_challenges (
+                challenge_id TEXT PRIMARY KEY,
+                desktop_id TEXT NOT NULL,
+                user_id TEXT NOT NULL,
+                nonce_b64 TEXT NOT NULL,
+                code_hash TEXT NOT NULL,
+                scopes_json TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                expires_at TEXT NOT NULL,
+                used_at TEXT NULL,
+                status TEXT NOT NULL,
+                FOREIGN KEY (user_id) REFERENCES users(id)
+            )
+            """)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS mobile_pairing_requests (
+                request_id TEXT PRIMARY KEY,
+                challenge_id TEXT UNIQUE NOT NULL,
+                desktop_id TEXT NOT NULL,
+                user_id TEXT NOT NULL,
+                public_key_b64 TEXT NOT NULL,
+                key_thumbprint TEXT NOT NULL,
+                device_name TEXT NOT NULL DEFAULT '',
+                platform TEXT NOT NULL DEFAULT '',
+                scopes_json TEXT NOT NULL,
+                poll_token_hash TEXT NOT NULL,
+                submitted_at TEXT NOT NULL,
+                status TEXT NOT NULL,
+                decision_at TEXT NULL,
+                decision_by TEXT NULL,
+                denial_reason TEXT NULL,
+                device_id TEXT NULL,
+                grant_id TEXT NULL,
+                FOREIGN KEY (challenge_id) REFERENCES mobile_pairing_challenges(challenge_id),
+                FOREIGN KEY (user_id) REFERENCES users(id)
+            )
+            """)
+        conn.execute("""
+            CREATE INDEX IF NOT EXISTS idx_mobile_pairing_requests_status
+            ON mobile_pairing_requests(status, submitted_at)
+            """)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS mobile_paired_devices (
+                device_id TEXT PRIMARY KEY,
+                desktop_id TEXT NOT NULL,
+                user_id TEXT NOT NULL,
+                public_key_b64 TEXT NOT NULL,
+                key_thumbprint TEXT NOT NULL,
+                device_name TEXT NOT NULL DEFAULT '',
+                platform TEXT NOT NULL DEFAULT '',
+                created_at TEXT NOT NULL,
+                revoked_at TEXT NULL,
+                revoke_reason TEXT NULL,
+                UNIQUE (desktop_id, key_thumbprint),
+                FOREIGN KEY (user_id) REFERENCES users(id)
+            )
+            """)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS mobile_device_grants (
+                grant_id TEXT PRIMARY KEY,
+                device_id TEXT NOT NULL,
+                desktop_id TEXT NOT NULL,
+                user_id TEXT NOT NULL,
+                version INTEGER NOT NULL,
+                scopes_json TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                expires_at TEXT NOT NULL,
+                revoked_at TEXT NULL,
+                revoke_reason TEXT NULL,
+                UNIQUE (device_id, version),
+                FOREIGN KEY (device_id) REFERENCES mobile_paired_devices(device_id),
+                FOREIGN KEY (user_id) REFERENCES users(id)
+            )
+            """)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS mobile_pairing_audit (
+                event_id TEXT PRIMARY KEY,
+                event_type TEXT NOT NULL,
+                request_id TEXT NULL,
+                device_id TEXT NULL,
+                grant_id TEXT NULL,
+                desktop_id TEXT NULL,
+                user_id TEXT NULL,
+                created_at TEXT NOT NULL,
+                detail TEXT NULL
+            )
+            """)
         conn.execute("COMMIT")
     except BaseException:
         try:

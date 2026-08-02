@@ -611,3 +611,11 @@ For product scope, delivery order, and non-negotiable behavior, read these befor
 - `docs/planning/TEAM_LEAD_OPERATING_RULES.md`
 
 The first two files are the product sources of truth. Other PRDs are supporting history and feature inputs only. Do not mark a feature complete from a checklist alone; verify current code, tests, packaged behavior, and user-visible truth.
+
+#### Mobile device pairing authority (S5)
+
+- `rex/mobile_api/pairing.py`, `device_proof.py`, and `grants.py` implement the desktop-owned P-256 pairing authority.
+- Password login never creates a device grant. The mobile HTTP API exposes only proof submission and private-token status polling; challenge creation, approval, denial, listing, and revocation remain local Electron IPC operations through `bridge/rex_pairing_bridge.py`.
+- Challenges expire after 120 seconds and are single-use. Proof binds desktop ID, challenge/nonce, canonical public key, user, scopes, and one-time code.
+- Persisted grants are immutable/versioned, expiring, revocable, and audited. S6 must enforce them on every mobile action. S7 must enforce non-loopback TLS and certificate/public-key pinning before production LAN access.
+- See `docs/mobile/DEVICE_PAIRING.md` and `tests/mobile_api/test_pairing.py`.

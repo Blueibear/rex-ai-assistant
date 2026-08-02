@@ -317,6 +317,16 @@ const navItems: NavItem[] = [
     )
   },
   {
+    path: '/pairing',
+    label: 'Mobile Pairing',
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
+        <rect x="5" y="2" width="8" height="14" rx="2" stroke="currentColor" strokeWidth="1.4" />
+        <path d="M7.5 5h3M8 13h2" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+      </svg>
+    )
+  },
+  {
     path: '/settings',
     label: 'Settings',
     icon: (
@@ -361,6 +371,7 @@ const sectionNames: Record<string, string> = {
   '/history': 'History',
   '/usage': 'Usage',
   '/integrations': 'Integrations',
+  '/pairing': 'Mobile Pairing',
   '/settings': 'Settings',
   '/home/devices': 'Devices',
   '/home-assistant': 'Home Assistant',

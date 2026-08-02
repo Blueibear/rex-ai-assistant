@@ -44,7 +44,8 @@ import type {
   SetupCompleteResponse,
   IntegrationConnectionStatus,
   ChatStreamCancelHandle,
-  VoiceStartOptions
+  VoiceStartOptions,
+  PairingResponse
 } from '../types/ipc'
 
 function makeSendChatStream(
@@ -402,7 +403,19 @@ const rexAPI = {
     ipcRenderer.invoke('rex:sendDeviceCommand', entityId, command, payload, confirmationToken, requestId),
   getSetupStatus: (): Promise<SetupStatusResponse> => ipcRenderer.invoke('rex:getSetupStatus'),
   completeSetup: (payload: SetupCompletePayload): Promise<SetupCompleteResponse> =>
-    ipcRenderer.invoke('rex:completeSetup', payload)
+    ipcRenderer.invoke('rex:completeSetup', payload),
+  createPairingChallenge: (scopes: string[]): Promise<PairingResponse> =>
+    ipcRenderer.invoke('rex:createPairingChallenge', scopes),
+  listPendingPairings: (): Promise<PairingResponse> =>
+    ipcRenderer.invoke('rex:listPendingPairings'),
+  approvePairing: (requestId: string): Promise<PairingResponse> =>
+    ipcRenderer.invoke('rex:approvePairing', requestId),
+  denyPairing: (requestId: string): Promise<PairingResponse> =>
+    ipcRenderer.invoke('rex:denyPairing', requestId),
+  listPairedDevices: (): Promise<PairingResponse> =>
+    ipcRenderer.invoke('rex:listPairedDevices'),
+  revokePairedDevice: (deviceId: string): Promise<PairingResponse> =>
+    ipcRenderer.invoke('rex:revokePairedDevice', deviceId)
 }
 
 if (process.contextIsolated) {

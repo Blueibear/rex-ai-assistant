@@ -21,6 +21,7 @@ from rex.mobile_api.auth import load_jwt_secret
 from rex.mobile_api.chat import MobileChatService
 from rex.mobile_api.db import default_users_db_path
 from rex.mobile_api.idempotency import MobileMessageStore
+from rex.mobile_api.pairing import PairingAuthority
 from rex.mobile_api.sessions import MobileSessionStore
 from rex.mobile_api.voice import SpeechToTextAdapter, TextToSpeechAdapter
 
@@ -38,6 +39,7 @@ class MobileApiServices:
     jwt_secret: str
     session_store: MobileSessionStore
     message_store: MobileMessageStore
+    pairing_authority: PairingAuthority
     chat_service: MobileChatService
     stt: SpeechToTextAdapter
     tts: TextToSpeechAdapter
@@ -88,6 +90,11 @@ class MobileApiServices:
             jwt_secret=secret,
             session_store=store,
             message_store=messages,
+            pairing_authority=PairingAuthority(
+                resolved_db_path,
+                clock=clock,
+                id_generator=id_generator,
+            ),
             chat_service=chat_service or MobileChatService(),
             stt=stt or SpeechToTextAdapter(),
             tts=tts or TextToSpeechAdapter(),

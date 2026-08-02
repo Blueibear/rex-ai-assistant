@@ -17,6 +17,7 @@ REQUIRED_BRIDGES = {
     "rex_history_bridge.py",
     "rex_identity_bridge.py",
     "rex_memories_bridge.py",
+    "rex_pairing_bridge.py",
     "rex_reminders_bridge.py",
     "rex_shopping_list_bridge.py",
     "rex_setup_bridge.py",
