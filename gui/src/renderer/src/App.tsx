@@ -30,6 +30,7 @@ import { HomeAssistantPage } from '../../pages/HomeAssistantPage'
 import { DevicesPage } from '../../pages/DevicesPage'
 import { CommandHistoryPage } from '../../pages/CommandHistoryPage'
 import { QuickActionsPage } from '../../pages/QuickActionsPage'
+import { PairingPage } from '../../pages/PairingPage'
 import { ErrorBoundary } from '../../components/ErrorBoundary'
 
 const PRIORITY_TOAST_TYPE: Record<NotificationPriority, ToastType> = {
@@ -124,6 +125,7 @@ function AppShell(): React.ReactElement {
           <Route path="/home-assistant" element={<ErrorBoundary><HomeAssistantPage /></ErrorBoundary>} />
           <Route path="/settings/home-assistant" element={<ErrorBoundary><HomeAssistantSettingsPage /></ErrorBoundary>} />
           <Route path="/quick-actions" element={<ErrorBoundary><QuickActionsPage /></ErrorBoundary>} />
+          <Route path="/pairing" element={<ErrorBoundary><PairingPage /></ErrorBoundary>} />
           <Route path="/about" element={<ErrorBoundary><AboutPage /></ErrorBoundary>} />
         </Routes>
       </PageTransition>

@@ -42,6 +42,7 @@ const BRIDGE_REGISTRY: Record<string, string> = {
   rex_sms_bridge: 'rex_sms_bridge.py',
   rex_setup_bridge: 'rex_setup_bridge.py',
   rex_credential_vault_bridge: 'rex_credential_vault_bridge.py',
+  rex_pairing_bridge: 'rex_pairing_bridge.py'
 }
 
 // ---------------------------------------------------------------------------

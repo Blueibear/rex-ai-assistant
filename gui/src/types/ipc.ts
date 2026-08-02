@@ -556,6 +556,58 @@ export interface SetupCompleteResponse {
   error?: string
 }
 
+export interface PairingChallenge {
+  type: 'askrex-pairing'
+  version: number
+  desktop_id: string
+  challenge_id: string
+  nonce: string
+  code: string
+  user_id: string
+  scopes: string[]
+  created_at: string
+  expires_at: string
+}
+
+export interface PendingPairingRequest {
+  request_id: string
+  desktop_id: string
+  user_id: string
+  device_name: string
+  platform: string
+  key_thumbprint: string
+  scopes: string[]
+  submitted_at: string
+  status: string
+}
+
+export interface PairedDevice {
+  device_id: string
+  desktop_id: string
+  user_id: string
+  device_name: string
+  platform: string
+  key_thumbprint: string
+  created_at: string
+  revoked_at: string | null
+  grant_id: string | null
+  grant_version: number | null
+  scopes: string[]
+  grant_expires_at: string | null
+  grant_revoked_at: string | null
+}
+
+export interface PairingResponse<T = undefined> {
+  ok: boolean
+  error?: string
+  challenge?: PairingChallenge
+  requests?: PendingPairingRequest[]
+  devices?: PairedDevice[]
+  desktop_id?: string
+  grant?: T
+  revoked?: boolean
+}
+
 // AbortSignal instances do not survive Electron's contextBridge isolation
 // boundary with their EventTarget prototype methods intact (calling
 // addEventListener/removeEventListener on a signal that crossed the bridge
@@ -712,4 +764,10 @@ export interface RexAPI {
   getUsage: () => Promise<UsageSummary>
   getSetupStatus: () => Promise<SetupStatusResponse>
   completeSetup: (payload: SetupCompletePayload) => Promise<SetupCompleteResponse>
+  createPairingChallenge: (scopes: string[]) => Promise<PairingResponse>
+  listPendingPairings: () => Promise<PairingResponse>
+  approvePairing: (requestId: string) => Promise<PairingResponse>
+  denyPairing: (requestId: string) => Promise<PairingResponse>
+  listPairedDevices: () => Promise<PairingResponse>
+  revokePairedDevice: (deviceId: string) => Promise<PairingResponse>
 }
