@@ -22,7 +22,7 @@ from rex.mobile_api.websocket import (
     MobileWebSocketServer,
     SlidingWindowLimiter,
 )
-from tests.mobile_api.conftest import chat_payload, create_user, login_tokens
+from tests.mobile_api.conftest import chat_payload, create_user, paired_login_tokens
 
 TIMEOUT = object()
 
@@ -68,7 +68,7 @@ def _chat_frame(message: str = "Hello Rex", **overrides) -> str:
 
 def _login(client, username: str = "james", password: str = "pw-123456") -> tuple[str, str]:
     user_id = create_user(username, password)
-    tokens = login_tokens(client, username, password)
+    tokens = paired_login_tokens(client, username, password)
     return user_id, tokens["access_token"]
 
 
@@ -315,7 +315,7 @@ class TestWsIdempotency:
         ws = _run(services, [_auth_frame(token), json.dumps({"type": "chat", **payload})])
         done = [e for e in ws.sent if e["type"] == "message_done"][0]
 
-        tokens = login_tokens(client, "james", "pw-123456")
+        tokens = paired_login_tokens(client, "james", "pw-123456")
         from tests.mobile_api.conftest import auth_header
 
         response = client.post(

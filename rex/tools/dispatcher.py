@@ -248,6 +248,13 @@ class ToolDispatcher:
         if tool is None:
             return ToolResult(success=False, error=f"Unknown tool: {name!r}")
 
+        from rex.mobile_api.action_context import authorize_mobile_tool  # noqa: PLC0415
+
+        authorize_mobile_tool(
+            tool.name,
+            capability_tags=tool.capability_tags,
+            operation=getattr(tool, "operation", None),
+        )
         available = self._config is None or tool in self._registry.available_tools(self._config)
         return ToolExecutionLifecycle().execute(
             tool,

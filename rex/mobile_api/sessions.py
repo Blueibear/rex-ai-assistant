@@ -42,6 +42,7 @@ SESSION_REVOKED = "session_revoked"
 USER_INACTIVE = "user_inactive"
 
 _MAX_DEVICE_FIELD_LENGTH = 128
+DEVICE_SESSION_CHALLENGE_TTL_SECONDS = 120
 
 
 def hash_refresh_token(raw_token: str) -> str:
@@ -92,6 +93,25 @@ class RotationResult:
     user_id: str | None = None
     refresh_token: str | None = None
     refresh_expires_at: datetime | None = None
+
+
+@dataclass(frozen=True)
+class DeviceSessionChallenge:
+    """Short-lived proof challenge for replacing a bootstrap session."""
+
+    challenge_id: str
+    bootstrap_session_id: str
+    user_id: str
+    device_id: str
+    grant_id: str
+    grant_version: int
+    desktop_id: str
+    nonce_b64: str
+    expires_at: datetime
+
+
+class DeviceSessionError(ValueError):
+    """Stable, secret-free device-session activation failure."""
 
 
 class MobileSessionStore:
@@ -255,6 +275,260 @@ class MobileSessionStore:
             user_id=user_id,
             refresh_token=raw_token,
             refresh_expires_at=expires_at,
+            family_id=family_id,
+        )
+
+    def create_device_session_challenge(
+        self,
+        *,
+        bootstrap_session_id: str,
+        user_id: str,
+        device_id: str,
+        grant_id: str,
+    ) -> DeviceSessionChallenge:
+        """Create a single-use challenge bound to one bootstrap session/grant."""
+        from rex.mobile_api.authorization import (  # noqa: PLC0415
+            GrantAuthorizationError,
+            load_active_grant,
+        )
+
+        user_id = validate_user_id(user_id)
+        if not bootstrap_session_id or len(bootstrap_session_id) > 128:
+            raise DeviceSessionError("Bootstrap session is invalid.")
+        if not device_id or len(device_id) > 128 or not grant_id or len(grant_id) > 128:
+            raise DeviceSessionError("Device grant is invalid.")
+        now = self.now()
+        expires_at = now + timedelta(seconds=DEVICE_SESSION_CHALLENGE_TTL_SECONDS)
+        challenge_id = self._id_generator()
+        nonce_b64 = secrets.token_urlsafe(32)
+        conn = self._connect()
+        try:
+            conn.execute("BEGIN IMMEDIATE")
+            session = conn.execute(
+                "SELECT * FROM mobile_sessions WHERE session_id = ?",
+                (bootstrap_session_id,),
+            ).fetchone()
+            if (
+                session is None
+                or session["user_id"] != user_id
+                or not self.session_is_active(session, now)
+                or any(
+                    session[name] is not None
+                    for name in ("paired_device_id", "grant_id", "grant_version", "desktop_id")
+                )
+            ):
+                raise DeviceSessionError("Bootstrap session is not eligible for activation.")
+            try:
+                grant = load_active_grant(
+                    conn,
+                    device_id=device_id,
+                    grant_id=grant_id,
+                    expected_user_id=user_id,
+                    now=now,
+                )
+            except GrantAuthorizationError as exc:
+                raise DeviceSessionError("Device grant is not active.") from exc
+            conn.execute(
+                """INSERT INTO mobile_device_session_challenges(
+                       challenge_id, bootstrap_session_id, user_id, device_id,
+                       grant_id, grant_version, desktop_id, nonce_b64,
+                       created_at, expires_at
+                   ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (
+                    challenge_id,
+                    bootstrap_session_id,
+                    user_id,
+                    grant.device_id,
+                    grant.grant_id,
+                    grant.version,
+                    grant.desktop_id,
+                    nonce_b64,
+                    now.isoformat(),
+                    expires_at.isoformat(),
+                ),
+            )
+            conn.execute("COMMIT")
+        except BaseException:
+            try:
+                conn.execute("ROLLBACK")
+            except sqlite3.Error:
+                pass
+            raise
+        finally:
+            conn.close()
+        return DeviceSessionChallenge(
+            challenge_id=challenge_id,
+            bootstrap_session_id=bootstrap_session_id,
+            user_id=user_id,
+            device_id=grant.device_id,
+            grant_id=grant.grant_id,
+            grant_version=grant.version,
+            desktop_id=grant.desktop_id,
+            nonce_b64=nonce_b64,
+            expires_at=expires_at,
+        )
+
+    def activate_device_session(
+        self,
+        *,
+        bootstrap_session_id: str,
+        user_id: str,
+        challenge_id: str,
+        signature_b64: str,
+    ) -> CreatedSession:
+        """Verify device proof and atomically replace the bootstrap session."""
+        from rex.mobile_api.authorization import (  # noqa: PLC0415
+            GrantAuthorizationError,
+            load_active_grant,
+        )
+        from rex.mobile_api.device_proof import (  # noqa: PLC0415
+            ProofError,
+            canonical_session_transcript,
+            verify_proof,
+        )
+
+        user_id = validate_user_id(user_id)
+        if not challenge_id or len(challenge_id) > 128:
+            raise DeviceSessionError("Device session challenge is invalid or expired.")
+        if not isinstance(signature_b64, str) or not signature_b64:
+            raise DeviceSessionError("Device proof could not be verified.")
+        now = self.now()
+        conn = self._connect()
+        try:
+            conn.execute("BEGIN IMMEDIATE")
+            challenge = conn.execute(
+                "SELECT * FROM mobile_device_session_challenges WHERE challenge_id = ?",
+                (challenge_id,),
+            ).fetchone()
+            expires_at = self._parse_ts(challenge["expires_at"]) if challenge is not None else None
+            if (
+                challenge is None
+                or challenge["bootstrap_session_id"] != bootstrap_session_id
+                or challenge["user_id"] != user_id
+                or challenge["used_at"] is not None
+                or expires_at is None
+                or now >= expires_at
+            ):
+                raise DeviceSessionError("Device session challenge is invalid or expired.")
+            bootstrap = conn.execute(
+                "SELECT * FROM mobile_sessions WHERE session_id = ?",
+                (bootstrap_session_id,),
+            ).fetchone()
+            if (
+                bootstrap is None
+                or bootstrap["user_id"] != user_id
+                or not self.session_is_active(bootstrap, now)
+                or any(
+                    bootstrap[name] is not None
+                    for name in ("paired_device_id", "grant_id", "grant_version", "desktop_id")
+                )
+            ):
+                raise DeviceSessionError("Bootstrap session is not eligible for activation.")
+            try:
+                grant = load_active_grant(
+                    conn,
+                    device_id=str(challenge["device_id"]),
+                    grant_id=str(challenge["grant_id"]),
+                    expected_user_id=user_id,
+                    expected_desktop_id=str(challenge["desktop_id"]),
+                    expected_version=int(challenge["grant_version"]),
+                    now=now,
+                )
+                transcript = canonical_session_transcript(
+                    desktop_id=grant.desktop_id,
+                    bootstrap_session_id=bootstrap_session_id,
+                    challenge_id=challenge_id,
+                    nonce_b64=str(challenge["nonce_b64"]),
+                    device_id=grant.device_id,
+                    grant_id=grant.grant_id,
+                    grant_version=grant.version,
+                    user_id=user_id,
+                )
+                verify_proof(
+                    public_key_b64=grant.public_key_b64,
+                    signature_b64=signature_b64,
+                    transcript=transcript,
+                )
+            except (GrantAuthorizationError, ProofError) as exc:
+                raise DeviceSessionError("Device proof could not be verified.") from exc
+
+            new_session_id = self._id_generator()
+            family_id = self._id_generator()
+            raw_token = self._token_generator()
+            refresh_expires_at = now + timedelta(seconds=self._refresh_ttl_seconds)
+            conn.execute(
+                """INSERT INTO mobile_sessions(
+                       session_id, user_id, device_id, device_name, platform,
+                       app_version, paired_device_id, grant_id, grant_version,
+                       desktop_id, strong_auth_at, created_at, last_seen_at, expires_at
+                   ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (
+                    new_session_id,
+                    user_id,
+                    bootstrap["device_id"],
+                    bootstrap["device_name"],
+                    bootstrap["platform"],
+                    bootstrap["app_version"],
+                    grant.device_id,
+                    grant.grant_id,
+                    grant.version,
+                    grant.desktop_id,
+                    None,
+                    now.isoformat(),
+                    now.isoformat(),
+                    refresh_expires_at.isoformat(),
+                ),
+            )
+            conn.execute(
+                """INSERT INTO mobile_refresh_tokens(
+                       token_hash, family_id, session_id, user_id, created_at, expires_at
+                   ) VALUES (?, ?, ?, ?, ?, ?)""",
+                (
+                    hash_refresh_token(raw_token),
+                    family_id,
+                    new_session_id,
+                    user_id,
+                    now.isoformat(),
+                    refresh_expires_at.isoformat(),
+                ),
+            )
+            conn.execute(
+                """UPDATE mobile_device_session_challenges
+                   SET used_at = ?, replacement_session_id = ?
+                   WHERE challenge_id = ? AND used_at IS NULL""",
+                (now.isoformat(), new_session_id, challenge_id),
+            )
+            conn.execute(
+                """UPDATE mobile_sessions SET revoked_at = ?, revoke_reason = ?
+                   WHERE session_id = ? AND revoked_at IS NULL""",
+                (now.isoformat(), "device_session_activated", bootstrap_session_id),
+            )
+            conn.execute(
+                """UPDATE mobile_refresh_tokens SET revoked_at = ?
+                   WHERE session_id = ? AND revoked_at IS NULL""",
+                (now.isoformat(), bootstrap_session_id),
+            )
+            conn.execute("COMMIT")
+        except BaseException:
+            try:
+                conn.execute("ROLLBACK")
+            except sqlite3.Error:
+                pass
+            raise
+        finally:
+            conn.close()
+        logger.info(
+            "Mobile paired session activated: session=%s user=%s device=%s grant=%s",
+            new_session_id,
+            user_id,
+            grant.device_id,
+            grant.grant_id,
+        )
+        return CreatedSession(
+            session_id=new_session_id,
+            user_id=user_id,
+            refresh_token=raw_token,
+            refresh_expires_at=refresh_expires_at,
             family_id=family_id,
         )
 
@@ -423,11 +697,34 @@ class MobileSessionStore:
             if not self.session_is_active(session, now):
                 conn.execute("COMMIT")
                 return RotationResult(status=SESSION_REVOKED)
+            try:
+                from rex.mobile_api.authorization import (  # noqa: PLC0415
+                    GrantAuthorizationError,
+                    resolve_session_grant,
+                )
+
+                resolve_session_grant(conn, session, now=now)
+            except GrantAuthorizationError:
+                self._revoke_family_locked(
+                    conn,
+                    row["family_id"],
+                    row["session_id"],
+                    now,
+                    "device_grant_invalid",
+                )
+                conn.execute("COMMIT")
+                return RotationResult(status=SESSION_REVOKED)
 
             user = conn.execute("SELECT * FROM users WHERE id = ?", (row["user_id"],)).fetchone()
             user_disabled = user is None or user["disabled_at"] is not None
             if user_disabled:
-                self._revoke_family_locked(conn, row["family_id"], row["session_id"], now)
+                self._revoke_family_locked(
+                    conn,
+                    row["family_id"],
+                    row["session_id"],
+                    now,
+                    "user_inactive",
+                )
                 conn.execute("COMMIT")
                 logger.info(
                     "Mobile refresh rejected for inactive user: session=%s",
@@ -519,7 +816,11 @@ class MobileSessionStore:
 
     @staticmethod
     def _revoke_family_locked(
-        conn: sqlite3.Connection, family_id: str, session_id: str, now: datetime
+        conn: sqlite3.Connection,
+        family_id: str,
+        session_id: str,
+        now: datetime,
+        reason: str = "refresh_token_reuse",
     ) -> None:
         """Revoke a token family and its session inside the caller's transaction."""
         now_iso = now.isoformat()
@@ -537,7 +838,7 @@ class MobileSessionStore:
             SET revoked_at = ?, revoke_reason = ?
             WHERE session_id = ? AND revoked_at IS NULL
             """,
-            (now_iso, "refresh_token_reuse", session_id),
+            (now_iso, reason[:128], session_id),
         )
 
 
@@ -549,6 +850,9 @@ __all__ = [
     "SESSION_REVOKED",
     "USER_INACTIVE",
     "CreatedSession",
+    "DEVICE_SESSION_CHALLENGE_TTL_SECONDS",
+    "DeviceSessionChallenge",
+    "DeviceSessionError",
     "DeviceInfo",
     "MobileSessionStore",
     "RotationResult",

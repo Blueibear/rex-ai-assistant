@@ -1,9 +1,15 @@
 {
-  "contract_version": "2026-07-15.323.2",
+  "contract_version": "2026-08-01.323.3",
   "api_version": "1.0",
   "statuses": {
     "normal_chat": "completed",
-    "action_statuses": ["attempted", "completed", "verified", "failed", "needs_confirmation"]
+    "action_statuses": [
+      "attempted",
+      "completed",
+      "verified",
+      "failed",
+      "needs_confirmation"
+    ]
   },
   "http": {
     "login_request": {
@@ -27,7 +33,9 @@
         "id": "3d6f2c1e-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
         "name": "James",
         "role": "owner",
-        "permissions": ["admin"],
+        "permissions": [
+          "admin"
+        ],
         "color": "#2D7FF9"
       }
     },
@@ -45,17 +53,28 @@
         "id": "3d6f2c1e-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
         "name": "James",
         "role": "owner",
-        "permissions": ["admin"],
+        "permissions": [
+          "admin"
+        ],
         "color": "#2D7FF9"
       }
     },
     "session_response": {
       "session_id": "0d9c3a52-6f4e-4e91-8b7c-2f81f3f0a222",
+      "paired": false,
+      "device_id": null,
+      "grant_id": null,
+      "grant_version": null,
+      "desktop_id": null,
+      "scopes": [],
+      "strong_auth_at": null,
       "user": {
         "id": "3d6f2c1e-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
         "name": "James",
         "role": "owner",
-        "permissions": ["admin"],
+        "permissions": [
+          "admin"
+        ],
         "color": "#2D7FF9"
       }
     },
@@ -90,7 +109,10 @@
     "sse": {
       "content_type": "text/event-stream",
       "data_prefix": "data: ",
-      "terminal_events": ["message_done", "error"],
+      "terminal_events": [
+        "message_done",
+        "error"
+      ],
       "idempotency_header": "Idempotency-Key"
     },
     "voice_response": {
@@ -149,7 +171,9 @@
         "id": "3d6f2c1e-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
         "name": "James",
         "role": "owner",
-        "permissions": ["admin"],
+        "permissions": [
+          "admin"
+        ],
         "color": "#2D7FF9"
       }
     },

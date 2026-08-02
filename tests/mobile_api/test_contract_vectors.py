@@ -16,7 +16,13 @@ from pathlib import Path
 
 import pytest
 
-from tests.mobile_api.conftest import auth_header, create_user, login_tokens, parse_sse_events
+from tests.mobile_api.conftest import (
+    auth_header,
+    create_user,
+    login_tokens,
+    paired_login_tokens,
+    parse_sse_events,
+)
 
 VECTORS_PATH = Path(__file__).parent / "contract_vectors.json"
 _SNAKE_CASE = re.compile(r"^[a-z][a-z0-9_]*$")
@@ -156,7 +162,7 @@ class TestLiveResponseConformance:
 
     def test_chat_request_vector_is_accepted_and_response_conforms(self, client, vectors) -> None:
         create_user("james", "pw-123456")
-        tokens = login_tokens(client, "james", "pw-123456")
+        tokens = paired_login_tokens(client, "james", "pw-123456")
         response = client.post(
             "/mobile/chat",
             json=vectors["http"]["chat_request"],
@@ -167,7 +173,7 @@ class TestLiveResponseConformance:
 
     def test_sse_grammar_conforms(self, client, vectors) -> None:
         create_user("james", "pw-123456")
-        tokens = login_tokens(client, "james", "pw-123456")
+        tokens = paired_login_tokens(client, "james", "pw-123456")
         chat_request = dict(vectors["http"]["chat_request"])
         chat_request["message_id"] = "5f8f1f2a-9999-4999-8999-999999999999"
         response = client.post(
@@ -186,7 +192,7 @@ class TestLiveResponseConformance:
         from tests.mobile_api.test_chat_websocket import FakeWs
 
         create_user("james", "pw-123456")
-        tokens = login_tokens(client, "james", "pw-123456")
+        tokens = paired_login_tokens(client, "james", "pw-123456")
         auth_frame = dict(vectors["websocket"]["auth_frame"])
         auth_frame["access_token"] = tokens["access_token"]
         ws = FakeWs([json.dumps(auth_frame), json.dumps(vectors["websocket"]["chat_frame"])])
@@ -200,7 +206,7 @@ class TestLiveResponseConformance:
 
     def test_tts_response_conforms(self, client, vectors) -> None:
         create_user("james", "pw-123456")
-        tokens = login_tokens(client, "james", "pw-123456")
+        tokens = paired_login_tokens(client, "james", "pw-123456")
         response = client.post(
             "/mobile/tts/playback",
             json={"text": vectors["http"]["tts_request"]["text"]},
@@ -215,7 +221,7 @@ class TestLiveResponseConformance:
         import wave
 
         create_user("james", "pw-123456")
-        tokens = login_tokens(client, "james", "pw-123456")
+        tokens = paired_login_tokens(client, "james", "pw-123456")
         buffer = io.BytesIO()
         with wave.open(buffer, "wb") as wav_file:
             wav_file.setnchannels(1)

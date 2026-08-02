@@ -108,13 +108,34 @@ class FakeChatService:
     def _reply(self, message: str, user_id: str) -> str:
         return f"echo[{user_id}]: {message}"
 
-    def generate(self, message: str, *, user_id: str, voice_mode: bool = False) -> str:
+    def generate(
+        self,
+        message: str,
+        *,
+        user_id: str,
+        voice_mode: bool = False,
+        capability_scopes=None,
+        capability_permissions=None,
+        authorization_check=None,
+    ) -> str:
+        if authorization_check is not None:
+            authorization_check()
         if self.fail_with is not None:
             raise self.fail_with
         self.calls.append((message, user_id))
         return self._reply(message, user_id)
 
-    def stream(self, message: str, *, user_id: str):
+    def stream(
+        self,
+        message: str,
+        *,
+        user_id: str,
+        capability_scopes=None,
+        capability_permissions=None,
+        authorization_check=None,
+    ):
+        if authorization_check is not None:
+            authorization_check()
         if self.fail_with is not None:
             raise self.fail_with
         self.calls.append((message, user_id))
@@ -316,6 +337,104 @@ def login(client, username: str, password: str, device: dict | None = None):
 
 def auth_header(access_token: str) -> dict[str, str]:
     return {"Authorization": f"Bearer {access_token}"}
+
+
+def paired_login_tokens(
+    client,
+    username: str,
+    password: str,
+    *,
+    scopes: list[str] | None = None,
+) -> dict:
+    """Create a real S5 grant and upgrade a password bootstrap session.
+
+    Tests use the same P-256 pairing and S6 activation transcripts as the
+    production protocol.  The private key remains local to this helper.
+    """
+    from rex.mobile_api.db import connect
+    from rex.mobile_api.device_proof import (
+        canonical_session_transcript,
+        canonical_transcript,
+        generate_p256_private_key,
+        public_key_spki_b64,
+        sign_transcript,
+    )
+
+    services = client.application.extensions["mobile_api_services"]
+    bootstrap = login_tokens(client, username, password)
+    conn = connect(services.db_path)
+    try:
+        user = conn.execute("SELECT id FROM users WHERE username = ?", (username,)).fetchone()
+    finally:
+        conn.close()
+    assert user is not None
+    user_id = str(user["id"])
+    requested_scopes = scopes or ["chat.send", "chat.history.read", "voice.use"]
+    private_key = generate_p256_private_key()
+    public_key = public_key_spki_b64(private_key)
+    challenge = services.pairing_authority.create_challenge(
+        user_id=user_id,
+        scopes=requested_scopes,
+    )
+    transcript = canonical_transcript(
+        desktop_id=challenge.desktop_id,
+        challenge_id=challenge.challenge_id,
+        nonce_b64=challenge.nonce_b64,
+        mobile_public_key_b64=public_key,
+        user_id=challenge.user_id,
+        scopes=challenge.scopes,
+        code=challenge.code,
+    )
+    submitted = services.pairing_authority.submit_proof(
+        {
+            "desktop_id": challenge.desktop_id,
+            "challenge_id": challenge.challenge_id,
+            "nonce": challenge.nonce_b64,
+            "code": challenge.code,
+            "user_id": challenge.user_id,
+            "scopes": list(challenge.scopes),
+            "public_key": public_key,
+            "signature": sign_transcript(private_key, transcript),
+            "device_name": "Test iPhone",
+            "platform": "ios",
+        }
+    )
+    grant = services.pairing_authority.approve(
+        submitted.request_id,
+        approved_by="TEST\\DesktopOwner",
+    )
+    challenge_response = client.post(
+        "/mobile/auth/device-challenge",
+        json={"device_id": grant.device_id, "grant_id": grant.grant_id},
+        headers=auth_header(bootstrap["access_token"]),
+    )
+    assert challenge_response.status_code == 200, challenge_response.get_json()
+    activation = challenge_response.get_json()
+    activation_transcript = canonical_session_transcript(
+        desktop_id=activation["desktop_id"],
+        bootstrap_session_id=activation["bootstrap_session_id"],
+        challenge_id=activation["challenge_id"],
+        nonce_b64=activation["nonce"],
+        device_id=activation["device_id"],
+        grant_id=activation["grant_id"],
+        grant_version=activation["grant_version"],
+        user_id=activation["user_id"],
+    )
+    response = client.post(
+        "/mobile/auth/activate-device",
+        json={
+            "challenge_id": activation["challenge_id"],
+            "signature": sign_transcript(private_key, activation_transcript),
+        },
+        headers=auth_header(bootstrap["access_token"]),
+    )
+    assert response.status_code == 200, response.get_json()
+    tokens = response.get_json()
+    tokens["_paired_device_id"] = grant.device_id
+    tokens["_grant_id"] = grant.grant_id
+    tokens["_private_key"] = private_key
+    tokens["_bootstrap"] = bootstrap
+    return tokens
 
 
 def login_tokens(client, username: str, password: str) -> dict:

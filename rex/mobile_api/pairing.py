@@ -339,9 +339,16 @@ class PairingAuthority:
             if row is None or row["status"] != PAIRING_PENDING:
                 raise PairingError("Pairing request is not pending approval.")
             existing = conn.execute(
-                "SELECT device_id FROM mobile_paired_devices WHERE desktop_id = ? AND key_thumbprint = ?",
+                """SELECT device_id, user_id, public_key_b64, revoked_at
+                   FROM mobile_paired_devices
+                   WHERE desktop_id = ? AND key_thumbprint = ?""",
                 (row["desktop_id"], row["key_thumbprint"]),
             ).fetchone()
+            if existing is not None and (
+                existing["user_id"] != row["user_id"]
+                or existing["public_key_b64"] != row["public_key_b64"]
+            ):
+                raise PairingError("Paired device identity cannot be reassigned.")
             device_id = str(existing["device_id"]) if existing else self._id()
             if existing is None:
                 conn.execute(
@@ -360,12 +367,7 @@ class PairingAuthority:
                         now.isoformat(),
                     ),
                 )
-            elif (
-                conn.execute(
-                    "SELECT revoked_at FROM mobile_paired_devices WHERE device_id = ?", (device_id,)
-                ).fetchone()["revoked_at"]
-                is not None
-            ):
+            elif existing["revoked_at"] is not None:
                 raise PairingError("Paired device has been revoked.")
             version_row = conn.execute(
                 "SELECT COALESCE(MAX(version), 0) AS v FROM mobile_device_grants WHERE device_id = ?",
@@ -390,6 +392,20 @@ class PairingAuthority:
                     now.isoformat(),
                     expires.isoformat(),
                 ),
+            )
+            conn.execute(
+                """UPDATE mobile_refresh_tokens SET revoked_at = ?
+                   WHERE revoked_at IS NULL AND session_id IN (
+                       SELECT session_id FROM mobile_sessions
+                       WHERE paired_device_id = ? AND grant_version < ? AND revoked_at IS NULL
+                   )""",
+                (now.isoformat(), device_id, version),
+            )
+            conn.execute(
+                """UPDATE mobile_sessions
+                   SET revoked_at = ?, revoke_reason = ?
+                   WHERE paired_device_id = ? AND grant_version < ? AND revoked_at IS NULL""",
+                (now.isoformat(), "device_grant_superseded", device_id, version),
             )
             conn.execute(
                 """UPDATE mobile_pairing_requests SET status = ?, decision_at = ?,
@@ -504,7 +520,7 @@ class PairingAuthority:
         conn = connect(self._db_path)
         try:
             rows = conn.execute("""SELECT d.*, g.grant_id, g.version, g.scopes_json, g.expires_at,
-                   g.revoked_at AS grant_revoked_at
+                   g.last_strong_auth_at, g.revoked_at AS grant_revoked_at
                    FROM mobile_paired_devices d
                    LEFT JOIN mobile_device_grants g ON g.grant_id = (
                      SELECT grant_id FROM mobile_device_grants x
@@ -524,6 +540,7 @@ class PairingAuthority:
                     "grant_version": row["version"],
                     "scopes": json.loads(row["scopes_json"]) if row["scopes_json"] else [],
                     "grant_expires_at": row["expires_at"],
+                    "last_strong_auth_at": row["last_strong_auth_at"],
                     "grant_revoked_at": row["grant_revoked_at"],
                 }
                 for row in rows
@@ -544,6 +561,19 @@ class PairingAuthority:
             )
             conn.execute(
                 "UPDATE mobile_device_grants SET revoked_at = ?, revoke_reason = ? WHERE device_id = ? AND revoked_at IS NULL",
+                (now, reason[:128], device_id),
+            )
+            conn.execute(
+                """UPDATE mobile_refresh_tokens SET revoked_at = ?
+                   WHERE revoked_at IS NULL AND session_id IN (
+                       SELECT session_id FROM mobile_sessions
+                       WHERE paired_device_id = ? AND revoked_at IS NULL
+                   )""",
+                (now, device_id),
+            )
+            conn.execute(
+                """UPDATE mobile_sessions SET revoked_at = ?, revoke_reason = ?
+                   WHERE paired_device_id = ? AND revoked_at IS NULL""",
                 (now, reason[:128], device_id),
             )
             if cursor.rowcount:

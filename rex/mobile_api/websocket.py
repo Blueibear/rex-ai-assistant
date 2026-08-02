@@ -41,7 +41,8 @@ from typing import Any
 from rex.mobile_api import errors as merr
 from rex.mobile_api import events as mev
 from rex.mobile_api import idempotency as idem
-from rex.mobile_api.auth import MobilePrincipal, authenticate_token
+from rex.mobile_api.auth import MobilePrincipal, authenticate_token, revalidate_principal
+from rex.mobile_api.authorization import ROUTE_SCOPES
 from rex.mobile_api.chat import STATUS_COMPLETED
 from rex.mobile_api.errors import MobileApiError
 from rex.mobile_api.services import MobileApiServices
@@ -61,7 +62,7 @@ CLOSE_RATE_LIMITED = 4429
 
 AUTH_TIMEOUT_SECONDS = 10.0
 IDLE_POLL_SECONDS = 5.0
-SESSION_RECHECK_SECONDS = 30.0
+SESSION_RECHECK_SECONDS = 5.0
 MAX_FRAME_BYTES = 64 * 1024
 CONNECTIONS_PER_MINUTE = 30
 
@@ -186,6 +187,16 @@ class MobileWebSocketServer:
             self._send(ws, mev.auth_error_event(exc.code, exc.message))
             self._close(ws, CLOSE_UNAUTHENTICATED, "Not authenticated")
             return None
+        if ROUTE_SCOPES["chat.websocket"] not in principal.scopes:
+            self._send(
+                ws,
+                mev.auth_error_event(
+                    merr.FORBIDDEN,
+                    "This paired device is not authorized for chat.",
+                ),
+            )
+            self._close(ws, CLOSE_FORBIDDEN, "Capability not granted")
+            return None
 
         from rex.mobile_api import users as musers  # noqa: PLC0415
 
@@ -196,11 +207,15 @@ class MobileWebSocketServer:
         return principal
 
     def _session_active(self, principal: MobilePrincipal) -> bool:
-        store = self._services.session_store
-        session = store.get_session(principal.session_id)
-        if session is None or session["revoked_at"] is not None:
+        try:
+            revalidate_principal(
+                self._services,
+                principal,
+                required_scope=ROUTE_SCOPES["chat.websocket"],
+            )
+            return True
+        except MobileApiError:
             return False
-        return store.session_is_active(session, store.now())
 
     # ── Connection loop ─────────────────────────────────────────────────
 
@@ -270,6 +285,8 @@ class MobileWebSocketServer:
         message_limiter: SlidingWindowLimiter,
     ) -> tuple[bool, bool]:
         frame_type = frame["type"]
+        if not self._require_active_session(ws, principal):
+            return False, False
         if frame_type == "ping":
             self._send(ws, mev.pong_event(self._now_iso()))
             return True, False
@@ -281,8 +298,6 @@ class MobileWebSocketServer:
             return True, False
         if not message_limiter.allow(principal.session_id):
             self._close(ws, CLOSE_RATE_LIMITED, "Message rate limited")
-            return False, False
-        if not self._require_active_session(ws, principal):
             return False, False
         return self._handle_chat_frame(ws, principal, frame), True
 
@@ -364,9 +379,42 @@ class MobileWebSocketServer:
         store = services.message_store
         collected: list[str] = []
         try:
-            for chunk in services.chat_service.stream(
-                chat_request.message, user_id=principal.user_id
-            ):
+
+            def authorization_check() -> None:
+                revalidate_principal(
+                    services,
+                    principal,
+                    required_scope=ROUTE_SCOPES["chat.websocket"],
+                )
+
+            iterator = iter(
+                services.chat_service.stream(
+                    chat_request.message,
+                    user_id=principal.user_id,
+                    capability_scopes=principal.scopes,
+                    capability_permissions=principal.permissions,
+                    authorization_check=authorization_check,
+                )
+            )
+            while True:
+                if not self._require_active_session(ws, principal):
+                    store.fail(
+                        principal.user_id,
+                        chat_request.message_id,
+                        merr.AUTH_SESSION_REVOKED,
+                    )
+                    return False
+                try:
+                    chunk = next(iterator)
+                except StopIteration:
+                    break
+                if not self._require_active_session(ws, principal):
+                    store.fail(
+                        principal.user_id,
+                        chat_request.message_id,
+                        merr.AUTH_SESSION_REVOKED,
+                    )
+                    return False
                 collected.append(chunk)
                 self._send(ws, mev.token_event(chat_request.message_id, chunk))
         except MobileApiError as exc:
