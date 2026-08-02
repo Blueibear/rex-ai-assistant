@@ -12,12 +12,44 @@ def bridge_error_response(exc: Exception) -> dict[str, Any]:
 
     Callers should ``print(json.dumps(bridge_error_response(exc)), flush=True)``
     so that the GUI backend and CLI both receive a readable error with context.
+
+    Do not use this for credential-bearing bridges (anything that resolves a
+    vault secret, token, password, or other credential-derived value) - the
+    exception message and traceback it returns can embed that secret-derived
+    content verbatim. Use :func:`bridge_safe_error_response` for those.
     """
     return {
         "ok": False,
         "error": str(exc),
         "traceback": _traceback.format_exc(),
     }
+
+
+def bridge_safe_error_response(
+    exc: BaseException,
+    *,
+    messages: dict[type[BaseException], str] | None = None,
+    default: str = "Request failed",
+) -> dict[str, Any]:
+    """Return a categorized bridge error response with no secret-derived content.
+
+    Unlike :func:`bridge_error_response`, this never includes ``str(exc)``,
+    ``repr(exc)``, a traceback, or any value derived from the exception's
+    arguments - only a fixed, pre-written message selected by walking
+    ``type(exc).__mro__`` against *messages* (falling back to *default* for
+    anything not explicitly categorized).
+
+    Use this for every credential-bearing bridge (vault, setup, SMS, Home
+    Assistant mutation, email, calendar, and similar). Exceptions raised
+    along those paths can carry provider responses, tokens, account
+    identifiers, submitted request values, or filesystem paths in their
+    message text; none of that may reach the renderer or CLI output.
+    """
+    lookup = messages or {}
+    for exc_type in type(exc).__mro__:
+        if exc_type in lookup:
+            return {"ok": False, "error": lookup[exc_type]}
+    return {"ok": False, "error": default}
 
 
 def resolve_python() -> str:

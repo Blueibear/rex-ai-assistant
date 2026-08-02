@@ -7,8 +7,8 @@ Covers:
 - POST /api/ha/test: unauthenticated request returns 401 (US-RR-009)
 - POST /api/ha/save: requires authentication
 - POST /api/ha/save: missing ha_base_url returns 400
-- POST /api/ha/save: valid request writes ha_base_url to config
-- POST /api/ha/save: ha_token written via _write_env_secrets
+- POST /api/ha/save: valid request persists URL and token transactionally
+- POST /api/ha/save: vault persistence failure is reported without secret output
 """
 
 from __future__ import annotations
@@ -143,63 +143,65 @@ class TestHaSave:
         )
         assert resp.status_code == 400
 
-    def test_valid_save_returns_ok(self, flask_client, tmp_path: Path) -> None:  # type: ignore[override]
+    def test_valid_save_returns_ok(self, flask_client, monkeypatch) -> None:  # type: ignore[override]
         token = _register_and_login(flask_client)
+        captured: dict[str, object] = {}
 
-        with (
-            patch("rex.config_manager.load_config", return_value={}),
-            patch("rex.config_manager.save_config") as mock_save,
-            patch("rex.gui_app._write_env_secrets"),
-        ):
-            resp = flask_client.post(
-                "/api/ha/save",
-                json={"ha_base_url": "http://ha.local:8123", "ha_token": "my-token"},
-                headers={"Authorization": f"Bearer {token}"},
-            )
+        def fake_persist(values, *, config_path=None, update_config=None):
+            captured["values"] = dict(values)
+            config: dict[str, object] = {}
+            assert update_config is not None
+            update_config(config)
+            captured["config"] = config
+            return {"HA_TOKEN": "cred_" + "H" * 32}
+
+        monkeypatch.setattr("rex.credential_persistence.persist_household_secrets", fake_persist)
+        resp = flask_client.post(
+            "/api/ha/save",
+            json={"ha_base_url": "http://ha.local:8123", "ha_token": "my-token"},
+            headers={"Authorization": f"Bearer {token}"},
+        )
 
         assert resp.status_code == 200
         assert resp.get_json()["ok"] is True
-        mock_save.assert_called_once()
+        assert captured["values"] == {"HA_TOKEN": "my-token"}
+        assert captured["config"] == {"home_assistant": {"base_url": "http://ha.local:8123"}}
 
-    def test_saves_base_url_to_config(self, flask_client) -> None:  # type: ignore[override]
+    def test_saves_base_url_to_config(self, flask_client, monkeypatch) -> None:  # type: ignore[override]
         token = _register_and_login(flask_client)
         saved: dict[str, object] = {}
 
-        def fake_save(cfg: dict, path: str = "") -> None:  # type: ignore[override]
-            saved.update(cfg)
+        def fake_persist(_values, *, config_path=None, update_config=None):
+            assert update_config is not None
+            update_config(saved)
+            return {}
 
-        with (
-            patch("rex.config_manager.load_config", return_value={}),
-            patch("rex.config_manager.save_config", side_effect=fake_save),
-            patch("rex.gui_app._write_env_secrets"),
-        ):
-            flask_client.post(
-                "/api/ha/save",
-                json={"ha_base_url": "http://my-ha.local:8123"},
-                headers={"Authorization": f"Bearer {token}"},
-            )
+        monkeypatch.setattr("rex.credential_persistence.persist_household_secrets", fake_persist)
+        flask_client.post(
+            "/api/ha/save",
+            json={"ha_base_url": "http://my-ha.local:8123"},
+            headers={"Authorization": f"Bearer {token}"},
+        )
 
         assert saved.get("home_assistant", {}).get("base_url") == "http://my-ha.local:8123"  # type: ignore[union-attr]
 
-    def test_token_written_via_write_env_secrets(self, flask_client) -> None:  # type: ignore[override]
+    def test_persistence_failure_is_truthful_and_secret_free(
+        self, flask_client, monkeypatch
+    ) -> None:  # type: ignore[override]
         token = _register_and_login(flask_client)
-        captured: dict[str, str] = {}
 
-        def fake_write_env(
-            path: Path, *, llm_provider: str, llm_api_key: str, ha_token: str
-        ) -> None:
-            captured["ha_token"] = ha_token
+        def fail(*_args, **_kwargs):
+            raise RuntimeError("vault failed around secret-ha-token")
 
-        with (
-            patch("rex.config_manager.load_config", return_value={}),
-            patch("rex.config_manager.save_config"),
-            patch("rex.gui_app._write_env_secrets", side_effect=fake_write_env),
-            patch("rex.bridge_utils.repo_root", return_value=Path("/tmp")),
-        ):
-            flask_client.post(
-                "/api/ha/save",
-                json={"ha_base_url": "http://ha.local:8123", "ha_token": "secret-ha-token"},
-                headers={"Authorization": f"Bearer {token}"},
-            )
+        monkeypatch.setattr("rex.credential_persistence.persist_household_secrets", fail)
+        response = flask_client.post(
+            "/api/ha/save",
+            json={"ha_base_url": "http://ha.local:8123", "ha_token": "secret-ha-token"},
+            headers={"Authorization": f"Bearer {token}"},
+        )
 
-        assert captured.get("ha_token") == "secret-ha-token"
+        assert response.status_code == 500
+        assert response.get_json() == {
+            "error": "Home Assistant settings could not be stored securely"
+        }
+        assert "secret-ha-token" not in response.get_data(as_text=True)

@@ -6,6 +6,20 @@ The current `scripts/security_audit.py` baseline and triage inventory is tracked
 
 CI enforces this on every push and pull request: the **Security Audit Gate** job in `.github/workflows/ci.yml` runs `python scripts/security_audit.py --release-gate` and fails the build on any nonzero exit. CI also rejects committed generated artifacts (`scripts/check_no_generated_artifacts.py`) and committed secrets (`detect-secrets` against `.secrets.baseline`, covering the whole tree including `config/`).
 
+## Desktop credential storage
+
+Packaged Windows builds store secrets only in the DPAPI-backed credential
+vault. Non-secret config contains opaque references bound to scope, validated
+Rex user, integration, authorized account, and credential slot. Packaged bridge
+processes strip the legacy plaintext fallback flag. Vault corruption, context
+mismatch, ACL-hardening failure, and persistence/readback failure fail closed.
+
+The migration command is dry-run by default and requires explicit scope and
+owner. Apply mode verifies encrypted storage and the reference registry before
+atomically sanitizing plaintext sources; it creates no plaintext backup and
+emits no secret-derived preview, length, or hash. See
+[docs/credentials.md](docs/credentials.md).
+
 ## Reporting a vulnerability
 
 If you discover a security issue in AskRex Assistant, please do **not** open a public GitHub issue with exploit details.

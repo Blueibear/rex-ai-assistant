@@ -21,7 +21,6 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import os
 import threading
 from collections.abc import Callable, Iterator
 from importlib.util import find_spec
@@ -75,14 +74,14 @@ class MobileChatService:
             if provider == "openai":
                 ready = (
                     find_spec("openai") is not None
-                    and bool(settings.openai_api_key or os.getenv("OPENAI_API_KEY"))
+                    and bool(settings.openai_api_key)
                     and bool(settings.openai_model)
                 )
                 return (ready, "ok" if ready else "OpenAI is not fully configured")
             if provider == "anthropic":
                 ready = (
                     find_spec("anthropic") is not None
-                    and bool(settings.anthropic_api_key or os.getenv("ANTHROPIC_API_KEY"))
+                    and bool(settings.anthropic_api_key)
                     and bool(settings.anthropic_model)
                 )
                 return (ready, "ok" if ready else "Anthropic is not fully configured")

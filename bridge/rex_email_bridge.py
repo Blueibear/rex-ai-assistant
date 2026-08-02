@@ -40,7 +40,7 @@ import json
 import sys
 from typing import Any
 
-from rex.bridge_utils import bridge_error_response
+from rex.bridge_utils import bridge_safe_error_response
 
 OUTLOOK_EMAIL_UNSUPPORTED = (
     "Outlook email sync is not implemented yet. The current Outlook settings "
@@ -119,8 +119,8 @@ def main() -> None:
     try:
         payload: dict[str, Any] = json.loads(sys.stdin.read())
         command = str(payload.get("command") or "list")
-    except Exception as exc:
-        print(json.dumps({"ok": False, "error": f"Bad input: {exc}"}), flush=True)
+    except Exception:
+        print(json.dumps({"ok": False, "error": "Invalid email request"}), flush=True)
         sys.exit(1)
 
     try:
@@ -145,7 +145,13 @@ def main() -> None:
             "configured": False,
         }
     except Exception as exc:
-        result = bridge_error_response(exc)
+        result = bridge_safe_error_response(
+            exc,
+            messages={ValueError: "Email request is invalid"},
+            default="Email request failed",
+        )
+        result["messages"] = []
+        result["configured"] = False
 
     print(json.dumps(result), flush=True)
 

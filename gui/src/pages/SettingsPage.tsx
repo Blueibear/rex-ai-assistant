@@ -253,7 +253,13 @@ function GeneralPanel(): React.ReactElement {
     const updated: GeneralSettings = { ...form, [field]: value }
     window.rex
       .setSettings('general', updated as unknown as Settings)
-      .then(() => showSaved(field))
+      .then((result) => {
+        if (result.ok) {
+          showSaved(field)
+        } else {
+          addToast(result.error ?? 'Failed to save general settings', 'error')
+        }
+      })
       .catch(() => {
         addToast('Failed to save general settings', 'error')
       })
@@ -777,7 +783,13 @@ function VoicePanel(): React.ReactElement {
     setForm(updated)
     window.rex
       .setSettings('voice', updated as unknown as Settings)
-      .then(() => showSaved(field))
+      .then((result) => {
+        if (result.ok) {
+          showSaved(field)
+        } else {
+          addToast(result.error ?? 'Failed to save voice settings', 'error')
+        }
+      })
       .catch(() => {
         addToast('Failed to save voice settings', 'error')
       })
@@ -962,10 +974,16 @@ function VoicePanel(): React.ReactElement {
           typeof result.model_path === 'string' ? result.model_path : form.wakeWordEmbeddingPath
       }
       setForm(updatedForm)
-      window.rex.setSettings('voice', updatedForm as unknown as Settings).catch(() => {
+      try {
+        const saveResult = await window.rex.setSettings('voice', updatedForm as unknown as Settings)
+        if (!saveResult.ok) {
+          addToast(saveResult.error ?? 'Failed to save custom wake word settings', 'error')
+        } else {
+          addToast('Custom wake word trained', 'success')
+        }
+      } catch {
         addToast('Failed to save custom wake word settings', 'error')
-      })
-      addToast('Custom wake word trained', 'success')
+      }
       loadWakeWords()
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err)
@@ -2115,7 +2133,10 @@ function AiPanel(): React.ReactElement {
 
     window.rex
       .getApiKeys()
-      .then((keys) => setApiKeySet(keys.openai_key_set))
+      .then((keys) => {
+        setApiKeySet(keys.openai_key_set)
+        if (keys.error) addToast(keys.error, 'error')
+      })
       .catch(() => {
         // Non-fatal — API key status will show as unset
       })
@@ -2134,7 +2155,13 @@ function AiPanel(): React.ReactElement {
     setForm(updated)
     window.rex
       .setSettings('ai', updated as unknown as Settings)
-      .then(() => showSaved(field))
+      .then((result) => {
+        if (result.ok) {
+          showSaved(field)
+        } else {
+          addToast(result.error ?? 'Failed to save AI settings', 'error')
+        }
+      })
       .catch(() => {
         addToast('Failed to save AI settings', 'error')
       })
@@ -2162,10 +2189,14 @@ function AiPanel(): React.ReactElement {
     setSavingRouting(true)
     window.rex
       .setSettings('ai', updated as unknown as Settings)
-      .then(() => {
-        setForm(updated)
-        setRoutingDirty(false)
-        showSaved('modelRouting')
+      .then((result) => {
+        if (result.ok) {
+          setForm(updated)
+          setRoutingDirty(false)
+          showSaved('modelRouting')
+        } else {
+          addToast(result.error ?? 'Failed to save model routing', 'error')
+        }
       })
       .catch(() => {
         addToast('Failed to save model routing', 'error')
@@ -2337,7 +2368,7 @@ function AiPanel(): React.ReactElement {
               </button>
             </div>
             <p className="mt-1 text-xs text-text-secondary">
-              Saved to .env at the repo root. Find your key at platform.openai.com → API keys.
+              Stored in the Windows credential vault. The saved key is never loaded back into this field.
             </p>
           </div>
         </>
@@ -2656,6 +2687,20 @@ function integrationKeyToSection(key: string): IntegrationSection | null {
   return null
 }
 
+const INTEGRATION_SECRET_FIELDS = new Set<keyof IntegrationsSettings>([
+  'emailClientSecret', 'calendarClientSecret', 'smsSid', 'smsAuthToken',
+  'smsFromNumber', 'haToken', 'phoneSid', 'phoneAuthToken', 'phoneNumber',
+  'phoneTransferNumber', 'telegramBotToken'
+])
+
+function isIntegrationSecretField(field: keyof IntegrationsSettings): boolean {
+  return INTEGRATION_SECRET_FIELDS.has(field)
+}
+
+function hasStoredCredential(form: IntegrationsSettings, field: keyof IntegrationsSettings): boolean {
+  return form.credentialStatus[field]?.hasCredential === true
+}
+
 function sectionsForIntegrationField(field: keyof IntegrationsSettings): IntegrationSection[] {
   if (
     field === 'emailProvider' ||
@@ -2896,7 +2941,8 @@ function IntegrationsPanel(): React.ReactElement {
     voicemailNotificationsEnabled: false,
     contactsFilePath: '',
     telegramBotToken: '',
-    telegramChatId: ''
+    telegramChatId: '',
+    credentialStatus: {}
   })
   const [loading, setLoading] = useState(true)
   const [savedField, setSavedField] = useState<keyof IntegrationsSettings | null>(null)
@@ -2991,6 +3037,8 @@ function IntegrationsPanel(): React.ReactElement {
                 port: typeof a.port === 'number' ? a.port : 993,
                 username: a.username ?? '',
                 password: a.password ?? '',
+                credentialRef: a.credentialRef,
+                hasCredential: a.hasCredential === true,
                 lastSynced: a.lastSynced
               } as EmailAccount))
           : []
@@ -3019,7 +3067,11 @@ function IntegrationsPanel(): React.ReactElement {
           voicemailNotificationsEnabled: typeof settings.voicemailNotificationsEnabled === 'boolean' ? settings.voicemailNotificationsEnabled : false,
           contactsFilePath: typeof settings.contactsFilePath === 'string' ? settings.contactsFilePath : '',
           telegramBotToken: typeof settings.telegramBotToken === 'string' ? settings.telegramBotToken : '',
-          telegramChatId: typeof settings.telegramChatId === 'string' ? settings.telegramChatId : ''
+          telegramChatId: typeof settings.telegramChatId === 'string' ? settings.telegramChatId : '',
+          credentialStatus:
+            settings.credentialStatus && typeof settings.credentialStatus === 'object'
+              ? settings.credentialStatus as IntegrationsSettings['credentialStatus']
+              : {}
         })
 
         const inventory = await window.rex.getIntegrations().catch(() => null)
@@ -3042,7 +3094,23 @@ function IntegrationsPanel(): React.ReactElement {
   function saveField(field: keyof IntegrationsSettings, updatedForm: IntegrationsSettings): void {
     window.rex
       .setSettings('integrations', updatedForm as unknown as Settings)
-      .then(() => showSaved(field))
+      .then((result) => {
+        if (result.ok) {
+          showSaved(field)
+          if (isIntegrationSecretField(field)) {
+            setForm((current) => ({
+              ...current,
+              [field]: '',
+              credentialStatus: {
+                ...current.credentialStatus,
+                [field]: { ref: current.credentialStatus[field]?.ref ?? '', hasCredential: true }
+              }
+            }))
+          }
+        } else {
+          addToast(result.error ?? 'Failed to save integrations settings', 'error')
+        }
+      })
       .catch(() => {
         addToast('Failed to save integrations settings', 'error')
       })
@@ -3113,9 +3181,28 @@ function IntegrationsPanel(): React.ReactElement {
     const updated = { ...form, emailAccounts: [...form.emailAccounts, newAccount] }
     setForm(updated)
     resetStatusForField('emailAccounts')
-    window.rex.setSettings('integrations', updated as unknown as Settings).catch(() => {
-      addToast('Failed to save email account', 'error')
-    })
+    window.rex
+      .setSettings('integrations', updated as unknown as Settings)
+      .then((result) => {
+        if (!result.ok) {
+          setForm(form)
+          addToast(result.error ?? 'Failed to save email account', 'error')
+        }
+      })
+      .catch(() => {
+        setForm(form)
+        addToast('Failed to save email account', 'error')
+      })
+  }
+
+  function updateEmailAccountDraft(id: string, patch: Partial<EmailAccount>): void {
+    setForm((current) => ({
+      ...current,
+      emailAccounts: current.emailAccounts.map((account) =>
+        account.id === id ? { ...account, ...patch } : account
+      )
+    }))
+    resetStatusForField('emailAccounts')
   }
 
   function handleUpdateEmailAccount(id: string, patch: Partial<EmailAccount>): void {
@@ -3125,21 +3212,49 @@ function IntegrationsPanel(): React.ReactElement {
     }
     setForm(updated)
     resetStatusForField('emailAccounts')
-    window.rex.setSettings('integrations', updated as unknown as Settings).catch(() => {
-      addToast('Failed to save email account', 'error')
-    })
+    window.rex
+      .removeEmailAccount(id, true)
+      .then((result) => {
+        if (!result.ok) {
+          setForm(form)
+          addToast(result.error ?? 'Failed to save email account', 'error')
+        } else if (patch.password || patch.clientSecret) {
+          setForm((current) => ({
+            ...current,
+            emailAccounts: current.emailAccounts.map((account) =>
+              account.id === id
+                ? { ...account, password: '', clientSecret: '', hasCredential: true }
+                : account
+            )
+          }))
+        }
+      })
+      .catch(() => {
+        setForm(form)
+        addToast('Failed to save email account', 'error')
+      })
   }
 
   function handleRemoveEmailAccount(id: string): void {
+    if (!window.confirm('Remove this email account and delete its stored credential?')) return
     const updated = {
       ...form,
       emailAccounts: form.emailAccounts.filter((a) => a.id !== id)
     }
     setForm(updated)
     resetStatusForField('emailAccounts')
-    window.rex.setSettings('integrations', updated as unknown as Settings).catch(() => {
-      addToast('Failed to remove email account', 'error')
-    })
+    window.rex
+      .setSettings('integrations', updated as unknown as Settings)
+      .then((result) => {
+        if (!result.ok) {
+          setForm(form)
+          addToast(result.error ?? 'Failed to remove email account', 'error')
+        }
+      })
+      .catch(() => {
+        setForm(form)
+        addToast('Failed to remove email account', 'error')
+      })
   }
 
   const inputClass =
@@ -3174,7 +3289,10 @@ function IntegrationsPanel(): React.ReactElement {
             </a>
             <ConnectionBadge
               status={testStatus.email}
-              hasCredentials={form.emailClientId.trim() !== '' || form.emailAccounts.length > 0}
+              hasCredentials={
+                (form.emailClientId.trim() !== '' && hasStoredCredential(form, 'emailClientSecret')) ||
+                form.emailAccounts.some((account) => account.hasCredential === true)
+              }
             />
           </div>
         </div>
@@ -3341,8 +3459,11 @@ function IntegrationsPanel(): React.ReactElement {
                         <PasswordInput
                           id={`imap-pass-${account.id}`}
                           value={account.password}
-                          placeholder="Password or app password"
-                          onChange={(v) => handleUpdateEmailAccount(account.id, { password: v })}
+                          placeholder={account.hasCredential ? 'Stored credential (enter to replace)' : 'Password or app password'}
+                          onChange={(v) => updateEmailAccountDraft(account.id, { password: v })}
+                          onBlur={() => {
+                            if (account.password) handleUpdateEmailAccount(account.id, { password: account.password })
+                          }}
                         />
                       </div>
                     ) : (
@@ -3359,8 +3480,13 @@ function IntegrationsPanel(): React.ReactElement {
                         <PasswordInput
                           id={`email-secret-${account.id}`}
                           value={account.clientSecret}
-                          placeholder="OAuth Client Secret (example)" // pragma: allowlist secret
-                          onChange={(v) => handleUpdateEmailAccount(account.id, { clientSecret: v })}
+                          placeholder={account.hasCredential ? 'Stored credential (enter to replace)' : 'OAuth Client Secret'}
+                          onChange={(v) => updateEmailAccountDraft(account.id, { clientSecret: v })}
+                          onBlur={() => {
+                            if (account.clientSecret) {
+                              handleUpdateEmailAccount(account.id, { clientSecret: account.clientSecret })
+                            }
+                          }}
                         />
                       </div>
                     )}
@@ -3423,7 +3549,7 @@ function IntegrationsPanel(): React.ReactElement {
             </a>
             <ConnectionBadge
               status={testStatus.calendar}
-              hasCredentials={form.calendarClientId.trim() !== ''}
+              hasCredentials={form.calendarClientId.trim() !== '' && hasStoredCredential(form, 'calendarClientSecret')}
             />
           </div>
         </div>
@@ -3517,7 +3643,7 @@ function IntegrationsPanel(): React.ReactElement {
             </a>
             <ConnectionBadge
               status={testStatus.sms}
-              hasCredentials={form.smsSid.trim() !== ''}
+              hasCredentials={hasStoredCredential(form, 'smsSid') && hasStoredCredential(form, 'smsAuthToken') && hasStoredCredential(form, 'smsFromNumber')}
             />
           </div>
         </div>
@@ -3605,7 +3731,7 @@ function IntegrationsPanel(): React.ReactElement {
             </NavLink>
             <ConnectionBadge
               status={testStatus.homeassistant}
-              hasCredentials={form.haUrl.trim() !== ''}
+              hasCredentials={form.haUrl.trim() !== '' && hasStoredCredential(form, 'haToken')}
             />
           </div>
         </div>
@@ -3675,7 +3801,7 @@ function IntegrationsPanel(): React.ReactElement {
             </a>
             <ConnectionBadge
               status={testStatus.phone}
-              hasCredentials={form.phoneSid.trim() !== ''}
+              hasCredentials={hasStoredCredential(form, 'phoneSid') && hasStoredCredential(form, 'phoneAuthToken') && hasStoredCredential(form, 'phoneNumber')}
             />
           </div>
         </div>
@@ -3815,7 +3941,7 @@ function IntegrationsPanel(): React.ReactElement {
           </h3>
           <ConnectionBadge
             status="idle"
-            hasCredentials={form.telegramBotToken.trim() !== '' && form.telegramChatId.trim() !== ''}
+            hasCredentials={hasStoredCredential(form, 'telegramBotToken') && form.telegramChatId.trim() !== ''}
           />
         </div>
 
@@ -3828,7 +3954,7 @@ function IntegrationsPanel(): React.ReactElement {
             <div className="flex items-center gap-1.5">
               <label htmlFor="telegramBotToken" className="text-sm font-medium text-text-primary">Bot Token</label>
               <span
-                title="Create a bot via @BotFather on Telegram to get a token. The TELEGRAM_BOT_TOKEN env var takes precedence if set."
+              title="Create a bot via @BotFather on Telegram to get a token. Rex stores it in the Windows credential vault."
                 className="flex-shrink-0 w-4 h-4 rounded-full bg-surface-raised text-text-muted flex items-center justify-center text-[10px] font-bold cursor-help select-none"
                 aria-label="Where to find Bot Token"
               >
@@ -3870,7 +3996,7 @@ function IntegrationsPanel(): React.ReactElement {
             className={inputClass}
           />
           <p className="mt-1 text-xs text-text-secondary">
-            Saved to config. Set <code className="font-mono bg-surface-raised px-1 rounded">TELEGRAM_BOT_TOKEN</code> in <code className="font-mono bg-surface-raised px-1 rounded">.env</code> to keep the token secret.
+            The token is stored in the Windows credential vault and is never loaded back into this field.
           </p>
         </div>
       </section>
@@ -3944,7 +4070,13 @@ function NotificationsPanel(): React.ReactElement {
     const updated: NotificationsSettings = { ...(updatedForm ?? form), [field]: value }
     window.rex
       .setSettings('notifications', updated as unknown as Settings)
-      .then(() => showSaved(field))
+      .then((result) => {
+        if (result.ok) {
+          showSaved(field)
+        } else {
+          addToast(result.error ?? 'Failed to save notifications settings', 'error')
+        }
+      })
       .catch(() => {
         addToast('Failed to save notifications settings', 'error')
       })
@@ -4362,6 +4494,11 @@ function AudioOutputPanel(): React.ReactElement {
       .then((s: Settings) => {
         return window.rex.setSettings('voice', { ...s, speakerDeviceId: deviceId } as Settings)
       })
+      .then((result) => {
+        if (!result.ok) {
+          addToast(result.error ?? 'Failed to save speaker selection', 'error')
+        }
+      })
       .catch(() => {
         addToast('Failed to save speaker selection', 'error')
       })
@@ -4374,9 +4511,13 @@ function AudioOutputPanel(): React.ReactElement {
       window.rex
         .getSettings('voice')
         .then((s: Settings) => window.rex.setSettings('voice', { ...s, volume: v } as Settings))
-        .then(() => {
-          setSavedVolume(true)
-          setTimeout(() => setSavedVolume(false), 2000)
+        .then((result) => {
+          if (result.ok) {
+            setSavedVolume(true)
+            setTimeout(() => setSavedVolume(false), 2000)
+          } else {
+            addToast(result.error ?? 'Failed to save volume', 'error')
+          }
         })
         .catch(() => {
           addToast('Failed to save volume', 'error')
@@ -4671,6 +4812,11 @@ function UsersPanel(): React.ReactElement {
     setUserNames(updated)
     window.rex
       .setSettings('users', { names: updated } as Settings)
+      .then((result) => {
+        if (!result.ok) {
+          addToast(result.error ?? 'Failed to save user name', 'error')
+        }
+      })
       .catch(() => {
         addToast('Failed to save user name', 'error')
       })
@@ -5016,9 +5162,13 @@ function SystemPanel(): React.ReactElement {
   function handleSave(): void {
     window.rex
       .setSettings('system', settings as unknown as Settings)
-      .then(() => {
-        setSaved(true)
-        setTimeout(() => setSaved(false), 2000)
+      .then((result) => {
+        if (result.ok) {
+          setSaved(true)
+          setTimeout(() => setSaved(false), 2000)
+        } else {
+          addToast(result.error ?? 'Failed to save system settings', 'error')
+        }
       })
       .catch(() => addToast('Failed to save system settings', 'error'))
   }
@@ -5277,7 +5427,7 @@ function SystemPanel(): React.ReactElement {
         <p className="mb-4 text-xs text-text-secondary">
           Replaces <code className="font-mono">config/rex_config.json</code> with the factory defaults from{' '}
           <code className="font-mono">rex_config.example.json</code>. User profiles, voice samples, and{' '}
-          <code className="font-mono">.env</code> secrets are not affected.
+              Credentials stored in the Windows credential vault are not affected.
         </p>
         {!showResetConfirm ? (
           <button
@@ -5292,7 +5442,7 @@ function SystemPanel(): React.ReactElement {
             <p className="text-sm font-medium text-red-700 mb-1">Are you sure?</p>
             <p className="text-xs text-red-600 mb-4">
               This will overwrite your current runtime configuration with factory defaults and restart Rex.
-              User profiles, voice samples, and .env secrets will not be changed.
+            User profiles, voice samples, and credentials in the Windows vault will not be changed.
             </p>
             <div className="flex gap-3">
               <button

@@ -107,4 +107,31 @@ describe('runtime path isolation', () => {
     expect(options.env.ASKREX_USERS_DATA_DIR).toBe(join('/fake/user-data', 'data', 'users'))
     expect(options.env.ASKREX_MEMORY_DIR).toBe(join('/fake/user-data', 'Memory'))
   })
+
+  it('actively strips the plaintext credential fallback from packaged children', () => {
+    const previous = process.env.REX_ALLOW_PLAINTEXT_CREDENTIAL_FALLBACK
+    process.env.REX_ALLOW_PLAINTEXT_CREDENTIAL_FALLBACK = '1'
+    mockApp.isPackaged = true
+    try {
+      const options = bridgeSpawnOptions()
+      expect(options.env.REX_ALLOW_PLAINTEXT_CREDENTIAL_FALLBACK).toBeUndefined()
+      expect(options.env.ASKREX_PACKAGED).toBe('1')
+    } finally {
+      if (previous === undefined) delete process.env.REX_ALLOW_PLAINTEXT_CREDENTIAL_FALLBACK
+      else process.env.REX_ALLOW_PLAINTEXT_CREDENTIAL_FALLBACK = previous
+    }
+  })
+
+  it('preserves an explicit legacy operator flag only for development children', () => {
+    const previous = process.env.REX_ALLOW_PLAINTEXT_CREDENTIAL_FALLBACK
+    process.env.REX_ALLOW_PLAINTEXT_CREDENTIAL_FALLBACK = 'true'
+    try {
+      const options = bridgeSpawnOptions()
+      expect(options.env.REX_ALLOW_PLAINTEXT_CREDENTIAL_FALLBACK).toBe('true')
+      expect(options.env.ASKREX_PACKAGED).toBe('0')
+    } finally {
+      if (previous === undefined) delete process.env.REX_ALLOW_PLAINTEXT_CREDENTIAL_FALLBACK
+      else process.env.REX_ALLOW_PLAINTEXT_CREDENTIAL_FALLBACK = previous
+    }
+  })
 })

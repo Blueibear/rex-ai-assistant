@@ -34,45 +34,6 @@ def _resolve_server_port() -> int:
     return port
 
 
-def _write_env_secrets(
-    env_path: Path,
-    *,
-    llm_provider: str,
-    llm_api_key: str,
-    ha_token: str,
-) -> None:
-    managed: dict[str, str] = {}
-    if llm_provider == "openai" and llm_api_key:
-        managed["OPENAI_API_KEY"] = llm_api_key
-    elif llm_provider == "anthropic" and llm_api_key:
-        managed["ANTHROPIC_API_KEY"] = llm_api_key
-    if ha_token:
-        managed["HA_TOKEN"] = ha_token
-
-    existing_lines: list[str] = []
-    if env_path.exists():
-        existing_lines = env_path.read_text(encoding="utf-8").splitlines()
-    updated: list[str] = []
-    seen_keys: set[str] = set()
-    for line in existing_lines:
-        stripped = line.strip()
-        if stripped.startswith("#") or "=" not in stripped:
-            updated.append(line)
-            continue
-        key = stripped.split("=", 1)[0].strip()
-        if key in managed:
-            updated.append(f"{key}={managed[key]}")
-            seen_keys.add(key)
-        else:
-            updated.append(line)
-
-    for key, value in managed.items():
-        if key not in seen_keys:
-            updated.append(f"{key}={value}")
-    env_path.parent.mkdir(parents=True, exist_ok=True)
-    env_path.write_text("\n".join(updated) + "\n", encoding="utf-8")
-
-
 def _register_core_routes(app: Any, *, ui_enabled: bool) -> None:
     from flask import jsonify, redirect, send_from_directory
 

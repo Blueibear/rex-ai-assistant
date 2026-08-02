@@ -239,9 +239,6 @@ def _register_ha_routes(bp: Blueprint) -> None:
 
         Body: ``{ha_base_url: str, ha_token?: str}``
         """
-        import os
-        from pathlib import Path
-
         from flask import jsonify, request
 
         from rex.routes._helpers import _require_auth
@@ -258,28 +255,14 @@ def _register_ha_routes(bp: Blueprint) -> None:
             return jsonify({"error": "ha_base_url is required"}), 400
 
         try:
-            from rex.config_manager import load_config as _load_json_cfg
-            from rex.config_manager import save_config as _save_json_cfg
+            from rex.credential_persistence import persist_household_secrets
 
-            json_cfg: dict[str, Any] = _load_json_cfg() or {}
-            json_cfg.setdefault("home_assistant", {})["base_url"] = base_url
-            _save_json_cfg(json_cfg)
-        except Exception as exc:
-            return jsonify({"error": f"failed to save config: {exc}"}), 500
+            def update_config(config: dict[str, Any]) -> None:
+                config.setdefault("home_assistant", {})["base_url"] = base_url
 
-        if token:
-            try:
-                from rex.bridge_utils import repo_root
-
-                env_path = repo_root() / ".env"
-            except Exception:
-                env_path = Path(".env")
-
-            # Import lazily so monkeypatching rex.gui_app._write_env_secrets in tests works.
-            from rex.gui_app import _write_env_secrets
-
-            _write_env_secrets(env_path, llm_provider="", llm_api_key="", ha_token=token)
-            os.environ["HA_TOKEN"] = token
+            persist_household_secrets({"HA_TOKEN": token}, update_config=update_config)
+        except Exception:
+            return jsonify({"error": "Home Assistant settings could not be stored securely"}), 500
 
         try:
             from rex.config import load_config as _reload_app_config

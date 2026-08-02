@@ -148,6 +148,7 @@ class TestEnvironmentOverrides:
 
     def test_openai_api_key_from_env(self, monkeypatch):
         """build_app_config reads OPENAI_API_KEY from environment."""
+        monkeypatch.setenv("REX_ALLOW_PLAINTEXT_CREDENTIAL_FALLBACK", "1")
         monkeypatch.setenv("OPENAI_API_KEY", "sk-test-openai-key")
         json_cfg = {
             "models": {
@@ -168,6 +169,7 @@ class TestEnvironmentOverrides:
 
     def test_brave_api_key_from_env(self, monkeypatch):
         """build_app_config reads BRAVE_API_KEY from environment."""
+        monkeypatch.setenv("REX_ALLOW_PLAINTEXT_CREDENTIAL_FALLBACK", "1")
         monkeypatch.setenv("BRAVE_API_KEY", "brave-test-key")
         json_cfg = {"models": {"llm_provider": "transformers", "llm_model": "sshleifer/tiny-gpt2"}}
         cfg = build_app_config(json_cfg)
@@ -175,6 +177,7 @@ class TestEnvironmentOverrides:
 
     def test_ha_token_from_env(self, monkeypatch):
         """build_app_config reads HA_TOKEN from environment."""
+        monkeypatch.setenv("REX_ALLOW_PLAINTEXT_CREDENTIAL_FALLBACK", "1")
         monkeypatch.setenv("HA_TOKEN", "ha-long-lived-token")
         json_cfg = {"models": {"llm_provider": "transformers", "llm_model": "sshleifer/tiny-gpt2"}}
         cfg = build_app_config(json_cfg)
@@ -182,6 +185,7 @@ class TestEnvironmentOverrides:
 
     def test_speak_api_key_from_env(self, monkeypatch):
         """build_app_config reads REX_SPEAK_API_KEY from environment."""
+        monkeypatch.setenv("REX_ALLOW_PLAINTEXT_CREDENTIAL_FALLBACK", "1")
         monkeypatch.setenv("REX_SPEAK_API_KEY", "speak-secret")
         json_cfg = {"models": {"llm_provider": "transformers", "llm_model": "sshleifer/tiny-gpt2"}}
         cfg = build_app_config(json_cfg)

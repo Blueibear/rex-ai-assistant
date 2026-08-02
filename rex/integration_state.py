@@ -75,6 +75,18 @@ def build_integration_inventory(
     """Describe configuration evidence without inventing live connectivity."""
     env = os.environ if environ is None else environ
 
+    from rex.credentials import (
+        get_persisted_credential,
+        legacy_plaintext_fallback_enabled,
+    )
+
+    legacy = legacy_plaintext_fallback_enabled()
+
+    def has_credential(logical_name: str) -> bool:
+        if legacy and env.get(logical_name):
+            return True
+        return bool(get_persisted_credential(logical_name))
+
     def has(name: str) -> bool:
         return bool(getattr(config, name, None))
 
@@ -92,16 +104,22 @@ def build_integration_inventory(
     )
     calendar_configured = calendar_provider not in {"", "none"}
     sms_configured = all(
-        env.get(key) for key in ("TWILIO_ACCOUNT_SID", "TWILIO_AUTH_TOKEN", "TWILIO_FROM_NUMBER")
+        has_credential(key)
+        for key in ("TWILIO_ACCOUNT_SID", "TWILIO_AUTH_TOKEN", "TWILIO_FROM_NUMBER")
     )
     phone_configured = all(
-        env.get(key) for key in ("TWILIO_ACCOUNT_SID", "TWILIO_AUTH_TOKEN", "TWILIO_PHONE_NUMBER")
+        has_credential(key)
+        for key in (
+            "TWILIO_PHONE_ACCOUNT_SID",
+            "TWILIO_PHONE_AUTH_TOKEN",
+            "TWILIO_PHONE_NUMBER",
+        )
     )
     search_configured = bool(
-        env.get("SERPAPI_API_KEY")
-        or env.get("BRAVE_API_KEY")
-        or env.get("GOOGLE_CSE_ID")
-        or getattr(config, "search_providers", None)
+        has_credential("SERPAPI_API_KEY")
+        or has_credential("BRAVE_API_KEY")
+        or has_credential("GOOGLE_API_KEY")
+        or "duckduckgo" in str(getattr(config, "search_providers", ""))
     )
     specs = [
         (

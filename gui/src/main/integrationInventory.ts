@@ -1,22 +1,22 @@
 import type { CapabilityInfo, IntegrationInventoryItem } from '../types/ipc'
-import { readEnvFile, readGuiSettings, readRexConfig } from './configStore'
+import { readGuiSettings, readRexConfigStrict } from './configStore'
 import { readSavedHomeAssistantCredentials } from './homeAssistant'
 import {
   hasConfiguredEmail,
   hasText,
   integrationSettingsFrom,
-  integrationStatusFor
+  integrationStatusFor,
+  testIntegrationByType
 } from './integrationStatus'
+import type { ElectronSessionIdentity } from './sessionIdentity'
+import { getVaultReference } from './credentialReferences'
+import { vaultHasSecret, type VaultContext } from './credentialVault'
 
-export function buildIntegrationInventory(): IntegrationInventoryItem[] {
+export async function buildIntegrationInventory(session: ElectronSessionIdentity): Promise<IntegrationInventoryItem[]> {
   const stored = readGuiSettings()
   const integrations = integrationSettingsFrom(stored)
-  const rexConfig = readRexConfig()
-  const env = readEnvFile()
-  const ha = readSavedHomeAssistantCredentials()
-  const openai = rexConfig.openai && typeof rexConfig.openai === 'object'
-    ? (rexConfig.openai as Record<string, unknown>)
-    : {}
+  const rexConfig = readRexConfigStrict()
+  const ha = await readSavedHomeAssistantCredentials(session)
   const ollama = rexConfig.ollama && typeof rexConfig.ollama === 'object'
     ? (rexConfig.ollama as Record<string, unknown>)
     : {}
@@ -24,13 +24,13 @@ export function buildIntegrationInventory(): IntegrationInventoryItem[] {
     ? (rexConfig.openclaw as Record<string, unknown>)
     : {}
 
-  const make = (
+  const make = async (
     item: Omit<
       IntegrationInventoryItem,
       'state' | 'testedAt' | 'error' | 'available' | 'read_capable' | 'write_capable'
     >
-  ): IntegrationInventoryItem => {
-    const status = integrationStatusFor(item.key, stored)
+  ): Promise<IntegrationInventoryItem> => {
+    const status = await integrationStatusFor(session, item.key, stored)
     const state = status.state === 'unconfigured' && item.configured
       ? 'configured'
       : status.state
@@ -47,7 +47,29 @@ export function buildIntegrationInventory(): IntegrationInventoryItem[] {
     }
   }
 
-  return [
+  const hasStored = async (logicalName: string, context: VaultContext): Promise<boolean> => {
+    const record = getVaultReference(rexConfig, logicalName, context, session.userId)
+    return record ? vaultHasSecret(session, record.ref, context) : false
+  }
+  const calendarConfigured = (await testIntegrationByType(session, 'calendar', integrations)).result.state === 'configured'
+  const smsConfigured = (await testIntegrationByType(session, 'sms', integrations)).result.state === 'configured'
+  const phoneConfigured = (await testIntegrationByType(session, 'phone', integrations)).result.state === 'configured'
+  const telegramConfigured = hasText(integrations.telegramChatId) && await hasStored(
+    'TELEGRAM_BOT_TOKEN', { scope: 'household', integration: 'telegram', account: null, slot: 'token' }
+  )
+  const openaiConfigured = await hasStored(
+    'OPENAI_API_KEY', { scope: 'household', integration: 'openai', account: null, slot: 'api_key' }
+  )
+  const searchConfigured = await hasStored(
+    'SERPAPI_KEY', { scope: 'household', integration: 'serpapi', account: null, slot: 'api_key' }
+  ) || await hasStored(
+    'BRAVE_API_KEY', { scope: 'household', integration: 'brave', account: null, slot: 'api_key' }
+  )
+  const openclawConfigured = hasText(openclaw.gateway_url) && await hasStored(
+    'OPENCLAW_GATEWAY_TOKEN', { scope: 'household', integration: 'openclaw_gateway', account: null, slot: 'token' }
+  )
+
+  return Promise.all([
     make({
       name: 'Home Assistant',
       key: 'homeassistant',
@@ -58,57 +80,53 @@ export function buildIntegrationInventory(): IntegrationInventoryItem[] {
     make({
       name: 'Email',
       key: 'email',
-      configured: hasConfiguredEmail(integrations),
+      configured: await hasConfiguredEmail(session, integrations, rexConfig),
       configure_url: '/settings?section=integrations',
       testable: true
     }),
     make({
       name: 'Calendar',
       key: 'calendar',
-      configured: hasText(integrations.calendarClientId) && hasText(integrations.calendarClientSecret), // pragma: allowlist secret
+      configured: calendarConfigured,
       configure_url: '/settings?section=integrations',
       testable: true
     }),
     make({
       name: 'SMS (Twilio)',
       key: 'sms',
-      configured:
-        (hasText(integrations.smsSid) && hasText(integrations.smsAuthToken) && hasText(integrations.smsFromNumber)) ||
-        (hasText(env.TWILIO_ACCOUNT_SID) && hasText(env.TWILIO_AUTH_TOKEN) && hasText(env.TWILIO_FROM_NUMBER)),
+      configured: smsConfigured,
       configure_url: '/settings?section=integrations',
       testable: true
     }),
     make({
       name: 'Phone (Twilio)',
       key: 'phone',
-      configured:
-        (hasText(integrations.phoneSid) && hasText(integrations.phoneAuthToken) && hasText(integrations.phoneNumber)) ||
-        (hasText(env.TWILIO_ACCOUNT_SID) && hasText(env.TWILIO_AUTH_TOKEN) && hasText(env.TWILIO_PHONE_NUMBER)),
+      configured: phoneConfigured,
       configure_url: '/settings?section=integrations',
       testable: true
     }),
     make({
       name: 'Telegram',
       key: 'telegram',
-      configured: hasText(integrations.telegramChatId) && (hasText(integrations.telegramBotToken) || hasText(env.TELEGRAM_BOT_TOKEN)),
+      configured: telegramConfigured,
       configure_url: '/settings?section=integrations'
     }),
     make({
       name: 'Web Search',
       key: 'search',
-      configured: hasText(env.SERPAPI_API_KEY) || hasText(env.BRAVE_API_KEY) || hasText(env.GOOGLE_CSE_ID),
+      configured: searchConfigured,
       configure_url: '/settings?section=ai'
     }),
     make({
       name: 'MQTT',
       key: 'mqtt',
-      configured: hasText(env.MQTT_BROKER_HOST),
+      configured: false,
       configure_url: '/settings?section=integrations'
     }),
     make({
       name: 'OpenAI',
       key: 'openai',
-      configured: hasText(env.OPENAI_API_KEY) || hasText(openai.api_key), // pragma: allowlist secret
+      configured: openaiConfigured,
       configure_url: '/settings?section=ai'
     }),
     make({
@@ -120,20 +138,20 @@ export function buildIntegrationInventory(): IntegrationInventoryItem[] {
     make({
       name: 'Push Notifications',
       key: 'push',
-      configured: hasText(integrations.pushProvider) && hasText(integrations.pushToken),
+      configured: false,
       configure_url: '/settings?section=integrations'
     }),
     make({
       name: 'OpenClaw',
       key: 'openclaw',
-      configured: hasText(openclaw.gateway_url),
+      configured: openclawConfigured,
       configure_url: '/settings?section=ai'
     })
-  ]
+  ])
 }
 
-export function buildCapabilityInventory(): CapabilityInfo[] {
-  const integrations = buildIntegrationInventory()
+export async function buildCapabilityInventory(session: ElectronSessionIdentity): Promise<CapabilityInfo[]> {
+  const integrations = await buildIntegrationInventory(session)
   const readable = new Set(integrations.filter((item) => item.read_capable).map((item) => item.key))
   const stateFor = (key: string): IntegrationInventoryItem | undefined =>
     integrations.find((item) => item.key === key)

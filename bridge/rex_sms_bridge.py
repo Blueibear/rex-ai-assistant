@@ -20,11 +20,10 @@ When SMS is not configured, returns {"ok": true, "threads": [],
 from __future__ import annotations
 
 import json
-import os
 import sys
 from typing import Any
 
-from rex.bridge_utils import bridge_error_response
+from rex.bridge_utils import bridge_safe_error_response
 
 
 def _msg_to_gui(msg: Any) -> dict[str, Any]:
@@ -52,12 +51,19 @@ def _thread_to_gui(thread: Any) -> dict[str, Any]:
 
 
 def _handle_list_threads() -> dict[str, Any]:
+    from rex.credentials import get_persisted_credential
     from rex.integrations.sms_service import SMSService
 
-    sid = os.environ.get("TWILIO_ACCOUNT_SID", "")
-    token = os.environ.get("TWILIO_AUTH_TOKEN", "")
+    sid = get_persisted_credential("TWILIO_ACCOUNT_SID") or ""
+    token = get_persisted_credential("TWILIO_AUTH_TOKEN") or ""
+    from_number = get_persisted_credential("TWILIO_FROM_NUMBER") or ""
     provider = "twilio" if (sid and token) else "none"
-    svc = SMSService(sms_provider=provider)
+    svc = SMSService(
+        sms_provider=provider,
+        account_sid=sid,
+        auth_token=token,
+        from_number=from_number,
+    )
 
     threads = svc.list_threads()
     configured = provider != "none"
@@ -72,8 +78,8 @@ def main() -> None:
     try:
         payload: dict[str, Any] = json.loads(sys.stdin.read())
         command = str(payload.get("command") or "list_threads")
-    except Exception as exc:
-        print(json.dumps({"ok": False, "error": f"Bad input: {exc}"}), flush=True)
+    except Exception:
+        print(json.dumps({"ok": False, "error": "Invalid SMS request"}), flush=True)
         sys.exit(1)
 
     try:
@@ -87,7 +93,14 @@ def main() -> None:
         else:
             result = {"ok": False, "error": f"Unknown command: {command!r}"}
     except Exception as exc:
-        result = bridge_error_response(exc)
+        result = bridge_safe_error_response(
+            exc,
+            messages={
+                PermissionError: "SMS requires private Electron data scope",
+                ValueError: "SMS request is invalid",
+            },
+            default="SMS request failed",
+        )
 
     print(json.dumps(result), flush=True)
 

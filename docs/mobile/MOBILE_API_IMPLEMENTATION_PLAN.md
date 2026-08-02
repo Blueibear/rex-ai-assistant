@@ -48,7 +48,7 @@ Create `rex/mobile_api/` with an injectable Flask app factory. Install request I
 
 ## S1-02: Typed configuration
 
-Add `MobileApiConfig` under `config.mobile_api` using the master-spec defaults. Validate host, port, TTLs, limits, origins, and API version. Keep `REX_JWT_SECRET` in `.env`, require adequate entropy, and add no new flat config reads.
+Add `MobileApiConfig` under `config.mobile_api` using the master-spec defaults. Validate host, port, TTLs, limits, origins, and API version. The original `.env` storage direction for `REX_JWT_SECRET` is superseded by the desktop credential vault policy; require adequate entropy and add no new flat config reads.
 
 ## S1-03: CLI commands
 

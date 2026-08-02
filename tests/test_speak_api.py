@@ -253,6 +253,157 @@ def test_oversized_request_body_returns_413(monkeypatch):
     assert resp.status_code == 413
 
 
+def test_rate_limit_key_never_uses_api_key(monkeypatch):
+    """_rate_limit_key must return the same value for different credentials
+    from the same address, and never contain credential-derived material."""
+    import rex_speak_api
+
+    marker_a = "SUPERSECRET-CREDENTIAL-AAA"
+    marker_b = "SUPERSECRET-CREDENTIAL-BBB"
+
+    from rex_speak_api import app
+
+    with app.test_request_context(
+        "/speak", headers={"X-API-Key": marker_a}, environ_base={"REMOTE_ADDR": "203.0.113.5"}
+    ):
+        key_a = rex_speak_api._rate_limit_key()
+
+    with app.test_request_context(
+        "/speak", headers={"X-API-Key": marker_b}, environ_base={"REMOTE_ADDR": "203.0.113.5"}
+    ):
+        key_b = rex_speak_api._rate_limit_key()
+
+    assert key_a == key_b == "203.0.113.5"
+    assert marker_a not in key_a
+    assert marker_b not in key_b
+    assert "api:" not in key_a
+
+
+def test_rate_limit_key_ignores_authorization_header(monkeypatch):
+    """Authorization header content must never leak into the rate-limit key."""
+    import rex_speak_api
+
+    marker = "Bearer SECRET-TOKEN-VALUE-1234567890"
+
+    from rex_speak_api import app
+
+    with app.test_request_context(
+        "/speak",
+        headers={"Authorization": marker},
+        environ_base={"REMOTE_ADDR": "198.51.100.7"},
+    ):
+        key = rex_speak_api._rate_limit_key()
+
+    assert key == "198.51.100.7"
+    assert "SECRET-TOKEN-VALUE" not in key
+
+
+def test_tts_error_handler_returns_fixed_message(monkeypatch):
+    """TextToSpeechError with attacker/exception-controlled text must never
+    reach the client response — only the fixed generic message."""
+    import rex_speak_api
+    from rex.assistant_errors import TextToSpeechError
+
+    marker = "leaked-internal-path-C:/secret/config.json"
+
+    # Reset rate limiter state to avoid cross-test contamination from prior test modules.
+    monkeypatch.setattr(rex_speak_api, "RATE_LIMIT", 30)
+    if rex_speak_api._RATE_CACHE is not None:
+        rex_speak_api._RATE_CACHE.clear()
+
+    def fake_generate(text, language, user_key):
+        raise TextToSpeechError(marker)
+
+    monkeypatch.setattr(rex_speak_api, "generate_speech", fake_generate)
+    monkeypatch.setenv("REX_SPEAK_API_KEY", "testkey")
+
+    from rex_speak_api import app
+
+    app.config["TESTING"] = True
+    client = app.test_client()
+    resp = client.post(
+        "/speak",
+        json=_speak_payload(),
+        headers={"X-API-Key": "testkey"},
+    )
+
+    assert resp.status_code == 500
+    body = resp.get_json()
+    assert marker not in resp.get_data(as_text=True)
+    assert body["error"]["message"] == "Speech synthesis failed"
+
+
+def test_auth_error_handler_rejects_unlisted_message(monkeypatch):
+    """An AuthenticationError raised with non-allowlisted text must surface
+    only the generic fixed authentication-failure message."""
+    import rex_speak_api
+    from rex.assistant_errors import AuthenticationError
+
+    marker = "leaked-secret-detail-xyz"
+
+    def fake_require_api_key():
+        raise AuthenticationError(marker)
+
+    monkeypatch.setattr(rex_speak_api, "_require_api_key", fake_require_api_key)
+
+    from rex_speak_api import app
+
+    app.config["TESTING"] = True
+    client = app.test_client()
+    resp = client.post("/speak", json=_speak_payload())
+
+    assert resp.status_code == 401
+    body = resp.get_json()
+    assert marker not in resp.get_data(as_text=True)
+    assert body["error"]["message"] == "Authentication failed"
+
+
+def test_generate_speech_wraps_dependency_errors_with_fixed_message(monkeypatch):
+    """Arbitrary dependency/filesystem exception text must never be embedded
+    in the TextToSpeechError raised by generate_speech."""
+    import rex_speak_api
+
+    marker = "OSError: disk full at /internal/secret/path"
+
+    def fake_get_engine():
+        class _FailingEngine:
+            def tts_to_file(self, **kwargs):
+                raise RuntimeError(marker)
+
+        return _FailingEngine()
+
+    def fake_load_audio():
+        class _FakeNP:
+            @staticmethod
+            def concatenate(*args, **kwargs):
+                return None
+
+        class _FakeSF:
+            @staticmethod
+            def read(path, dtype="float32"):
+                return None, 22050
+
+            @staticmethod
+            def write(path, data, rate):
+                pass
+
+        return _FakeNP(), _FakeSF()
+
+    monkeypatch.setattr(rex_speak_api, "_get_tts_engine", fake_get_engine)
+    monkeypatch.setattr(rex_speak_api, "_load_audio_dependencies", fake_load_audio)
+    monkeypatch.setattr(rex_speak_api, "chunk_text_for_xtts", lambda text, **kw: [text])
+
+    from rex.assistant_errors import TextToSpeechError
+
+    with pytest.raises(TextToSpeechError) as excinfo:
+        rex_speak_api.generate_speech("hello", "en", "james")
+
+    assert marker not in str(excinfo.value)
+    assert str(excinfo.value) == "Speech synthesis failed."
+    assert excinfo.value.__cause__ is not None
+    assert marker in str(excinfo.value.__cause__)
+
+
 def test_request_within_size_limit_proceeds(monkeypatch):
     """A request body under MAX_REQUEST_BYTES must not be rejected with 413."""
     import rex_speak_api

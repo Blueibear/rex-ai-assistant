@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from pathlib import Path
 from typing import Any
 
 from flask import Blueprint
@@ -37,8 +36,8 @@ def create_blueprint() -> Blueprint:
         """
         from flask import current_app, jsonify, request
 
-        from rex.auth import create_user
-        from rex.routes._helpers import _log_nonfatal_exception, _require_setup_token
+        from rex.auth import _open_db, create_user  # noqa: PLC2701
+        from rex.routes._helpers import _require_setup_token
 
         _, token_err = _require_setup_token()
         if token_err is not None:
@@ -62,43 +61,39 @@ def create_blueprint() -> Blueprint:
             return jsonify({"error": str(exc)}), 409
 
         try:
+            from rex.credential_persistence import persist_household_secrets
             from rex.permissions import bootstrap_admin_if_first_user
 
             bootstrap_admin_if_first_user(user["id"])
+            secrets_to_store: dict[str, str] = {"HA_TOKEN": ha_token}
+            if llm_api_key:
+                logical_name = {
+                    "openai": "OPENAI_API_KEY",
+                    "anthropic": "ANTHROPIC_API_KEY",
+                    "ollama": "OLLAMA_API_KEY",
+                }.get(llm_provider)
+                if logical_name is None:
+                    raise ValueError("Selected LLM provider does not accept an API key")
+                secrets_to_store[logical_name] = llm_api_key
+
+            def update_config(config: dict[str, Any]) -> None:
+                config.setdefault("llm", {})["provider"] = llm_provider
+                if llm_provider == "ollama" and data.get("ollama_base_url"):
+                    config.setdefault("llm", {})["ollama_base_url"] = data["ollama_base_url"]
+                config["tts_provider"] = tts_provider
+                if ha_base_url:
+                    config.setdefault("home_assistant", {})["base_url"] = ha_base_url
+
+            persist_household_secrets(secrets_to_store, update_config=update_config)
         except Exception:
-            _log_nonfatal_exception("Failed to bootstrap first-user admin permissions")
-
-        try:
-            from rex.config_manager import load_config as _load_json_cfg
-            from rex.config_manager import save_config as _save_json_cfg
-
-            json_cfg: dict[str, Any] = _load_json_cfg() or {}
-            json_cfg.setdefault("llm", {})["provider"] = llm_provider
-            if llm_provider == "ollama" and data.get("ollama_base_url"):
-                json_cfg.setdefault("llm", {})["ollama_base_url"] = data["ollama_base_url"]
-            json_cfg["tts_provider"] = tts_provider
-            if ha_base_url:
-                json_cfg.setdefault("home_assistant", {})["base_url"] = ha_base_url
-            _save_json_cfg(json_cfg)
-        except Exception:
-            _log_nonfatal_exception("Failed to persist setup wizard configuration")
-
-        try:
-            from rex.bridge_utils import repo_root
-
-            env_path = repo_root() / ".env"
-        except Exception:
-            env_path = Path(".env")
-
-        # Import lazily so monkeypatching rex.gui_app._write_env_secrets in tests works.
-        from rex.gui_app import _write_env_secrets
-
-        _write_env_secrets(
-            env_path,
-            llm_provider=llm_provider,
-            llm_api_key=llm_api_key,
-            ha_token=ha_token,
-        )
+            try:
+                with _open_db() as conn:
+                    conn.execute("DELETE FROM user_permissions WHERE user_id = ?", (user["id"],))
+                    conn.execute("DELETE FROM users WHERE id = ?", (user["id"],))
+                    conn.commit()
+            except Exception:
+                pass
+            return jsonify({"error": "setup could not be persisted securely"}), 500
 
         # Consume the setup token so the wizard cannot be re-run.
         current_app.config["SETUP_TOKEN"] = None

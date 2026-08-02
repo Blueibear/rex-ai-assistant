@@ -48,10 +48,19 @@ _PHONE_RE = re.compile(r"^\+?[\d\s\-().]{7,20}$")
 
 
 def _get_credentials() -> tuple[str, str, str] | None:
-    """Return (account_sid, auth_token, phone_number) or None if absent."""
-    sid = os.environ.get(_ENV_ACCOUNT_SID, "").strip()
-    token = os.environ.get(_ENV_AUTH_TOKEN, "").strip()
-    phone = os.environ.get(_ENV_PHONE_NUMBER, "").strip()
+    """Return vault-backed Twilio phone credentials or None if absent."""
+    from rex.credentials import get_persisted_credential, legacy_plaintext_fallback_enabled
+
+    legacy = legacy_plaintext_fallback_enabled()
+    sid = (os.environ.get(_ENV_ACCOUNT_SID, "").strip() if legacy else "") or (
+        get_persisted_credential("TWILIO_PHONE_ACCOUNT_SID") or ""
+    )
+    token = (os.environ.get(_ENV_AUTH_TOKEN, "").strip() if legacy else "") or (
+        get_persisted_credential("TWILIO_PHONE_AUTH_TOKEN") or ""
+    )
+    phone = (os.environ.get(_ENV_PHONE_NUMBER, "").strip() if legacy else "") or (
+        get_persisted_credential("TWILIO_PHONE_NUMBER") or ""
+    )
     if not (sid and token and phone):
         return None
     return sid, token, phone

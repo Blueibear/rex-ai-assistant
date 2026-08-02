@@ -211,7 +211,11 @@ class EmailService:
     # ------------------------------------------------------------------
 
     def _gmail_headers(self) -> dict[str, str]:
-        token = self._access_token or os.environ.get("GMAIL_ACCESS_TOKEN", "")
+        from rex.credentials import legacy_plaintext_fallback_enabled
+
+        token = self._access_token or (
+            os.environ.get("GMAIL_ACCESS_TOKEN", "") if legacy_plaintext_fallback_enabled() else ""
+        )
         return {"Authorization": f"Bearer {token}", "Accept": "application/json"}
 
     def _gmail_list_inbox(self, limit: int) -> list[EmailMessage]:
@@ -432,7 +436,20 @@ def create_email_service_for_user(
         if backend == "outlook":
             return None, "outlook"
         credentials_key = getattr(entry, "credentials_key", "") or ""
-        token = os.environ.get(credentials_key, "") if credentials_key else ""
+        from rex.credentials import get_persisted_credential
+
+        token = (
+            get_persisted_credential(
+                credentials_key,
+                scope="user",
+                user_id=validated,
+                integration="email",
+                account=getattr(entry, "account_id", ""),
+                slot="token",
+            )
+            if credentials_key
+            else None
+        )
         if not token:
             logger.warning(
                 "Gmail account %r for user %r has no token under credentials key %r",
@@ -451,7 +468,8 @@ def create_email_service_for_user(
         if provider == "outlook":
             return None, "outlook"
         if provider == "gmail":
-            # Legacy default-profile behaviour: global env token.
+            # Legacy default-profile behavior is available only in explicit
+            # operator mode; EmailService itself enforces that gate.
             return EmailService(email_provider="gmail"), "gmail"
 
     return None, "none"

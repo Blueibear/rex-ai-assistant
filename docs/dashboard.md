@@ -96,7 +96,7 @@ curl http://127.0.0.1:8765/api/tools
 
 - Keep the dashboard bound to localhost unless deliberately deploying behind a
   reverse proxy and authentication layer.
-- Keep secrets in `.env`, not in `config/rex_config.json`.
+- Keep secrets in the OS-backed credential vault, not in `.env` or JSON config.
 - Treat bridge/API responses from integrations as untrusted.
 
 ## Troubleshooting

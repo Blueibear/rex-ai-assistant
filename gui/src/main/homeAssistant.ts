@@ -1,6 +1,8 @@
 import type { Settings } from '../types/ipc'
-import { readEnvFile, readGuiSettings, readRexConfig, writeEnvKey, writeGuiSettings } from './configStore'
+import { readGuiSettings, readRexConfig, readRexConfigStrict, writeGuiSettings, writeRexConfig } from './configStore'
 import { mirrorToRexConfig } from './settingsMirror'
+import { vaultDeleteSecret, vaultGetSecret, vaultSetSecret, type VaultContext } from './credentialVault'
+import { getVaultReference, putVaultReference } from './credentialReferences'
 import { randomUUID } from 'crypto'
 import { spawn } from 'child_process'
 import { bridgeSpawnOptions, resolveBridgePath, resolvePythonCommand } from './bridgeResolver'
@@ -27,30 +29,87 @@ export function normalizeHaUrl(value: unknown): string {
   return typeof value === 'string' ? value.trim().replace(/\/+$/, '') : ''
 }
 
-export function readSavedHomeAssistantCredentials(): { baseUrl: string; token: string } {
+/**
+ * Resolve saved Home Assistant credentials. The token is read from the
+ * credential vault (S4) only. A vault failure (unavailable, locked, or
+ * corrupted) rejects the operation; callers must report that stored state
+ * could not be verified and must never consult plaintext `.env`.
+ */
+const HA_CONTEXT: VaultContext = {
+  scope: 'household', integration: 'home_assistant', account: null, slot: 'token'
+}
+
+export async function readSavedHomeAssistantCredentials(
+  session: ElectronSessionIdentity
+): Promise<{ baseUrl: string; token: string; ref: string | null }> {
   const stored = readGuiSettings()
   const integrations = (stored['integrations'] ?? {}) as Record<string, unknown>
   const rexConfig = readRexConfig()
   const haConfig = ((rexConfig.home_assistant ?? {}) as Record<string, unknown>)
-  const env = readEnvFile()
+
+  const record = getVaultReference(readRexConfigStrict(), 'HA_TOKEN', HA_CONTEXT, session.userId)
+  const ref = record?.ref ?? null
+  const token = record ? (await vaultGetSecret(session, record.ref, HA_CONTEXT)) ?? '' : ''
 
   return {
     baseUrl: normalizeHaUrl(integrations.haUrl) || normalizeHaUrl(haConfig.base_url),
-    // HA token is stored in .env only - never in gui_settings (canonical secret store)
-    token: (typeof env.HA_TOKEN === 'string' && env.HA_TOKEN.trim()) || ''
+    token,
+    ref
   }
 }
 
-export function saveHomeAssistantCredentials(baseUrl: string, token: string): void {
+/**
+ * Persist Home Assistant credentials. The token is written through to the
+ * credential vault (S4), never to plaintext `.env`. Rejects (does not
+ * silently swallow) on a vault failure - callers must surface this to the
+ * user rather than reporting a false "Saved" state.
+ */
+export async function saveHomeAssistantCredentials(
+  session: ElectronSessionIdentity,
+  baseUrl: string,
+  token: string
+): Promise<void> {
   const stored = readGuiSettings()
+  const originalStored = JSON.parse(JSON.stringify(stored)) as Record<string, Settings>
+  const nextStored = JSON.parse(JSON.stringify(stored)) as Record<string, Settings>
+  const originalConfig = readRexConfigStrict()
+  const nextConfig = JSON.parse(JSON.stringify(originalConfig)) as Record<string, unknown>
+  const oldRecord = getVaultReference(originalConfig, 'HA_TOKEN', HA_CONTEXT, session.userId)
+  let newRef: string | null = null
+  let guiWritten = false
+  let configWritten = false
   const integrations = { ...((stored['integrations'] ?? {}) as Record<string, unknown>) }
   integrations.haUrl = baseUrl
-  // haToken is NOT stored in gui_settings - canonical secret store is .env only
-  stored['integrations'] = integrations as Settings
-  writeGuiSettings(stored)
-  mirrorToRexConfig('integrations', integrations as Settings)
-  if (token) {
-    writeEnvKey('HA_TOKEN', token)
+  // haToken is NOT stored in gui_settings - canonical secret store is the vault
+  nextStored['integrations'] = integrations as Settings
+  try {
+    if (token.trim()) {
+      newRef = await vaultSetSecret(session, token.trim(), HA_CONTEXT)
+      putVaultReference(nextConfig, 'HA_TOKEN', newRef, HA_CONTEXT, session.userId)
+    }
+    writeGuiSettings(nextStored)
+    guiWritten = true
+    writeRexConfig(nextConfig)
+    configWritten = true
+    const mirrorResult = mirrorToRexConfig('integrations', integrations as Settings)
+    if (!mirrorResult.ok) throw new Error(mirrorResult.error ?? 'Home Assistant config mirror failed')
+    if (newRef) {
+      const readback = getVaultReference(readRexConfigStrict(), 'HA_TOKEN', HA_CONTEXT, session.userId)
+      if (readback?.ref !== newRef) throw new Error('Credential reference readback failed')
+      if (oldRecord) await vaultDeleteSecret(session, oldRecord.ref, HA_CONTEXT).catch(() => false)
+    }
+  } catch (error) {
+    let restored = true
+    if (guiWritten) {
+      try { writeGuiSettings(originalStored) } catch { restored = false }
+    }
+    if (configWritten) {
+      try { writeRexConfig(originalConfig) } catch { restored = false }
+    }
+    if (newRef && restored) {
+      await vaultDeleteSecret(session, newRef, HA_CONTEXT).catch(() => false)
+    }
+    throw error
   }
 }
 
@@ -118,9 +177,9 @@ export function callDeviceCommand(
       stdio: ['pipe', 'pipe', 'pipe']
     })
     let stdout = ''
-    let stderr = ''
+    let _stderr = ''
     py.stdout.on('data', (chunk: Buffer) => { stdout += chunk.toString() })
-    py.stderr.on('data', (chunk: Buffer) => { stderr += chunk.toString() })
+    py.stderr.on('data', (chunk: Buffer) => { _stderr += chunk.toString() })
     py.on('close', (code) => {
       try {
         const result = JSON.parse(stdout.trim()) as {
@@ -140,13 +199,13 @@ export function callDeviceCommand(
           })
           return
         }
-        resolve({ status: 'failed', detail: result.error ?? stderr.slice(0, 300) })
+        resolve({ status: 'failed', detail: 'Home Assistant command failed.' })
       } catch {
-        resolve({ status: 'failed', detail: stderr.slice(0, 300) || 'Invalid HA bridge response' })
+        resolve({ status: 'failed', detail: 'Home Assistant service returned an invalid response.' })
       }
     })
-    py.on('error', (error) => {
-      resolve({ status: 'failed', detail: `Failed to start HA bridge: ${error.message}` })
+    py.on('error', (_error) => {
+      resolve({ status: 'failed', detail: 'Home Assistant service could not be started.' })
     })
     py.stdin.write(JSON.stringify(privateSessionPayload(session, {
       entity_id: entityId,
@@ -175,8 +234,8 @@ export async function testHomeAssistantConnection(
   }
 }
 
-export async function getHomeAssistantStates(): Promise<HaStatesResult> {
-  const { baseUrl, token } = readSavedHomeAssistantCredentials()
+export async function getHomeAssistantStates(session: ElectronSessionIdentity): Promise<HaStatesResult> {
+  const { baseUrl, token } = await readSavedHomeAssistantCredentials(session)
   if (!baseUrl || !token) {
     return {
       ok: false,

@@ -16,29 +16,29 @@ function callSmsBridge(session: ElectronSessionIdentity, command: string, extra:
     })
 
     let stdout = ''
-    let stderr = ''
+    let _stderr = ''
 
     py.stdout.on('data', (chunk: Buffer) => {
       stdout += chunk.toString()
     })
     py.stderr.on('data', (chunk: Buffer) => {
-      stderr += chunk.toString()
+      _stderr += chunk.toString()
     })
 
     py.on('close', (code) => {
       if (code !== 0) {
-        reject(new Error(`SMS bridge exited ${code}: ${stderr.slice(0, 300)}`))
+        reject(new Error("SMS service is unavailable."))
         return
       }
       try {
         resolve(JSON.parse(stdout.trim()))
       } catch {
-        reject(new Error(`Failed to parse SMS bridge response: ${stdout.slice(0, 200)}`))
+        reject(new Error("SMS service returned an invalid response."))
       }
     })
 
-    py.on('error', (err) => {
-      reject(new Error(`Failed to spawn SMS bridge: ${err.message}`))
+    py.on('error', (_err) => {
+      reject(new Error("SMS service could not be started."))
     })
 
     py.stdin.write(JSON.stringify(privateSessionPayload(session, { command, ...extra })))

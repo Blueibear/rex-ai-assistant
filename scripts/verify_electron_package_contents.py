@@ -10,6 +10,7 @@ REQUIRED_BRIDGES = {
     "rex_calendar_bridge.py",
     "rex_chat_bridge.py",
     "rex_chat_stream_bridge.py",
+    "rex_credential_vault_bridge.py",
     "rex_email_bridge.py",
     "rex_file_extract_bridge.py",
     "rex_ha_mutation_bridge.py",
@@ -18,6 +19,7 @@ REQUIRED_BRIDGES = {
     "rex_memories_bridge.py",
     "rex_reminders_bridge.py",
     "rex_shopping_list_bridge.py",
+    "rex_setup_bridge.py",
     "rex_sms_bridge.py",
     "rex_speaker_bridge.py",
     "rex_stt_bridge.py",
@@ -40,7 +42,9 @@ ALLOWED_CONFIG = {
 FORBIDDEN_NAMES = {
     ".env",
     "credentials.json",
+    "fake_credentials.json",
     "gui_settings.json",
+    "plaintext_credentials.json",
     "rex_config.json",
     "users.json",
     "session.json",
@@ -89,6 +93,16 @@ def verify(resources: Path) -> list[str]:
         errors.append("Flask is present in the Electron runtime")
     if not (site_packages / "rex").is_dir():
         errors.append("installed AskRex package is missing from managed runtime")
+    elif not (site_packages / "rex" / "credential_vault.py").is_file():
+        errors.append("credential vault provider is missing from managed runtime")
+    for relative in (
+        Path("win32/win32crypt.pyd"),
+        Path("win32/win32security.pyd"),
+        Path("win32/win32api.pyd"),
+        Path("win32/lib/ntsecuritycon.py"),
+    ):
+        if not (site_packages / relative).is_file():
+            errors.append(f"credential vault Windows dependency is missing: {relative}")
     return errors
 
 

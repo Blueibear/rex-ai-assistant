@@ -84,8 +84,8 @@ skills sit under `plugins/` and `plugins/skills/`.
 Runtime, non-secret settings live in `config/rex_config.json`, loaded and
 validated by `rex/config.py` (`AppConfig`). Secrets such as
 `OPENAI_API_KEY`, `HA_TOKEN`, `REX_SPEAK_API_KEY`, `REX_TOOL_API_KEY`, and
-`OPENCLAW_GATEWAY_TOKEN` live in `.env`, and per-user profile overrides live
-in `profiles/<name>.json`.
+`OPENCLAW_GATEWAY_TOKEN` live in the OS-backed credential vault, and per-user
+profile overrides live in `profiles/<name>.json`.
 
 ## Runtime Shape
 

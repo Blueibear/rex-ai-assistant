@@ -55,6 +55,10 @@ dependencies = [
     # TTS backends (lightweight, cross-platform)
     "edge-tts>=6.1.9",
     "pyttsx3>=2.90",
+
+    # Windows-only OS-backed credential vault (S4): DPAPI via pywin32.
+    # No effect on macOS/Linux installs (see rex/credential_vault.py).
+    "pywin32>=311; sys_platform == 'win32'",
 ]
 
 [project.optional-dependencies]

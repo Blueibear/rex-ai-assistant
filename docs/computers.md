@@ -179,15 +179,15 @@ Add a `computers` array to `config/rex_config.json`:
 }
 ```
 
-Then add the auth token to `.env` (never to config):
+Store the token under the logical name `PC_DESKTOP_TOKEN` in the household
+credential vault. Existing `config/credentials.json` values can be migrated:
 
-```
-PC_DESKTOP_TOKEN=your-secret-token-here
+```powershell
+python scripts/migrate_credentials_to_vault.py --scope household --owner household --apply
 ```
 
 The `auth_token_ref` value (`PC_DESKTOP_TOKEN`) is looked up via
-`CredentialManager`.  The manager tries the environment variable directly
-(i.e., `os.getenv("PC_DESKTOP_TOKEN")`).
+`CredentialManager` and must resolve to matching contextual vault metadata.
 
 ---
 

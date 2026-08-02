@@ -75,7 +75,8 @@ def test_outlook_is_unavailable_not_connected() -> None:
     assert "unavailable" in email.detail
 
 
-def test_twilio_requires_complete_credentials() -> None:
+def test_twilio_requires_complete_credentials(monkeypatch) -> None:
+    monkeypatch.setenv("REX_ALLOW_PLAINTEXT_CREDENTIAL_FALLBACK", "1")
     partial = build_integration_inventory(
         _config(),
         {"TWILIO_ACCOUNT_SID": "sid", "TWILIO_AUTH_TOKEN": "token"},

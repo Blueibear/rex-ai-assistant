@@ -137,6 +137,32 @@ FIXTURES_DIR = ROOT / "tests" / "fixtures"
 FIXTURES_DIR.mkdir(parents=True, exist_ok=True)
 
 
+@pytest.fixture(autouse=True)
+def _default_legacy_credential_fallback_for_tests(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """DEV/CI-only opt-in: default plaintext credential fallback on for tests.
+
+    Production and packaged Electron are vault-only/fail-closed by default
+    (see ``rex.credentials.legacy_plaintext_fallback_enabled``). Most of the
+    test suite predates the credential vault and injects secrets such as
+    ``REX_JWT_SECRET`` or ``HA_TOKEN`` directly through the environment via
+    ``monkeypatch.setenv``/``os.environ``, so this autouse fixture enables the
+    documented explicit opt-in (``REX_ALLOW_PLAINTEXT_CREDENTIAL_FALLBACK``)
+    for every test by default. This is a test-only convenience - it does not
+    touch production code, and it never applies when ``ASKREX_PACKAGED`` is
+    set truthy (packaged mode rejects the flag outright).
+
+    Tests that specifically prove fail-closed/vault-only/packaged behavior
+    must explicitly opt back out with
+    ``monkeypatch.delenv("REX_ALLOW_PLAINTEXT_CREDENTIAL_FALLBACK", raising=False)``
+    (or set it to a falsy value) before exercising that behavior; because
+    they use the same ``monkeypatch`` fixture instance, that call overrides
+    this default within the test.
+    """
+    monkeypatch.setenv("REX_ALLOW_PLAINTEXT_CREDENTIAL_FALLBACK", "1")
+
+
 # Optional: Register custom pytest plugins
 # pytest_plugins = ["tests.fixtures.custom_plugin"]
 

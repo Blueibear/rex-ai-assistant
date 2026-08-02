@@ -305,14 +305,19 @@ class TestEmailTestConnection:
         lookups: list[str] = []
 
         class FakeCM:
-            def get_token(self, ref):
+            def get_token(self, ref, **context):
                 lookups.append(ref)
+                assert context == {
+                    "integration": "email",
+                    "account": "alice-work",
+                    "slot": "password",
+                }
                 return "user:pass"
 
         fake_backend = MagicMock()
         fake_backend.connect.return_value = True
 
-        with patch("rex.credentials.get_credential_manager", return_value=FakeCM()):
+        with patch("rex.credentials.CredentialManager", return_value=FakeCM()) as manager:
             with patch(
                 "rex.email_backends.account_router.build_backend_for_account",
                 return_value=fake_backend,
@@ -321,6 +326,7 @@ class TestEmailTestConnection:
                 result = cmd_email(args)
 
         assert result == 0
+        manager.assert_called_once_with(scope="user", user_id="alice")
         out = capsys.readouterr().out
         assert "alice-work" in out
         assert lookups == ["email:alice-work"]

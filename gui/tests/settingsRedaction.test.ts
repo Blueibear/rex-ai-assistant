@@ -15,6 +15,16 @@ describe('GUI settings secret redaction (US-027)', () => {
       'password',
       'smtp_passwd',
       'client_secret',
+      'emailClientSecret',
+      'calendarClientSecret',
+      'smsSid',
+      'smsAuthToken',
+      'smsFromNumber',
+      'phoneSid',
+      'phoneAuthToken',
+      'phoneNumber',
+      'phoneTransferNumber',
+      'telegramBotToken',
       'twilio_credential',
       'private_key'
     ]) {
@@ -32,7 +42,9 @@ describe('GUI settings secret redaction (US-027)', () => {
       'llm_provider',
       'ha_base_url',
       'theme',
-      'username'
+      'username',
+      'credentialRef',
+      'hasCredential'
     ]) {
       expect(isSecretSettingKey(key), key).toBe(false)
     }

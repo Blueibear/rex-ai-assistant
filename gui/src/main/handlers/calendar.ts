@@ -16,29 +16,29 @@ function callCalendarBridge(session: ElectronSessionIdentity, command: string, e
     })
 
     let stdout = ''
-    let stderr = ''
+    let _stderr = ''
 
     py.stdout.on('data', (chunk: Buffer) => {
       stdout += chunk.toString()
     })
     py.stderr.on('data', (chunk: Buffer) => {
-      stderr += chunk.toString()
+      _stderr += chunk.toString()
     })
 
     py.on('close', (code) => {
       if (code !== 0) {
-        reject(new Error(`Calendar bridge exited ${code}: ${stderr.slice(0, 300)}`))
+        reject(new Error("Calendar service is unavailable."))
         return
       }
       try {
         resolve(JSON.parse(stdout.trim()))
       } catch {
-        reject(new Error(`Failed to parse calendar bridge response: ${stdout.slice(0, 200)}`))
+        reject(new Error("Calendar service returned an invalid response."))
       }
     })
 
-    py.on('error', (err) => {
-      reject(new Error(`Failed to spawn calendar bridge: ${err.message}`))
+    py.on('error', (_err) => {
+      reject(new Error("Calendar service could not be started."))
     })
 
     py.stdin.write(JSON.stringify(privateSessionPayload(session, { command, ...extra })))

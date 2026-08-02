@@ -173,7 +173,8 @@ def test_bridge_script_calls_bootstrap_admin():
     assert "bootstrap_admin_if_first_user" in content
 
 
-def test_bridge_script_writes_env_secrets():
-    """Bridge script writes env secrets via _write_env_secrets."""
+def test_bridge_script_uses_transactional_vault_persistence():
+    """Bridge setup persists secrets through the vault transaction helper."""
     content = _read(BRIDGE_SCRIPT)
-    assert "_write_env_secrets" in content
+    assert "persist_household_secrets" in content
+    assert "_write_env_secrets" not in content

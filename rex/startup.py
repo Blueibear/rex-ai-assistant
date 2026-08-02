@@ -75,14 +75,11 @@ def _validate_env() -> None:
     Currently a lightweight check.  Add mandatory variable assertions here as
     requirements grow.  Logs warnings for advisory-only issues.
     """
-    import os  # noqa: PLC0415
+    from rex.credentials import get_persisted_credential  # noqa: PLC0415
 
-    proxy_token = os.environ.get("REX_PROXY_TOKEN", "")
+    proxy_token = get_persisted_credential("REX_PROXY_TOKEN")
     if not proxy_token:
-        logger.warning(
-            "REX_PROXY_TOKEN is not set — bearer-token auth is disabled. "
-            "Set this variable in production."
-        )
+        logger.warning("REX_PROXY_TOKEN is not stored — bearer-token auth is disabled.")
     logger.debug("Config validation passed")
 
 

@@ -75,7 +75,8 @@ export const defaultSettingsMap: Record<string, Settings> = {
     voicemailNotificationsEnabled: false,
     contactsFilePath: '',
     telegramBotToken: '',
-    telegramChatId: ''
+    telegramChatId: '',
+    credentialStatus: {}
   } satisfies IntegrationsSettings,
   system: {
     autonomyMode: 'manual',

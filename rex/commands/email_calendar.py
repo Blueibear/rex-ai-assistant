@@ -267,22 +267,27 @@ def _cmd_email_test_connection(args: argparse.Namespace, user: str) -> int:
     print(f"  IMAP: {acct.imap.host}:{acct.imap.port}")
     print(f"  SMTP: {acct.smtp.host}:{acct.smtp.port}")
 
-    # Check credentials (only this account's own credential_ref is consulted)
+    # Check credentials using a request-local manager bound to the validated
+    # user and the authorized account context.
     try:
-        from rex.credentials import get_credential_manager
+        from rex.credentials import CredentialManager
 
-        cm = get_credential_manager()
-        token = cm.get_token(acct.credential_ref)
+        cm = CredentialManager(scope="user", user_id=user)
+        token = cm.get_token(
+            acct.credential_ref,
+            integration="email",
+            account=acct.id,
+            slot="password",
+        )
         if not token:
-            print(f"  Credential ({acct.credential_ref}): NOT FOUND")
+            print("  Credential: NOT FOUND")
             print()
             print("Error: No credentials available for this account.")
-            print(f"Set the environment variable for '{acct.credential_ref}' or")
-            print("add it to config/credentials.json.")
+            print("Store the account credential through AskRex Settings.")
             return 1
-        print(f"  Credential ({acct.credential_ref}): available")
-    except Exception as exc:
-        print(f"  Credential check error: {exc}")
+        print("  Credential: available")
+    except Exception:
+        print("  Credential check failed.")
         return 1
 
     # Try IMAP connect
@@ -548,14 +553,25 @@ def _cmd_calendar_test_connection(args: argparse.Namespace, user: str) -> int:
     if acct.provider == "google":
         # Check token presence only — never print the credential reference
         # or its value.
-        import os
+        from rex.credentials import get_persisted_credential
 
-        token = os.environ.get(acct.credential_ref, "") if acct.credential_ref else ""
+        token = (
+            get_persisted_credential(
+                acct.credential_ref,
+                scope="user",
+                user_id=user,
+                integration="calendar",
+                account=acct.id,
+                slot="token",
+            )
+            if acct.credential_ref
+            else None
+        )
         if not token:
             print("  Credential: NOT FOUND")
             print()
             print("Error: No credentials available for this account.")
-            print("Set this account's token environment variable (see docs/calendar.md).")
+            print("Store this account's token through the credential vault.")
             return 1
         print("  Credential: available")
         print()

@@ -12,7 +12,6 @@ authorization — permissions are resolved live from the server-side store.
 from __future__ import annotations
 
 import logging
-import os
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from functools import wraps
@@ -44,16 +43,18 @@ class MobileAuthConfigurationError(RuntimeError):
 
 
 def load_jwt_secret() -> str:
-    """Return the mobile JWT signing secret from ``REX_JWT_SECRET``.
+    """Return the mobile JWT signing secret from the credential authority.
 
     Fails closed when the secret is missing or does not meet the documented
     minimum length of 32 characters (use at least 32 random bytes — e.g.
     ``python -c "import secrets; print(secrets.token_hex(32))"``).
     """
-    secret = os.getenv("REX_JWT_SECRET") or ""
+    from rex.credentials import get_persisted_credential
+
+    secret = get_persisted_credential("REX_JWT_SECRET") or ""
     if not secret:
         raise MobileAuthConfigurationError(
-            "REX_JWT_SECRET is not set. Add it to your .env file. Generate a "
+            "REX_JWT_SECRET is not set in the credential vault. Generate a "
             'value with: python -c "import secrets; print(secrets.token_hex(32))"'
         )
     if len(secret) < MIN_JWT_SECRET_LENGTH:

@@ -31,6 +31,7 @@ export interface SettingsResponse {
 
 export interface SetSettingsResponse {
   ok: boolean
+  error?: string
 }
 
 export interface VoiceInfo {
@@ -238,6 +239,8 @@ export interface EmailAccount {
   port: number
   username: string
   password: string
+  credentialRef?: string
+  hasCredential?: boolean
   // State
   lastSynced?: string
 }
@@ -265,6 +268,7 @@ export interface IntegrationsSettings {
   // Telegram
   telegramBotToken: string
   telegramChatId: string
+  credentialStatus: Record<string, { ref: string; hasCredential: boolean }>
 }
 
 export type IntegrationConnectionStatus =
@@ -575,6 +579,7 @@ export interface RexAPI {
   onStatusChange: (cb: (status: string) => void) => (() => void)
   getSettings: (section: string) => Promise<Settings>
   setSettings: (section: string, values: Settings) => Promise<SetSettingsResponse>
+  removeEmailAccount: (id: string, confirmed: boolean) => Promise<SetSettingsResponse>
   startVoice: (
     onStateChange: (state: string) => void,
     onTranscript: (entry: VoiceTranscriptEntry) => void,
@@ -683,7 +688,7 @@ export interface RexAPI {
   sendChatAudio: (
     audioBase64: string
   ) => Promise<{ ok: boolean; transcript?: string; error?: string }>
-  getApiKeys: () => Promise<{ openai_key_set: boolean }>
+  getApiKeys: () => Promise<{ openai_key_set: boolean; error?: string }>
   setApiKey: (name: string, value: string) => Promise<{ ok: boolean; error?: string }>
   getSmartSpeakers: () => Promise<{ ok: boolean; speakers: SmartSpeaker[]; error?: string }>
   restartRex: () => Promise<{ ok: boolean; error?: string }>
