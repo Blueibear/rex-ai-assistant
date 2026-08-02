@@ -152,8 +152,8 @@ describe('settings vault routing (S4)', () => {
       return `cred_${character.repeat(32)}`
     })
     const secretValues = {
-      emailClientSecret: 'marker-email-client',
-      calendarClientSecret: 'marker-calendar-client',
+      emailClientSecret: 'marker-email-client', // pragma: allowlist secret
+      calendarClientSecret: 'marker-calendar-client', // pragma: allowlist secret
       smsSid: 'marker-sms-sid',
       smsAuthToken: 'marker-sms-token',
       smsFromNumber: 'marker-sms-number',
@@ -168,7 +168,7 @@ describe('settings vault routing (S4)', () => {
       ...secretValues,
       emailAccounts: [{
         id: 'work', backend: 'imap', label: 'Work', host: 'imap.example.test',
-        port: 993, username: 'alice@example.test', password: 'marker-account-password'
+        port: 993, username: 'alice@example.test', password: 'marker-account-password' // pragma: allowlist secret
       }]
     })
     expect(result).toEqual({ ok: true })
@@ -198,8 +198,8 @@ describe('settings vault routing (S4)', () => {
   it('rejects duplicate email account ids before writing credentials or settings', async () => {
     const result = await invoke('rex:setSettings', 'integrations', {
       emailAccounts: [
-        { id: 'work', backend: 'imap', password: 'first-secret' },
-        { id: 'work', backend: 'imap', password: 'second-secret' }
+        { id: 'work', backend: 'imap', password: 'first-secret' }, // pragma: allowlist secret
+        { id: 'work', backend: 'imap', password: 'second-secret' } // pragma: allowlist secret
       ]
     })
     expect(result).toEqual({ ok: false, error: 'Duplicate email account id: work' })

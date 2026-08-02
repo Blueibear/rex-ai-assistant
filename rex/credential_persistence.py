@@ -148,7 +148,9 @@ def persist_household_secrets(
                 try:
                     assert vault is not None
                     vault.delete_secret(ref, integration=integration, account=account, slot=slot)
-                except Exception:
+                except (
+                    Exception
+                ):  # noqa: B110 - best-effort rollback cleanup must not hide the primary error
                     pass
         raise
 
@@ -156,7 +158,9 @@ def persist_household_secrets(
         try:
             assert vault is not None
             vault.delete_secret(ref, integration=integration, account=account, slot=slot)
-        except Exception:
+        except (
+            Exception
+        ):  # noqa: B110 - best-effort rollback cleanup must not hide the primary error
             pass
     return result
 

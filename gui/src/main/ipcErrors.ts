@@ -29,6 +29,10 @@ export class SafeValidationError extends Error {
 export function safeIpcErrorMessage(err: unknown, fallback: string): string {
   if (err instanceof SafeValidationError) return err.message
   const errorName = err instanceof Error ? err.name : typeof err
-  appendElectronLog('ERROR', fallback, { error_type: errorName })
+  try {
+    appendElectronLog('ERROR', fallback, { error_type: errorName })
+  } catch {
+    // Error reporting must remain fail-safe when the log path is unavailable.
+  }
   return fallback
 }

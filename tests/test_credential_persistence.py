@@ -64,7 +64,9 @@ def test_config_failure_removes_staged_secret_and_preserves_original(tmp_path, m
 
     monkeypatch.setattr("rex.config_manager.save_config", fail_save)
     with pytest.raises(OSError, match="disk full"):
-        persist_household_secrets({"OPENAI_API_KEY": "secret-marker"}, config_path=config_path)
+        persist_household_secrets(
+            {"OPENAI_API_KEY": "secret-marker"}, config_path=config_path  # pragma: allowlist secret
+        )  # pragma: allowlist secret
     assert config_path.read_text(encoding="utf-8") == original
     assert vault.list_entries() == []
 
@@ -79,7 +81,9 @@ def test_vault_readback_failure_removes_the_staged_secret(tmp_path, monkeypatch)
     vault = LyingVault()
     _patch_vault(monkeypatch, vault)
     with pytest.raises(RuntimeError, match="readback"):
-        persist_household_secrets({"OPENAI_API_KEY": "secret-marker"}, config_path=config_path)
+        persist_household_secrets(
+            {"OPENAI_API_KEY": "secret-marker"}, config_path=config_path  # pragma: allowlist secret
+        )  # pragma: allowlist secret
     assert not config_path.exists()
     assert vault.list_entries() == []
 
@@ -106,7 +110,9 @@ def test_reference_readback_failure_restores_registry_and_removes_staged_secret(
 
     monkeypatch.setattr("rex.credential_persistence._strict_config", corrupt_readback)
     with pytest.raises(RuntimeError, match="readback"):
-        persist_household_secrets({"OPENAI_API_KEY": "secret-marker"}, config_path=config_path)
+        persist_household_secrets(
+            {"OPENAI_API_KEY": "secret-marker"}, config_path=config_path  # pragma: allowlist secret
+        )  # pragma: allowlist secret
     assert json.loads(config_path.read_text(encoding="utf-8")) == {"existing": True}
     assert vault.list_entries() == []
 
@@ -131,7 +137,7 @@ def test_second_secret_failure_removes_first_staged_entry_and_writes_no_config(
     with pytest.raises(RuntimeError, match="vault write failed"):
         persist_household_secrets(
             {
-                "OPENAI_API_KEY": "first-marker",
+                "OPENAI_API_KEY": "first-marker",  # pragma: allowlist secret
                 "HA_TOKEN": "second-marker",
             },
             config_path=config_path,

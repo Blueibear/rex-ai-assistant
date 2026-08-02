@@ -67,7 +67,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Protocol, TypeVar, runtime_checkable
+from typing import BinaryIO, Protocol, TypeVar, runtime_checkable
 
 logger = logging.getLogger(__name__)
 
@@ -440,6 +440,11 @@ class WindowsDpapiCredentialVault:
     prompt it can never show.
     """
 
+    _scope: str
+    _owner: str
+    _vault_path: Path
+    _lock_path: Path
+
     def __init__(
         self, *, scope: str = "household", user_id: str | None = None, vault_path: Path
     ) -> None:
@@ -453,7 +458,7 @@ class WindowsDpapiCredentialVault:
 
     # -- interprocess locking -------------------------------------------------
 
-    def _acquire_lock(self):
+    def _acquire_lock(self) -> BinaryIO:
         self._vault_path.parent.mkdir(parents=True, exist_ok=True)
         handle = open(self._lock_path, "a+b")  # noqa: SIM115 - lifetime spans lock hold
         handle.seek(0, os.SEEK_END)
@@ -469,7 +474,8 @@ class WindowsDpapiCredentialVault:
         while True:
             try:
                 handle.seek(0)
-                msvcrt.locking(handle.fileno(), msvcrt.LK_NBLCK, 1)
+                locking = msvcrt.locking
+                locking(handle.fileno(), msvcrt.LK_NBLCK, 1)
                 return handle
             except OSError:
                 if time.monotonic() >= deadline:
@@ -480,11 +486,12 @@ class WindowsDpapiCredentialVault:
                     ) from None
                 time.sleep(_LOCK_POLL_SECONDS)
 
-    def _release_lock(self, handle) -> None:
+    def _release_lock(self, handle: BinaryIO) -> None:
         try:
             if _MSVCRT_AVAILABLE:  # pragma: no branch - Windows always has msvcrt
                 handle.seek(0)
-                msvcrt.locking(handle.fileno(), msvcrt.LK_UNLCK, 1)
+                locking = msvcrt.locking
+                locking(handle.fileno(), msvcrt.LK_UNLCK, 1)
         finally:
             handle.close()
 

@@ -177,7 +177,7 @@ value.
   (no implicit fallback). `InMemoryCredentialVault` exists only for tests —
   never selected by a production code path.
 - One-time migration of existing plaintext `.env` / `config/credentials.json`
-  secrets: `scripts/migrate_credentials_to_vault.py` (dry-run by default;
+  secrets: `scripts/migrate_credentials_to_vault.py` (dry-run by default; <!-- pragma: allowlist secret -->
   `--apply` verifies the vault write and opaque-reference registry before
   atomically sanitizing the source). It never creates plaintext backups or
   secret-derived output; rollback references remain encrypted in the vault

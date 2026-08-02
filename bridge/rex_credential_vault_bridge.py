@@ -106,7 +106,9 @@ def _handle_set(payload: dict[str, Any]) -> dict[str, Any]:
     except Exception:
         try:
             vault.delete_secret(key, integration=integration, account=account, slot=slot)
-        except Exception:
+        except (
+            Exception
+        ):  # noqa: B110 - best-effort rollback cleanup must not hide the primary error
             pass
         raise
     return {"ok": True, "ref": key}

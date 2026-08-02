@@ -153,7 +153,7 @@ class TestSetupComplete:
             if update_config is not None:
                 update_config(config)
             captured["config"] = config
-            return {"OPENAI_API_KEY": "cred_" + "A" * 32}
+            return {"OPENAI_API_KEY": "cred_" + "A" * 32}  # pragma: allowlist secret
 
         monkeypatch.setattr("rex.credential_persistence.persist_household_secrets", fake_persist)
 
@@ -163,7 +163,7 @@ class TestSetupComplete:
                 "username": "eve",
                 "password": "securepass1",
                 "llm_provider": "openai",
-                "llm_api_key": "sk-test-key",
+                "llm_api_key": "sk-test-key",  # pragma: allowlist secret
                 "tts_provider": "none",
             },
             headers={"X-Setup-Token": _setup_token(flask_client)},
@@ -192,7 +192,7 @@ class TestSetupComplete:
                 "username": "rollback-user",
                 "password": "securepass1",
                 "llm_provider": "openai",
-                "llm_api_key": "secret-marker",
+                "llm_api_key": "secret-marker",  # pragma: allowlist secret
             },
             headers={"X-Setup-Token": setup_token},
         )

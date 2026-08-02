@@ -37,7 +37,7 @@ function callSmsBridge(session: ElectronSessionIdentity, command: string, extra:
       }
     })
 
-    py.on('error', (_err) => {
+    py.on('error', () => {
       reject(new Error("SMS service could not be started."))
     })
 

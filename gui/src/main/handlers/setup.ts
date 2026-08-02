@@ -35,7 +35,7 @@ function callSetupBridge(payload: Record<string, unknown>): Promise<Record<strin
       }
     })
 
-    py.on('error', (_err) => {
+    py.on('error', () => {
       resolve({ ok: false, error: "Setup service could not be started." })
     })
 

@@ -37,7 +37,7 @@ function callCalendarBridge(session: ElectronSessionIdentity, command: string, e
       }
     })
 
-    py.on('error', (_err) => {
+    py.on('error', () => {
       reject(new Error("Calendar service could not be started."))
     })
 

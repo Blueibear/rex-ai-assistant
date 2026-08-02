@@ -34,7 +34,7 @@ function callEmailBridge(session: ElectronSessionIdentity, command: string, extr
       }
     })
 
-    py.on('error', (_err) => {
+    py.on('error', () => {
       reject(new Error("Email service could not be started."))
     })
 

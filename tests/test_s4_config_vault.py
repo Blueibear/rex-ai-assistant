@@ -47,7 +47,7 @@ def test_app_config_resolves_an_exact_contextual_vault_reference(monkeypatch):
         account=None,
         slot="api_key",
     )
-    assert build_app_config(config).openai_api_key == "vault-value"
+    assert build_app_config(config).openai_api_key == "vault-value"  # pragma: allowlist secret
 
 
 def test_configured_vault_reference_wins_over_legacy_environment_value(monkeypatch):
@@ -66,7 +66,7 @@ def test_configured_vault_reference_wins_over_legacy_environment_value(monkeypat
         slot="api_key",
     )
 
-    assert build_app_config(config).openai_api_key == "vault-value"
+    assert build_app_config(config).openai_api_key == "vault-value"  # pragma: allowlist secret
 
 
 def test_legacy_environment_value_is_used_only_when_no_vault_reference_is_configured(monkeypatch):
@@ -77,7 +77,10 @@ def test_legacy_environment_value_is_used_only_when_no_vault_reference_is_config
         lambda **_kwargs: InMemoryCredentialVault(),
     )
 
-    assert build_app_config(_base_config()).openai_api_key == "operator-value"
+    assert (
+        build_app_config(_base_config()).openai_api_key
+        == "operator-value"  # pragma: allowlist secret
+    )  # pragma: allowlist secret
 
 
 def test_environment_is_ignored_without_explicit_legacy_mode(monkeypatch):

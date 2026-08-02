@@ -399,7 +399,9 @@ class TestCredentialManagerVaultIntegration:
         with tempfile.TemporaryDirectory() as tmpdir:
             config_path = Path(tmpdir) / "credentials.json"
             config_path.write_text(json.dumps({"credentials": {"openai": "config-key"}}))
-            with patch.dict(os.environ, {"OPENAI_API_KEY": "env-key"}, clear=False):
+            with patch.dict(
+                os.environ, {"OPENAI_API_KEY": "env-key"}, clear=False  # pragma: allowlist secret
+            ):  # pragma: allowlist secret
                 manager = CredentialManager(
                     config_path=config_path, vault=vault, vault_refs=OPENAI_VAULT_REFS
                 )
@@ -453,7 +455,9 @@ class TestCredentialManagerVaultIntegration:
 
         monkeypatch.delenv("REX_ALLOW_PLAINTEXT_CREDENTIAL_FALLBACK", raising=False)
         vault = InMemoryCredentialVault()
-        with patch.dict(os.environ, {"OPENAI_API_KEY": "env-key"}, clear=False):
+        with patch.dict(
+            os.environ, {"OPENAI_API_KEY": "env-key"}, clear=False  # pragma: allowlist secret
+        ):  # pragma: allowlist secret
             manager = CredentialManager(config_path=Path("/nonexistent/path.json"), vault=vault)
             assert manager.get_token("openai") is None
 
@@ -463,7 +467,9 @@ class TestCredentialManagerVaultIntegration:
             config_path=Path("/nonexistent/path.json"),
             use_vault=False,
         )
-        with patch.dict(os.environ, {"OPENAI_API_KEY": "env-key"}, clear=False):
+        with patch.dict(
+            os.environ, {"OPENAI_API_KEY": "env-key"}, clear=False  # pragma: allowlist secret
+        ):  # pragma: allowlist secret
             assert manager.get_token("openai") == "env-key"
         assert manager._get_vault() is None
 

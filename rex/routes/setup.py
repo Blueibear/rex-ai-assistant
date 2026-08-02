@@ -91,7 +91,9 @@ def create_blueprint() -> Blueprint:
                     conn.execute("DELETE FROM user_permissions WHERE user_id = ?", (user["id"],))
                     conn.execute("DELETE FROM users WHERE id = ?", (user["id"],))
                     conn.commit()
-            except Exception:
+            except (
+                Exception
+            ):  # noqa: B110 - best-effort rollback cleanup must not hide the primary error
                 pass
             return jsonify({"error": "setup could not be persisted securely"}), 500
 

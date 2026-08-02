@@ -204,7 +204,7 @@ export function callDeviceCommand(
         resolve({ status: 'failed', detail: 'Home Assistant service returned an invalid response.' })
       }
     })
-    py.on('error', (_error) => {
+    py.on('error', () => {
       resolve({ status: 'failed', detail: 'Home Assistant service could not be started.' })
     })
     py.stdin.write(JSON.stringify(privateSessionPayload(session, {
