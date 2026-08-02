@@ -474,8 +474,8 @@ class WindowsDpapiCredentialVault:
         while True:
             try:
                 handle.seek(0)
-                locking = msvcrt.locking
-                locking(handle.fileno(), msvcrt.LK_NBLCK, 1)
+                locking = msvcrt.locking  # type: ignore[attr-defined, unused-ignore]
+                locking(handle.fileno(), msvcrt.LK_NBLCK, 1)  # type: ignore[attr-defined, unused-ignore]
                 return handle
             except OSError:
                 if time.monotonic() >= deadline:
@@ -490,8 +490,8 @@ class WindowsDpapiCredentialVault:
         try:
             if _MSVCRT_AVAILABLE:  # pragma: no branch - Windows always has msvcrt
                 handle.seek(0)
-                locking = msvcrt.locking
-                locking(handle.fileno(), msvcrt.LK_UNLCK, 1)
+                locking = msvcrt.locking  # type: ignore[attr-defined, unused-ignore]
+                locking(handle.fileno(), msvcrt.LK_UNLCK, 1)  # type: ignore[attr-defined, unused-ignore]
         finally:
             handle.close()
 
