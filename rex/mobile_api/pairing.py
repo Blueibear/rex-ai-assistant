@@ -30,6 +30,7 @@ from rex.mobile_api.device_proof import (
     verify_proof,
 )
 from rex.mobile_api.grants import Grant, ScopeError, canonicalize_scopes
+from rex.mobile_api.tls import MobileTlsConfigurationError, TransportBinding
 
 CHALLENGE_TTL_SECONDS = 120
 GRANT_TTL_DAYS = 365
@@ -53,11 +54,14 @@ class PairingChallenge:
     scopes: tuple[str, ...]
     created_at: str
     expires_at: str
+    server_url: str
+    certificate_fingerprint: str
+    spki_pins: tuple[str, ...]
 
     def qr_payload(self) -> dict[str, Any]:
         return {
             "type": "askrex-pairing",
-            "version": 1,
+            "version": 2,
             "desktop_id": self.desktop_id,
             "challenge_id": self.challenge_id,
             "nonce": self.nonce_b64,
@@ -65,6 +69,9 @@ class PairingChallenge:
             "user_id": self.user_id,
             "scopes": list(self.scopes),
             "expires_at": self.expires_at,
+            "server_url": self.server_url,
+            "certificate_fingerprint": self.certificate_fingerprint,
+            "spki_pins": list(self.spki_pins),
         }
 
 
@@ -108,12 +115,14 @@ class PairingAuthority:
         id_generator: Callable[[], str] | None = None,
         code_generator: Callable[[], str] | None = None,
         token_generator: Callable[[], str] | None = None,
+        transport_binding_provider: Callable[[], TransportBinding] | None = None,
     ) -> None:
         self._db_path = Path(db_path)
         self._clock = clock or _utc_now
         self._id = id_generator or _new_id
         self._code = code_generator or (lambda: f"{secrets.randbelow(100_000_000):08d}")
         self._token = token_generator or (lambda: secrets.token_urlsafe(32))
+        self._transport_binding = transport_binding_provider
 
     def now(self) -> datetime:
         return self._clock()
@@ -150,6 +159,20 @@ class PairingAuthority:
             canonical_scopes = canonicalize_scopes(scopes)
         except ScopeError as exc:
             raise PairingError(str(exc)) from exc
+        if self._transport_binding is None:
+            raise PairingError("Secure mobile transport is unavailable; pairing cannot proceed.")
+        try:
+            binding = self._transport_binding()
+            if (
+                not binding.server_url
+                or not binding.certificate_fingerprint
+                or not binding.spki_pins
+            ):
+                raise MobileTlsConfigurationError("transport binding is incomplete")
+        except MobileTlsConfigurationError as exc:
+            raise PairingError(
+                "Secure mobile transport is unavailable; pairing cannot proceed."
+            ) from exc
         now = self.now()
         challenge_id = self._id()
         desktop_id = self.desktop_id()
@@ -163,8 +186,9 @@ class PairingAuthority:
             conn.execute(
                 """INSERT INTO mobile_pairing_challenges(
                     challenge_id, desktop_id, user_id, nonce_b64, code_hash,
-                    scopes_json, created_at, expires_at, status
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                    scopes_json, created_at, expires_at, status, desktop_cert_fingerprint,
+                    server_url, spki_pins_json
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (
                     challenge_id,
                     desktop_id,
@@ -175,6 +199,9 @@ class PairingAuthority:
                     now.isoformat(),
                     expires.isoformat(),
                     PAIRING_PENDING,
+                    binding.certificate_fingerprint,
+                    binding.server_url,
+                    json.dumps(binding.spki_pins),
                 ),
             )
             self._audit(conn, "challenge_created", desktop_id=desktop_id, user_id=user_id)
@@ -189,6 +216,9 @@ class PairingAuthority:
             canonical_scopes,
             now.isoformat(),
             expires.isoformat(),
+            binding.server_url,
+            binding.certificate_fingerprint,
+            binding.spki_pins,
         )
 
     def submit_proof(self, payload: dict[str, Any]) -> PairingSubmission:
@@ -255,6 +285,9 @@ class PairingAuthority:
                     user_id=row["user_id"],
                     scopes=stored_scopes,
                     code=values["code"],
+                    server_url=row["server_url"],
+                    certificate_fingerprint=row["desktop_cert_fingerprint"],
+                    spki_pins=tuple(json.loads(row["spki_pins_json"])),
                 )
                 verify_proof(
                     public_key_b64=canonical_key,
@@ -271,8 +304,9 @@ class PairingAuthority:
                 """INSERT INTO mobile_pairing_requests(
                     request_id, challenge_id, desktop_id, user_id, public_key_b64,
                     key_thumbprint, device_name, platform, scopes_json,
-                    poll_token_hash, submitted_at, status
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                    poll_token_hash, submitted_at, status, desktop_cert_fingerprint,
+                    server_url, spki_pins_json
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (
                     request_id,
                     row["challenge_id"],
@@ -286,6 +320,9 @@ class PairingAuthority:
                     _token_hash(poll_token),
                     submitted_at,
                     PAIRING_PENDING,
+                    row["desktop_cert_fingerprint"],
+                    row["server_url"],
+                    row["spki_pins_json"],
                 ),
             )
             conn.execute(
@@ -339,7 +376,8 @@ class PairingAuthority:
             if row is None or row["status"] != PAIRING_PENDING:
                 raise PairingError("Pairing request is not pending approval.")
             existing = conn.execute(
-                """SELECT device_id, user_id, public_key_b64, revoked_at
+                """SELECT device_id, user_id, public_key_b64, revoked_at,
+                          desktop_cert_fingerprint, server_url, spki_pins_json
                    FROM mobile_paired_devices
                    WHERE desktop_id = ? AND key_thumbprint = ?""",
                 (row["desktop_id"], row["key_thumbprint"]),
@@ -347,6 +385,9 @@ class PairingAuthority:
             if existing is not None and (
                 existing["user_id"] != row["user_id"]
                 or existing["public_key_b64"] != row["public_key_b64"]
+                or existing["desktop_cert_fingerprint"] != row["desktop_cert_fingerprint"]
+                or existing["server_url"] != row["server_url"]
+                or existing["spki_pins_json"] != row["spki_pins_json"]
             ):
                 raise PairingError("Paired device identity cannot be reassigned.")
             device_id = str(existing["device_id"]) if existing else self._id()
@@ -354,8 +395,9 @@ class PairingAuthority:
                 conn.execute(
                     """INSERT INTO mobile_paired_devices(
                         device_id, desktop_id, user_id, public_key_b64, key_thumbprint,
-                        device_name, platform, created_at
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+                        device_name, platform, created_at, desktop_cert_fingerprint,
+                        server_url, spki_pins_json
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                     (
                         device_id,
                         row["desktop_id"],
@@ -365,6 +407,9 @@ class PairingAuthority:
                         row["device_name"],
                         row["platform"],
                         now.isoformat(),
+                        row["desktop_cert_fingerprint"],
+                        row["server_url"],
+                        row["spki_pins_json"],
                     ),
                 )
             elif existing["revoked_at"] is not None:
@@ -380,8 +425,8 @@ class PairingAuthority:
             conn.execute(
                 """INSERT INTO mobile_device_grants(
                     grant_id, device_id, desktop_id, user_id, version, scopes_json,
-                    created_at, expires_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+                    created_at, expires_at, desktop_cert_fingerprint, server_url, spki_pins_json
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (
                     grant_id,
                     device_id,
@@ -391,6 +436,9 @@ class PairingAuthority:
                     json.dumps(scopes),
                     now.isoformat(),
                     expires.isoformat(),
+                    row["desktop_cert_fingerprint"],
+                    row["server_url"],
+                    row["spki_pins_json"],
                 ),
             )
             conn.execute(
@@ -509,7 +557,12 @@ class PairingAuthority:
                         "device_id": row["device_id"],
                         "grant_id": row["grant_id"],
                         "scopes": json.loads(grant["scopes_json"]),
+                        "grant_version": grant["version"],
                         "expires_at": grant["expires_at"],
+                        "desktop_id": row["desktop_id"],
+                        "server_url": grant["server_url"],
+                        "certificate_fingerprint": grant["desktop_cert_fingerprint"],
+                        "spki_pins": json.loads(grant["spki_pins_json"]),
                     }
                 )
             return result
@@ -534,6 +587,9 @@ class PairingAuthority:
                     "device_name": row["device_name"],
                     "platform": row["platform"],
                     "key_thumbprint": row["key_thumbprint"],
+                    "certificate_fingerprint": row["desktop_cert_fingerprint"],
+                    "server_url": row["server_url"],
+                    "spki_pins": json.loads(row["spki_pins_json"]),
                     "created_at": row["created_at"],
                     "revoked_at": row["revoked_at"],
                     "grant_id": row["grant_id"],

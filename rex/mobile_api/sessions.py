@@ -19,6 +19,8 @@ Clock, token, and ID generators are injectable for deterministic tests.
 from __future__ import annotations
 
 import hashlib
+import hmac
+import json
 import logging
 import secrets
 import sqlite3
@@ -375,8 +377,18 @@ class MobileSessionStore:
         user_id: str,
         challenge_id: str,
         signature_b64: str,
+        transport_binding: object | None = None,
     ) -> CreatedSession:
-        """Verify device proof and atomically replace the bootstrap session."""
+        """Verify device proof and atomically replace the bootstrap session.
+
+        ``tls_fingerprint`` is the SHA-256 fingerprint of the TLS certificate
+        actually serving this connection (None on a loopback dev bind with no
+        TLS). When provided (S7), it must match the fingerprint recorded on
+        the device at pairing approval time — a mismatch (desktop certificate
+        rotated/reset since pairing) or an unbound legacy device fails closed
+        rather than silently activating over a transport the phone never
+        pinned.
+        """
         from rex.mobile_api.authorization import (  # noqa: PLC0415
             GrantAuthorizationError,
             load_active_grant,
@@ -451,6 +463,34 @@ class MobileSessionStore:
                 )
             except (GrantAuthorizationError, ProofError) as exc:
                 raise DeviceSessionError("Device proof could not be verified.") from exc
+
+            if transport_binding is not None:
+                device_row = conn.execute(
+                    """SELECT desktop_cert_fingerprint, server_url, spki_pins_json
+                       FROM mobile_paired_devices WHERE device_id = ?""",
+                    (grant.device_id,),
+                ).fetchone()
+                grant_row = conn.execute(
+                    """SELECT desktop_cert_fingerprint, server_url, spki_pins_json
+                       FROM mobile_device_grants WHERE grant_id = ?""",
+                    (grant.grant_id,),
+                ).fetchone()
+                current_fingerprint = str(getattr(transport_binding, "certificate_fingerprint", ""))
+                current_url = str(getattr(transport_binding, "server_url", ""))
+                current_pins = json.dumps(tuple(getattr(transport_binding, "spki_pins", ())))
+                for bound in (device_row, grant_row):
+                    if (
+                        bound is None
+                        or not bound["desktop_cert_fingerprint"]
+                        or not hmac.compare_digest(
+                            str(bound["desktop_cert_fingerprint"]), current_fingerprint
+                        )
+                        or str(bound["server_url"]) != current_url
+                        or json.dumps(tuple(json.loads(bound["spki_pins_json"]))) != current_pins
+                    ):
+                        raise DeviceSessionError(
+                            "Desktop secure transport binding is no longer valid; re-pair this device."
+                        )
 
             new_session_id = self._id_generator()
             family_id = self._id_generator()

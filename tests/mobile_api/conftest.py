@@ -273,7 +273,7 @@ def services(
 
     db_path = mobile_env / "users.db"
     migrate_users_db(db_path)
-    return MobileApiServices.build(
+    built = MobileApiServices.build(
         mobile_config,
         db_path=db_path,
         clock=clock,
@@ -282,6 +282,21 @@ def services(
         stt=fake_stt,
         tts=fake_tts,
     )
+    from rex.mobile_api.pairing import PairingAuthority
+    from rex.mobile_api.tls import TransportBinding
+
+    binding = TransportBinding(
+        server_url="https://rex.example.test:8765",
+        certificate_fingerprint="a" * 64,
+        spki_pins=("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",),
+    )
+    built.transport_binding = binding
+    built.pairing_authority = PairingAuthority(
+        db_path,
+        clock=clock,
+        transport_binding_provider=lambda: binding,
+    )
+    return built
 
 
 @pytest.fixture()
@@ -384,6 +399,9 @@ def paired_login_tokens(
         user_id=challenge.user_id,
         scopes=challenge.scopes,
         code=challenge.code,
+        server_url=challenge.server_url,
+        certificate_fingerprint=challenge.certificate_fingerprint,
+        spki_pins=challenge.spki_pins,
     )
     submitted = services.pairing_authority.submit_proof(
         {

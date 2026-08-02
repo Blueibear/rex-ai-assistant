@@ -8,7 +8,12 @@
 - a global JSON body limit (413 before full processing);
 - deny-by-default CORS (no origins unless explicitly configured, never ``*``);
 - route-specific rate limiting (login/refresh have their own limits);
-- only ``/mobile/*`` routes — the Electron GUI/admin server is a separate app.
+- only ``/mobile/*`` routes — the Electron GUI/admin server is a separate app;
+- fail-closed TLS resolution for non-loopback binds (S7): ``services.tls_material``
+  and ``app.extensions["mobile_api_tls"]`` are None on loopback dev binds and a
+  provisioned :class:`rex.mobile_api.tls.TlsMaterial` otherwise. Building the
+  app raises ``MobileTlsConfigurationError`` when a non-loopback bind cannot
+  get usable TLS material.
 
 Importing this module has no side effects; database migrations run when the
 factory is called.  In-memory rate-limit storage is suitable only for the
@@ -20,7 +25,7 @@ from __future__ import annotations
 import logging
 import math
 
-from flask import Flask, Response, g
+from flask import Flask, Response, g, request
 
 from rex.config import MobileApiConfig
 from rex.mobile_api import errors as merr
@@ -35,6 +40,7 @@ from rex.mobile_api.routes import (
     build_voice_blueprint,
 )
 from rex.mobile_api.services import MobileApiServices
+from rex.mobile_api.tls import MobileTlsConfigurationError, host_is_loopback
 from rex.mobile_api.websocket import register_websocket
 
 logger = logging.getLogger(__name__)
@@ -121,10 +127,16 @@ def create_mobile_app(
     Raises:
         MobileAuthConfigurationError: When ``REX_JWT_SECRET`` is missing or
             too weak — the auth service fails closed before serving.
+        MobileTlsConfigurationError: When the configured bind requires TLS but
+            the injected/default service container has no usable TLS material.
     """
     if services is None:
         services = MobileApiServices.build(_resolve_config(config))
     cfg = services.config
+    if (cfg.require_tls or not host_is_loopback(cfg.host)) and services.tls_material is None:
+        raise MobileTlsConfigurationError(
+            "Secure TLS material is required for this mobile gateway configuration."
+        )
 
     # Idempotent canonical users.db migration (sessions/refresh tables).
     migrate_users_db(services.db_path)
@@ -135,6 +147,9 @@ def create_mobile_app(
     # ``parse_json_body`` before any parsing work.
     app.config["MAX_CONTENT_LENGTH"] = max(cfg.max_json_bytes, cfg.max_audio_bytes + 128 * 1024)
     app.extensions["mobile_api_services"] = services
+    # None on a loopback dev bind; a resolved TlsMaterial (S7) whenever cfg.host
+    # is non-loopback or cfg.require_tls opts a loopback bind into TLS too.
+    app.extensions["mobile_api_tls"] = services.tls_material
 
     # Reused canonical middleware: assigns g.request_id before authentication
     # and logs method/path/status only — request and response bodies, tokens,
@@ -143,6 +158,20 @@ def create_mobile_app(
 
     install_request_logging(app)
     install_mobile_error_handlers(app)
+
+    @app.before_request
+    def _enforce_owned_tls_transport() -> None:
+        # The supported LAN topology terminates TLS inside this process. If an
+        # operator accidentally serves the Flask app over plaintext through a
+        # different WSGI runner, fail closed rather than exposing authenticated
+        # mobile traffic on an unencrypted socket.
+        if services.tls_material is not None and not request.is_secure:
+            raise merr.MobileApiError(
+                merr.TLS_REQUIRED,
+                "Secure HTTPS transport is required for this mobile gateway.",
+                426,
+            )
+
     _install_cors(app, cfg)
     limiter = _install_rate_limiter(app, cfg)
     app.extensions["mobile_api_limiter"] = limiter

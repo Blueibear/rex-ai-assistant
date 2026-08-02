@@ -14,26 +14,20 @@ Heavy imports (Flask, the mobile package) happen inside the handlers so
 from __future__ import annotations
 
 import argparse
-import ipaddress
-
-_LOOPBACK_HOSTS = {"localhost"}
-
-
-def _host_is_loopback(host: str) -> bool:
-    """Return True when *host* only accepts local connections."""
-    if host in _LOOPBACK_HOSTS:
-        return True
-    try:
-        return ipaddress.ip_address(host).is_loopback
-    except ValueError:
-        return False
 
 
 def cmd_mobile_api(args: argparse.Namespace) -> int:
-    """Run the mobile API development server."""
+    """Run the mobile API gateway.
+
+    Any non-loopback bind requires usable TLS (S7): ``create_mobile_app``
+    fails closed with ``MobileTlsConfigurationError`` before a socket is ever
+    opened if TLS material cannot be provisioned. Loopback binds stay plain
+    HTTP for local development unless ``mobile_api.require_tls`` opts in.
+    """
     from rex.config import load_config
     from rex.mobile_api.app import create_mobile_app
     from rex.mobile_api.auth import MobileAuthConfigurationError
+    from rex.mobile_api.tls import MobileTlsConfigurationError, host_is_loopback
 
     settings = load_config()
     config = settings.mobile_api
@@ -45,29 +39,64 @@ def cmd_mobile_api(args: argparse.Namespace) -> int:
     if not 1 <= port <= 65535:
         print(f"Error: invalid port {port}; must be between 1 and 65535.")
         return 1
-    effective = config.model_copy(update={"host": host, "port": port})
+    effective = config.model_copy(
+        update={
+            "host": host,
+            "port": port,
+            "advertised_host": (
+                getattr(args, "advertised_host", None)
+                if getattr(args, "advertised_host", None) is not None
+                else config.advertised_host
+            ),
+            "advertised_port": (
+                getattr(args, "advertised_port", None)
+                if getattr(args, "advertised_port", None) is not None
+                else config.advertised_port
+            ),
+        }
+    )
 
     try:
         app = create_mobile_app(config=effective)
     except MobileAuthConfigurationError as exc:
         print(f"Error: {exc}")
         return 1
+    except MobileTlsConfigurationError as exc:
+        print(f"Error: {exc}")
+        if not host_is_loopback(host):
+            print(
+                "  Non-loopback binds require usable TLS and cannot start "
+                "without it. Bind to 127.0.0.1/localhost for local "
+                "development, or resolve the TLS provisioning error above "
+                "(see docs/mobile/MOBILE_API_SETUP_WINDOWS.md)."
+            )
+        return 1
 
+    tls_material = app.extensions.get("mobile_api_tls")
+    scheme = "https" if tls_material else "http"
     print("AskRex mobile API gateway")
     print(f"  Bind:       {host}:{port}")
-    print(f"  Status URL: http://{host}:{port}/mobile/status")
+    services = app.extensions.get("mobile_api_services")
+    binding = getattr(services, "transport_binding", None)
+    status_origin = binding.server_url if binding is not None else f"{scheme}://{host}:{port}"
+    print(f"  Status URL: {status_origin}/mobile/status")
     print(f"  API version: {effective.api_version}")
-    print(f"  TLS expected upstream: {'yes' if effective.require_tls else 'no'}")
-    if not _host_is_loopback(host) and not effective.require_tls:
+    if tls_material is not None:
+        print("  TLS: enabled (desktop-owned self-signed certificate)")
+        print(f"  Certificate fingerprint (SHA-256): {tls_material.fingerprint_sha256}")
         print(
-            "  WARNING: binding beyond loopback without TLS. This is a "
-            "development-only configuration for trusted local networks; "
-            "authentication and rate limiting stay enforced, but traffic "
-            "is not encrypted. Do not expose this bind to the internet."
+            f"  SPKI pin (SHA-256/base64): "
+            f"{getattr(tls_material, 'spki_pin_sha256_b64', 'unavailable')}"
         )
+        print("  Pair mobile devices by QR before they connect.")
+    else:
+        print("  TLS: disabled (loopback development bind)")
     print("  Press Ctrl+C to stop.")
 
-    app.run(host=host, port=port)
+    run_kwargs: dict = {"host": host, "port": port}
+    if tls_material is not None:
+        run_kwargs["ssl_context"] = tls_material.build_ssl_context()
+    app.run(**run_kwargs)
     return 0
 
 
@@ -148,9 +177,10 @@ def register(subparsers: argparse._SubParsersAction) -> None:
         help="Run the authenticated mobile API gateway (development server)",
         description=(
             "Run the AskRex mobile API gateway.\n\n"
-            "Defaults to 127.0.0.1:8765. Binding to 0.0.0.0 is an explicit,\n"
-            "development-only choice for trusted local networks and prints a\n"
-            "warning when TLS is not expected upstream.\n\n"
+            "Defaults to 127.0.0.1:8765 for loopback development. Any\n"
+            "non-loopback bind is HTTPS-only and uses a desktop-owned\n"
+            "pairing-pinned certificate. Wildcard binds require a concrete\n"
+            "--advertised-host for the pairing QR.\n\n"
             "Requires vault entry REX_JWT_SECRET (at least 32 characters)."
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -166,6 +196,18 @@ def register(subparsers: argparse._SubParsersAction) -> None:
         type=int,
         default=None,
         help="Bind port (default: mobile_api.port config, then 8765)",
+    )
+    api_parser.add_argument(
+        "--advertised-host",
+        type=str,
+        default=None,
+        help="Concrete LAN host placed in pairing QR (required for wildcard binds)",
+    )
+    api_parser.add_argument(
+        "--advertised-port",
+        type=int,
+        default=None,
+        help="External HTTPS port placed in pairing QR (default: bind port)",
     )
     api_parser.set_defaults(func=cmd_mobile_api)
 

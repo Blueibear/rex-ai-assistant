@@ -135,6 +135,83 @@ class TestAppFactory:
         assert "Access-Control-Allow-Origin" not in denied.headers
 
 
+class TestNonLoopbackTls:
+    """S7: non-loopback binds always get real TLS material or fail closed."""
+
+    def test_loopback_default_has_no_tls(self, services) -> None:
+        from rex.mobile_api.app import create_mobile_app
+
+        app = create_mobile_app(services=services)
+        assert app.extensions["mobile_api_tls"] is None
+
+    def test_injected_non_loopback_services_without_tls_fail_closed(self, services) -> None:
+        from rex.config import MobileApiConfig
+        from rex.mobile_api.app import create_mobile_app
+        from rex.mobile_api.tls import MobileTlsConfigurationError
+
+        services.config = MobileApiConfig(host="192.168.1.50")
+        services.tls_material = None
+        with pytest.raises(MobileTlsConfigurationError, match="TLS material"):
+            create_mobile_app(services=services)
+
+    def test_non_loopback_bind_provisions_tls(self, mobile_env: Path, clock) -> None:
+        from rex.config import MobileApiConfig
+        from rex.mobile_api.app import create_mobile_app
+        from rex.mobile_api.db import migrate_users_db
+        from rex.mobile_api.services import MobileApiServices
+
+        db_path = mobile_env / "users.db"
+        migrate_users_db(db_path)
+        config = MobileApiConfig(
+            host="0.0.0.0", advertised_host="192.168.1.50"
+        )  # nosec B104 - test only, no real bind
+        services = MobileApiServices.build(config, db_path=db_path, clock=clock)
+        app = create_mobile_app(services=services)
+        material = app.extensions["mobile_api_tls"]
+        assert material is not None
+        assert material.cert_path.exists()
+        assert material.key_path.exists()
+        assert len(material.fingerprint_sha256) == 64
+
+    def test_tls_owned_app_rejects_plaintext_requests(self, mobile_env: Path, clock) -> None:
+        from rex.config import MobileApiConfig
+        from rex.mobile_api.app import create_mobile_app
+        from rex.mobile_api.db import migrate_users_db
+        from rex.mobile_api.services import MobileApiServices
+
+        db_path = mobile_env / "users.db"
+        migrate_users_db(db_path)
+        config = MobileApiConfig(host="192.168.1.50")
+        services = MobileApiServices.build(config, db_path=db_path, clock=clock)
+        app = create_mobile_app(services=services)
+        app.config["TESTING"] = True
+        with app.test_client() as client:
+            plaintext = client.get("/mobile/status", base_url="http://192.168.1.50:8765")
+            secure = client.get("/mobile/status", base_url="https://192.168.1.50:8765")
+        assert plaintext.status_code == 426
+        assert plaintext.get_json()["error"]["code"] == "TLS_REQUIRED"
+        assert secure.status_code == 200
+
+    def test_non_loopback_bind_fails_closed_without_usable_tls(
+        self, mobile_env: Path, clock, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        import rex.mobile_api.tls as tls_module
+        from rex.config import MobileApiConfig
+        from rex.mobile_api.db import migrate_users_db
+        from rex.mobile_api.services import MobileApiServices
+        from rex.mobile_api.tls import MobileTlsConfigurationError
+
+        def _boom(*_args, **_kwargs):
+            raise MobileTlsConfigurationError("simulated provisioning failure")
+
+        monkeypatch.setattr(tls_module, "ensure_server_tls_material", _boom)
+        db_path = mobile_env / "users.db"
+        migrate_users_db(db_path)
+        config = MobileApiConfig(host="0.0.0.0", advertised_host="192.168.1.50")  # nosec B104
+        with pytest.raises(MobileTlsConfigurationError):
+            MobileApiServices.build(config, db_path=db_path, clock=clock)
+
+
 class TestDefaultRateLimit:
     def test_default_limit_returns_canonical_429(self, mobile_env: Path, clock) -> None:
         from rex.config import MobileApiConfig

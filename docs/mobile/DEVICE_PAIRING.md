@@ -72,7 +72,7 @@ expiry.
 - Challenges expire after 120 seconds and are single-use.
 - The one-time code is stored only as a SHA-256 hash bound to its challenge and nonce.
 - Only canonical P-256 public keys are accepted.
-- Proof verification fails when the desktop, nonce, user, scopes, code, key, or signature differs.
+- Proof verification fails when the desktop, nonce, user, scopes, code, key, advertised HTTPS URL, certificate fingerprint, SPKI pins, or signature differs.
 - Challenge creation, approval, denial, device listing, and revocation are not exposed through the mobile HTTP API. They are available only through the local Electron IPC bridge.
 - Renderer-facing failures are fixed messages; bridge stderr, filesystem paths, database details, and exception text are not returned.
 - Grants are immutable and versioned. Scope changes require a new grant version rather than mutation of an existing row.
@@ -81,12 +81,58 @@ expiry.
 - A new grant version supersedes and revokes sessions bound to older versions.
 - A paired public key/device identity cannot be reassigned to another Rex user.
 
+## S7 transport: TLS enforcement and certificate pinning
+
+The supported mobile topology is a LAN-paired desktop: the mobile app talks
+directly to one desktop-owned gateway on the local network. There is no
+default hosted URL and no certificate authority in this topology.
+
+- Any non-loopback bind (`--host 0.0.0.0`, a LAN IP, etc.) always requires
+  usable TLS. `rex.mobile_api.tls.resolve_mobile_tls()` provisions (or
+  reuses) one long-lived self-signed P-256 certificate under
+  `<household_data_dir>/mobile_tls/` and fails closed —
+  `MobileTlsConfigurationError`, no socket opened — if that material cannot
+  be generated or loaded. `mobile_api.require_tls` cannot weaken this
+  boundary; it only opts a **loopback** bind into TLS for local testing.
+  Loopback (`127.0.0.1`/`localhost`) stays plain HTTP by default for local
+  development and the test suite.
+- The SHA-256 fingerprint of that certificate (`desktop_cert_fingerprint`),
+  advertised HTTPS URL, and SPKI pins are included in every S5 pairing
+  challenge QR and in the approved `/mobile/pairing/status` response.
+  Pairing proof transcript v2 signs all three values so the phone explicitly
+  acknowledges the same transport identity the desktop records.
+- The transport binding is persisted immutably on paired device and grant
+  records at approval time, mirroring the immutable `key_thumbprint` binding.
+- **Certificate/host mismatch fails closed.** `create_mobile_app()` refuses
+  TLS-required injected service containers that lack material, and a TLS-owned
+  app rejects plaintext requests with `TLS_REQUIRED`. During
+  `POST /mobile/auth/activate-device`, the current gateway-owned URL,
+  certificate fingerprint, and SPKI pins must match the immutable device and
+  grant bindings. A rotated/reset certificate, changed endpoint, or pre-S7
+  unbound legacy device rejects activation with `PAIRING_INVALID`; the device
+  must re-pair rather than silently accepting a changed transport.
+- **Mobile client contract (implemented in the separate AskRex mobile repo,
+  not this one):** production mobile builds must reject `http://`/`ws://`
+  URLs for any non-loopback host, and must validate the desktop's presented
+  TLS certificate against the pinned fingerprint before any HTTP/SSE/WS
+  traffic. This repository cannot enforce that client-side behavior; it only
+  provisions and exposes the pin. See "Current boundary" below for what
+  remains unverified.
+
 ## Current boundary
 
-S5 establishes the pairing authority and S6 enforces device-bound grants on
-mobile sessions and action transports. S7 must still enforce supported encrypted
-LAN transport and certificate/public-key pinning. Until S7 is complete,
-non-loopback production mobile access is not transport-hardened.
+S5 establishes the pairing authority, S6 enforces device-bound grants on
+mobile sessions and action transports, and S7 enforces in-process TLS for
+non-loopback binds plus certificate pinning through the S5/S6 authority (see
+above). What S7 does **not** cover, because the mobile client lives in a
+separate repository not present here:
+
+- The mobile app's own enforcement of "reject insecure non-loopback URLs" and
+  "validate the pin before use" — that is a client-side contract this
+  repository documents but cannot implement or test.
+- Physical LAN/WAN validation with a real phone against a real non-loopback
+  bind. All S7 coverage here is automated/local (temp data dirs, fake
+  clocks); no physical device or network has exercised this in this cycle.
 
 ## Mobile endpoints
 

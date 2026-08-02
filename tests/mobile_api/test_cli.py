@@ -50,6 +50,25 @@ def _user_rows(data_dir: Path) -> list:
         conn.close()
 
 
+class _FakeApp:
+    def __init__(self, tls_material=None) -> None:
+        self.extensions: dict = {"mobile_api_tls": tls_material}
+        self.run_kwargs: dict | None = None
+
+    def run(self, **kwargs) -> None:
+        self.run_kwargs = kwargs
+
+
+class _FakeTlsMaterial:
+    def __init__(self, fingerprint: str = "aa" * 32) -> None:
+        self.fingerprint_sha256 = fingerprint
+        self.ssl_context_built = False
+
+    def build_ssl_context(self):
+        self.ssl_context_built = True
+        return "fake-ssl-context"
+
+
 class TestMobileApiCommand:
     def _run(
         self,
@@ -59,23 +78,25 @@ class TestMobileApiCommand:
         cli_port: int | None,
         config_host: str = "127.0.0.1",
         config_port: int = 8765,
-    ) -> dict:
-        """Run cmd_mobile_api with fakes; return the captured bind info."""
+        tls_material=None,
+        create_error: BaseException | None = None,
+    ) -> tuple[dict, _FakeApp | None]:
+        """Run cmd_mobile_api with fakes; return (captured kwargs, fake app)."""
         import rex.config as rex_config
         import rex.mobile_api.app as mobile_app
         from rex.commands.mobile import cmd_mobile_api
         from rex.config import MobileApiConfig
 
         captured: dict = {}
-
-        class _FakeApp:
-            def run(self, host: str, port: int) -> None:
-                captured["host"] = host
-                captured["port"] = port
+        holder: dict = {}
 
         def _fake_create(config=None, services=None):
             captured["config"] = config
-            return _FakeApp()
+            if create_error is not None:
+                raise create_error
+            app = _FakeApp(tls_material=tls_material)
+            holder["app"] = app
+            return app
 
         fake_settings = SimpleNamespace(
             mobile_api=MobileApiConfig(host=config_host, port=config_port)
@@ -84,38 +105,76 @@ class TestMobileApiCommand:
         monkeypatch.setattr(mobile_app, "create_mobile_app", _fake_create)
 
         args = argparse.Namespace(host=cli_host, port=cli_port)
-        assert cmd_mobile_api(args) == 0
-        return captured
+        result = cmd_mobile_api(args)
+        captured["result"] = result
+        return captured, holder.get("app")
 
     def test_flags_override_config(self, monkeypatch, capsys) -> None:
         # "0.0.0.0" here only exercises CLI flag precedence against a fake
         # app object — nothing binds a socket in this test.
-        captured = self._run(
+        captured, app = self._run(
             monkeypatch,
             cli_host="0.0.0.0",  # nosec B104
             cli_port=9000,
             config_host="127.0.0.1",
             config_port=8765,
         )
-        assert captured["host"] == "0.0.0.0"  # nosec B104
-        assert captured["port"] == 9000
+        assert captured["result"] == 0
+        assert app is not None
+        assert app.run_kwargs == {"host": "0.0.0.0", "port": 9000}  # nosec B104
         output = capsys.readouterr().out
-        assert "WARNING" in output  # LAN bind without TLS warns
         assert "0.0.0.0:9000" in output
 
     def test_config_used_when_no_flags(self, monkeypatch, capsys) -> None:
-        captured = self._run(
+        captured, app = self._run(
             monkeypatch,
             cli_host=None,
             cli_port=None,
             config_host="127.0.0.1",
             config_port=9100,
         )
-        assert captured["host"] == "127.0.0.1"
-        assert captured["port"] == 9100
+        assert captured["result"] == 0
+        assert app is not None
+        assert app.run_kwargs == {"host": "127.0.0.1", "port": 9100}
         output = capsys.readouterr().out
-        assert "WARNING" not in output  # loopback bind does not warn
         assert "/mobile/status" in output
+        assert "TLS: disabled (loopback development bind)" in output
+
+    def test_tls_enabled_bind_prints_fingerprint_and_passes_ssl_context(
+        self, monkeypatch, capsys
+    ) -> None:
+        material = _FakeTlsMaterial(fingerprint="bb" * 32)
+        captured, app = self._run(
+            monkeypatch,
+            cli_host="192.168.1.50",
+            cli_port=8765,
+            tls_material=material,
+        )
+        assert captured["result"] == 0
+        assert app is not None
+        assert app.run_kwargs is not None
+        assert app.run_kwargs["host"] == "192.168.1.50"
+        assert app.run_kwargs["ssl_context"] == "fake-ssl-context"
+        assert material.ssl_context_built is True
+        output = capsys.readouterr().out
+        assert "https://192.168.1.50:8765/mobile/status" in output
+        assert "TLS: enabled" in output
+        assert "bb" * 32 in output
+
+    def test_tls_provisioning_failure_fails_closed(self, monkeypatch, capsys) -> None:
+        from rex.mobile_api.tls import MobileTlsConfigurationError
+
+        captured, app = self._run(
+            monkeypatch,
+            cli_host="192.168.1.50",
+            cli_port=8765,
+            create_error=MobileTlsConfigurationError("cert material could not be provisioned"),
+        )
+        assert captured["result"] == 1
+        assert app is None
+        output = capsys.readouterr().out
+        assert "cert material could not be provisioned" in output
+        assert "Non-loopback binds require usable TLS" in output
 
     def test_invalid_port_fails_before_serving(self, monkeypatch, capsys) -> None:
         import rex.config as rex_config

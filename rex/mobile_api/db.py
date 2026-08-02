@@ -180,6 +180,24 @@ def migrate_users_db(db_path: Path | str) -> None:
                 FOREIGN KEY (user_id) REFERENCES users(id)
             )
             """)
+        challenge_columns = _table_columns(conn, "mobile_pairing_challenges")
+        if "desktop_cert_fingerprint" not in challenge_columns:
+            conn.execute(
+                "ALTER TABLE mobile_pairing_challenges "
+                "ADD COLUMN desktop_cert_fingerprint TEXT NOT NULL DEFAULT ''"
+            )
+            logger.info(
+                "users.db migration: added mobile_pairing_challenges.desktop_cert_fingerprint"
+            )
+        for column, definition in {
+            "server_url": "TEXT NOT NULL DEFAULT ''",
+            "spki_pins_json": "TEXT NOT NULL DEFAULT '[]'",
+        }.items():
+            if column not in challenge_columns:
+                conn.execute(
+                    f"ALTER TABLE mobile_pairing_challenges ADD COLUMN {column} {definition}"
+                )
+                logger.info("users.db migration: added mobile_pairing_challenges.%s", column)
         conn.execute("""
             CREATE TABLE IF NOT EXISTS mobile_pairing_requests (
                 request_id TEXT PRIMARY KEY,
@@ -203,6 +221,24 @@ def migrate_users_db(db_path: Path | str) -> None:
                 FOREIGN KEY (user_id) REFERENCES users(id)
             )
             """)
+        request_columns = _table_columns(conn, "mobile_pairing_requests")
+        if "desktop_cert_fingerprint" not in request_columns:
+            conn.execute(
+                "ALTER TABLE mobile_pairing_requests "
+                "ADD COLUMN desktop_cert_fingerprint TEXT NOT NULL DEFAULT ''"
+            )
+            logger.info(
+                "users.db migration: added mobile_pairing_requests.desktop_cert_fingerprint"
+            )
+        for column, definition in {
+            "server_url": "TEXT NOT NULL DEFAULT ''",
+            "spki_pins_json": "TEXT NOT NULL DEFAULT '[]'",
+        }.items():
+            if column not in request_columns:
+                conn.execute(
+                    f"ALTER TABLE mobile_pairing_requests ADD COLUMN {column} {definition}"
+                )
+                logger.info("users.db migration: added mobile_pairing_requests.%s", column)
         conn.execute("""
             CREATE INDEX IF NOT EXISTS idx_mobile_pairing_requests_status
             ON mobile_pairing_requests(status, submitted_at)
@@ -223,6 +259,24 @@ def migrate_users_db(db_path: Path | str) -> None:
                 FOREIGN KEY (user_id) REFERENCES users(id)
             )
             """)
+        device_columns = _table_columns(conn, "mobile_paired_devices")
+        if "desktop_cert_fingerprint" not in device_columns:
+            # Immutable once set (S7), matching key_thumbprint. Existing rows
+            # migrated from a pre-S7 database get '' (unbound) so a TLS-enabled
+            # activation fails closed and forces re-pairing rather than
+            # silently trusting an unbound legacy device.
+            conn.execute(
+                "ALTER TABLE mobile_paired_devices "
+                "ADD COLUMN desktop_cert_fingerprint TEXT NOT NULL DEFAULT ''"
+            )
+            logger.info("users.db migration: added mobile_paired_devices.desktop_cert_fingerprint")
+        for column, definition in {
+            "server_url": "TEXT NOT NULL DEFAULT ''",
+            "spki_pins_json": "TEXT NOT NULL DEFAULT '[]'",
+        }.items():
+            if column not in device_columns:
+                conn.execute(f"ALTER TABLE mobile_paired_devices ADD COLUMN {column} {definition}")
+                logger.info("users.db migration: added mobile_paired_devices.%s", column)
         conn.execute("""
             CREATE TABLE IF NOT EXISTS mobile_device_grants (
                 grant_id TEXT PRIMARY KEY,
@@ -247,6 +301,14 @@ def migrate_users_db(db_path: Path | str) -> None:
                 "ALTER TABLE mobile_device_grants ADD COLUMN last_strong_auth_at TEXT NULL"
             )
             logger.info("users.db migration: added mobile_device_grants.last_strong_auth_at")
+        for column, definition in {
+            "desktop_cert_fingerprint": "TEXT NOT NULL DEFAULT ''",
+            "server_url": "TEXT NOT NULL DEFAULT ''",
+            "spki_pins_json": "TEXT NOT NULL DEFAULT '[]'",
+        }.items():
+            if column not in grant_columns:
+                conn.execute(f"ALTER TABLE mobile_device_grants ADD COLUMN {column} {definition}")
+                logger.info("users.db migration: added mobile_device_grants.%s", column)
         conn.execute("""
             CREATE TABLE IF NOT EXISTS mobile_device_session_challenges (
                 challenge_id TEXT PRIMARY KEY,

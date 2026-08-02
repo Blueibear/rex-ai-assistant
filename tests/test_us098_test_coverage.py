@@ -143,12 +143,20 @@ def test_below_50_modules_list() -> None:
     rows = _parse_coverage_txt()
     below_50 = sorted([(mod, pct) for mod, pct in rows if pct < 50])
 
-    # We expect at least one of these well-known low-coverage modules.
+    # Keep representative legacy/optional surfaces visible until their direct
+    # coverage is improved. This list must track the current report rather than
+    # modules that have already crossed 50%, or the guard becomes a false failure.
     expected_low = {
-        "rex\\tools\\windows_diagnostics.py",
-        "rex/tools/windows_diagnostics.py",
-        "rex\\windows_service.py",
-        "rex/windows_service.py",
+        "rex\\compat.py",
+        "rex/compat.py",
+        "rex\\digest_job.py",
+        "rex/digest_job.py",
+        "rex\\integrations.py",
+        "rex/integrations.py",
+        "rex\\mobile_api\\chat.py",
+        "rex/mobile_api/chat.py",
+        "rex\\mobile_api\\voice.py",
+        "rex/mobile_api/voice.py",
     }
     found_low_names = {mod for mod, _ in below_50}
     # At least one of the expected low-coverage modules must appear

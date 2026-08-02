@@ -38,6 +38,9 @@ def _approved_device(services, user_id: str, *, private_key=None, scopes=None):
         user_id=challenge.user_id,
         scopes=challenge.scopes,
         code=challenge.code,
+        server_url=challenge.server_url,
+        certificate_fingerprint=challenge.certificate_fingerprint,
+        spki_pins=challenge.spki_pins,
     )
     submitted = services.pairing_authority.submit_proof(
         {

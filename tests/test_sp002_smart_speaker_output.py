@@ -193,7 +193,10 @@ def test_try_smart_speaker_no_device_returns_false(tmp_path):
     """_try_smart_speaker returns False when no output device is configured."""
     from rex.voice_loop import TextToSpeech
 
-    with patch("rex.voice_loop.settings") as mock_settings:
+    with (
+        patch("rex.voice_loop.settings") as mock_settings,
+        patch("rex.voice_loop._lazy_import_tts", return_value=None),
+    ):
         mock_settings.tts_speed = 1.0
         mock_settings.tts_provider = "xtts"
         mock_settings.tts_voice = None
@@ -208,7 +211,10 @@ def test_try_smart_speaker_speaker_not_found_returns_false(tmp_path):
     """_try_smart_speaker returns False when the named speaker is not in the cache."""
     from rex.voice_loop import TextToSpeech
 
-    with patch("rex.voice_loop.settings") as mock_settings:
+    with (
+        patch("rex.voice_loop.settings") as mock_settings,
+        patch("rex.voice_loop._lazy_import_tts", return_value=None),
+    ):
         mock_settings.tts_speed = 1.0
         mock_settings.tts_provider = "xtts"
         mock_settings.tts_voice = None
@@ -230,7 +236,10 @@ def test_try_smart_speaker_routes_to_output(tmp_path):
     from rex.audio.speaker_discovery import DiscoveredSpeaker
     from rex.voice_loop import TextToSpeech
 
-    with patch("rex.voice_loop.settings") as mock_settings:
+    with (
+        patch("rex.voice_loop.settings") as mock_settings,
+        patch("rex.voice_loop._lazy_import_tts", return_value=None),
+    ):
         mock_settings.tts_speed = 1.0
         mock_settings.tts_provider = "xtts"
         mock_settings.tts_voice = None

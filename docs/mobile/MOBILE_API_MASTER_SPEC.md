@@ -35,7 +35,7 @@ No mock, stub, queued request, HTTP success, or client-side biometric result may
 9. A client biometric result is not sufficient server proof for a critical action. Critical approval requires a server-issued challenge and a server-verifiable response or remains unavailable.
 10. External actions use `attempted`, `completed`, `verified`, `failed`, or `needs_confirmation`. `verified` requires real completion evidence or state readback.
 11. Repeated HTTP or WebSocket delivery of the same message ID cannot execute a tool twice.
-12. Network exposure defaults to localhost. LAN binding is explicit, authenticated, rate-limited, and documented as development-only without TLS.
+12. Network exposure defaults to localhost. LAN binding is explicit, authenticated, and rate-limited. **Superseded by S7:** LAN (non-loopback) binding always requires and serves TLS via a desktop-owned, pairing-pinned self-signed certificate — it is never plaintext, regardless of the `require_tls` config flag. See `docs/mobile/DEVICE_PAIRING.md` (S7 section) and `rex/mobile_api/tls.py`.
 13. Request and response bodies containing chat text, passwords, tokens, or voice content are not logged.
 14. CORS is deny-by-default. Native mobile clients do not require permissive browser CORS.
 
@@ -49,7 +49,7 @@ The canonical server command is:
 python -m rex mobile-api --host 127.0.0.1 --port 8765
 ```
 
-Explicit LAN development:
+LAN bind (S7: TLS-enforced, cannot start without usable certificate material):
 
 ```powershell
 python -m rex mobile-api --host 0.0.0.0 --port 8765
@@ -58,10 +58,14 @@ python -m rex mobile-api --host 0.0.0.0 --port 8765
 The command must print:
 
 - bind host and port;
-- whether TLS is expected upstream;
-- a warning when bound beyond loopback without TLS;
-- the status URL;
+- whether TLS is enabled for this bind, and the certificate's SHA-256
+  fingerprint when it is;
+- the resulting `https://`/`http://` status URL;
 - no secret values.
+
+A non-loopback bind that cannot obtain usable TLS material prints the error
+and exits (code 1) without opening a socket — it never falls back to plain
+HTTP.
 
 ### 4.2 Configuration
 
@@ -618,8 +622,8 @@ Refresh rotation uses token families. A consumed token cannot be accepted again.
 
 - Default bind: `127.0.0.1:8765`.
 - `0.0.0.0` requires explicit CLI/config selection.
-- Plain HTTP is allowed only for trusted local development.
-- Public deployment must terminate TLS, preserve WebSocket upgrade headers, set trusted proxy behavior explicitly, and must not expose the desktop GUI/admin routes through the mobile gateway.
+- Plain HTTP is allowed only on loopback for local development. A TLS-owned app rejects plaintext requests with `TLS_REQUIRED`.
+- The supported remote topology is direct LAN pairing to the desktop-owned TLS endpoint; reverse proxies and hosted defaults are not part of S7. The desktop GUI/admin routes must never be exposed through the mobile gateway.
 - Do not start the mobile API automatically merely because configuration exists unless `mobile_api.enabled` is explicitly true.
 - Windows Firewall instructions must scope inbound access to the selected private network/profile and port.
 
