@@ -13,8 +13,14 @@ from rex.mobile_api.device_proof import (
     sign_transcript,
 )
 from rex.mobile_api.pairing import PairingAuthority, PairingError
+from rex.mobile_api.tls import TransportBinding
 
 SCOPES = ["chat.send", "chat.history.read", "voice.use"]
+TEST_BINDING = TransportBinding(
+    server_url="https://rex.example.test:8765",
+    certificate_fingerprint="a" * 64,
+    spki_pins=("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",),
+)
 
 
 def _authority(services, *, code: str = "12345678") -> PairingAuthority:
@@ -22,6 +28,7 @@ def _authority(services, *, code: str = "12345678") -> PairingAuthority:
         services.db_path,
         clock=services.clock,
         code_generator=lambda: code,
+        transport_binding_provider=lambda: TEST_BINDING,
     )
     services.pairing_authority = authority
     return authority
@@ -37,6 +44,9 @@ def _payload(challenge, private_key, **updates):
         user_id=challenge.user_id,
         scopes=challenge.scopes,
         code=challenge.code,
+        server_url=challenge.server_url,
+        certificate_fingerprint=challenge.certificate_fingerprint,
+        spki_pins=challenge.spki_pins,
     )
     payload = {
         "desktop_id": challenge.desktop_id,
@@ -156,6 +166,32 @@ def test_wrong_desktop_and_scope_tampering_fail_closed(client, services, mobile_
     assert "does not match" in tampered.get_json()["error"]["message"]
 
 
+def test_transport_binding_tampering_fails_proof_without_consuming_challenge(
+    client, services, mobile_env
+):
+    from tests.mobile_api.conftest import create_user
+
+    user_id = create_user("pair-transport", "correct horse battery staple")
+    authority = _authority(services)
+    challenge = authority.create_challenge(user_id=user_id, scopes=SCOPES)
+    payload = _payload(challenge, generate_p256_private_key())
+
+    conn = sqlite3.connect(services.db_path)
+    try:
+        conn.execute(
+            "UPDATE mobile_pairing_challenges SET server_url = ? WHERE challenge_id = ?",
+            ("https://attacker.invalid:8765", challenge.challenge_id),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+    response = client.post("/mobile/pairing/submit", json=payload)
+    assert response.status_code == 400
+    assert "proof" in response.get_json()["error"]["message"].lower()
+    assert _count(services.db_path, "mobile_pairing_requests") == 0
+
+
 def test_key_mismatch_fails_proof_without_consuming_challenge(client, services, mobile_env):
     from tests.mobile_api.conftest import create_user
 
@@ -223,3 +259,59 @@ def test_invalid_poll_token_does_not_reveal_request(client, services, mobile_env
     )
     assert response.status_code == 401
     assert response.get_json()["error"]["code"] == "PAIRING_INVALID"
+
+
+def test_challenge_binds_desktop_cert_fingerprint(client, services, mobile_env):
+    """S7: the QR payload carries the desktop's pinnable TLS fingerprint."""
+    from tests.mobile_api.conftest import create_user
+
+    user_id = create_user("pair-tls", "correct horse battery staple")
+    authority = _authority(services)
+    challenge = authority.create_challenge(user_id=user_id, scopes=SCOPES)
+    assert challenge.certificate_fingerprint == TEST_BINDING.certificate_fingerprint
+    assert challenge.server_url == TEST_BINDING.server_url
+    assert challenge.spki_pins == TEST_BINDING.spki_pins
+    assert challenge.qr_payload() == {
+        "type": "askrex-pairing",
+        "version": 2,
+        "desktop_id": challenge.desktop_id,
+        "challenge_id": challenge.challenge_id,
+        "nonce": challenge.nonce_b64,
+        "code": challenge.code,
+        "user_id": challenge.user_id,
+        "scopes": list(challenge.scopes),
+        "expires_at": challenge.expires_at,
+        "server_url": TEST_BINDING.server_url,
+        "certificate_fingerprint": TEST_BINDING.certificate_fingerprint,
+        "spki_pins": list(TEST_BINDING.spki_pins),
+    }
+
+
+def test_approved_device_persists_desktop_cert_fingerprint(client, services, mobile_env):
+    """S7: approval binds the fingerprint onto the immutable device record."""
+    from tests.mobile_api.conftest import create_user
+
+    user_id = create_user("pair-tls-approve", "correct horse battery staple")
+    authority = _authority(services)
+    challenge = authority.create_challenge(user_id=user_id, scopes=SCOPES)
+    submitted = authority.submit_proof(_payload(challenge, generate_p256_private_key()))
+    grant = authority.approve(submitted.request_id, approved_by="DESKTOP\\James")
+
+    device = next(item for item in authority.list_devices() if item["device_id"] == grant.device_id)
+    assert device["certificate_fingerprint"] == challenge.certificate_fingerprint
+    assert device["server_url"] == challenge.server_url
+    assert device["spki_pins"] == list(challenge.spki_pins)
+
+    status = authority.poll_status(submitted.request_id, submitted.poll_token)
+    assert status["certificate_fingerprint"] == challenge.certificate_fingerprint
+    assert status["server_url"] == challenge.server_url
+    assert status["spki_pins"] == list(challenge.spki_pins)
+
+
+def test_pairing_fails_closed_when_transport_binding_unavailable(services, mobile_env):
+    from tests.mobile_api.conftest import create_user
+
+    user_id = create_user("pair-tls-broken", "correct horse battery staple")
+    authority = PairingAuthority(services.db_path, clock=services.clock)
+    with pytest.raises(PairingError, match="Secure mobile transport is unavailable"):
+        authority.create_challenge(user_id=user_id, scopes=SCOPES)

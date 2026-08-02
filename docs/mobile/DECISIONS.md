@@ -17,6 +17,6 @@ These decisions are already resolved for issue #323 and should not be reopened d
 13. Initial TTS delivery is authenticated JSON base64 plus MIME type; text is never placed in a URL.
 14. Unsupported routes return 501 `NOT_IMPLEMENTED` and false capabilities.
 15. Live duplex voice remains out of scope and false.
-16. Default bind is localhost; explicit plain-HTTP LAN use is development-only and remains authenticated/rate-limited.
+16. Default bind is localhost for development; every non-loopback bind is HTTPS-only with a desktop-owned certificate whose URL, fingerprint, and SPKI pins are signed during pairing and pinned by the mobile client.
 17. Draft mobile PR #3 and #5 must be aligned to this contract before they are integrated.
 18. Implementation is delivered in two Fable sessions/PR phases as defined by the plan.

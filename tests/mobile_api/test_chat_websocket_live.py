@@ -1,4 +1,4 @@
-﻿"""Live loopback WebSocket integration through Flask-Sock/simple-websocket."""
+"""Live loopback WebSocket integration through Flask-Sock/simple-websocket."""
 
 from __future__ import annotations
 
@@ -72,6 +72,9 @@ def _paired_login(base_url: str, services, user_id: str) -> str:
         user_id=challenge.user_id,
         scopes=challenge.scopes,
         code=challenge.code,
+        server_url=challenge.server_url,
+        certificate_fingerprint=challenge.certificate_fingerprint,
+        spki_pins=challenge.spki_pins,
     )
     submitted = services.pairing_authority.submit_proof(
         {

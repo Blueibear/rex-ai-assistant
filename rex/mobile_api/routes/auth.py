@@ -164,6 +164,7 @@ def build_auth_blueprint(services: MobileApiServices, limiter: Any) -> Blueprint
                 user_id=principal.user_id,
                 challenge_id=challenge_id,
                 signature_b64=signature,
+                transport_binding=services.transport_binding,
             )
         except DeviceSessionError as exc:
             raise MobileApiError(merr.PAIRING_INVALID, str(exc), 403) from exc

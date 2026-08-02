@@ -255,7 +255,14 @@ class MobileApiConfig(BaseModel):
     enabled: bool = False
     host: str = "127.0.0.1"
     port: int = 8765
+    advertised_host: str | None = None
+    advertised_port: int | None = None
     allowed_origins: List[str] = []
+    # S7: any non-loopback host always requires usable TLS regardless of this
+    # flag — rex.mobile_api.tls.resolve_mobile_tls() enforces that and fails
+    # closed when TLS material cannot be provisioned. This flag only opts a
+    # loopback (127.0.0.1/localhost) bind into TLS for local testing; it
+    # cannot disable TLS for a non-loopback bind.
     require_tls: bool = False
     api_version: str = "1.0"
     access_token_ttl_seconds: int = 900
@@ -280,10 +287,20 @@ class MobileApiConfig(BaseModel):
             raise ValueError("must not be empty")
         return value
 
-    @field_validator("port")
+    @field_validator("advertised_host")
     @classmethod
-    def _valid_port(cls, value: int) -> int:
-        if not 1 <= value <= 65535:
+    def _valid_advertised_host(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        value = value.strip().strip("[]").lower()
+        if not value or value in {"0.0.0.0", "::", "*"}:
+            raise ValueError("advertised_host must be a concrete host")
+        return value
+
+    @field_validator("port", "advertised_port")
+    @classmethod
+    def _valid_port(cls, value: int | None) -> int | None:
+        if value is not None and not 1 <= value <= 65535:
             raise ValueError("port must be between 1 and 65535")
         return value
 

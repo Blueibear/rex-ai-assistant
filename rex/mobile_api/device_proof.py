@@ -30,9 +30,9 @@ from cryptography.hazmat.primitives.asymmetric.utils import Prehashed
 # Domain-separation tag: prevents a signature produced for any other AskRex
 # protocol from ever validating as a pairing proof.  Bump the version suffix
 # if the transcript shape changes.
-PROOF_DOMAIN = b"AskRex-Pairing-Proof-v1"
+PROOF_DOMAIN = b"AskRex-Pairing-Proof-v2"
 TRANSCRIPT_TYPE = "askrex-pairing-proof"
-TRANSCRIPT_VERSION = 1
+TRANSCRIPT_VERSION = 2
 SESSION_PROOF_DOMAIN = b"AskRex-Device-Session-v1"
 SESSION_TRANSCRIPT_TYPE = "askrex-device-session-proof"
 SESSION_TRANSCRIPT_VERSION = 1
@@ -116,12 +116,16 @@ def canonical_transcript(
     user_id: str,
     scopes: tuple[str, ...] | list[str],
     code: str,
+    server_url: str,
+    certificate_fingerprint: str,
+    spki_pins: tuple[str, ...] | list[str],
 ) -> bytes:
     """Return the deterministic transcript bytes signed by the mobile client.
 
     The transcript is a domain-separated, canonically encoded JSON object
-    (sorted keys, no insignificant whitespace, UTF-8).  ``scopes`` is sorted
-    for a stable form.  Callers pass the *canonical* mobile public key so the
+    (sorted keys, no insignificant whitespace, UTF-8).  ``scopes`` and ``spki_pins`` are sorted for a stable form. The URL, certificate
+    fingerprint, and SPKI pins make the phone explicitly acknowledge the same
+    transport identity the desktop records for the approved grant.  Callers pass the *canonical* mobile public key so the
     same key always yields the same transcript.
     """
     payload = {
@@ -134,6 +138,9 @@ def canonical_transcript(
         "user_id": user_id,
         "scopes": sorted(scopes),
         "code": code,
+        "server_url": server_url,
+        "certificate_fingerprint": certificate_fingerprint,
+        "spki_pins": sorted(spki_pins),
     }
     body = json.dumps(
         payload,

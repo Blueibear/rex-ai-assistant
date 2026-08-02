@@ -142,6 +142,8 @@ class TestMobileApiConfigSerialization:
             "enabled",
             "host",
             "port",
+            "advertised_host",
+            "advertised_port",
             "allowed_origins",
             "require_tls",
             "api_version",

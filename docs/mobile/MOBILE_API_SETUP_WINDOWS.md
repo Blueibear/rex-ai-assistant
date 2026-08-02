@@ -101,27 +101,38 @@ Notes:
   only when you start it explicitly.
 - Rate limiting uses in-memory storage — suitable only for this
   single-process development server.
+- `require_tls` only opts a **loopback** bind into TLS for local testing; it
+  cannot disable TLS for a non-loopback (LAN) bind — that is always
+  TLS-enforced regardless of this flag (S7).
 
 ## 5. Start the server
 
-Localhost (default, recommended):
+Localhost (default, recommended; plain HTTP):
 
 ```powershell
 python -m rex mobile-api --host 127.0.0.1 --port 8765
 ```
 
-Explicit LAN development (development-only, plain HTTP on a trusted network):
+LAN bind (the supported paired-device topology; S7 requires TLS and cannot
+be started without it):
 
 ```powershell
 python -m rex mobile-api --host 0.0.0.0 --port 8765
 ```
 
 CLI flags override the `mobile_api` config values; otherwise the config is
-used, then the safe localhost defaults. The startup banner prints the bind
-address, status URL, and whether TLS is expected upstream — and warns when
-bound beyond loopback without TLS. Authentication and rate limiting stay
-enforced on LAN binds. Never expose this development server directly to the
-internet; public deployment requires TLS termination and a production server.
+used, then the safe localhost defaults. Any bind beyond loopback
+(`127.0.0.1`/`localhost`) always provisions or reuses a self-signed TLS
+certificate under `<household_data_dir>/mobile_tls/` and serves HTTPS — this
+cannot be disabled. If that certificate/key material cannot be generated or
+loaded, the command prints the error and exits without opening a socket
+(fail closed); it never falls back to plain HTTP. The startup banner prints
+the bind address, the resulting `https://` or `http://` status URL, and —
+when TLS is enabled — the certificate's SHA-256 fingerprint. Pair mobile
+devices (see `docs/mobile/DEVICE_PAIRING.md`) so they pin that fingerprint
+before they connect; a certificate that later changes (data reset, deleted
+`mobile_tls/` directory) requires every paired device to re-pair. Never
+expose this development server directly to the internet.
 
 ## 6. Windows Firewall (LAN development only)
 
@@ -253,8 +264,10 @@ curl.exe -X POST http://127.0.0.1:8765/mobile/voice/upload `
 | `503 BACKEND_UNAVAILABLE` on `/mobile/voice/upload` | Whisper, ffmpeg, or the configured Whisper model is not available locally. Models are never downloaded during a request — install/download them first (`pip install -r requirements-cpu.txt`, ffmpeg on PATH, then run any local STT once to fetch the model). |
 | `503 BACKEND_UNAVAILABLE` on `/mobile/tts/playback` | The configured TTS engine (`config.voice.tts_engine`) is not installed or failed/timed out. `/mobile/capabilities` reports the current truth. |
 | `415 INVALID_MEDIA` on voice upload | The uploaded bytes are not a supported container (M4A/MP4, AAC, MP3, WAV) or could not be decoded. The filename and declared MIME type are ignored — only real content counts. |
-| Phone cannot reach the server | Confirm the server is bound to `0.0.0.0`, the firewall rule targets the Private profile and correct port, both devices share the same network, and the phone uses `http://<PC-LAN-IP>:8765`. |
+| Phone cannot reach the server | Confirm the server is bound to `0.0.0.0`, the firewall rule targets the Private profile and correct port, both devices share the same network, and the phone uses `https://<PC-LAN-IP>:8765` (LAN binds are TLS-only; see S7 below). |
 | `port ... in use` | Another process owns the port. Pick another port with `--port`. |
+| `Error: Desktop TLS certificate material could not be provisioned.` (LAN bind) | The self-signed certificate/key under `<household_data_dir>/mobile_tls/` could not be generated or loaded (corrupted key file, unwritable data directory, or the `cryptography` package is missing). The command exits without opening a socket. Fix the underlying filesystem/dependency issue, or delete `mobile_tls/` to force regeneration (this invalidates the fingerprint every paired device pinned — they must re-pair). |
+| `403 PAIRING_INVALID` from `/mobile/auth/activate-device` on a LAN bind | The device's pinned certificate fingerprint no longer matches the desktop's current certificate (rotated/reset since pairing), or the device was paired before S7 and has no pinned fingerprint. Re-pair the device. |
 
 ## 9. Security notes
 
