@@ -84,8 +84,9 @@ def test_electron_outlook_status_is_not_marked_connected_by_credentials_only() -
 
     assert "OUTLOOK_EMAIL_UNSUPPORTED" in src
     assert "OUTLOOK_CALENDAR_UNSUPPORTED" in src
-    assert "hasConfiguredOutlookEmail(integrations)" in src
-    assert "hasConfiguredOutlookCalendar(integrations)" in src
+    assert "unsupportedOutlookStatus(type, integrations)" in src
+    assert "state: 'unavailable'" in src
+    assert "if (unsupported) return unsupported" in src
 
 
 def test_email_and_calendar_handlers_surface_bridge_errors() -> None:

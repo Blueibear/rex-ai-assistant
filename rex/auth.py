@@ -10,7 +10,6 @@ Provides user registration, authentication, and session token management.
 from __future__ import annotations
 
 import logging
-import os
 import sqlite3
 import uuid
 from datetime import UTC, datetime, timedelta
@@ -29,18 +28,19 @@ _TOKEN_EXPIRY_HOURS = 24
 
 
 def get_jwt_secret() -> str:
-    """Return the JWT signing secret from the environment.
+    """Return the JWT signing secret from the credential authority.
 
     Raises:
-        RuntimeError: If ``REX_JWT_SECRET`` is not set.  A missing secret is a
+        RuntimeError: If ``REX_JWT_SECRET`` is not stored. A missing secret is a
             configuration error — there is no hardcoded fallback.  Generate a
             value with: ``python -c "import secrets; print(secrets.token_hex(32))"``
     """
-    secret = os.getenv("REX_JWT_SECRET")
+    from rex.credentials import get_persisted_credential
+
+    secret = get_persisted_credential("REX_JWT_SECRET")
     if not secret:
         raise RuntimeError(
-            "REX_JWT_SECRET is not set. "
-            "Add it to your .env file. "
+            "REX_JWT_SECRET is not set in the credential vault. "
             "Generate a value with: "
             'python -c "import secrets; print(secrets.token_hex(32))"'
         )

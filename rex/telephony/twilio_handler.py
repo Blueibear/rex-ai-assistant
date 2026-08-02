@@ -48,10 +48,19 @@ _ENV_TRANSFER_NUMBER = "TWILIO_TRANSFER_NUMBER"
 
 
 def _get_credentials() -> tuple[str, str, str] | None:
-    """Return (account_sid, auth_token, phone_number) or None if absent."""
-    sid = os.environ.get(_ENV_ACCOUNT_SID, "").strip()
-    token = os.environ.get(_ENV_AUTH_TOKEN, "").strip()
-    phone = os.environ.get(_ENV_PHONE_NUMBER, "").strip()
+    """Return vault-backed Twilio phone credentials or None if absent."""
+    from rex.credentials import get_persisted_credential, legacy_plaintext_fallback_enabled
+
+    legacy = legacy_plaintext_fallback_enabled()
+    sid = (os.environ.get(_ENV_ACCOUNT_SID, "").strip() if legacy else "") or (
+        get_persisted_credential("TWILIO_PHONE_ACCOUNT_SID") or ""
+    )
+    token = (os.environ.get(_ENV_AUTH_TOKEN, "").strip() if legacy else "") or (
+        get_persisted_credential("TWILIO_PHONE_AUTH_TOKEN") or ""
+    )
+    phone = (os.environ.get(_ENV_PHONE_NUMBER, "").strip() if legacy else "") or (
+        get_persisted_credential("TWILIO_PHONE_NUMBER") or ""
+    )
     if not (sid and token and phone):
         return None
     return sid, token, phone
@@ -63,8 +72,15 @@ def is_configured() -> bool:
 
 
 def _get_transfer_number() -> str | None:
-    """Return the configured call-transfer number from the environment, or None."""
-    return os.environ.get(_ENV_TRANSFER_NUMBER, "").strip() or None
+    """Return the vault-backed call-transfer number, or None."""
+    from rex.credentials import get_persisted_credential, legacy_plaintext_fallback_enabled
+
+    legacy_value = (
+        os.environ.get(_ENV_TRANSFER_NUMBER, "").strip()
+        if legacy_plaintext_fallback_enabled()
+        else ""
+    )
+    return legacy_value or get_persisted_credential("TWILIO_TRANSFER_NUMBER")
 
 
 # ---------------------------------------------------------------------------

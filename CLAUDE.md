@@ -115,7 +115,13 @@ Search providers:
 
 Never commit secrets.
 
-Secrets belong in `.env` only.
+Desktop secrets (API keys, tokens, passwords) belong in the OS-backed credential
+vault (`rex.credential_vault`, Windows DPAPI), not in plaintext `.env` or JSON.
+Plaintext environment/config reads are disabled by default. Unpackaged
+operator and CI runs may explicitly opt in with
+`REX_ALLOW_PLAINTEXT_CREDENTIAL_FALLBACK=1`; packaged Electron strips and
+rejects that flag. New writes always go through the vault. See "Credential
+vault (S4)" below.
 
 Runtime settings belong in:
 
@@ -140,6 +146,42 @@ Existing `data/` and `~/.rex` stores migrate with
 `scripts/migrate_runtime_data.py`, which is dry-run by default and must never
 overwrite conflicts. Never write runtime state beneath `bridge/`, the
 application archive, or packaged resources.
+
+#### Credential vault (S4)
+
+`rex/credential_vault.py` is the Windows DPAPI-backed credential vault.
+Values are encrypted at rest (`win32crypt.CryptProtectData`/`CryptUnprotectData`
+via `pywin32`); config files only ever hold the vault *key*, never a secret
+value.
+
+- Two scopes, mirroring the household/private data split above:
+  `scope="household"` (installation-wide secrets — OpenAI/HA/search keys;
+  default, matches pre-vault global behavior) and `scope="user"` + a
+  validated `user_id` (bound to one Rex profile, e.g. a personal email
+  account `credential_ref`). Each scope encrypts with different DPAPI
+  entropy, so one Rex user cannot decrypt another's entries even when both
+  share one Windows login.
+- Storage: `<household_data_dir()>/credentials/vault.json` or
+  `<user_data_dir(user_id)>/credentials/vault.json` (via `rex.runtime_paths`).
+- `CredentialManager` (`rex/credentials.py`) is vault-only by default. In
+  explicit unpackaged legacy/operator mode, process environment and legacy
+  config may override the vault. `set_token(..., persist=True)` always writes
+  through to the vault and raises `VaultUnavailableError` if unavailable.
+- `rex/config.py`'s direct `os.getenv(...)` secret reads for `AppConfig`
+  (`HA_TOKEN`, `OPENAI_API_KEY`, etc.) go through `_secret_env_or_vault()`,
+  which applies the same vault-only default and explicit legacy-mode policy.
+- Electron never performs vault cryptography. `bridge/rex_credential_vault_bridge.py`
+  is the only path Electron uses to reach it (stdin/stdout JSON, like every
+  other bridge); `gui/src/main/credentialVault.ts` wraps that bridge call.
+- Non-Windows dev/CI: `get_credential_vault()` raises `VaultUnavailableError`
+  (no implicit fallback). `InMemoryCredentialVault` exists only for tests —
+  never selected by a production code path.
+- One-time migration of existing plaintext `.env` / `config/credentials.json`
+  secrets: `scripts/migrate_credentials_to_vault.py` (dry-run by default; <!-- pragma: allowlist secret -->
+  `--apply` verifies the vault write and opaque-reference registry before
+  atomically sanitizing the source). It never creates plaintext backups or
+  secret-derived output; rollback references remain encrypted in the vault
+  with a secret-free recovery journal.
 
 Principles:
 
@@ -212,6 +254,7 @@ Bridge compatibility wrappers (17) — exec canonical `bridge/<name>.py` in thei
 - rex/voice/ — voice pipeline modules, one per concern (US-REM-028); `rex/voice_loop.py` is the facade and `rex.voice_loop.<name>` remains the import/monkeypatch surface (settings, lazy importers, sa/sd, pipeline classes)
 - rex/tools/execution.py — canonical typed tool lifecycle; all registered dispatch must pass availability, argument, identity, permission, risk, confirmation, execution, normalization, independent verification, truthful response, and redacted audit stages. Read-only success is `completed`; mutation success is `verified` only.
 - gui/src/main/ — Electron main-process modules, one per concern (US-REM-029); `index.ts` is a thin entrypoint (app lifecycle wiring only), `ipc.ts` aggregates handler registration, IPC handlers live in `gui/src/main/handlers/`, and settings/integration/HA logic lives in `configStore.ts`, `aiSettings.ts`, `voiceSettings.ts`, `settingsDefaults.ts`, `settingsMirror.ts`, `homeAssistant.ts`, `integrationStatus.ts`, `integrationInventory.ts`, `window.ts`
+- rex/credential_vault.py — Windows DPAPI-backed credential vault (S4); see "Credential vault (S4)" above
 - rex/email_backends/
 - rex/calendar_backends/
 - rex/messaging_backends/
@@ -300,6 +343,12 @@ Legacy Electron task/history ownership migration is dry-run first:
 
 python scripts/migrate_electron_data_ownership.py --user <id>
 python scripts/migrate_electron_data_ownership.py --user <id> --apply
+
+Credential vault migration (moves plaintext `.env`/`config/credentials.json`
+secrets into the OS-backed vault) is dry-run first:
+
+python scripts/migrate_credentials_to_vault.py --scope household --owner household
+python scripts/migrate_credentials_to_vault.py --scope household --owner household --apply
 
 Text mode:
 
@@ -396,7 +445,7 @@ Do not invent filenames or APIs that do not exist.
 
 ### Respect the config split
 
-Secrets → .env
+Secrets → OS-backed credential vault (plaintext only in explicit unpackaged legacy mode)
 Runtime configuration → config/rex_config.json
 
 ### AppConfig sub-config access pattern
@@ -418,7 +467,7 @@ The mobile gateway adds an eighth typed group, `config.mobile_api`
 host/port, token TTLs, body limits, deny-by-default CORS origins,
 route-specific rate-limit strings, and `idempotency_retention_hours` (the
 retention window for cross-transport chat idempotency records, default 48).
-It is canonical nested config with no flat equivalents. The mobile JWT signing secret is `REX_JWT_SECRET` in `.env`
+It is canonical nested config with no flat equivalents. The mobile JWT signing secret is vault entry `REX_JWT_SECRET`
 (minimum 32 characters; the gateway fails closed without it). See
 `docs/mobile/MOBILE_API_SETUP_WINDOWS.md` for setup.
 
@@ -507,6 +556,8 @@ Add a short rule here that would have prevented the mistake.
 - Session/user state on long-lived components wired into `Assistant` (engines, caches, in-memory logs) must be keyed by `user_id` in a dict, never held as plain instance attributes — one `Assistant` serves multiple identified users, and each request's identity is resolved once (`_resolve_request_user_id`) and passed explicitly as a function argument to every component. Never propagate a request identity by mutating `self._user_id`: shared mutable identity races across overlapping requests. Mirror the `FollowupEngine`/`SuggestionEngine` pattern: every stateful public method takes an explicit `user_id`, validates it via `rex.identity.validate_user_id`, and fails closed (no-op, never a default-user fallback) on missing or invalid identity.
 - User IDs are authorization keys, not display strings. Validate them with `rex.identity.validate_user_id` before any path, cache, credential, database, or event access; never sanitize an invalid user ID into a valid one.
 - `Assistant` never invents an identity. `Assistant()` is an explicitly unbound instance: it does not assign `"default"`, does not inherit `settings.user_id`, and performs no user-scoped reads or writes at construction (no history preload, no follow-up session, no per-user cache/credential access). Private operations (intent shortcuts, cache lookup, greetings and other early returns, history, context, tool/action dispatch, streaming, completion recording) require an explicit validated identity — the bound constructor `user_id` or a per-request `active_user_id` — and fail closed with `rex.assistant_errors.IdentityRequiredError` otherwise. `user_id="default"` is a valid explicit profile selection only, never an automatic fallback. First-party single-user entrypoints resolve their profile outside `Assistant` via `rex.identity.resolve_entrypoint_user_id(settings, explicit_user=...)` and pass it to `Assistant(user_id=...)`.
+- Vault (`rex.credential_vault`) failures fail closed. Read paths return an absent credential only when the vault is unavailable; corrupt schema, metadata, scope, account, slot, owner, or reference data raises. Plaintext config/environment is consulted only when explicit legacy mode is enabled outside packaged Electron. Write paths propagate vault, readback, registry, and mirror failures so the GUI cannot report false success.
+- An Electron `ipcMain.handle` callback returning `{ ok: true, someList: buildX() }` where `buildX()` is `async` is a silent bug, not a type error: TypeScript happily infers the handler's return type around a nested `Promise`, but the renderer receives an unresolved promise instead of the array. `tsc --noEmit` will not catch this — grep every call site of a function you just made `async` and confirm each one added `await`, don't rely on the type checker alone.
 
 ## OpenClaw Migration Status
 
@@ -515,7 +566,7 @@ Rex integrates with OpenClaw over HTTP (not as a Python package). Key facts:
 - Phase 8 (HTTP integration) is complete. All `find_spec("openclaw")` / `import openclaw` stubs have been removed and replaced with HTTP client calls.
 - OpenClaw adapters live in `rex/openclaw/`: `agent.py`, `tool_bridge.py`, `event_bridge.py`, `browser_bridge.py`, `voice_bridge.py`, `http_client.py`, `tool_server.py`, and tool handlers under `rex/openclaw/tools/`.
 - HTTP client: `rex/openclaw/http_client.py` (`OpenClawClient`) handles auth, retries, timeouts for all gateway calls. Singleton via `get_openclaw_client(config)`.
-- Config fields: `openclaw_gateway_url`, `openclaw_gateway_timeout`, `openclaw_gateway_max_retries` in `AppConfig`; `OPENCLAW_GATEWAY_TOKEN` in `.env`.
+- Config fields: `openclaw_gateway_url`, `openclaw_gateway_timeout`, `openclaw_gateway_max_retries` in `AppConfig`; `OPENCLAW_GATEWAY_TOKEN` in the credential vault.
 - Feature flag `use_openclaw_voice_backend` in `AppConfig` (config path: `openclaw.use_voice_backend`): when True, voice loops swap `Assistant` for `VoiceBridge`, routing LLM calls through OpenClaw's `/v1/chat/completions`.
 - Feature flag `use_openclaw_tools` in `AppConfig` (config path: `openclaw.use_tools`): when True, `ToolBridge.execute_tool()` dispatches to OpenClaw's `/tools/invoke`; 404 falls back to local execution.
 - Tool server: `rex/openclaw/tool_server.py` exposes Rex tools at `/rex/tools/{tool_name}` for OpenClaw channels. Entry point: `rex-tool-server`.

@@ -140,10 +140,28 @@ class SMSService:
     ) -> None:
         import os
 
+        from rex.credentials import (
+            get_persisted_credential,
+            legacy_plaintext_fallback_enabled,
+        )
+
         self._provider = sms_provider.lower()
-        self._sid = account_sid or os.environ.get("TWILIO_ACCOUNT_SID", "")
-        self._token = auth_token or os.environ.get("TWILIO_AUTH_TOKEN", "")
-        self._from_number = from_number or os.environ.get("TWILIO_FROM_NUMBER", _STUB_FROM)
+        legacy = legacy_plaintext_fallback_enabled()
+        self._sid = (
+            account_sid
+            or (os.environ.get("TWILIO_ACCOUNT_SID", "") if legacy else "")
+            or (get_persisted_credential("TWILIO_ACCOUNT_SID") or "")
+        )
+        self._token = (
+            auth_token
+            or (os.environ.get("TWILIO_AUTH_TOKEN", "") if legacy else "")
+            or (get_persisted_credential("TWILIO_AUTH_TOKEN") or "")
+        )
+        self._from_number = (
+            from_number
+            or (os.environ.get("TWILIO_FROM_NUMBER", "") if legacy else "")
+            or (get_persisted_credential("TWILIO_FROM_NUMBER") or _STUB_FROM)
+        )
         logger.debug("SMSService initialised with provider=%s", self._provider)
 
     # ------------------------------------------------------------------

@@ -6,7 +6,10 @@ network exposure, service auth, packaging, or security controls.
 ## Core Config Split
 
 - Runtime settings belong in `config/rex_config.json`.
-- Secrets belong in `.env` only — never in `rex_config.json` or GUI settings files.
+- Secrets belong in the OS-backed credential vault (`rex.credential_vault`,
+  Windows DPAPI) — never in `rex_config.json` or GUI settings files. Plaintext
+  reads require explicit unpackaged legacy/operator mode; packaged Electron
+  strips and rejects that mode. New secret writes always use the vault.
 - Do not put secrets in source-controlled JSON config.
 - Non-secret legacy env vars should be migrated with
   `rex-config migrate-legacy-env`.
@@ -51,56 +54,104 @@ it is safe.
 
 ## Canonical Secret-Loading Path
 
-**Secrets must come from `.env` only.** Never from `rex_config.json` or
-`config/gui_settings.json`.
+**Secrets come from the credential vault by default.** Never from
+`rex_config.json` or `config/gui_settings.json`. Only explicit unpackaged
+legacy/operator mode permits plaintext reads, where process environment wins.
 
 ### Python backend
-- All secrets are loaded via `os.getenv("KEY_NAME")` at import/init time.
-- `ha_token` → `os.getenv("HA_TOKEN")`; `ha_secret` → `os.getenv("HA_SECRET")`
-- `REX_JWT_SECRET` → loaded by `rex/auth.py:get_jwt_secret()`, raises
-  `RuntimeError` if unset — there is no fallback.
+- `CredentialManager` (`rex/credentials.py`) resolves a named credential from
+  an opaque contextual reference. `set_token(..., persist=True)` writes
+  through to the vault and raises
+  `rex.credential_vault.VaultUnavailableError` if none is available; it never
+  falls back to writing plaintext.
+- Direct `AppConfig` secret fields (`ha_token`, `openai_api_key`,
+  `anthropic_api_key`, `ollama_api_key`, `brave_api_key`, `speak_api_key`,
+  `ha_secret`) resolve via `rex.config._secret_env_or_vault(env_var)` using the
+  same fail-closed policy.
+- `REX_JWT_SECRET`, `REX_PROXY_TOKEN`, and `REX_AGENT_TOKEN` use the same
+  household vault authority and fail closed when absent.
 - `rex_config.json` must never contain token or credential values; it may
-  contain credential *reference names* (e.g. `"token_ref": "ha:tts_token"`)
-  that the credential lookup layer resolves against the environment.
+  contain contextual opaque credential references only.
 
 ### Electron GUI (`gui/src/main/`)
-- HA token save path: `saveHomeAssistantCredentials` (`homeAssistant.ts`) → `writeEnvKey('HA_TOKEN', token)` (`configStore.ts`)
-- HA token read path: `readSavedHomeAssistantCredentials` (`homeAssistant.ts`) → `readEnvFile().HA_TOKEN`
+- HA and settings save paths write/read back the vault entry and opaque
+  reference before returning `{ok:true}`. They never read `.env`.
+- `rex:setApiKey` / `rex:getApiKeys` route the supported provider keys through
+  `vaultSetSecret` / `vaultHasSecret` with fixed caller-derived context.
 - Integration settings save path: `rex:setSettings('integrations', ...)` (`handlers/settings.ts`) strips
-  `haToken` before writing to `gui_settings.json`; if non-empty, writes to `.env`.
+  `haToken` before writing to `gui_settings.json`; if non-empty, writes it through the vault.
+- Electron never performs vault cryptography itself — every vault operation
+  spawns `bridge/rex_credential_vault_bridge.py` (stdin/stdout JSON, same
+  convention as every other bridge) via `gui/src/main/credentialVault.ts`.
 - `config/gui_settings.json` stores non-secret UI state only (URLs, providers,
   display preferences). It must not contain credential values.
+- `mirrorToRexConfig` (`settingsMirror.ts`) and `rex:setSettings` return a
+  truthful `{ok, error?}` — a vault or mirror failure must never show as a
+  false "Saved" state in `SettingsPage.tsx` (check `result.ok` before calling
+  `showSaved(...)`; show `addToast(result.error, 'error')` otherwise).
 
-### Known residual secrets in gui_settings.json (migration backlog)
-The following fields are currently written to `gui_settings.json` and should
-be migrated to `.env` in a follow-up story:
-- `telegramBotToken` → target env var: `TELEGRAM_BOT_TOKEN`
-- `emailClientSecret` / `calendarClientSecret` — OAuth app credentials;
-  lower risk (app-identity, not user-token), but should move to `.env`
-  long-term.
+### GUI secret coverage
+
+`gui_settings.json` contains no supported secret field. Home Assistant,
+provider/search/weather/TTS/OpenClaw keys, Telegram, Twilio/SMS/phone,
+email/calendar client secrets, and per-account email passwords/client secrets
+are stripped and replaced by contextual opaque references. Blank input means
+unchanged; deletion is separate and confirmed. The renderer receives only
+blank secret fields plus `hasCredential`/reference metadata.
+
+## Credential Vault (S4)
+
+`rex/credential_vault.py` — Windows DPAPI-backed (`pywin32`'s `win32crypt`).
+Guarded exactly like `rex/windows_service.py`'s optional-pywin32 pattern:
+`VaultUnavailableError` on non-Windows or when pywin32 is missing on Windows.
+
+- **Scopes**: `"household"` (installation-wide secrets) and
+  pre-vault global behavior for every existing unscoped caller) and
+  `"user"` + a validated `user_id` (bound to one Rex profile). Each scope
+  encrypts with DPAPI entropy derived from scope, validated owner, opaque ref,
+  integration, authorized account, and slot. Stored metadata is checked
+  against caller-expected context; swapping any dimension fails closed.
+- **Storage**: one JSON file of base64 DPAPI ciphertext + non-secret metadata
+  (key, integration, account, scope, owner, timestamps) per scope, under
+  `rex.runtime_paths`' existing household/private directories:
+  `<household_data_dir()>/credentials/vault.json` or
+  `<user_data_dir(user_id)>/credentials/vault.json`.
+- **Backend selection**: `get_credential_vault(scope=..., user_id=...)` picks
+  the real DPAPI backend on `win32`; every other platform raises
+  `VaultUnavailableError` — there is no implicit fallback in a production
+  code path. `InMemoryCredentialVault` exists only for tests
+  (`backend="memory"`), never selected implicitly.
+- **Vault key convention**: the mapped env-var name from
+  `CredentialManager.DEFAULT_CREDENTIAL_MAPPING` when one exists (e.g.
+  service `openai` → key `OPENAI_API_KEY`), else the raw service/credential_ref
+  string (e.g. `email:personal`). One namespace shared by `CredentialManager`,
+  `rex.config`, and the migration script.
+- **Electron access**: `bridge/rex_credential_vault_bridge.py` (actions
+  `set`/`get`/`has`/`delete`) is the only path Electron uses;
+  `gui/src/main/credentialVault.ts` wraps the bridge call as a promise and
+  rejects clearly on any failure (bridge spawn failure, non-zero exit,
+  malformed JSON, or `{ok:false}` — never resolves on failure).
+- **Integrity**: interprocess locking prevents lost updates; writes use a
+  temporary file, flush/fsync, atomic replacement, and restrictive Windows ACL
+  verification. ACL hardening failure aborts the write.
+- **Migration**: `scripts/migrate_credentials_to_vault.py` is dry-run by
+  default. Apply verifies ciphertext and registry readback before atomic source
+  sanitation. It creates no plaintext backup or secret-derived output.
 
 ## Migration Path for Existing Users
 
-If you have secrets stored in `rex_config.json` or `gui_settings.json`:
+For secrets already sitting in plaintext `.env` or `config/credentials.json`
+run the vault migration instead of moving them by hand:
 
-1. **HA token in `rex_config.json` (`home_assistant.token`):**
-   Remove the `"token"` key from the `home_assistant` section.
-   Add `HA_TOKEN=<your-token>` to `.env`.
-   Rex reads the token exclusively from `os.getenv("HA_TOKEN")`.
+```bash
+python scripts/migrate_credentials_to_vault.py --scope household --owner household
+python scripts/migrate_credentials_to_vault.py --scope household --owner household --apply
+```
 
-2. **HA token in `gui_settings.json` (`integrations.haToken`):**
-   The GUI no longer reads or writes `haToken` to `gui_settings.json`.
-   Ensure `HA_TOKEN` is set in `.env`. Remove the `haToken` field from
-   `gui_settings.json` if present.
-
-3. **JWT secret anywhere other than `.env`:**
-   Add `REX_JWT_SECRET=<your-secret>` to `.env`.
-   Generate a new value with:
-   `python -c "import secrets; print(secrets.token_hex(32))"`
-
-4. **Twilio credentials:**
-   Move `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_FROM_NUMBER`
-   to `.env`. Remove from any JSON config file.
+Migration is all-or-nothing per source where practical. Identical destinations
+are `already_migrated`; differing destinations are conflicts and leave the
+source untouched. Recovery data remains encrypted in the vault with a
+secret-free journal. See `docs/credentials.md` for the full contract.
 
 ## Security Defaults
 
@@ -221,16 +272,18 @@ or a feature flag.
 ### Source Priority
 
 ```
-env var (.env)  >  rex_config.json  >  dataclass default
+vault reference  >  unset
+rex_config.json  >  dataclass default        (non-secret runtime settings)
 ```
 
-- **Secrets** are read exclusively from the environment (`os.getenv`). They
-  are never read from `rex_config.json`. Setting them in JSON has no effect.
+- **Secrets** are read from contextual vault references. Explicit unpackaged
+  legacy/operator mode may read process environment or legacy credential JSON;
+  packaged Electron rejects that mode.
 - **Runtime settings** are read from `rex_config.json` only. Environment
   variables for non-secrets are ignored (since the legacy `ENV_MAPPING` was
   removed).
-- **Mixed** (`push_token` only): `os.getenv("PUSH_TOKEN")` wins; falls back to
-  `notifications.push_token` in JSON. Document this exception — do not add more.
+- **Secret JSON fields are ignored.** This includes historical
+  `notifications.push_token`; migrate the value to the vault.
 - **`REX_DEBUG`**: env-only boolean flag (`REX_DEBUG=1` sets `debug_mode=True`).
 
 ### Sub-config Access Pattern
@@ -262,8 +315,8 @@ Deprecated flat-field aliases that currently emit `DeprecationWarning`:
 
 **Column key:**
 - **JSON key** — dot-path in `rex_config.json` (e.g. `models.llm_provider`)
-- **Env var** — environment variable name (secrets only)
-- **Source** — `json-only`, `env-only`, `env > json` (env wins, json fallback), `env-flag`
+- **Logical name** — fixed vault registry name for a secret
+- **Source** — `json-only`, `vault`, `env-flag`
 - **Type** — `secret`, `runtime`, `feature-flag`
 - **Default** — value when neither source is set
 
@@ -364,28 +417,28 @@ Deprecated flat-field aliases that currently emit `DeprecationWarning`:
 | `acknowledgment_mode` | `acknowledgment.mode` | json-only | runtime | `"sound"` |
 | `response_cache_ttl` | `response_cache.ttl` | json-only | runtime | `300.0` |
 
-#### Secrets — LLM Providers (`env-only`)
+#### Secrets — LLM Providers (`vault`)
 
 | AppConfig field | Env var | Source | Type |
 |---|---|---|---|
-| `openai_api_key` | `OPENAI_API_KEY` | env-only | secret |
+| `openai_api_key` | `OPENAI_API_KEY` | vault | secret |
 | `openai_model` | *(JSON:* `openai.model`*)* | json-only | runtime |
 | `openai_base_url` | *(JSON:* `openai.base_url`*)* | json-only | runtime |
-| `anthropic_api_key` | `ANTHROPIC_API_KEY` | env-only | secret |
+| `anthropic_api_key` | `ANTHROPIC_API_KEY` | vault | secret |
 | `anthropic_model` | *(JSON:* `anthropic.model`*)* | json-only | runtime |
-| `ollama_api_key` | `OLLAMA_API_KEY` | env-only | secret |
+| `ollama_api_key` | `OLLAMA_API_KEY` | vault | secret |
 | `ollama_base_url` | *(JSON:* `ollama.base_url`*)* | json-only | runtime |
 | `ollama_use_cloud` | *(JSON:* `ollama.use_cloud`*)* | json-only | runtime |
-| `brave_api_key` | `BRAVE_API_KEY` | env-only | secret |
-| `speak_api_key` | `REX_SPEAK_API_KEY` | env-only | secret |
+| `brave_api_key` | `BRAVE_API_KEY` | vault | secret |
+| `speak_api_key` | `REX_SPEAK_API_KEY` | vault | secret |
 
-#### Home Assistant (`home_assistant.*` in rex_config.json + env secrets)
+#### Home Assistant (`home_assistant.*` plus vault secrets)
 
 | AppConfig field | JSON key / Env var | Source | Type | Default |
 |---|---|---|---|---|
 | `ha_base_url` | `home_assistant.base_url` | json-only | runtime | `None` |
-| `ha_token` | `HA_TOKEN` | env-only | secret | `None` |
-| `ha_secret` | `HA_SECRET` | env-only | secret | `None` |
+| `ha_token` | `HA_TOKEN` | vault | secret | `None` |
+| `ha_secret` | `HA_SECRET` | vault | secret | `None` |
 | `ha_verify_ssl` | `home_assistant.verify_ssl` | json-only | runtime | `True` |
 | `ha_timeout` | `home_assistant.timeout` | json-only | runtime | `10.0` |
 
@@ -395,7 +448,7 @@ Deprecated flat-field aliases that currently emit `DeprecationWarning`:
 |---|---|---|---|---|
 | `default_location` | `location.default_location` | json-only | runtime | `None` |
 | `default_timezone` | `location.default_timezone` | json-only | runtime | `None` |
-| `openweathermap_api_key` | `OPENWEATHERMAP_API_KEY` | env-only | secret | `None` |
+| `openweathermap_api_key` | `OPENWEATHERMAP_API_KEY` | vault | secret | `None` |
 
 #### Search
 
@@ -423,7 +476,7 @@ Deprecated flat-field aliases that currently emit `DeprecationWarning`:
 | `followups_lookback_hours` | `conversation.followups.lookback_hours` | json-only | runtime | `72` |
 | `followups_expire_hours` | `conversation.followups.expire_hours` | json-only | runtime | `168` |
 
-#### OpenClaw (`openclaw.*` in rex_config.json + env secret)
+#### OpenClaw (`openclaw.*` plus vault secret)
 
 | AppConfig field | JSON key / Env var | Source | Type | Default |
 |---|---|---|---|---|
@@ -432,21 +485,20 @@ Deprecated flat-field aliases that currently emit `DeprecationWarning`:
 | `openclaw_gateway_url` | `openclaw.gateway_url` | json-only | runtime | `""` |
 | `openclaw_gateway_timeout` | `openclaw.gateway_timeout` | json-only | runtime | `30` |
 | `openclaw_gateway_max_retries` | `openclaw.gateway_max_retries` | json-only | runtime | `3` |
-| `openclaw_gateway_token` | `OPENCLAW_GATEWAY_TOKEN` | env-only | secret | `None` |
+| `openclaw_gateway_token` | `OPENCLAW_GATEWAY_TOKEN` | vault | secret | `None` |
 
 #### Telegram / Push Notifications
 
 | AppConfig field | JSON key / Env var | Source | Type | Default |
 |---|---|---|---|---|
-| `telegram_bot_token` | `TELEGRAM_BOT_TOKEN` | env-only | secret | `None` |
+| `telegram_bot_token` | `TELEGRAM_BOT_TOKEN` | vault | secret | `None` |
 | `telegram_chat_id` | `telegram.chat_id` | json-only | runtime | `None` |
 | `push_provider` | `notifications.push_provider` | json-only | runtime | `None` |
-| `push_token` | `PUSH_TOKEN` env, then `notifications.push_token` JSON | **env > json** | secret | `None` |
+| `push_token` | `PUSH_TOKEN` | vault | secret | `None` |
 | `push_topic` | `notifications.push_topic` | json-only | runtime | `None` |
 
-> **Note on `push_token`:** This is the only field that accepts both env and JSON.
-> `PUSH_TOKEN` env var wins; `notifications.push_token` in JSON is the fallback.
-> Do not add more mixed-source fields — every new secret must be `env-only`.
+> Historical `notifications.push_token` JSON values are ignored. Migrate them
+> to the vault; do not add mixed plaintext secret sources.
 
 #### Model Routing (`model_routing.*` in rex_config.json)
 
@@ -494,13 +546,12 @@ Deprecated flat-field aliases that currently emit `DeprecationWarning`:
 
 ### Precedence Rules Summary
 
-1. **Secrets always win from env.** If a field has an env var, its JSON
-   counterpart is unused. (`ha_token`, `openai_api_key`, etc.)
+1. **Secrets resolve from contextual vault references.** Explicit unpackaged
+   legacy/operator mode is the only environment/config exception.
 2. **Non-secret runtime settings come from JSON only.** Setting a non-secret
    field as an env var has no effect (the legacy `ENV_MAPPING` was removed).
-3. **`push_token` is the only exception**: `PUSH_TOKEN` env → `notifications.push_token` JSON.
-4. **`REX_DEBUG=1`** (env) sets `debug_mode=True`; `runtime.log_level = "DEBUG"`
+3. **`REX_DEBUG=1`** (env) sets `debug_mode=True`; `runtime.log_level = "DEBUG"`
    (JSON) sets `debug_logging=True`. These are two distinct booleans.
-5. **Sub-config objects are derived views**, not independently configurable.
+4. **Sub-config objects are derived views**, not independently configurable.
    Setting `config.audio.sample_rate` at runtime does not persist; change
    `audio.sample_rate` in `rex_config.json` instead.

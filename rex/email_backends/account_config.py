@@ -2,8 +2,8 @@
 
 Config lives in ``config/rex_config.json`` under the ``email`` key.
 Secrets (passwords, app-passwords) are **never** stored in config; instead
-each account carries a ``credential_ref`` that maps to a key in the
-``CredentialManager`` (environment variable or ``config/credentials.json``).
+each account carries a logical ``credential_ref`` mapped to a contextual,
+opaque reference in the per-user credential vault.
 
 Example config fragment::
 

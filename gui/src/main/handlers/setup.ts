@@ -13,30 +13,30 @@ function callSetupBridge(payload: Record<string, unknown>): Promise<Record<strin
     })
 
     let stdout = ''
-    let stderr = ''
+    let _stderr = ''
 
     py.stdout.on('data', (chunk: Buffer) => {
       stdout += chunk.toString()
     })
 
     py.stderr.on('data', (chunk: Buffer) => {
-      stderr += chunk.toString()
+      _stderr += chunk.toString()
     })
 
     py.on('close', (code) => {
       if (code !== 0) {
-        resolve({ ok: false, error: `bridge exited ${code}: ${stderr.slice(0, 200)}` })
+        resolve({ ok: false, error: "Setup service is unavailable." })
         return
       }
       try {
         resolve(JSON.parse(stdout.trim()) as Record<string, unknown>)
       } catch {
-        resolve({ ok: false, error: `parse error: ${stdout.slice(0, 100)}` })
+        resolve({ ok: false, error: "Setup service returned an invalid response." })
       }
     })
 
-    py.on('error', (err) => {
-      resolve({ ok: false, error: `spawn error: ${err.message}` })
+    py.on('error', () => {
+      resolve({ ok: false, error: "Setup service could not be started." })
     })
 
     py.stdin.write(JSON.stringify(payload))

@@ -11,9 +11,10 @@ Security model
 --------------
 - Binds to ``127.0.0.1`` by default.  Change ``REX_AGENT_HOST`` to expose on
   a network interface — only do this behind a TLS-terminating reverse proxy.
-- Every request requires the ``X-Auth-Token`` header.  The token is loaded from
-  the environment variable named by ``REX_AGENT_TOKEN_ENV`` (default:
-  ``REX_AGENT_TOKEN``).  The token is **never** logged.
+- Every request requires the ``X-Auth-Token`` header. The token is loaded from
+  the credential vault under the logical name selected by
+  ``REX_AGENT_TOKEN_ENV`` (default: ``REX_AGENT_TOKEN``). The token is never
+  logged. Plaintext environment lookup requires explicit legacy mode.
 - Commands are only executed if they appear in the server-side allowlist
   (``REX_AGENT_ALLOWLIST``).  This is defence-in-depth on top of the
   client-side allowlist in ``rex/computers/service.py``.
@@ -24,10 +25,8 @@ Security model
 
 Environment variables
 ---------------------
-``REX_AGENT_TOKEN``         Auth token (required — server refuses to start without it).
-``REX_AGENT_TOKEN_ENV``     Name of the env var that holds the token (default:
-                             ``REX_AGENT_TOKEN``).  Useful when you want the token
-                             in a differently-named var.
+``REX_AGENT_TOKEN``         Vault logical name for the required auth token.
+``REX_AGENT_TOKEN_ENV``     Alternate logical name (default: ``REX_AGENT_TOKEN``).
 ``REX_AGENT_HOST``          Bind host (default: ``127.0.0.1``).
 ``REX_AGENT_PORT``          Bind port (default: ``7777``).
 ``REX_AGENT_ALLOWLIST``     Comma-separated command names allowed for execution
@@ -84,12 +83,14 @@ def _parse_int_env(name: str, default: int) -> int:
 
 
 def _load_token() -> str:
-    """Load the auth token from the environment.
+    """Load the auth token from the credential authority.
 
-    The env var name can itself be overridden via ``REX_AGENT_TOKEN_ENV``.
+    The logical name can be overridden via ``REX_AGENT_TOKEN_ENV``.
     """
     token_env = os.getenv("REX_AGENT_TOKEN_ENV") or _DEFAULT_TOKEN_ENV
-    return os.getenv(token_env, "")
+    from rex.credentials import get_persisted_credential
+
+    return get_persisted_credential(token_env) or ""
 
 
 def _load_allowlist() -> frozenset[str]:

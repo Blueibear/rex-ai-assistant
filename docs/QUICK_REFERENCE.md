@@ -132,7 +132,7 @@ Invoke-WebRequest -Uri http://127.0.0.1:18790/rex/tools/time_now -Method POST -H
 
 ## Configuration
 
-- Secrets belong in `.env`.
+- Secrets belong in the OS-backed credential vault.
 - Runtime settings belong in `config/rex_config.json`.
 - The canonical wake-word config section is `wakeword`.
 - Legacy non-secret environment variables can be migrated with:

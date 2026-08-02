@@ -24,23 +24,31 @@ the configured TTS engine) are actually available.
 ## 1. Prerequisites
 
 - Python 3.11 virtual environment with the project installed (`pip install .`).
-- The repository checked out (config lives in `config/rex_config.json`,
-  secrets in `.env`).
+- The repository checked out (non-secret config lives in
+  `config/rex_config.json`; secrets live in the credential vault).
 
 ## 2. Generate the JWT secret
 
-The gateway signs short-lived access tokens with `REX_JWT_SECRET` from `.env`.
+The gateway signs short-lived access tokens with vault entry `REX_JWT_SECRET`.
 The secret must be at least 32 characters; the server fails closed without it.
 
 ```powershell
 python -c "import secrets; print(secrets.token_hex(32))"
 ```
 
-Add the output to `.env` (never commit `.env`):
+For an existing source install, place the output in `.env` only long enough to
+run the transactional migration:
 
 ```text
 REX_JWT_SECRET=<generated 64-hex-character value>
 ```
+
+```powershell
+python scripts/migrate_credentials_to_vault.py --scope household --owner household --apply
+```
+
+The migration verifies the encrypted entry/reference and atomically removes the
+plaintext source. It creates no plaintext backup.
 
 ## 3. Create a mobile user
 
@@ -232,7 +240,7 @@ curl.exe -X POST http://127.0.0.1:8765/mobile/voice/upload `
 
 | Symptom | Cause / fix |
 |---|---|
-| `Error: REX_JWT_SECRET is not set` | Add the secret to `.env` (section 2) and restart. |
+| `Error: REX_JWT_SECRET is not set` | Store/migrate the secret into the vault (section 2) and restart. |
 | `REX_JWT_SECRET is too short` | The secret must be at least 32 characters; regenerate with `secrets.token_hex(32)`. |
 | `401 AUTH_INVALID_CREDENTIALS` on login | Wrong username or password (the error is deliberately identical for both), or the account is disabled. |
 | `401 AUTH_REFRESH_REUSED` | A refresh token was used twice. All sessions in that token family were revoked as a safety measure — log in again. Make sure the client always stores the newest refresh token. |

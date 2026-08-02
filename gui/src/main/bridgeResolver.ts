@@ -40,6 +40,8 @@ const BRIDGE_REGISTRY: Record<string, string> = {
   rex_calendar_bridge: 'rex_calendar_bridge.py',
   rex_email_bridge: 'rex_email_bridge.py',
   rex_sms_bridge: 'rex_sms_bridge.py',
+  rex_setup_bridge: 'rex_setup_bridge.py',
+  rex_credential_vault_bridge: 'rex_credential_vault_bridge.py',
 }
 
 // ---------------------------------------------------------------------------
@@ -86,10 +88,18 @@ export function resolveRuntimeRoot(): string {
  */
 export function bridgeSpawnOptions(): { cwd: string; env: NodeJS.ProcessEnv } {
   const runtimeRoot = resolveRuntimeRoot()
+  const env = { ...process.env }
+  if (app.isPackaged) {
+    // Packaged production must not inherit an operator shell's legacy
+    // plaintext credential escape hatch. Every managed Python child is
+    // vault-only even when the parent environment contains the flag.
+    delete env.REX_ALLOW_PLAINTEXT_CREDENTIAL_FALLBACK
+  }
   return {
     cwd: runtimeRoot,
     env: {
-      ...process.env,
+      ...env,
+      ASKREX_PACKAGED: app.isPackaged ? '1' : '0',
       ASKREX_RUNTIME_DIR: runtimeRoot,
       ASKREX_CONFIG_PATH: join(runtimeRoot, 'config', 'rex_config.json'),
       ASKREX_ENV_PATH: join(runtimeRoot, '.env'),

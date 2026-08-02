@@ -108,7 +108,10 @@ def _check_rate_limit() -> tuple[Response, int] | None:
 
 
 def _get_api_key() -> str | None:
-    return os.getenv("REX_TOOL_API_KEY") or None
+    from rex.credentials import get_persisted_credential, legacy_plaintext_fallback_enabled
+
+    legacy_value = os.getenv("REX_TOOL_API_KEY") if legacy_plaintext_fallback_enabled() else None
+    return legacy_value or get_persisted_credential("REX_TOOL_API_KEY")
 
 
 def _extract_request_key() -> str | None:

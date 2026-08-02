@@ -364,8 +364,9 @@ rex calendar test-connection
 
 ### Credentials
 
-For future CalDAV/Google OAuth backends, credentials will be stored via the credential manager.
-Secrets belong in `.env` only (never in `rex_config.json`).
+Calendar credentials are stored through the credential manager in the
+user-scoped OS vault. Config contains only non-secret account data and
+contextual opaque references.
 
 ## Scheduled Calendar Syncing
 

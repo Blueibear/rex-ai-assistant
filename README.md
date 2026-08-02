@@ -57,7 +57,6 @@ Python 3.12 and newer are intentionally rejected by the current installers and r
    .\.venv\Scripts\Activate.ps1
    python -m pip install --upgrade pip setuptools wheel
    Copy-Item config\rex_config.example.json config\rex_config.json -ErrorAction SilentlyContinue
-   Copy-Item .env.example .env -ErrorAction SilentlyContinue
    .\install.ps1
    ```
 
@@ -68,7 +67,6 @@ Python 3.12 and newer are intentionally rejected by the current installers and r
    source .venv/bin/activate
    python -m pip install --upgrade pip setuptools wheel
    cp -n config/rex_config.example.json config/rex_config.json
-   cp -n .env.example .env
    bash install.sh
    ```
 
@@ -169,7 +167,7 @@ The Electron app under `gui/` is the current primary GUI. `rex-gui` remains usef
 | Voice pipeline | Hold to Talk is the supported production path: record, Whisper STT, streamed response, TTS, selected-device playback, cancel/barge-in, replay, device-loss fallback, and repeated turns. Wake-word mode remains beta while hardware reliability and latency are still being tuned. |
 | Custom wake support | Built-in openWakeWord remains the safe fallback path. `custom_embedding` is usable as an interim path, and `custom_onnx` is the target path for a real `Hey Rex` wake model. The repo does not ship that custom asset by default. |
 | LLM providers | Local Transformers, OpenAI-compatible API settings, and Ollama routing are supported by config. Local model output quality varies by model and prompt path. |
-| Configuration | Runtime settings live in `config/rex_config.json`; secrets live in `.env`; profiles live in `profiles/`. |
+| Configuration | Runtime settings live in `config/rex_config.json`; secrets live in the OS-backed credential vault; profiles live in `profiles/`. |
 | GUIs | The Electron/React desktop GUI (`gui/`) is the current primary interface. The Electron shell is stable in current testing; Tasks, Reminders, Settings, Users, Integrations, Email, Calendar, and Home Assistant pages load. The Python/Flask `rex-gui` surface still serves local API routes and an experimental `/ui/` browser dashboard, but that browser UI is incomplete and not recommended as the primary interface. |
 | Home Assistant | The GUI lists entities and routes mutations through one policy service. Sensitive lock/alarm/cover actions require action-bound confirmation, and Rex says an action is confirmed only after observing the requested state; otherwise it reports attempted-but-unverified, denied, or failed. Live-device verification remains environment-dependent. |
 | Email and calendar integrations | Credential presence is labeled configured-only. Outlook Graph OAuth is unavailable. The GUI can display inbox/calendar bridge results and create email drafts, but GUI email sending is unavailable; copy the draft into a mail client. |
@@ -200,7 +198,7 @@ On Windows, use `py -3.11 ...` or activate the repo `.venv` before running comma
 AskRex uses three configuration layers:
 
 1. `config/rex_config.json` for non-secret runtime settings such as audio, wake word, models, UI, integrations, and feature flags.
-2. `.env` for secrets such as `OPENAI_API_KEY`, `HA_TOKEN`, `REX_SPEAK_API_KEY`, `REX_TOOL_API_KEY`, Twilio credentials, and search/weather keys.
+2. The Windows DPAPI-backed credential vault for API keys, tokens, passwords, and authentication secrets. Config stores only contextual opaque references.
 3. `profiles/<name>.json` for profile-level capabilities and runtime overrides.
 
 The canonical wake word config key is `wakeword`. The legacy `wake_word` key is still migrated at runtime but logs a warning.
@@ -326,14 +324,16 @@ Windows PowerShell:
 
 ```powershell
 $env:REX_SPEAK_API_KEY = "<YOUR_API_KEY>"
-rex-speak-api
+$env:REX_ALLOW_PLAINTEXT_CREDENTIAL_FALLBACK = "1"
+rex-speak-api  # explicit unpackaged legacy/operator mode; packaged builds reject this
 ```
 
 macOS/Linux shell:
 
 ```bash
 export REX_SPEAK_API_KEY=<YOUR_API_KEY>
-rex-speak-api
+export REX_ALLOW_PLAINTEXT_CREDENTIAL_FALLBACK=1
+rex-speak-api  # explicit unpackaged legacy/operator mode; no production fallback
 ```
 
 Request format with curl, using macOS/Linux shell syntax or Git Bash/WSL on Windows:
@@ -358,14 +358,16 @@ Windows PowerShell:
 
 ```powershell
 $env:REX_TOOL_API_KEY = "<YOUR_API_KEY>"
-rex-tool-server
+$env:REX_ALLOW_PLAINTEXT_CREDENTIAL_FALLBACK = "1"
+rex-tool-server  # explicit unpackaged legacy/operator mode; packaged builds reject this
 ```
 
 macOS/Linux shell:
 
 ```bash
 export REX_TOOL_API_KEY=<YOUR_API_KEY>
-rex-tool-server
+export REX_ALLOW_PLAINTEXT_CREDENTIAL_FALLBACK=1
+rex-tool-server  # explicit unpackaged legacy/operator mode; no production fallback
 ```
 
 Health endpoints with curl, using macOS/Linux shell syntax or Git Bash/WSL on Windows:
@@ -441,7 +443,7 @@ Files under `docs/archive/` are historical development records and may intention
 
 ## Security
 
-- Keep secrets in `.env`; do not put them in `config/rex_config.json`, documentation, logs, or packaged resources.
+- Keep secrets in the OS-backed credential vault; do not put them in `.env`, JSON config, documentation, logs, or packaged resources. Plaintext environment reads exist only as an explicit unpackaged legacy/operator mode.
 - `rex-speak-api` requires `REX_SPEAK_API_KEY`.
 - `rex-tool-server` requires `REX_TOOL_API_KEY` for tool invocation.
 - The GUI backend's log endpoints (`/api/logs/stream`, `/api/logs/download`) require a `REX_PROXY_TOKEN` Bearer token and redact home-directory paths from served log content. See [docs/configuration.md](docs/configuration.md).

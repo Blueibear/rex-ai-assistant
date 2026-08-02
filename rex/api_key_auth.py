@@ -1,7 +1,9 @@
 """API key validation for Rex Flask endpoints.
 
 Provides a reusable decorator and validator that:
-- Reads the expected key from an environment variable
+- Reads the expected key from the credential vault (S4), with legacy
+  environment-variable reads only as an explicit, non-production opt-in
+  fallback (see ``rex.credentials.legacy_plaintext_fallback_enabled``)
 - Performs a constant-time comparison to prevent timing attacks
 - Rejects unauthorized requests with a 401 response
 - Logs every failed authentication attempt
@@ -12,7 +14,6 @@ from __future__ import annotations
 import functools
 import hmac
 import logging
-import os
 from collections.abc import Callable
 from typing import Any
 
@@ -68,11 +69,17 @@ def validate_api_key(provided: str | None, expected: str | None) -> bool:
 class ApiKeyValidator:
     """Configurable API key validator with logging support.
 
-    Reads the expected key from an environment variable. If no key is
-    configured the validator rejects all requests.
+    Reads the expected key from the credential vault (household scope) via
+    ``rex.credentials.get_persisted_credential``. A configured vault entry is
+    authoritative; the plaintext environment variable is consulted only as an
+    explicit legacy/operator fallback (see
+    ``rex.credentials.legacy_plaintext_fallback_enabled``), and never
+    overrides a vault value. If no key is configured anywhere the validator
+    rejects all requests.
 
     Args:
-        env_var: Name of the environment variable holding the expected key.
+        env_var: Logical credential name / environment variable name holding
+            the expected key.
         label: Human-readable label used in log messages (e.g. "speak API").
     """
 
@@ -82,7 +89,9 @@ class ApiKeyValidator:
 
     def get_expected_key(self) -> str | None:
         """Return the currently configured expected key (or None)."""
-        return os.getenv(self._env_var) or None
+        from rex.credentials import get_persisted_credential  # noqa: PLC0415
+
+        return get_persisted_credential(self._env_var) or None
 
     def check(self, provided: str | None, *, remote_addr: str = "unknown") -> bool:
         """Check a provided key and log failures.

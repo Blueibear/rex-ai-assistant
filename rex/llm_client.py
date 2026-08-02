@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import os
 import sys
 import types as _types
 from collections.abc import Iterator, Sequence
@@ -584,16 +583,8 @@ class LanguageModel:
             )
         else:
             self.model_name = overrides.get("model") or self.config.llm_model
-        self.api_key = (
-            overrides.get("openai_api_key")
-            or self.config.openai_api_key
-            or os.getenv("OPENAI_API_KEY")
-        )
-        self.anthropic_api_key = (
-            overrides.get("anthropic_api_key")
-            or self.config.anthropic_api_key
-            or os.getenv("ANTHROPIC_API_KEY")
-        )
+        self.api_key = overrides.get("openai_api_key") or self.config.openai_api_key
+        self.anthropic_api_key = overrides.get("anthropic_api_key") or self.config.anthropic_api_key
 
         self.generation = GenerationConfig(
             max_new_tokens=overrides.get("max_new_tokens", self.config.llm_max_tokens),

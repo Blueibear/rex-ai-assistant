@@ -97,10 +97,15 @@ REQUIRED_BRIDGES=(
   rex_stt_bridge.py
   rex_memories_bridge.py
   rex_file_extract_bridge.py
+  rex_history_bridge.py
+  rex_ha_mutation_bridge.py
+  rex_identity_bridge.py
   rex_voice_bridge.py
   rex_calendar_bridge.py
   rex_email_bridge.py
   rex_sms_bridge.py
+  rex_setup_bridge.py
+  rex_credential_vault_bridge.py
 )
 
 # ---------------------------------------------------------------------------

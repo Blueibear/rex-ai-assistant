@@ -151,7 +151,7 @@ def register(subparsers: argparse._SubParsersAction) -> None:
             "Defaults to 127.0.0.1:8765. Binding to 0.0.0.0 is an explicit,\n"
             "development-only choice for trusted local networks and prints a\n"
             "warning when TLS is not expected upstream.\n\n"
-            "Requires REX_JWT_SECRET in .env (at least 32 characters)."
+            "Requires vault entry REX_JWT_SECRET (at least 32 characters)."
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )

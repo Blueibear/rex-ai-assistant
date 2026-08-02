@@ -20,17 +20,27 @@ from rex.credentials import (
     set_credential_manager,
 )
 
+VAULT_REF = "cred_" + "V" * 32
+OPENAI_VAULT_REFS = {
+    "OPENAI_API_KEY": {
+        "ref": VAULT_REF,
+        "integration": "openai",
+        "account": None,
+        "slot": "api_key",
+    }
+}
+
 
 class TestMaskToken:
     """Tests for the mask_token function."""
 
     def test_mask_token_normal(self):
-        """Test masking a normal token."""
-        assert mask_token("abcd1234efgh5678") == "abcd...5678"
+        """A non-empty token is replaced with a constant redaction marker."""
+        assert mask_token("abcd1234efgh5678") == "[redacted]"
 
     def test_mask_token_short(self):
-        """Test masking a short token (less than 8 chars)."""
-        assert mask_token("short") == "*****"
+        """Short tokens are also fully redacted, not length-revealing."""
+        assert mask_token("short") == "[redacted]"
 
     def test_mask_token_empty(self):
         """Test masking an empty token."""
@@ -40,9 +50,10 @@ class TestMaskToken:
         """Test masking None."""
         assert mask_token(None) == "[empty]"
 
-    def test_mask_token_custom_visible(self):
-        """Test masking with custom visible characters."""
-        assert mask_token("abcdefghijklmnop", visible_chars=2) == "ab...op"
+    def test_mask_token_reveals_no_prefix_suffix_or_length(self):
+        """Different tokens (including different lengths) mask identically."""
+        assert mask_token("abcdefghijklmnop") == mask_token("xy") == "[redacted]"
+        assert mask_token("abcdefghijklmnop", visible_chars=2) == "[redacted]"
 
 
 class TestCredential:
@@ -81,17 +92,22 @@ class TestCredential:
         assert cred.is_expired()
 
     def test_credential_repr_masks_token(self):
-        """Test that repr masks the token."""
+        """repr reveals no prefix, suffix, length, or other secret-derived content."""
         cred = Credential(name="test", token="supersecrettoken123")
         repr_str = repr(cred)
         assert "supersecrettoken123" not in repr_str
-        # Token is masked with first 4 and last 4 chars: "supe...n123"
-        assert "supe..." in repr_str
-        assert "n123" in repr_str
+        assert "supe" not in repr_str
+        assert "n123" not in repr_str
+        assert "[redacted]" in repr_str
 
 
 class TestCredentialManager:
     """Tests for the CredentialManager class."""
+
+    @pytest.fixture(autouse=True)
+    def _enable_explicit_legacy_mode(self, monkeypatch):
+        """These compatibility tests intentionally exercise plaintext inputs."""
+        monkeypatch.setenv("REX_ALLOW_PLAINTEXT_CREDENTIAL_FALLBACK", "1")
 
     def test_load_from_env_with_prefix(self):
         """Test loading credentials from environment with REX_ prefix."""
@@ -249,15 +265,16 @@ class TestCredentialManager:
             token = manager.get_token("custom_service")
             assert token == "custom_value"
 
-    def test_get_credential_info_masks_token(self):
-        """Test that get_credential_info masks the token."""
+    def test_get_credential_info_contains_no_secret_derived_preview(self):
+        """Credential metadata must not contain secret-derived output."""
         manager = CredentialManager(config_path=Path("/nonexistent/path.json"))
         manager.set_token("info_service", "supersecrettoken123")
 
         info = manager.get_credential_info("info_service")
         assert info is not None
-        assert "supersecrettoken123" not in info["token_preview"]
-        assert "..." in info["token_preview"]
+        assert info["has_credential"] is True
+        assert "token_preview" not in info
+        assert "supersecrettoken123" not in repr(info)
 
     def test_get_credential_info_returns_none_for_unknown(self):
         """Test that get_credential_info returns None for unknown service."""
@@ -317,6 +334,11 @@ class TestGlobalCredentialManager:
 class TestCredentialManagerEdgeCases:
     """Edge case tests for CredentialManager."""
 
+    @pytest.fixture(autouse=True)
+    def _enable_explicit_legacy_mode(self, monkeypatch):
+        """These compatibility tests intentionally exercise plaintext inputs."""
+        monkeypatch.setenv("REX_ALLOW_PLAINTEXT_CREDENTIAL_FALLBACK", "1")
+
     def test_invalid_config_json(self):
         """Test handling of invalid JSON in config file."""
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -363,3 +385,276 @@ class TestCredentialManagerEdgeCases:
             token = manager.get_token("lazy_service")
             assert token == "lazy_token"
             assert manager._loaded
+
+
+class TestCredentialManagerVaultIntegration:
+    """Tests for vault-as-source integration (S4)."""
+
+    def test_vault_takes_priority_over_config_and_env(self):
+        from rex.credential_vault import InMemoryCredentialVault
+
+        vault = InMemoryCredentialVault()
+        vault.set_secret(VAULT_REF, "vault-key", integration="openai", account=None, slot="api_key")
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            config_path = Path(tmpdir) / "credentials.json"
+            config_path.write_text(json.dumps({"credentials": {"openai": "config-key"}}))
+            with patch.dict(
+                os.environ, {"OPENAI_API_KEY": "env-key"}, clear=False  # pragma: allowlist secret
+            ):  # pragma: allowlist secret
+                manager = CredentialManager(
+                    config_path=config_path, vault=vault, vault_refs=OPENAI_VAULT_REFS
+                )
+                assert manager.get_token("openai") == "vault-key"
+
+    def test_vault_unavailable_falls_through_to_env_only_in_legacy_fallback_mode(self, monkeypatch):
+        """Explicit operator opt-in preserves the pre-vault behavior."""
+        from rex.credential_vault import VaultUnavailableError
+
+        monkeypatch.setenv("REX_ALLOW_PLAINTEXT_CREDENTIAL_FALLBACK", "1")
+        with patch.dict(os.environ, {"REX_EMAIL_TOKEN": "env_token_123"}, clear=False):
+            manager = CredentialManager(
+                config_path=Path("/nonexistent/path.json"),
+                use_vault=True,
+                scope="household",
+            )
+            with patch(
+                "rex.credential_vault.get_credential_vault",
+                side_effect=VaultUnavailableError("no vault on this platform"),
+            ):
+                assert manager.get_token("email") == "env_token_123"
+
+    def test_vault_unavailable_fails_closed_by_default_ignoring_env_and_config(self, monkeypatch):
+        """Without the explicit legacy opt-in, a vault-unavailable manager
+        must not silently trust plaintext env or config.json - this is the
+        production (packaged Windows) default."""
+        from rex.credential_vault import VaultUnavailableError
+
+        monkeypatch.delenv("REX_ALLOW_PLAINTEXT_CREDENTIAL_FALLBACK", raising=False)
+        with tempfile.TemporaryDirectory() as tmpdir:
+            config_path = Path(tmpdir) / "credentials.json"
+            config_path.write_text(json.dumps({"credentials": {"email": "config_token_456"}}))
+            with patch.dict(os.environ, {"REX_EMAIL_TOKEN": "env_token_123"}, clear=False):
+                manager = CredentialManager(
+                    config_path=config_path,
+                    use_vault=True,
+                    scope="household",
+                )
+                with patch(
+                    "rex.credential_vault.get_credential_vault",
+                    side_effect=VaultUnavailableError("no vault on this platform"),
+                ):
+                    assert manager.get_token("email") is None
+                    assert manager.list_services() == []
+
+    def test_env_and_config_ignored_by_default_even_when_vault_is_available(self, monkeypatch):
+        """The default (no legacy opt-in) mode is vault-only, not just
+        vault-preferred - a live vault with no entry for a service must not
+        fall back to a plaintext value that happens to be set."""
+        from rex.credential_vault import InMemoryCredentialVault
+
+        monkeypatch.delenv("REX_ALLOW_PLAINTEXT_CREDENTIAL_FALLBACK", raising=False)
+        vault = InMemoryCredentialVault()
+        with patch.dict(
+            os.environ, {"OPENAI_API_KEY": "env-key"}, clear=False  # pragma: allowlist secret
+        ):  # pragma: allowlist secret
+            manager = CredentialManager(config_path=Path("/nonexistent/path.json"), vault=vault)
+            assert manager.get_token("openai") is None
+
+    def test_use_vault_false_never_touches_vault_module(self, monkeypatch):
+        monkeypatch.setenv("REX_ALLOW_PLAINTEXT_CREDENTIAL_FALLBACK", "1")
+        manager = CredentialManager(
+            config_path=Path("/nonexistent/path.json"),
+            use_vault=False,
+        )
+        with patch.dict(
+            os.environ, {"OPENAI_API_KEY": "env-key"}, clear=False  # pragma: allowlist secret
+        ):  # pragma: allowlist secret
+            assert manager.get_token("openai") == "env-key"
+        assert manager._get_vault() is None
+
+    def test_unmapped_service_uses_raw_name_as_vault_key(self):
+        from rex.credential_vault import InMemoryCredentialVault
+
+        vault = InMemoryCredentialVault()
+        vault.set_secret(
+            VAULT_REF,
+            "alice:hunter2",
+            integration="email",
+            account="personal",
+            slot="password",
+        )
+        refs = {
+            "email:personal": {
+                "ref": VAULT_REF,
+                "integration": "email",
+                "account": "personal",
+                "slot": "password",
+            }
+        }
+        manager = CredentialManager(
+            config_path=Path("/nonexistent/path.json"), vault=vault, vault_refs=refs
+        )
+        assert (
+            manager.get_token(
+                "email:personal", integration="email", account="personal", slot="password"
+            )
+            == "alice:hunter2"
+        )
+
+    def test_nonopaque_configured_reference_fails_closed_before_vault_lookup(self):
+        from rex.credential_vault import InMemoryCredentialVault, VaultCorruptedError
+
+        refs = {
+            "OPENAI_API_KEY": {
+                "ref": "OPENAI_API_KEY",
+                "integration": "openai",
+                "account": None,
+                "slot": "api_key",
+            }
+        }
+        manager = CredentialManager(vault=InMemoryCredentialVault(), vault_refs=refs)
+        with pytest.raises(VaultCorruptedError):
+            manager.get_token("openai")
+
+    def test_malformed_user_registry_fails_closed(self, monkeypatch):
+        from rex.credential_vault import VaultCorruptedError
+
+        monkeypatch.setattr(
+            "rex.config_manager.load_config",
+            lambda: {"credential_refs": {"users": []}},
+        )
+        manager = CredentialManager(scope="user", user_id="alice")
+        with pytest.raises(VaultCorruptedError):
+            manager.get_token("openai")
+
+    def test_vault_sourced_credential_reports_vault_source(self):
+        from rex.credential_vault import InMemoryCredentialVault
+
+        vault = InMemoryCredentialVault()
+        vault.set_secret(VAULT_REF, "vault-key", integration="openai", account=None, slot="api_key")
+        manager = CredentialManager(
+            config_path=Path("/nonexistent/path.json"),
+            vault=vault,
+            vault_refs=OPENAI_VAULT_REFS,
+        )
+        info = manager.get_credential_info("openai")
+        assert info is not None
+        assert info["source"] == "vault"
+        assert info["has_credential"] is True
+        assert "token_preview" not in info
+
+    def test_set_token_persist_true_writes_through_to_vault(self):
+        from rex.credential_vault import InMemoryCredentialVault
+
+        vault = InMemoryCredentialVault()
+        manager = CredentialManager(config_path=Path("/nonexistent/path.json"), vault=vault)
+        persisted_ref = manager.set_token("openai", "new-persisted-key", persist=True)
+
+        assert persisted_ref is not None
+        assert (
+            vault.get_secret(persisted_ref, integration="openai", account=None, slot="api_key")
+            == "new-persisted-key"
+        )
+        assert manager.get_token("openai") == "new-persisted-key"
+
+    def test_set_token_persist_false_does_not_touch_vault(self):
+        from rex.credential_vault import InMemoryCredentialVault
+
+        vault = InMemoryCredentialVault()
+        manager = CredentialManager(config_path=Path("/nonexistent/path.json"), vault=vault)
+        manager.set_token("openai", "runtime-only-key")
+
+        assert vault.list_entries() == []
+        assert manager.get_token("openai") == "runtime-only-key"
+
+    def test_set_token_persist_true_without_vault_raises(self):
+        from rex.credential_vault import VaultUnavailableError
+
+        manager = CredentialManager(config_path=Path("/nonexistent/path.json"), use_vault=False)
+        with pytest.raises(VaultUnavailableError):
+            manager.set_token("openai", "some-key", persist=True)
+
+    def test_reload_refreshes_vault_sourced_credentials(self):
+        from rex.credential_vault import InMemoryCredentialVault
+
+        vault = InMemoryCredentialVault()
+        vault.set_secret(VAULT_REF, "first-key", integration="openai", account=None, slot="api_key")
+        manager = CredentialManager(
+            config_path=Path("/nonexistent/path.json"),
+            vault=vault,
+            vault_refs=OPENAI_VAULT_REFS,
+        )
+        assert manager.get_token("openai") == "first-key"
+
+        vault.set_secret(
+            VAULT_REF, "second-key", integration="openai", account=None, slot="api_key"
+        )
+        manager.reload()
+        assert manager.get_token("openai") == "second-key"
+
+
+class TestLegacyPlaintextFallbackFlag:
+    """rex.credentials.legacy_plaintext_fallback_enabled (S4 fail-closed gate)."""
+
+    def test_disabled_by_default_when_unset(self, monkeypatch):
+        from rex.credentials import legacy_plaintext_fallback_enabled
+
+        monkeypatch.delenv("REX_ALLOW_PLAINTEXT_CREDENTIAL_FALLBACK", raising=False)
+        assert legacy_plaintext_fallback_enabled() is False
+
+    @pytest.mark.parametrize("value", ["0", "false", "False", "no", "NO", "off", "garbage", ""])
+    def test_disabled_for_falsy_values(self, monkeypatch, value):
+        from rex.credentials import legacy_plaintext_fallback_enabled
+
+        monkeypatch.setenv("REX_ALLOW_PLAINTEXT_CREDENTIAL_FALLBACK", value)
+        assert legacy_plaintext_fallback_enabled() is False
+
+    @pytest.mark.parametrize("value", ["1", "true", "True", "yes", "on"])
+    def test_enabled_for_truthy_values(self, monkeypatch, value):
+        from rex.credentials import legacy_plaintext_fallback_enabled
+
+        monkeypatch.delenv("ASKREX_PACKAGED", raising=False)
+        monkeypatch.setenv("REX_ALLOW_PLAINTEXT_CREDENTIAL_FALLBACK", value)
+        assert legacy_plaintext_fallback_enabled() is True
+
+    def test_packaged_process_rejects_legacy_flag_even_when_injected(self, monkeypatch):
+        from rex.credentials import legacy_plaintext_fallback_enabled
+
+        monkeypatch.setenv("ASKREX_PACKAGED", "1")
+        monkeypatch.setenv("REX_ALLOW_PLAINTEXT_CREDENTIAL_FALLBACK", "1")
+        assert legacy_plaintext_fallback_enabled() is False
+
+
+class TestGlobalCredentialManagerContaminationGuard:
+    """set_credential_manager must never install a per-user-scoped manager
+    as the process-wide global (S4) - that would race one user's
+    credentials into request handling for other users."""
+
+    def test_household_scoped_manager_is_accepted(self):
+        manager = CredentialManager(config_path=Path("/nonexistent/path.json"), scope="household")
+        try:
+            set_credential_manager(manager)
+            assert get_credential_manager() is manager
+        finally:
+            set_credential_manager(None)
+
+    def test_default_scoped_manager_is_accepted(self):
+        manager = CredentialManager(config_path=Path("/nonexistent/path.json"))
+        try:
+            set_credential_manager(manager)
+            assert get_credential_manager() is manager
+        finally:
+            set_credential_manager(None)
+
+    def test_user_scoped_manager_is_rejected(self):
+        manager = CredentialManager(
+            config_path=Path("/nonexistent/path.json"), scope="user", user_id="alice"
+        )
+        with pytest.raises(ValueError):
+            set_credential_manager(manager)
+
+    def test_none_clears_the_global(self):
+        set_credential_manager(None)
+        # A fresh global is created lazily and must be household-scoped.
+        assert get_credential_manager() is not None

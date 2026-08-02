@@ -203,6 +203,8 @@ const rexAPI = {
     ipcRenderer.invoke('rex:getSettings', section),
   setSettings: (section: string, values: Settings): Promise<SetSettingsResponse> =>
     ipcRenderer.invoke('rex:setSettings', section, values),
+  removeEmailAccount: (id: string, confirmed: boolean): Promise<SetSettingsResponse> =>
+    ipcRenderer.invoke('rex:removeEmailAccount', id, confirmed),
   attachVoiceSession,
   startVoice: makeStartVoice,
   stopVoice,

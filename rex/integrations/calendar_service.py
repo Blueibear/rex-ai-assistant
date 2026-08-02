@@ -4,8 +4,8 @@ Without credentials (``calendar_provider == "none"``), all methods return
 realistic mock data so the GUI and autonomy engine work out of the box.
 
 When ``calendar_provider == "google"``, the service connects to the Google
-Calendar API using OAuth tokens stored in the environment
-(``GOOGLE_CALENDAR_ACCESS_TOKEN``).
+Calendar API using OAuth tokens supplied explicitly at runtime. Legacy
+environment lookup is available only in explicit operator mode.
 """
 
 from __future__ import annotations
@@ -247,12 +247,11 @@ class CalendarService:
     # ------------------------------------------------------------------
 
     def _google_headers(self) -> dict[str, str]:
-        import os
-
         token = self._access_token
         if token is None:
-            # Legacy global env token — default profile only (issue #303).
-            token = os.environ.get("GOOGLE_CALENDAR_ACCESS_TOKEN", "")
+            from rex.credentials import get_persisted_credential
+
+            token = get_persisted_credential("GOOGLE_CALENDAR_ACCESS_TOKEN") or ""
         return {"Authorization": f"Bearer {token}", "Accept": "application/json"}
 
     def _google_get_events(self, start: datetime, end: datetime) -> list[CalendarEvent]:
@@ -453,8 +452,6 @@ def create_calendar_service_for_user(
         PermissionError: On missing or invalid *user_id* (fail closed,
             before any credential is read).
     """
-    import os
-
     from rex.calendar_accounts import (
         DEFAULT_PROFILE,
         CalendarAccountResolver,
@@ -483,7 +480,20 @@ def create_calendar_service_for_user(
                 return None, "none"
             return CalendarService(calendar_provider="google"), "google"
         credential_ref = account.credential_ref or ""
-        token = os.environ.get(credential_ref, "") if credential_ref else ""
+        from rex.credentials import get_persisted_credential
+
+        token = (
+            get_persisted_credential(
+                credential_ref,
+                scope="user",
+                user_id=validated,
+                integration="calendar",
+                account=account.id,
+                slot="token",
+            )
+            if credential_ref
+            else None
+        )
         if not token:
             # Audit metadata only: account and user.  Credential references
             # are never logged (issue #303 legacy policy).

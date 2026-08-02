@@ -1,6 +1,6 @@
 """Central configuration loader and CLI utilities for the Rex assistant.
 
-Now uses rex_config.json for non-secret settings and .env only for secrets.
+Uses rex_config.json for non-secret settings and the OS-backed vault for secrets.
 """
 
 from __future__ import annotations
@@ -246,8 +246,8 @@ class MobileApiConfig(BaseModel):
     """Typed configuration for the authenticated mobile API gateway (issue #323).
 
     Canonical JSON group: ``mobile_api`` in ``config/rex_config.json``.
-    The JWT signing secret is NOT part of this model — it lives in ``.env``
-    as ``REX_JWT_SECRET`` (secrets never belong in runtime configuration).
+    The JWT signing secret is not part of this model. It is stored in the
+    credential vault as ``REX_JWT_SECRET``.
     """
 
     model_config = ConfigDict(extra="ignore")
@@ -690,7 +690,7 @@ class AppConfig:
             raw.pop(_key, None)
         # mobile_api is canonical nested config with no flat equivalents, so it
         # is serialised as its validated dictionary (it contains no secrets —
-        # the JWT secret lives in .env only).
+        # the JWT secret lives in the credential vault).
         raw["mobile_api"] = self.mobile_api.model_dump()
         raw["transcripts_dir"] = str(self.transcripts_dir)
         raw["log_path"] = str(self.log_path)
@@ -1052,6 +1052,97 @@ def _parse_mobile_api_config(raw: object) -> MobileApiConfig:
         raise ConfigurationError(f"Invalid 'mobile_api' configuration: {exc}") from exc
 
 
+def _secret_env_or_vault(env_var: str, json_config: dict) -> str | None:
+    """Resolve a secret from the household credential vault (S4).
+
+    A configured vault reference is the real production authority: when one
+    exists for ``env_var`` and resolves to a value, that value wins
+    unconditionally - it is never overridden by the plaintext environment.
+    Reading the plaintext ``os.getenv(env_var)`` value is only considered as
+    a *fallback*, and only when ``rex.credentials.legacy_plaintext_fallback_enabled()``
+    is true (an explicit, non-production development/CI/operator opt-in),
+    and only when no vault reference is configured or the configured
+    reference does not resolve to a value. In normal (packaged/production)
+    operation this flag is unset, so a secret not present in the vault is
+    simply absent - never silently read from plaintext ``.env``/process
+    environment. Invalid registry or vault data always raises
+    ``ConfigurationError`` so tampering is never reclassified as an
+    unconfigured credential, regardless of the legacy flag.
+    """
+    from rex.credentials import (
+        credential_context_for_name,
+        legacy_plaintext_fallback_enabled,
+    )
+
+    def _legacy_fallback() -> str | None:
+        if legacy_plaintext_fallback_enabled():
+            value = os.getenv(env_var)
+            if value:
+                return value
+        return None
+
+    refs_root = json_config.get("credential_refs")
+    if refs_root is None:
+        return _legacy_fallback()
+    if not isinstance(refs_root, dict):
+        raise ConfigurationError("Credential reference registry is invalid")
+    household_refs = refs_root.get("household")
+    if household_refs is None:
+        return _legacy_fallback()
+    if not isinstance(household_refs, dict):
+        raise ConfigurationError("Household credential reference registry is invalid")
+    record = household_refs.get(env_var)
+    if record is None:
+        return _legacy_fallback()
+    allowed_fields = {"ref", "integration", "account", "slot"}
+    if isinstance(record, dict) and "migrated_from" in record:
+        allowed_fields.add("migrated_from")
+    if (
+        not isinstance(record, dict)
+        or set(record) != allowed_fields
+        or not isinstance(record.get("ref"), str)
+        or (
+            "migrated_from" in record
+            and record.get("migrated_from") not in {"env", "credentials.json"}
+        )
+    ):
+        raise ConfigurationError(f"Credential reference metadata for {env_var} is invalid")
+    expected_integration, expected_account, expected_slot = credential_context_for_name(env_var)
+    if (
+        record.get("integration") != expected_integration
+        or record.get("account") != expected_account
+        or record.get("slot") != expected_slot
+    ):
+        raise ConfigurationError(f"Credential reference context for {env_var} is invalid")
+    try:
+        from rex.credential_vault import (
+            VaultCorruptedError,
+            VaultUnavailableError,
+            get_credential_vault,
+            validate_credential_ref,
+        )
+    except ImportError:  # pragma: no cover - module always present in this repo
+        return _legacy_fallback()
+    try:
+        validate_credential_ref(record["ref"])
+    except ValueError as exc:
+        raise ConfigurationError(f"Credential reference for {env_var} is invalid") from exc
+    try:
+        vault_value = get_credential_vault(scope="household").get_secret(
+            record["ref"],
+            integration=expected_integration,
+            account=expected_account,
+            slot=expected_slot,
+        )
+    except VaultUnavailableError:
+        return _legacy_fallback()
+    except VaultCorruptedError as exc:
+        raise ConfigurationError(f"Credential vault data for {env_var} is invalid") from exc
+    if vault_value:
+        return vault_value
+    return _legacy_fallback()
+
+
 def build_app_config(json_config: dict) -> AppConfig:
     """Build an AppConfig from a merged JSON configuration."""
     # Migrate legacy wake_word key to canonical wakeword key
@@ -1075,7 +1166,7 @@ def build_app_config(json_config: dict) -> AppConfig:
     else:
         capabilities = []
 
-    # Build config from JSON config + env secrets
+    # Build config from JSON config + vault-backed secrets
     config = AppConfig(
         # Wake word settings from JSON (canonical key: wakeword)
         wakeword=_get_nested(json_config, "wakeword.wakeword", "hey_rex") or "hey_rex",
@@ -1152,27 +1243,27 @@ def build_app_config(json_config: dict) -> AppConfig:
         search_providers=_get_nested(
             json_config, "search.providers", "serpapi,brave,duckduckgo,google"
         ),
-        # Home Assistant from JSON + secrets from env
+        # Home Assistant non-secret config plus vault-backed credentials
         ha_base_url=_get_nested(json_config, "home_assistant.base_url"),
         ha_verify_ssl=bool(_get_nested(json_config, "home_assistant.verify_ssl", True)),
         ha_timeout=_coerce_float(json_config, "home_assistant.timeout", 10.0),
-        ha_token=os.getenv("HA_TOKEN"),  # SECRET from env
-        ha_secret=os.getenv("HA_SECRET"),  # SECRET from env
+        ha_token=_secret_env_or_vault("HA_TOKEN", json_config),
+        ha_secret=_secret_env_or_vault("HA_SECRET", json_config),
         ha_entity_map=None,
-        # Ollama from JSON + secrets from env
+        # Ollama from JSON + vault-backed secrets
         ollama_base_url=_get_nested(json_config, "ollama.base_url", "http://localhost:11434"),
         ollama_use_cloud=bool(_get_nested(json_config, "ollama.use_cloud", False)),
-        ollama_api_key=os.getenv("OLLAMA_API_KEY"),  # SECRET from env
-        # OpenAI from JSON + secrets from env
+        ollama_api_key=_secret_env_or_vault("OLLAMA_API_KEY", json_config),
+        # OpenAI from JSON + vault-backed secrets
         openai_model=_get_nested(json_config, "openai.model"),
         openai_base_url=_get_nested(json_config, "openai.base_url"),
-        openai_api_key=os.getenv("OPENAI_API_KEY"),  # SECRET from env
-        # Anthropic from JSON + secrets from env
+        openai_api_key=_secret_env_or_vault("OPENAI_API_KEY", json_config),
+        # Anthropic from JSON + vault-backed secrets
         anthropic_model=_get_nested(json_config, "anthropic.model"),
-        anthropic_api_key=os.getenv("ANTHROPIC_API_KEY"),  # SECRET from env
-        # All secrets from env only
-        brave_api_key=os.getenv("BRAVE_API_KEY"),
-        speak_api_key=os.getenv("REX_SPEAK_API_KEY"),
+        anthropic_api_key=_secret_env_or_vault("ANTHROPIC_API_KEY", json_config),
+        # All secrets from the vault (or explicit unpackaged legacy mode)
+        brave_api_key=_secret_env_or_vault("BRAVE_API_KEY", json_config),
+        speak_api_key=_secret_env_or_vault("REX_SPEAK_API_KEY", json_config),
         # Logging from JSON + env
         debug_logging=_get_nested(json_config, "runtime.log_level", "INFO").upper() == "DEBUG",
         debug_mode=os.getenv("REX_DEBUG", "0").strip() not in ("0", "false", "no", ""),
@@ -1188,7 +1279,7 @@ def build_app_config(json_config: dict) -> AppConfig:
         # Location and weather (location from JSON, API key from env)
         default_location=_get_nested(json_config, "location.default_location"),
         default_timezone=_get_nested(json_config, "location.default_timezone"),
-        openweathermap_api_key=os.getenv("OPENWEATHERMAP_API_KEY"),
+        openweathermap_api_key=_secret_env_or_vault("OPENWEATHERMAP_API_KEY", json_config),
         # Conversational followups
         followups_enabled=bool(_get_nested(json_config, "conversation.followups.enabled", False)),
         followups_max_per_session=_coerce_int(
@@ -1206,13 +1297,13 @@ def build_app_config(json_config: dict) -> AppConfig:
         openclaw_gateway_url=_get_nested(json_config, "openclaw.gateway_url", ""),
         openclaw_gateway_timeout=_coerce_int(json_config, "openclaw.gateway_timeout", 30),
         openclaw_gateway_max_retries=_coerce_int(json_config, "openclaw.gateway_max_retries", 3),
-        openclaw_gateway_token=os.getenv("OPENCLAW_GATEWAY_TOKEN"),  # SECRET from env
+        openclaw_gateway_token=_secret_env_or_vault("OPENCLAW_GATEWAY_TOKEN", json_config),
         # Telegram bot integration (US-039)
-        telegram_bot_token=os.getenv("TELEGRAM_BOT_TOKEN"),  # SECRET from env
+        telegram_bot_token=_secret_env_or_vault("TELEGRAM_BOT_TOKEN", json_config),
         telegram_chat_id=_get_nested(json_config, "telegram.chat_id"),
         # Push notifications (US-042)
         push_provider=_get_nested(json_config, "notifications.push_provider"),
-        push_token=os.getenv("PUSH_TOKEN") or _get_nested(json_config, "notifications.push_token"),
+        push_token=_secret_env_or_vault("PUSH_TOKEN", json_config),
         push_topic=_get_nested(json_config, "notifications.push_topic"),
         # Email/calendar provider selection
         email_provider=_get_nested(json_config, "email.provider", "none"),
@@ -1271,15 +1362,15 @@ def build_app_config(json_config: dict) -> AppConfig:
 def load_config(
     *, env_path: Optional[Path] = None, reload: bool = False, json_config: Optional[dict] = None
 ) -> AppConfig:
-    """Load configuration from rex_config.json and .env secrets.
+    """Load non-secret configuration and resolve vault-backed secrets.
 
     Args:
-        env_path: Path to .env file (default: repo root .env)
+        env_path: Legacy .env path, consulted only with explicit operator opt-in
         reload: Force reload instead of using cached config
         json_config: Pre-loaded JSON config dict (if None, loads from rex/config_manager)
 
     Returns:
-        AppConfig with runtime settings from JSON and secrets from .env
+        AppConfig with runtime settings from JSON and secrets from the vault
 
     Note:
         Non-secret environment variables are now ignored. Use rex_config.json instead.
@@ -1295,8 +1386,12 @@ def load_config(
         if _cached_config is not None:
             return _cached_config
 
-    # Load .env for secrets only
-    load_dotenv(env_path or ENV_PATH, override=False)
+    # Persisted plaintext `.env` has no authority by default. Loading it into
+    # process state is permitted only in explicit legacy/operator mode.
+    from rex.credentials import legacy_plaintext_fallback_enabled
+
+    if legacy_plaintext_fallback_enabled():
+        load_dotenv(env_path or ENV_PATH, override=False)
 
     # Load JSON config for runtime settings
     if json_config is None:

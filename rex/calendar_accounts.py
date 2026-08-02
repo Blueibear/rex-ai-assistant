@@ -125,8 +125,8 @@ def require_user_id(user_id: object) -> str:
 class CalendarAccountDefinition:
     """Canonical non-secret calendar account definition.
 
-    ``credential_ref`` names the environment variable (or credential-store
-    key) that holds this account's token.  It is a *reference*, never the
+    ``credential_ref`` names the logical credential-vault entry for this
+    account's token. It is a *reference*, never the
     secret itself, and must not be echoed to CLI output, API responses,
     events, or error messages.
     """

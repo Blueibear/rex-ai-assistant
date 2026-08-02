@@ -3,8 +3,19 @@ import { readRexConfig, writeRexConfig } from './configStore'
 import { normalizeAiModelRouting, normalizeGuiAiProvider, toRuntimeAiProvider } from './aiSettings'
 import { buildVoiceSettings, defaultCustomWakeWordAssetPath, wakeWordIdToPhrase } from './voiceSettings'
 
-/** Mirror GUI settings into rex_config.json for sections that overlap. */
-export function mirrorToRexConfig(section: string, values: Settings): void {
+export interface MirrorResult {
+  ok: boolean
+  error?: string
+}
+
+/**
+ * Mirror GUI settings into rex_config.json for sections that overlap.
+ *
+ * Returns a truthful {ok, error} result instead of swallowing failures -
+ * callers (rex:setSettings) must surface a mirror failure to the user
+ * rather than reporting a false "Saved" state (S4).
+ */
+export function mirrorToRexConfig(section: string, values: Settings): MirrorResult {
   try {
     const rexConfig = readRexConfig()
 
@@ -140,7 +151,8 @@ export function mirrorToRexConfig(section: string, values: Settings): void {
       }
       writeRexConfig(rexConfig)
     }
-  } catch {
-    // Non-fatal: GUI settings were already persisted; rex_config mirror is best-effort
+    return { ok: true }
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : String(err) }
   }
 }

@@ -1,7 +1,7 @@
 import { randomUUID } from 'crypto'
 import { userInfo } from 'os'
 import { spawnSync } from 'child_process'
-import { resolveBridgePath, resolvePythonCommand } from './bridgeResolver'
+import { bridgeSpawnOptions, resolveBridgePath, resolvePythonCommand } from './bridgeResolver'
 
 const USER_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/
 const WINDOWS_RESERVED_NAMES = new Set([
@@ -63,6 +63,7 @@ export function resolveElectronSessionIdentity(): ElectronSessionIdentity {
     resolvePythonCommand(),
     [resolveBridgePath('rex_identity_bridge.py')],
     {
+      ...bridgeSpawnOptions(),
       input: JSON.stringify({ action: 'resolve_electron_session' }),
       encoding: 'utf8',
       timeout: 10_000,

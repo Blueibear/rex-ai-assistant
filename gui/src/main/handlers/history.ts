@@ -1,6 +1,6 @@
 import { ipcMain } from 'electron'
 import { spawnSync } from 'child_process'
-import { resolveBridgePath, resolvePythonCommand } from '../bridgeResolver'
+import { bridgeSpawnOptions, resolveBridgePath, resolvePythonCommand } from '../bridgeResolver'
 import { privateSessionPayload, type ElectronSessionIdentity } from '../sessionIdentity'
 
 interface HistoryEntry {
@@ -22,6 +22,7 @@ export function registerHistoryHandlers(session: ElectronSessionIdentity): void 
     try {
       const scriptPath = resolveBridgePath('rex_history_bridge.py')
       const result = spawnSync(resolvePythonCommand(), [scriptPath], {
+        ...bridgeSpawnOptions(),
         input: JSON.stringify(
           privateSessionPayload(session, {
             command: 'list',

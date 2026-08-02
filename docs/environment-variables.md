@@ -48,9 +48,16 @@ instead of `.env`.
 
 ## TTS API (`rex-speak-api`)
 
+`REX_SPEAK_API_KEY` is resolved from the OS-backed credential vault
+(household scope) via `rex.credentials.get_persisted_credential`; a
+configured vault entry is authoritative. The plaintext environment variable
+is consulted only as an explicit legacy/operator opt-in
+(`REX_ALLOW_PLAINTEXT_CREDENTIAL_FALLBACK=1`) and never overrides a vault
+value. Packaged Electron always rejects the legacy opt-in.
+
 | Variable | Default | Description |
 |---|---:|---|
-| `REX_SPEAK_API_KEY` | none | Required for `/speak` |
+| `REX_SPEAK_API_KEY` | none | Required for `/speak`; see vault note above |
 | `REX_SPEAK_PORT` | `5005` | Bind port |
 | `REX_TTS_MODEL` | XTTS v2 default | Coqui model override used by the TTS API |
 | `REX_SPEAK_MAX_CHARS` | `800` | Request text length limit |
@@ -210,7 +217,7 @@ Keep these in JSON config:
 
 When adding a new environment variable:
 
-1. Add it to `.env.example` if users should set it manually.
+1. Add non-secret process controls to `.env.example` when users set them manually.
 2. Add it to this file.
-3. Keep secrets in `.env` and non-secrets in `config/rex_config.json` unless
-   the variable is genuinely process-level service control.
+3. Keep secrets in the OS-backed credential vault and non-secrets in
+   `config/rex_config.json`. Do not add a plaintext secret environment path.

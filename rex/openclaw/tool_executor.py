@@ -565,7 +565,11 @@ def _execute_weather_now(args: dict[str, Any], default_context: dict[str, Any]) 
         )
 
     location = location.strip()
-    api_key = os.getenv("OPENWEATHERMAP_API_KEY", "")
+    from rex.credentials import get_persisted_credential, legacy_plaintext_fallback_enabled
+
+    api_key = (
+        os.getenv("OPENWEATHERMAP_API_KEY", "") if legacy_plaintext_fallback_enabled() else ""
+    ) or (get_persisted_credential("OPENWEATHERMAP_API_KEY") or "")
     if not api_key:
         return _error_result(
             "OPENWEATHERMAP_API_KEY is not configured", tool="weather_now", args=args

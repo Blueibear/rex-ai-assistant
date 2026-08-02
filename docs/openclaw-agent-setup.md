@@ -266,7 +266,7 @@ Example OpenClaw skill config (JSON):
 | Symptom | Cause | Fix |
 |---------|-------|-----|
 | `Connection refused` on startup | OpenClaw not running | Start OpenClaw gateway first |
-| `401 Unauthorized` | Wrong or missing token | Check `OPENCLAW_GATEWAY_TOKEN` in `.env` |
+| `401 Unauthorized` | Wrong or missing token | Check vault entry `OPENCLAW_GATEWAY_TOKEN` and its reference metadata |
 | Slow responses | High gateway timeout | Lower `openclaw.gateway_timeout` |
 | Rex falls back to echo mode | `openai` package not installed | `pip install openai` |
 | Tool calls return 404 | Tool server not started | Run `rex-tool-server` |

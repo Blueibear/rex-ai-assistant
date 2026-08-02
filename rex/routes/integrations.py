@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import os
 from typing import Any
 
 from flask import Blueprint
@@ -251,12 +250,19 @@ def create_blueprint() -> Blueprint:
         """Return SMS threads from the configured provider."""
         from flask import jsonify
 
+        from rex.credentials import get_persisted_credential
         from rex.integrations.sms_service import SMSService
 
-        sid = os.getenv("TWILIO_ACCOUNT_SID", "")
-        token = os.getenv("TWILIO_AUTH_TOKEN", "")
+        sid = get_persisted_credential("TWILIO_ACCOUNT_SID") or ""
+        token = get_persisted_credential("TWILIO_AUTH_TOKEN") or ""
+        from_number = get_persisted_credential("TWILIO_FROM_NUMBER") or ""
         provider = "twilio" if (sid and token) else "none"
-        svc = SMSService(sms_provider=provider)
+        svc = SMSService(
+            sms_provider=provider,
+            account_sid=sid,
+            auth_token=token,
+            from_number=from_number,
+        )
 
         threads = svc.list_threads()
         configured = provider != "none"

@@ -107,16 +107,19 @@ TRUSTED_PROXIES = {
 
 
 def _rate_limit_key() -> str:
+    """Return the rate-limit bucket key.
+
+    Derived only from the validated client/proxy address — never from
+    submitted credentials (API key, Authorization header, or any
+    secret-derived value) so that rotating or varying a credential cannot be
+    used to evade the limit, and no credential material ends up in the
+    limiter's storage backend.
+    """
     remote_addr = request.remote_addr or "unknown"
     if remote_addr in TRUSTED_PROXIES:
         forwarded = request.headers.get("X-Forwarded-For")
         if forwarded:
             return forwarded.split(",")[-1].strip()
-
-    provided = request.headers.get("X-API-Key") or request.headers.get("Authorization")
-    if provided:
-        token = provided.split()[-1]
-        return f"api:{token[:16]}"
 
     return remote_addr
 
@@ -140,7 +143,7 @@ try:
     app.register_blueprint(create_ha_blueprint())
     logger.info("Home Assistant bridge registered at /ha/*")
 except RuntimeError as _ha_err:
-    logger.warning("Home Assistant bridge not registered: %s", _ha_err)
+    logger.warning("Home Assistant bridge was not registered")
 
 # Shopping list PWA (US-SL-004)
 try:
@@ -154,7 +157,7 @@ try:
         "Shopping list PWA registered at /shopping (pin=%s)", "set" if _shopping_pwa_pin else "none"
     )
 except Exception as _e:
-    logger.warning("Shopping list PWA not registered: %s", _e)
+    logger.warning("Shopping list PWA was not registered")
 
 # ------------------------------------------------------------------------------
 # Config and Globals
@@ -254,16 +257,27 @@ def _check_request_size() -> tuple[Response, int] | None:
 # ------------------------------------------------------------------------------
 
 
+# Fixed, non-sensitive messages an AuthenticationError may surface to the
+# client. Any AuthenticationError text outside this allowlist is replaced
+# with a generic fixed message so arbitrary exception content can never
+# reach the response body.
+_AUTH_ERROR_MESSAGES = frozenset({"Missing API key", "Invalid API key"})
+_GENERIC_AUTH_ERROR_MESSAGE = "Authentication failed"
+_GENERIC_TTS_ERROR_MESSAGE = "Speech synthesis failed"
+
+
 @app.errorhandler(AuthenticationError)
 def _handle_auth_error(exc: AuthenticationError) -> tuple[Response, int]:
-    resp, status = _typed_error_response(UNAUTHORIZED, str(exc), 401)
+    message = str(exc) if str(exc) in _AUTH_ERROR_MESSAGES else _GENERIC_AUTH_ERROR_MESSAGE
+    resp, status = _typed_error_response(UNAUTHORIZED, message, 401)
     resp.status_code = status
     return resp, status
 
 
 @app.errorhandler(TextToSpeechError)
 def _handle_tts_error(exc: TextToSpeechError) -> tuple[Response, int]:
-    resp, status = _typed_error_response(INTERNAL_ERROR, str(exc), 500)
+    logger.warning("Speech synthesis failed: %s", type(exc).__name__)
+    resp, status = _typed_error_response(INTERNAL_ERROR, _GENERIC_TTS_ERROR_MESSAGE, 500)
     resp.status_code = status
     return resp, status
 
@@ -327,7 +341,18 @@ def _request_api_key() -> str | None:
 
 
 def get_api_key() -> str | None:
-    return os.getenv("REX_SPEAK_API_KEY") or None
+    """Return the configured speak-API key.
+
+    Resolved from the credential vault (household scope) via
+    ``rex.credentials.get_persisted_credential``. A configured vault entry is
+    authoritative; the plaintext ``REX_SPEAK_API_KEY`` environment variable
+    is consulted only as an explicit legacy/operator fallback (see
+    ``rex.credentials.legacy_plaintext_fallback_enabled``) and never
+    overrides a vault value.
+    """
+    from rex.credentials import get_persisted_credential
+
+    return get_persisted_credential("REX_SPEAK_API_KEY") or None
 
 
 def _require_api_key() -> None:
@@ -411,26 +436,32 @@ def generate_speech(text: str, language: str, user_key: str) -> bytes:
                     try:
                         Path(chunk_path).unlink(missing_ok=True)
                     except PermissionError:
-                        logger.debug("Skipping cleanup for locked file: %s", chunk_path)
+                        logger.debug("Skipping cleanup for locked synthesized-audio chunk")
 
             if not audio_segments or sample_rate is None:
                 raise TextToSpeechError("XTTS produced no audio output.")
 
             combined_audio = np.concatenate(audio_segments, axis=0)
             sf.write(output_path, combined_audio, sample_rate)
+        except TextToSpeechError:
+            raise
         except Exception as exc:
-            raise TextToSpeechError(str(exc)) from exc
+            logger.warning(
+                "Speech synthesis failed during voice generation: %s", type(exc).__name__
+            )
+            raise TextToSpeechError("Speech synthesis failed.") from exc
 
     try:
         with open(output_path, "rb") as audio_file:
             audio_bytes = audio_file.read()
     except Exception as exc:
-        raise TextToSpeechError(str(exc)) from exc
+        logger.warning("Failed to read synthesized audio output: %s", type(exc).__name__)
+        raise TextToSpeechError("Failed to read synthesized audio output.") from exc
     finally:
         try:
             Path(output_path).unlink(missing_ok=True)
         except PermissionError:
-            logger.debug("Skipping cleanup for locked file: %s", output_path)
+            logger.debug("Skipping cleanup for locked synthesized-audio file")
 
     return audio_bytes
 

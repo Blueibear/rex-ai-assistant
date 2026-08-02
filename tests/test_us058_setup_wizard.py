@@ -6,9 +6,9 @@ Covers:
 - POST /api/setup/complete creates user and returns ok
 - POST /api/setup/complete rejects missing username/password
 - POST /api/setup/complete returns 409 if setup already done
-- POST /api/setup/complete writes secrets to .env file
+- POST /api/setup/complete delegates secrets to transactional vault persistence
 - POST /api/setup/complete writes non-secret settings to rex_config.json
-- _write_env_secrets: new key appended, existing key updated, unrelated keys preserved
+- persistence failure rolls back the newly-created user and setup authority
 """
 
 from __future__ import annotations
@@ -142,24 +142,20 @@ class TestSetupComplete:
         status_resp = flask_client.get("/api/setup/status")
         assert status_resp.get_json()["needs_setup"] is False
 
-    def test_writes_openai_key_to_env(
-        self, flask_client, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    def test_delegates_openai_key_to_secure_persistence(
+        self, flask_client, monkeypatch: pytest.MonkeyPatch
     ) -> None:  # type: ignore[override]
-        monkeypatch.setattr("rex.gui_app._write_env_secrets.__module__", "rex.gui_app")
-
-        from rex import gui_app
-
         captured: dict[str, object] = {}
 
-        original = gui_app._write_env_secrets  # type: ignore[attr-defined]
+        def fake_persist(values, *, config_path=None, update_config=None):
+            captured["values"] = dict(values)
+            config: dict[str, object] = {}
+            if update_config is not None:
+                update_config(config)
+            captured["config"] = config
+            return {"OPENAI_API_KEY": "cred_" + "A" * 32}  # pragma: allowlist secret
 
-        def fake_write(path: Path, *, llm_provider: str, llm_api_key: str, ha_token: str) -> None:
-            captured["path"] = path
-            captured["llm_provider"] = llm_provider
-            captured["llm_api_key"] = llm_api_key
-            captured["ha_token"] = ha_token
-
-        monkeypatch.setattr(gui_app, "_write_env_secrets", fake_write)
+        monkeypatch.setattr("rex.credential_persistence.persist_household_secrets", fake_persist)
 
         flask_client.post(
             "/api/setup/complete",
@@ -167,76 +163,40 @@ class TestSetupComplete:
                 "username": "eve",
                 "password": "securepass1",
                 "llm_provider": "openai",
-                "llm_api_key": "sk-test-key",
+                "llm_api_key": "sk-test-key",  # pragma: allowlist secret
                 "tts_provider": "none",
             },
             headers={"X-Setup-Token": _setup_token(flask_client)},
         )
 
-        assert captured.get("llm_api_key") == "sk-test-key"
-        assert captured.get("llm_provider") == "openai"
+        assert captured["values"] == {
+            "HA_TOKEN": "",
+            "OPENAI_API_KEY": "sk-test-key",
+        }
+        assert captured["config"] == {
+            "llm": {"provider": "openai"},
+            "tts_provider": "none",
+        }
 
-        monkeypatch.setattr(gui_app, "_write_env_secrets", original)
+    def test_secure_persistence_failure_rolls_back_user_and_does_not_consume_token(
+        self, flask_client, monkeypatch: pytest.MonkeyPatch
+    ) -> None:  # type: ignore[override]
+        def fail(*_args, **_kwargs):
+            raise RuntimeError("vault unavailable")
 
-
-# ---------------------------------------------------------------------------
-# _write_env_secrets unit tests
-# ---------------------------------------------------------------------------
-
-
-class TestWriteEnvSecrets:
-    def test_creates_env_file_with_openai_key(self, tmp_path: Path) -> None:
-        from rex.gui_app import _write_env_secrets
-
-        env_path = tmp_path / ".env"
-        _write_env_secrets(env_path, llm_provider="openai", llm_api_key="sk-abc", ha_token="")
-        content = env_path.read_text(encoding="utf-8")
-        assert "OPENAI_API_KEY=sk-abc" in content
-
-    def test_creates_env_file_with_anthropic_key(self, tmp_path: Path) -> None:
-        from rex.gui_app import _write_env_secrets
-
-        env_path = tmp_path / ".env"
-        _write_env_secrets(
-            env_path, llm_provider="anthropic", llm_api_key="sk-ant-test", ha_token=""
+        monkeypatch.setattr("rex.credential_persistence.persist_household_secrets", fail)
+        setup_token = _setup_token(flask_client)
+        response = flask_client.post(
+            "/api/setup/complete",
+            json={
+                "username": "rollback-user",
+                "password": "securepass1",
+                "llm_provider": "openai",
+                "llm_api_key": "secret-marker",  # pragma: allowlist secret
+            },
+            headers={"X-Setup-Token": setup_token},
         )
-        content = env_path.read_text(encoding="utf-8")
-        assert "ANTHROPIC_API_KEY=sk-ant-test" in content
-
-    def test_writes_ha_token(self, tmp_path: Path) -> None:
-        from rex.gui_app import _write_env_secrets
-
-        env_path = tmp_path / ".env"
-        _write_env_secrets(env_path, llm_provider="local", llm_api_key="", ha_token="my-ha-token")
-        content = env_path.read_text(encoding="utf-8")
-        assert "HA_TOKEN=my-ha-token" in content
-
-    def test_preserves_unrelated_lines(self, tmp_path: Path) -> None:
-        from rex.gui_app import _write_env_secrets
-
-        env_path = tmp_path / ".env"
-        env_path.write_text("SOME_OTHER_VAR=hello\n", encoding="utf-8")
-        _write_env_secrets(env_path, llm_provider="openai", llm_api_key="sk-x", ha_token="")
-        content = env_path.read_text(encoding="utf-8")
-        assert "SOME_OTHER_VAR=hello" in content
-        assert "OPENAI_API_KEY=sk-x" in content
-
-    def test_updates_existing_key(self, tmp_path: Path) -> None:
-        from rex.gui_app import _write_env_secrets
-
-        env_path = tmp_path / ".env"
-        env_path.write_text("OPENAI_API_KEY=old-key\n", encoding="utf-8")
-        _write_env_secrets(env_path, llm_provider="openai", llm_api_key="new-key", ha_token="")
-        content = env_path.read_text(encoding="utf-8")
-        assert "new-key" in content
-        assert "old-key" not in content
-        assert content.count("OPENAI_API_KEY") == 1
-
-    def test_local_provider_writes_no_api_key(self, tmp_path: Path) -> None:
-        from rex.gui_app import _write_env_secrets
-
-        env_path = tmp_path / ".env"
-        _write_env_secrets(env_path, llm_provider="local", llm_api_key="", ha_token="")
-        content = env_path.read_text(encoding="utf-8")
-        assert "OPENAI_API_KEY" not in content
-        assert "ANTHROPIC_API_KEY" not in content
+        assert response.status_code == 500
+        assert "secret-marker" not in response.get_data(as_text=True)
+        assert flask_client.get("/api/setup/status").get_json()["needs_setup"] is True
+        assert flask_client.application.config["SETUP_TOKEN"] == setup_token

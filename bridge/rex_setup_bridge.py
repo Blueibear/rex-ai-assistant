@@ -19,16 +19,14 @@ import logging
 import sys
 from typing import Any
 
-from rex.bridge_utils import bridge_error_response
-
 logger = logging.getLogger(__name__)
 
 
 def main() -> None:
     try:
         payload = json.loads(sys.stdin.read())
-    except Exception as exc:
-        sys.stdout.write(json.dumps({"ok": False, "error": f"Bad input: {exc}"}))
+    except Exception:
+        sys.stdout.write(json.dumps({"ok": False, "error": "Invalid setup request"}))
         sys.exit(1)
 
     command = str(payload.get("command", ""))
@@ -43,8 +41,8 @@ def main() -> None:
         else:
             sys.stdout.write(json.dumps({"ok": False, "error": f"unknown command: {command}"}))
 
-    except Exception as exc:
-        sys.stdout.write(json.dumps(bridge_error_response(exc)))
+    except Exception:
+        sys.stdout.write(json.dumps({"ok": False, "error": "Secure setup persistence failed"}))
 
 
 def _handle_status() -> None:
@@ -72,50 +70,48 @@ def _handle_complete(payload: dict[str, Any]) -> None:
         sys.stdout.write(json.dumps({"ok": False, "error": "username and password are required"}))
         return
 
-    from rex.auth import create_user
+    from rex.auth import _open_db, create_user  # noqa: PLC2701
+    from rex.credential_persistence import persist_household_secrets
+    from rex.permissions import bootstrap_admin_if_first_user
+
+    user_id: str | None = None
 
     try:
+        secrets_to_store: dict[str, str] = {"HA_TOKEN": ha_token}
+        if llm_api_key:
+            logical_name = {
+                "openai": "OPENAI_API_KEY",
+                "anthropic": "ANTHROPIC_API_KEY",
+                "ollama": "OLLAMA_API_KEY",
+            }.get(llm_provider)
+            if logical_name is None:
+                raise ValueError("Selected LLM provider does not accept an API key")
+            secrets_to_store[logical_name] = llm_api_key
+
         user = create_user(username, password)
-    except ValueError as exc:
-        sys.stdout.write(json.dumps({"ok": False, "error": str(exc)}))
-        return
+        user_id = str(user["id"])
+        bootstrap_admin_if_first_user(user_id)
 
-    try:
-        from rex.permissions import bootstrap_admin_if_first_user
+        def update_config(config: dict[str, Any]) -> None:
+            config.setdefault("llm", {})["provider"] = llm_provider
+            if llm_provider == "ollama" and payload.get("ollama_base_url"):
+                config.setdefault("llm", {})["ollama_base_url"] = payload["ollama_base_url"]
+            config["tts_provider"] = tts_provider
+            if ha_base_url:
+                config.setdefault("home_assistant", {})["base_url"] = ha_base_url
 
-        bootstrap_admin_if_first_user(user["id"])
+        persist_household_secrets(secrets_to_store, update_config=update_config)
     except Exception:
-        logger.debug("Failed to bootstrap first-user admin permissions", exc_info=True)
-
-    try:
-        from rex.config_manager import load_config as _load_json_cfg
-        from rex.config_manager import save_config as _save_json_cfg
-
-        json_cfg: dict[str, Any] = _load_json_cfg() or {}
-        json_cfg.setdefault("llm", {})["provider"] = llm_provider
-        if llm_provider == "ollama" and payload.get("ollama_base_url"):
-            json_cfg.setdefault("llm", {})["ollama_base_url"] = payload["ollama_base_url"]
-        json_cfg["tts_provider"] = tts_provider
-        if ha_base_url:
-            json_cfg.setdefault("home_assistant", {})["base_url"] = ha_base_url
-        _save_json_cfg(json_cfg)
-    except Exception:
-        logger.debug("Failed to persist setup wizard configuration", exc_info=True)
-
-    from rex.runtime_paths import env_path as resolve_env_path
-
-    env_path = resolve_env_path()
-
-    from rex.gui_app import _write_env_secrets  # noqa: PLC2701
-
-    _write_env_secrets(
-        env_path,
-        llm_provider=llm_provider,
-        llm_api_key=llm_api_key,
-        ha_token=ha_token,
-    )
-
-    sys.stdout.write(json.dumps({"ok": True, "user_id": user["id"]}))
+        if user_id:
+            try:
+                with _open_db() as conn:
+                    conn.execute("DELETE FROM user_permissions WHERE user_id = ?", (user_id,))
+                    conn.execute("DELETE FROM users WHERE id = ?", (user_id,))
+                    conn.commit()
+            except Exception:
+                logger.error("Setup rollback could not remove the incomplete user")
+        raise
+    sys.stdout.write(json.dumps({"ok": True, "user_id": user_id}))
 
 
 if __name__ == "__main__":

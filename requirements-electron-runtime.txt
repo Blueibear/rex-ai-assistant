@@ -15,3 +15,4 @@ bcrypt==5.0.0
 PyJWT==2.13.0
 edge-tts==7.2.8
 pyttsx3==2.99
+pywin32==311

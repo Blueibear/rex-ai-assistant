@@ -1,34 +1,37 @@
 import { dialog, ipcMain } from 'electron'
 import type { EmailAccount } from '../../types/ipc'
-import { readGuiSettings, writeGuiSettings } from '../configStore'
+import { readGuiSettings, readRexConfigStrict, writeGuiSettings } from '../configStore'
 import {
   getHomeAssistantStates,
   normalizeHaUrl,
+  readSavedHomeAssistantCredentials,
   saveHomeAssistantCredentials,
   testHomeAssistantConnection
 } from '../homeAssistant'
 import type { HaStatesResult, HaTestResult } from '../homeAssistant'
 import {
   OUTLOOK_EMAIL_UNSUPPORTED,
-  integrationFingerprintForValues,
   reconcileIntegrationStatuses,
   testIntegrationByType,
   writeIntegrationStatus
 } from '../integrationStatus'
 import { buildCapabilityInventory, buildIntegrationInventory } from '../integrationInventory'
+import type { ElectronSessionIdentity } from '../sessionIdentity'
+import { getVaultReference } from '../credentialReferences'
+import { vaultHasSecret, type VaultContext } from '../credentialVault'
+import { safeIpcErrorMessage } from '../ipcErrors'
 
-export function registerIntegrationsHandlers(): void {
+export function registerIntegrationsHandlers(session: ElectronSessionIdentity): void {
   ipcMain.handle(
     'rex:testHomeAssistant',
     async (_event, baseUrl: string, token: string): Promise<HaTestResult> => {
       const normalizedUrl = normalizeHaUrl(baseUrl)
-      const trimmedToken = token.trim()
+      const saved = await readSavedHomeAssistantCredentials(session)
+      const trimmedToken = token.trim() || saved.token
       const result = await testHomeAssistantConnection(normalizedUrl, trimmedToken)
-      writeIntegrationStatus(
-        'homeassistant',
-        result,
-        integrationFingerprintForValues('homeassistant', { haUrl: normalizedUrl, haToken: trimmedToken })
-      )
+      if (!token.trim() && saved.ref) {
+        await writeIntegrationStatus(session, 'homeassistant', result)
+      }
       return result
     }
   )
@@ -39,39 +42,39 @@ export function registerIntegrationsHandlers(): void {
       const normalizedUrl = normalizeHaUrl(baseUrl)
       if (!normalizedUrl) return { ok: false, error: 'Home Assistant URL is required.' }
       try {
-        saveHomeAssistantCredentials(normalizedUrl, token.trim())
-        reconcileIntegrationStatuses()
+        await saveHomeAssistantCredentials(session, normalizedUrl, token.trim())
+        await reconcileIntegrationStatuses(session)
         return { ok: true }
       } catch (err) {
-        return { ok: false, error: err instanceof Error ? err.message : String(err) }
+        return { ok: false, error: safeIpcErrorMessage(err, 'Home Assistant credentials could not be saved') }
       }
     }
   )
 
   ipcMain.handle('rex:getHomeAssistantStates', async (): Promise<HaStatesResult> => {
-    return getHomeAssistantStates()
+    return getHomeAssistantStates(session)
   })
 
-  ipcMain.handle('rex:getIntegrations', () => {
+  ipcMain.handle('rex:getIntegrations', async () => {
     try {
-      return { ok: true, integrations: buildIntegrationInventory() }
+      return { ok: true, integrations: await buildIntegrationInventory(session) }
     } catch (err) {
       return {
         ok: false,
         integrations: [],
-        error: err instanceof Error ? err.message : String(err)
+        error: safeIpcErrorMessage(err, 'Integration inventory could not be loaded')
       }
     }
   })
 
-  ipcMain.handle('rex:getCapabilities', () => {
+  ipcMain.handle('rex:getCapabilities', async () => {
     try {
-      return { ok: true, capabilities: buildCapabilityInventory() }
+      return { ok: true, capabilities: await buildCapabilityInventory(session) }
     } catch (err) {
       return {
         ok: false,
         capabilities: [],
-        error: err instanceof Error ? err.message : String(err)
+        error: safeIpcErrorMessage(err, 'Capability inventory could not be loaded')
       }
     }
   })
@@ -80,10 +83,10 @@ export function registerIntegrationsHandlers(): void {
     // Check whether credentials for the requested integration are configured
     const stored = readGuiSettings()
     const integrations = (stored['integrations'] ?? {}) as Record<string, unknown>
-    const testResult = await testIntegrationByType(type, integrations)
+    const testResult = await testIntegrationByType(session, type, integrations)
 
     if (testResult.type) {
-      writeIntegrationStatus(testResult.type, testResult.result)
+      await writeIntegrationStatus(session, testResult.type, testResult.result)
     }
 
     return testResult.result
@@ -111,18 +114,30 @@ export function registerIntegrationsHandlers(): void {
     return { ok: true, path: selectedPath }
   })
 
-  ipcMain.handle('rex:testEmailAccount', (_event, id: string) => {
+  ipcMain.handle('rex:testEmailAccount', async (_event, id: string) => {
     // This is a configuration check only. It does not contact the provider.
     const stored = readGuiSettings()
     const integrations = (stored['integrations'] ?? {}) as Record<string, unknown>
     const accounts = Array.isArray(integrations.emailAccounts) ? integrations.emailAccounts : []
     const account = (accounts as EmailAccount[]).find((a) => a.id === id)
     if (!account) return { ok: false, error: 'Account not found' }
+    const validatedId = /^[A-Za-z0-9][A-Za-z0-9._:@-]{0,127}$/.test(id) ? id : ''
+    if (!validatedId) return { ok: false, error: 'Account not found' }
+    const context: VaultContext = {
+      scope: 'user', integration: 'email', account: validatedId,
+      slot: account.backend === 'imap' ? 'password' : 'client_secret'
+    }
+    const record = getVaultReference(
+      readRexConfigStrict(), `email:${validatedId}`, context, session.userId
+    )
+    const hasCredential = record
+      ? await vaultHasSecret(session, record.ref, context)
+      : false
     if (account.backend === 'imap') {
       const ok =
         typeof account.host === 'string' && account.host.trim() !== '' &&
         typeof account.username === 'string' && account.username.trim() !== '' &&
-        typeof account.password === 'string' && account.password.trim() !== '' // pragma: allowlist secret
+        hasCredential
       return ok
         ? { ok: false, state: 'configured', error: 'Credentials are present, but provider authentication was not tested.' }
         : { ok: false, state: 'unconfigured', error: 'IMAP host, username, and password are required' }
@@ -133,7 +148,7 @@ export function registerIntegrationsHandlers(): void {
     }
     const ok =
       typeof account.clientId === 'string' && account.clientId.trim() !== '' &&
-      typeof account.clientSecret === 'string' && account.clientSecret.trim() !== '' // pragma: allowlist secret
+      hasCredential
     return ok
       ? { ok: false, state: 'configured', error: 'Credentials are present, but provider authentication was not tested.' }
       : { ok: false, state: 'unconfigured', error: 'OAuth Client ID and Secret are required' }

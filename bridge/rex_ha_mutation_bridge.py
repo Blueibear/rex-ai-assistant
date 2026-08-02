@@ -9,7 +9,7 @@ from typing import Any
 
 import requests
 
-from rex.bridge_utils import bridge_error_response
+from rex.bridge_utils import bridge_safe_error_response
 from rex.config import settings
 from rex.ha.mutation_service import HAMutation, HAMutationService
 from rex.identity import validate_user_id
@@ -87,7 +87,22 @@ def main() -> None:
         )
         print(json.dumps({"ok": True, **result.to_dict()}), flush=True)
     except Exception as exc:
-        print(json.dumps(bridge_error_response(exc)), flush=True)
+        print(
+            json.dumps(
+                bridge_safe_error_response(
+                    exc,
+                    messages={
+                        PermissionError: (
+                            "Home Assistant mutations require private Electron scope"
+                        ),
+                        ValueError: "Home Assistant mutation request is invalid",
+                        RuntimeError: "Home Assistant is not configured",
+                    },
+                    default="Home Assistant mutation failed",
+                )
+            ),
+            flush=True,
+        )
         sys.exit(1)
 
 
