@@ -26,13 +26,17 @@ def _table_names(db_path: Path) -> set[str]:
     return {row[0] for row in rows}
 
 
-def _user_columns(db_path: Path) -> set[str]:
+def _table_columns(db_path: Path, table: str) -> set[str]:
     conn = sqlite3.connect(str(db_path))
     try:
-        rows = conn.execute("PRAGMA table_info(users)").fetchall()
+        rows = conn.execute(f"PRAGMA table_info({table})").fetchall()
     finally:
         conn.close()
     return {row[1] for row in rows}
+
+
+def _user_columns(db_path: Path) -> set[str]:
+    return _table_columns(db_path, "users")
 
 
 def _make_legacy_db(db_path: Path, username: str, password: str) -> str:
@@ -73,8 +77,13 @@ class TestFreshMigration:
             "user_permissions",
             "mobile_sessions",
             "mobile_refresh_tokens",
+            "mobile_paired_devices",
+            "mobile_device_grants",
+            "mobile_device_session_challenges",
         } <= tables
         assert "disabled_at" in _user_columns(db_path)
+        assert "last_strong_auth_at" in _table_columns(db_path, "mobile_device_grants")
+        assert "last_strong_auth_at" in _table_columns(db_path, "mobile_device_grants")
 
 
 class TestLegacyMigration:

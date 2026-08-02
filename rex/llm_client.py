@@ -715,12 +715,20 @@ class LanguageModel:
         if function_name not in self._tool_functions:
             return f"Error: Unknown function {function_name}"
 
+        from rex.mobile_api.action_context import (  # noqa: PLC0415
+            MobileActionDeniedError,
+            authorize_mobile_tool,
+        )
+
+        authorize_mobile_tool(function_name)
         try:
             result = self._tool_functions[function_name](**function_args)
             return str(result) if result is not None else "No results found"
+        except MobileActionDeniedError:
+            raise
         except Exception as e:
-            logger.error(f"Tool execution failed: {e}")
-            return f"Error executing {function_name}: {str(e)}"
+            logger.error("Tool execution failed: %s", type(e).__name__)
+            return f"Error executing {function_name}"
 
     def _format_messages(self, messages: Sequence[dict[str, str]]) -> str:
         return "\n".join(

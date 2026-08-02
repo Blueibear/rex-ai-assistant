@@ -33,6 +33,9 @@ from cryptography.hazmat.primitives.asymmetric.utils import Prehashed
 PROOF_DOMAIN = b"AskRex-Pairing-Proof-v1"
 TRANSCRIPT_TYPE = "askrex-pairing-proof"
 TRANSCRIPT_VERSION = 1
+SESSION_PROOF_DOMAIN = b"AskRex-Device-Session-v1"
+SESSION_TRANSCRIPT_TYPE = "askrex-device-session-proof"
+SESSION_TRANSCRIPT_VERSION = 1
 
 # Bounded input sizes for untrusted encodings (defense against oversized
 # payloads before any crypto work).  A P-256 SPKI DER is ~120 bytes (~160 b64
@@ -170,6 +173,44 @@ def decode_nonce(nonce_b64: str) -> bytes:
     return _strict_b64decode(nonce_b64, max_length=_MAX_NONCE_B64, label="Nonce")
 
 
+def canonical_session_transcript(
+    *,
+    desktop_id: str,
+    bootstrap_session_id: str,
+    challenge_id: str,
+    nonce_b64: str,
+    device_id: str,
+    grant_id: str,
+    grant_version: int,
+    user_id: str,
+) -> bytes:
+    """Return the signed transcript for upgrading a bootstrap session.
+
+    The server challenge, approved device/grant identity, desktop, user, and
+    bootstrap session are all bound into one domain-separated canonical JSON
+    document.  A proof cannot be replayed for another session or grant.
+    """
+    payload = {
+        "typ": SESSION_TRANSCRIPT_TYPE,
+        "v": SESSION_TRANSCRIPT_VERSION,
+        "desktop_id": desktop_id,
+        "bootstrap_session_id": bootstrap_session_id,
+        "challenge_id": challenge_id,
+        "nonce": nonce_b64,
+        "device_id": device_id,
+        "grant_id": grant_id,
+        "grant_version": grant_version,
+        "user_id": user_id,
+    }
+    body = json.dumps(
+        payload,
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=False,
+    ).encode("utf-8")
+    return SESSION_PROOF_DOMAIN + b"\n" + body
+
+
 # ---------------------------------------------------------------------------
 # Deterministic signing helpers (used by tests and contract-vector generation).
 # These operate only on caller-supplied private keys; production server code
@@ -214,10 +255,14 @@ def sign_transcript(private_key: ec.EllipticCurvePrivateKey, transcript: bytes) 
 
 __all__ = [
     "PROOF_DOMAIN",
+    "SESSION_PROOF_DOMAIN",
+    "SESSION_TRANSCRIPT_TYPE",
+    "SESSION_TRANSCRIPT_VERSION",
     "TRANSCRIPT_TYPE",
     "TRANSCRIPT_VERSION",
     "ProofError",
     "canonical_public_key_spki_b64",
+    "canonical_session_transcript",
     "canonical_transcript",
     "decode_nonce",
     "generate_p256_private_key",

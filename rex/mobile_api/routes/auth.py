@@ -27,6 +27,7 @@ from rex.mobile_api.auth import issue_access_token, require_mobile_auth
 from rex.mobile_api.db import connect
 from rex.mobile_api.errors import MobileApiError
 from rex.mobile_api.services import MobileApiServices
+from rex.mobile_api.sessions import DeviceSessionError
 from rex.mobile_api.validation import (
     parse_device_info,
     parse_json_body,
@@ -114,6 +115,66 @@ def build_auth_blueprint(services: MobileApiServices, limiter: Any) -> Blueprint
             created.refresh_expires_at,
         )
 
+    @bp.post("/device-challenge")
+    @limiter.limit(cfg.rate_limit_refresh)
+    @require_mobile_auth
+    def device_challenge() -> Any:
+        principal = g.mobile_principal
+        payload = parse_json_body()
+        if set(payload) != {"device_id", "grant_id"}:
+            raise MobileApiError(merr.BAD_REQUEST, "Device challenge fields are invalid.", 400)
+        device_id = require_string_field(payload, "device_id", max_length=128)
+        grant_id = require_string_field(payload, "grant_id", max_length=128)
+        try:
+            challenge = services.session_store.create_device_session_challenge(
+                bootstrap_session_id=principal.session_id,
+                user_id=principal.user_id,
+                device_id=device_id,
+                grant_id=grant_id,
+            )
+        except DeviceSessionError as exc:
+            raise MobileApiError(merr.PAIRING_INVALID, str(exc), 403) from exc
+        return jsonify(
+            {
+                "challenge_id": challenge.challenge_id,
+                "bootstrap_session_id": challenge.bootstrap_session_id,
+                "user_id": challenge.user_id,
+                "device_id": challenge.device_id,
+                "grant_id": challenge.grant_id,
+                "grant_version": challenge.grant_version,
+                "desktop_id": challenge.desktop_id,
+                "nonce": challenge.nonce_b64,
+                "expires_at": challenge.expires_at.isoformat(),
+            }
+        )
+
+    @bp.post("/activate-device")
+    @limiter.limit(cfg.rate_limit_refresh)
+    @require_mobile_auth
+    def activate_device() -> Any:
+        principal = g.mobile_principal
+        payload = parse_json_body()
+        if set(payload) != {"challenge_id", "signature"}:
+            raise MobileApiError(merr.BAD_REQUEST, "Device activation fields are invalid.", 400)
+        challenge_id = require_string_field(payload, "challenge_id", max_length=128)
+        signature = require_string_field(payload, "signature", max_length=256)
+        try:
+            created = services.session_store.activate_device_session(
+                bootstrap_session_id=principal.session_id,
+                user_id=principal.user_id,
+                challenge_id=challenge_id,
+                signature_b64=signature,
+            )
+        except DeviceSessionError as exc:
+            raise MobileApiError(merr.PAIRING_INVALID, str(exc), 403) from exc
+        return _token_pair_response(
+            created.session_id,
+            created.user_id,
+            principal.username,
+            created.refresh_token,
+            created.refresh_expires_at,
+        )
+
     @bp.post("/refresh")
     @limiter.limit(cfg.rate_limit_refresh)
     def refresh() -> Any:
@@ -180,6 +241,13 @@ def build_auth_blueprint(services: MobileApiServices, limiter: Any) -> Blueprint
         return jsonify(
             {
                 "session_id": principal.session_id,
+                "paired": principal.paired,
+                "device_id": principal.paired_device_id,
+                "grant_id": principal.grant_id,
+                "grant_version": principal.grant_version,
+                "desktop_id": principal.desktop_id,
+                "scopes": sorted(principal.scopes),
+                "strong_auth_at": principal.strong_auth_at,
                 "user": musers.build_user_projection(
                     services.db_path, principal.user_id, principal.username
                 ),

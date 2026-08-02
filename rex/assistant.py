@@ -559,7 +559,13 @@ class Assistant:
     async def _post_process_completion(
         self, transcript: str, completion: str, *, user_id: str | None = None
     ) -> str:
-        plugin_enrichments = await self._run_plugins(transcript)
+        from rex.mobile_api.action_context import (  # noqa: PLC0415
+            mobile_action_context_active,
+        )
+
+        plugin_enrichments = (
+            [] if mobile_action_context_active() else await self._run_plugins(transcript)
+        )
         return await self._result_handler.process(
             transcript,
             completion,
@@ -631,6 +637,10 @@ class Assistant:
     ) -> AsyncIterator[str]:
         loop = asyncio.get_running_loop()
         completion: str | None = None
+        from rex.mobile_api.action_context import (  # noqa: PLC0415
+            mobile_scope_granted,
+            run_in_executor_with_mobile_context,
+        )
 
         # Resolve and validate the request identity before any private state
         # (intent shortcuts, history, cues) is touched (issue #303).
@@ -644,9 +654,9 @@ class Assistant:
             yield _intent.response
             return
 
-        if self._ha_bridge and self._ha_bridge.enabled:
-            completion = await loop.run_in_executor(
-                None,
+        if self._ha_bridge and self._ha_bridge.enabled and mobile_scope_granted("home.control"):
+            completion = await run_in_executor_with_mobile_context(
+                loop,
                 self._ha_bridge.process_transcript,
                 transcript,
             )
@@ -666,8 +676,8 @@ class Assistant:
         try:
             token_iterator = self._stream_model_reply(prompt, messages)
         except NotImplementedError:
-            completion = await loop.run_in_executor(
-                None, self._generate_model_reply, prompt, messages
+            completion = await run_in_executor_with_mobile_context(
+                loop, self._generate_model_reply, prompt, messages
             )
             completion = await self._post_process_completion(
                 transcript, completion, user_id=effective_user_id

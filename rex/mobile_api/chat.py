@@ -120,22 +120,59 @@ class MobileChatService:
                     raise _backend_unavailable(exc) from exc
         return self._assistant
 
-    def generate(self, message: str, *, user_id: str, voice_mode: bool = False) -> str:
-        """Return one complete reply for ``user_id`` via the canonical Assistant."""
+    def generate(
+        self,
+        message: str,
+        *,
+        user_id: str,
+        voice_mode: bool = False,
+        capability_scopes: frozenset[str] | None = None,
+        capability_permissions: frozenset[str] | None = None,
+        authorization_check: Callable[[], None] | None = None,
+    ) -> str:
+        """Return one complete reply under the server-derived mobile grant."""
+        from rex.mobile_api.action_context import (  # noqa: PLC0415
+            MobileActionDeniedError,
+            mobile_action_context,
+        )
+
         assistant = self._get_assistant()
         try:
-            return str(
-                asyncio.run(
-                    assistant.generate_reply(message, voice_mode=voice_mode, active_user_id=user_id)
+            with mobile_action_context(
+                capability_scopes or frozenset(),
+                permissions=capability_permissions or frozenset(),
+                revalidate=authorization_check,
+            ):
+                return str(
+                    asyncio.run(
+                        assistant.generate_reply(
+                            message,
+                            voice_mode=voice_mode,
+                            active_user_id=user_id,
+                        )
+                    )
                 )
-            )
         except MobileApiError:
             raise
+        except MobileActionDeniedError as exc:
+            raise MobileApiError(
+                "FORBIDDEN",
+                "This paired device is not authorized for the requested action.",
+                403,
+            ) from exc
         except Exception as exc:
-            logger.error("Mobile chat generate_reply failed: %s", exc)
+            logger.error("Mobile chat generate_reply failed: %s", type(exc).__name__)
             raise _backend_unavailable(exc) from exc
 
-    def stream(self, message: str, *, user_id: str) -> Iterator[str]:
+    def stream(
+        self,
+        message: str,
+        *,
+        user_id: str,
+        capability_scopes: frozenset[str] | None = None,
+        capability_permissions: frozenset[str] | None = None,
+        authorization_check: Callable[[], None] | None = None,
+    ) -> Iterator[str]:
         """Yield reply chunks for ``user_id`` via ``Assistant.stream_reply()``.
 
         Bridges the async generator onto a private event loop owned by the
@@ -143,29 +180,48 @@ class MobileChatService:
         structured ``BACKEND_UNAVAILABLE`` error for the transport to emit
         as a terminal error event.
         """
+        from rex.mobile_api.action_context import (  # noqa: PLC0415
+            MobileActionDeniedError,
+            mobile_action_context,
+        )
+
         assistant = self._get_assistant()
         loop = asyncio.new_event_loop()
         agen = None
         try:
-            agen = assistant.stream_reply(message, active_user_id=user_id)
-            while True:
-                try:
-                    chunk = loop.run_until_complete(agen.__anext__())
-                except StopAsyncIteration:
-                    break
-                except MobileApiError:
-                    raise
-                except Exception as exc:
-                    logger.error("Mobile chat stream_reply failed: %s", exc)
-                    raise _backend_unavailable(exc) from exc
-                if chunk:
-                    yield str(chunk)
+            with mobile_action_context(
+                capability_scopes or frozenset(),
+                permissions=capability_permissions or frozenset(),
+                revalidate=authorization_check,
+            ):
+                agen = assistant.stream_reply(message, active_user_id=user_id)
+                while True:
+                    try:
+                        chunk = loop.run_until_complete(agen.__anext__())
+                    except StopAsyncIteration:
+                        break
+                    except MobileApiError:
+                        raise
+                    except MobileActionDeniedError as exc:
+                        raise MobileApiError(
+                            "FORBIDDEN",
+                            "This paired device is not authorized for the requested action.",
+                            403,
+                        ) from exc
+                    except Exception as exc:
+                        logger.error(
+                            "Mobile chat stream_reply failed: %s",
+                            type(exc).__name__,
+                        )
+                        raise _backend_unavailable(exc) from exc
+                    if chunk:
+                        yield str(chunk)
         finally:
             if agen is not None:
                 try:
                     loop.run_until_complete(agen.aclose())
                 except Exception:  # pragma: no cover - close-time cleanup
-                    logger.debug("Mobile chat stream close failed", exc_info=True)
+                    logger.debug("Mobile chat stream close failed")
             loop.close()
 
 

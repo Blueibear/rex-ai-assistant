@@ -32,7 +32,8 @@ from flask import Blueprint, Response, g, jsonify, request
 from rex.mobile_api import errors as merr
 from rex.mobile_api import events as mev
 from rex.mobile_api import idempotency as idem
-from rex.mobile_api.auth import require_mobile_auth
+from rex.mobile_api.auth import require_mobile_auth, revalidate_principal
+from rex.mobile_api.authorization import ROUTE_SCOPES
 from rex.mobile_api.chat import STATUS_COMPLETED
 from rex.mobile_api.errors import MobileApiError
 from rex.mobile_api.services import MobileApiServices
@@ -105,7 +106,7 @@ def build_chat_blueprint(services: MobileApiServices, limiter: Any) -> Blueprint
 
     @bp.post("/chat")
     @limiter.limit(cfg.rate_limit_chat)
-    @require_mobile_auth
+    @require_mobile_auth(required_scope=ROUTE_SCOPES["chat.send"])
     def chat() -> Any:
         principal = g.mobile_principal
         chat_request = _validated_chat_request()
@@ -122,9 +123,25 @@ def build_chat_blueprint(services: MobileApiServices, limiter: Any) -> Blueprint
             stored = json.loads(reservation.response_json or "{}")
             return jsonify(stored), 200
 
+        def authorization_check() -> None:
+            revalidate_principal(
+                services,
+                principal,
+                required_scope=ROUTE_SCOPES["chat.send"],
+            )
+
         try:
             completion = services.chat_service.generate(
-                chat_request.message, user_id=principal.user_id
+                chat_request.message,
+                user_id=principal.user_id,
+                capability_scopes=principal.scopes,
+                capability_permissions=principal.permissions,
+                authorization_check=authorization_check,
+            )
+            revalidate_principal(
+                services,
+                principal,
+                required_scope=ROUTE_SCOPES["chat.send"],
             )
         except MobileApiError as exc:
             services.message_store.fail(principal.user_id, chat_request.message_id, exc.code)
@@ -154,7 +171,7 @@ def build_chat_blueprint(services: MobileApiServices, limiter: Any) -> Blueprint
 
     @bp.post("/chat/stream")
     @limiter.limit(cfg.rate_limit_chat)
-    @require_mobile_auth
+    @require_mobile_auth(required_scope=ROUTE_SCOPES["chat.stream"])
     def chat_stream() -> Any:
         principal = g.mobile_principal
         chat_request = _validated_chat_request()
@@ -184,6 +201,13 @@ def build_chat_blueprint(services: MobileApiServices, limiter: Any) -> Blueprint
         store = services.message_store
         chat_service = services.chat_service
 
+        def authorization_check() -> None:
+            revalidate_principal(
+                services,
+                principal,
+                required_scope=ROUTE_SCOPES["chat.stream"],
+            )
+
         def generate():
             # No Flask request-context access inside the generator: every
             # needed value was captured above.
@@ -191,7 +215,30 @@ def build_chat_blueprint(services: MobileApiServices, limiter: Any) -> Blueprint
             finished = False
             try:
                 try:
-                    for chunk in chat_service.stream(message, user_id=user_id):
+                    iterator = iter(
+                        chat_service.stream(
+                            message,
+                            user_id=user_id,
+                            capability_scopes=principal.scopes,
+                            capability_permissions=principal.permissions,
+                            authorization_check=authorization_check,
+                        )
+                    )
+                    while True:
+                        revalidate_principal(
+                            services,
+                            principal,
+                            required_scope=ROUTE_SCOPES["chat.stream"],
+                        )
+                        try:
+                            chunk = next(iterator)
+                        except StopIteration:
+                            break
+                        revalidate_principal(
+                            services,
+                            principal,
+                            required_scope=ROUTE_SCOPES["chat.stream"],
+                        )
                         collected.append(chunk)
                         yield mev.format_sse(mev.token_event(message_id, chunk))
                 except MobileApiError as exc:

@@ -80,6 +80,16 @@ class MobilePrincipal:
     display_name: str
     role: str
     permissions: frozenset[str]
+    paired_device_id: str | None = None
+    grant_id: str | None = None
+    desktop_id: str | None = None
+    grant_version: int | None = None
+    scopes: frozenset[str] = frozenset()
+    strong_auth_at: str | None = None
+
+    @property
+    def paired(self) -> bool:
+        return self.paired_device_id is not None
 
 
 def issue_access_token(
@@ -138,59 +148,26 @@ def _bearer_token_from_request() -> str:
     return parts[1].strip()
 
 
-def authenticate_request(
-    services: MobileApiServices, *, allow_revoked_session: bool = False
+def _load_principal_for_session(
+    services: MobileApiServices,
+    *,
+    user_id: str,
+    session_id: str,
+    allow_revoked_session: bool = False,
+    touch: bool = True,
 ) -> MobilePrincipal:
-    """Authenticate the current Flask request and return its principal.
+    """Resolve identity and current grant state from server-side storage."""
+    from rex.mobile_api.authorization import (  # noqa: PLC0415
+        GrantAuthorizationError,
+        resolve_session_grant,
+    )
 
-    ``allow_revoked_session`` exists solely so ``POST /mobile/auth/logout``
-    can be idempotent: every JWT check (algorithm, signature, issuer,
-    audience, required claims, nbf, exp), the canonical ``sub`` validation,
-    session existence/ownership, and user status still apply — only the
-    already-revoked-session rejection is skipped, and the session is never
-    reactivated or modified. Every other endpoint must use the default.
-
-    Raises:
-        MobileApiError: On any validation failure (fails closed).
-    """
-    token = _bearer_token_from_request()
-    return authenticate_token(services, token, allow_revoked_session=allow_revoked_session)
-
-
-def authenticate_token(
-    services: MobileApiServices, token: str, *, allow_revoked_session: bool = False
-) -> MobilePrincipal:
-    """Validate an access token and return the request principal.
-
-    Shared by the HTTP Bearer path and the WebSocket first-frame ``auth``
-    path so both transports apply identical validation: signature/algorithm,
-    issuer, audience, time claims, required claims, canonical ``sub``
-    (before any private lookup), session existence/ownership/status, and
-    user existence/active status.  Fails closed on any mismatch.
-
-    Raises:
-        MobileApiError: On any validation failure.
-    """
-    claims = decode_access_token(token, services.jwt_secret)
-
-    # Canonical identity validation BEFORE any private lookup.
-    try:
-        user_id = validate_user_id(str(claims["sub"]))
-    except ValueError as exc:
-        raise MobileApiError(merr.AUTH_TOKEN_INVALID, "Invalid access token.", 401) from exc
-
-    session_id = str(claims["sid"])
     store = services.session_store
     session = store.get_session(session_id)
     if session is None:
         raise MobileApiError(merr.AUTH_TOKEN_INVALID, "Invalid access token.", 401)
     if session["user_id"] != user_id:
-        # Token subject does not own this session; audit with safe IDs only.
-        logger.warning(
-            "Mobile session/subject mismatch: session=%s jti=%s",
-            session_id,
-            claims.get("jti"),
-        )
+        logger.warning("Mobile session/subject mismatch: session=%s", session_id)
         raise MobileApiError(merr.AUTH_TOKEN_INVALID, "Invalid access token.", 401)
     session_revoked = session["revoked_at"] is not None
     if session_revoked and not allow_revoked_session:
@@ -199,10 +176,20 @@ def authenticate_token(
         raise MobileApiError(merr.AUTH_SESSION_REVOKED, "Session has expired.", 401)
 
     conn = connect(services.db_path)
+    grant = None
+    grant_invalid = False
     try:
         user = musers.get_user(conn, user_id)
+        if not session_revoked:
+            try:
+                grant = resolve_session_grant(conn, session, now=store.now())
+            except GrantAuthorizationError:
+                grant_invalid = True
     finally:
         conn.close()
+    if grant_invalid:
+        store.revoke_session(session_id, "device_grant_invalid")
+        raise MobileApiError(merr.AUTH_SESSION_REVOKED, "Session is no longer valid.", 401)
     if user is None or not musers.is_user_active(user):
         raise MobileApiError(merr.AUTH_SESSION_REVOKED, "Session is no longer valid.", 401)
 
@@ -213,9 +200,9 @@ def authenticate_token(
     if profile and isinstance(profile.get("name"), str) and profile["name"].strip():
         display_name = profile["name"].strip()
 
-    # Never modify an already-revoked session (logout-only path).
-    if not session_revoked:
+    if touch and not session_revoked:
         store.touch_session(session_id)
+    scopes = frozenset(grant.scopes) if grant is not None else frozenset()
     return MobilePrincipal(
         user_id=user_id,
         session_id=session_id,
@@ -223,15 +210,119 @@ def authenticate_token(
         display_name=display_name,
         role=musers.role_projection(permissions),
         permissions=permissions,
+        paired_device_id=grant.device_id if grant is not None else None,
+        grant_id=grant.grant_id if grant is not None else None,
+        desktop_id=grant.desktop_id if grant is not None else None,
+        grant_version=grant.version if grant is not None else None,
+        scopes=scopes,
+        strong_auth_at=str(session["strong_auth_at"]) if session["strong_auth_at"] else None,
     )
 
 
-def require_mobile_auth(view: Any = None, *, allow_revoked_session: bool = False) -> Any:
-    """Decorator: authenticate the request and attach ``g.mobile_principal``.
+def _require_scope(principal: MobilePrincipal, required_scope: str | None) -> None:
+    if required_scope is None:
+        return
+    from rex.mobile_api.authorization import (  # noqa: PLC0415
+        GrantAuthorizationError,
+        require_scope,
+    )
 
-    ``allow_revoked_session=True`` is reserved for the idempotent logout
-    endpoint only (see :func:`authenticate_request`).
-    """
+    try:
+        require_scope(
+            principal.scopes,
+            required_scope,
+            permissions=principal.permissions,
+        )
+    except GrantAuthorizationError as exc:
+        raise MobileApiError(
+            merr.FORBIDDEN,
+            "This user and paired device are not authorized for the requested capability.",
+            403,
+        ) from exc
+
+
+def authenticate_request(
+    services: MobileApiServices,
+    *,
+    allow_revoked_session: bool = False,
+    required_scope: str | None = None,
+) -> MobilePrincipal:
+    """Authenticate the current Flask request and return its live principal."""
+    token = _bearer_token_from_request()
+    return authenticate_token(
+        services,
+        token,
+        allow_revoked_session=allow_revoked_session,
+        required_scope=required_scope,
+    )
+
+
+def authenticate_token(
+    services: MobileApiServices,
+    token: str,
+    *,
+    allow_revoked_session: bool = False,
+    required_scope: str | None = None,
+) -> MobilePrincipal:
+    """Validate a JWT and resolve current user/session/device/grant state."""
+    claims = decode_access_token(token, services.jwt_secret)
+    try:
+        user_id = validate_user_id(str(claims["sub"]))
+    except ValueError as exc:
+        raise MobileApiError(merr.AUTH_TOKEN_INVALID, "Invalid access token.", 401) from exc
+    principal = _load_principal_for_session(
+        services,
+        user_id=user_id,
+        session_id=str(claims["sid"]),
+        allow_revoked_session=allow_revoked_session,
+    )
+    _require_scope(principal, required_scope)
+    return principal
+
+
+def revalidate_principal(
+    services: MobileApiServices,
+    principal: MobilePrincipal,
+    *,
+    required_scope: str | None = None,
+    touch: bool = False,
+) -> MobilePrincipal:
+    """Revalidate a long-lived SSE/WebSocket principal against current state."""
+    current = _load_principal_for_session(
+        services,
+        user_id=principal.user_id,
+        session_id=principal.session_id,
+        touch=touch,
+    )
+    original_binding = (
+        principal.paired_device_id,
+        principal.grant_id,
+        principal.desktop_id,
+        principal.grant_version,
+    )
+    current_binding = (
+        current.paired_device_id,
+        current.grant_id,
+        current.desktop_id,
+        current.grant_version,
+    )
+    if original_binding != current_binding:
+        services.session_store.revoke_session(principal.session_id, "device_grant_changed")
+        raise MobileApiError(merr.AUTH_SESSION_REVOKED, "Session is no longer valid.", 401)
+    if current.permissions != principal.permissions:
+        services.session_store.revoke_session(principal.session_id, "user_permissions_changed")
+        raise MobileApiError(merr.AUTH_SESSION_REVOKED, "Session is no longer valid.", 401)
+    _require_scope(current, required_scope)
+    return current
+
+
+def require_mobile_auth(
+    view: Any = None,
+    *,
+    allow_revoked_session: bool = False,
+    required_scope: str | None = None,
+) -> Any:
+    """Decorator: authenticate and attach ``g.mobile_principal``."""
 
     def decorate(fn: Any) -> Any:
         @wraps(fn)
@@ -240,7 +331,9 @@ def require_mobile_auth(view: Any = None, *, allow_revoked_session: bool = False
 
             services = current_app.extensions["mobile_api_services"]
             g.mobile_principal = authenticate_request(
-                services, allow_revoked_session=allow_revoked_session
+                services,
+                allow_revoked_session=allow_revoked_session,
+                required_scope=required_scope,
             )
             return fn(*args, **kwargs)
 
@@ -263,5 +356,6 @@ __all__ = [
     "decode_access_token",
     "issue_access_token",
     "load_jwt_secret",
+    "revalidate_principal",
     "require_mobile_auth",
 ]

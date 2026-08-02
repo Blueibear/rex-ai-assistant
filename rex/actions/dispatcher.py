@@ -170,8 +170,18 @@ class ActionDispatcher:
             )
         effective_user = validate_user_id(effective_user)
 
+        from rex.mobile_api.action_context import (  # noqa: PLC0415
+            mobile_action_context_active,
+            mobile_scope_granted,
+            run_in_executor_with_mobile_context,
+        )
+
         # 1. Skill training: intercept natural-language skill creation before LLM
-        if self._skill_trainer is not None and self._skill_registry is not None:
+        if (
+            self._skill_trainer is not None
+            and self._skill_registry is not None
+            and not mobile_action_context_active()
+        ):
             training_response = self._skill_trainer.handle_if_training_request(
                 transcript, self._skill_registry
             )
@@ -183,7 +193,7 @@ class ActionDispatcher:
                 )
 
         # 2. Skill invocation: check registered skill triggers before the LLM
-        if self._skill_router is not None:
+        if self._skill_router is not None and not mobile_action_context_active():
             matched_skill = self._skill_router.match(transcript)
             if matched_skill is not None:
                 skill_response = str(self._skill_router.execute(matched_skill, transcript))
@@ -194,7 +204,7 @@ class ActionDispatcher:
                 )
 
         # 3. Shopping list voice commands
-        if self._shopping_list_handler is not None:
+        if self._shopping_list_handler is not None and mobile_scope_granted("tasks.write"):
             _sl_response = self._shopping_list_handler.handle(transcript, user_id=effective_user)
             if _sl_response is not None:
                 return ActionResult(
@@ -204,7 +214,7 @@ class ActionDispatcher:
                 )
 
         # 4. Music Assistant voice commands
-        if self._music_handler is not None:
+        if self._music_handler is not None and mobile_scope_granted("home.control"):
             _music_response = self._music_handler.handle(transcript)
             if _music_response is not None:
                 return ActionResult(
@@ -214,7 +224,7 @@ class ActionDispatcher:
                 )
 
         # 5. Device state queries
-        if self._device_state_handler is not None:
+        if self._device_state_handler is not None and mobile_scope_granted("home.read"):
             _ds_response = self._device_state_handler.handle(transcript)
             if _ds_response is not None:
                 return ActionResult(
@@ -228,8 +238,8 @@ class ActionDispatcher:
         if self._tool_dispatcher is not None:
             _selected_tools = self._tool_dispatcher.select_tools(transcript)
             if _selected_tools:
-                _tool_results = await _loop.run_in_executor(
-                    None,
+                _tool_results = await run_in_executor_with_mobile_context(
+                    _loop,
                     functools.partial(
                         self._tool_dispatcher.execute_tools,
                         _selected_tools,
@@ -242,16 +252,20 @@ class ActionDispatcher:
         completion: str | None = None
 
         # 7. HA command routing (including undo and proactive suggestion injection)
-        if self._ha_bridge is not None and self._ha_bridge.enabled:
+        if (
+            self._ha_bridge is not None
+            and self._ha_bridge.enabled
+            and mobile_scope_granted("home.control")
+        ):
             if _UNDO_PATTERN.match(transcript):
-                completion = await _loop.run_in_executor(
-                    None,
+                completion = await run_in_executor_with_mobile_context(
+                    _loop,
                     self._ha_bridge.undo_last,
                 )
             else:
                 _hist_len_before = len(getattr(self._ha_bridge, "_command_history", None) or [])
-                completion = await _loop.run_in_executor(
-                    None,
+                completion = await run_in_executor_with_mobile_context(
+                    _loop,
                     self._ha_bridge.process_transcript,
                     transcript,
                 )
@@ -303,19 +317,19 @@ class ActionDispatcher:
             messages = ctx.messages
             prompt = ctx.prompt
             try:
-                completion = await _loop.run_in_executor(
-                    None,
+                completion = await run_in_executor_with_mobile_context(
+                    _loop,
                     lambda: self._llm.generate(messages=messages),
                 )
             except TypeError:
-                completion = await _loop.run_in_executor(
-                    None,
+                completion = await run_in_executor_with_mobile_context(
+                    _loop,
                     lambda: self._llm.generate(prompt),
                 )
 
             # 9. Post-process LLM output (TOOL_REQUEST resolution, OpenClaw bridge)
             plugin_enrichments: list[str] = []
-            if self._run_plugins_fn is not None:
+            if self._run_plugins_fn is not None and not mobile_action_context_active():
                 plugin_enrichments = await self._run_plugins_fn(transcript)
 
             tool_context_dict: dict = (

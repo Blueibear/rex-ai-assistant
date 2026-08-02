@@ -192,6 +192,10 @@ def execute_tool(
     if not isinstance(args, dict):
         return _error_result("Invalid tool arguments", tool=tool, args={})
 
+    from rex.mobile_api.action_context import authorize_mobile_action  # noqa: PLC0415
+
+    authorize_mobile_action(None, f"openclaw:{tool}")
+
     if skip_policy_check:
         skip_credential_check = True
 

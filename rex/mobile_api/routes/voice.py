@@ -32,7 +32,8 @@ from typing import Any
 from flask import Blueprint, g, jsonify, request
 
 from rex.mobile_api import errors as merr
-from rex.mobile_api.auth import require_mobile_auth
+from rex.mobile_api.auth import require_mobile_auth, revalidate_principal
+from rex.mobile_api.authorization import ROUTE_SCOPES
 from rex.mobile_api.chat import STATUS_COMPLETED
 from rex.mobile_api.errors import MobileApiError
 from rex.mobile_api.services import MobileApiServices
@@ -131,6 +132,11 @@ def _handle_voice_upload(services: MobileApiServices) -> Any:
         cfg.max_audio_bytes + 128 * 1024
     ):
         raise MobileApiError(merr.PAYLOAD_TOO_LARGE, "The upload is too large.", 413)
+    revalidate_principal(
+        services,
+        g.mobile_principal,
+        required_scope=ROUTE_SCOPES["voice.upload"],
+    )
     services.stt.require_available()
     data = _validate_upload_form()
     if not data:
@@ -140,8 +146,31 @@ def _handle_voice_upload(services: MobileApiServices) -> Any:
     transcript = _decode_upload(services, data)
     if not transcript:
         raise MobileApiError(merr.INVALID_MEDIA, "No speech was recognized in the audio.", 415)
+    revalidate_principal(
+        services,
+        g.mobile_principal,
+        required_scope=ROUTE_SCOPES["voice.upload"],
+    )
+
+    def authorization_check() -> None:
+        revalidate_principal(
+            services,
+            g.mobile_principal,
+            required_scope=ROUTE_SCOPES["voice.upload"],
+        )
+
     response_text = services.chat_service.generate(
-        transcript, user_id=g.mobile_principal.user_id, voice_mode=True
+        transcript,
+        user_id=g.mobile_principal.user_id,
+        voice_mode=True,
+        capability_scopes=g.mobile_principal.scopes,
+        capability_permissions=g.mobile_principal.permissions,
+        authorization_check=authorization_check,
+    )
+    revalidate_principal(
+        services,
+        g.mobile_principal,
+        required_scope=ROUTE_SCOPES["voice.upload"],
     )
     body: dict[str, Any] = {
         "request_id": getattr(g, "request_id", None),
@@ -171,9 +200,19 @@ def _handle_tts_playback(services: MobileApiServices) -> Any:
     voice = payload.get("voice")
     if voice is not None and not isinstance(voice, str):
         raise MobileApiError(merr.BAD_REQUEST, "Field 'voice' must be a string.", 400)
+    revalidate_principal(
+        services,
+        g.mobile_principal,
+        required_scope=ROUTE_SCOPES["tts.playback"],
+    )
     services.tts.require_available()
     voice_id = services.tts.resolve_voice(voice)
     audio_bytes = services.tts.synthesize(text, voice_id)
+    revalidate_principal(
+        services,
+        g.mobile_principal,
+        required_scope=ROUTE_SCOPES["tts.playback"],
+    )
     return (
         jsonify(
             {
@@ -193,13 +232,13 @@ def build_voice_blueprint(services: MobileApiServices, limiter: Any) -> Blueprin
 
     @bp.post("/voice/upload")
     @limiter.limit(services.config.rate_limit_voice)
-    @require_mobile_auth
+    @require_mobile_auth(required_scope=ROUTE_SCOPES["voice.upload"])
     def voice_upload() -> Any:
         return _handle_voice_upload(services)
 
     @bp.post("/tts/playback")
     @limiter.limit(services.config.rate_limit_voice)
-    @require_mobile_auth
+    @require_mobile_auth(required_scope=ROUTE_SCOPES["tts.playback"])
     def tts_playback() -> Any:
         return _handle_tts_playback(services)
 

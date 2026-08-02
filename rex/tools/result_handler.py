@@ -119,9 +119,13 @@ class ToolResultHandler:
             Cleaned, safe user-facing completion string.
         """
         loop = asyncio.get_running_loop()
+        from rex.mobile_api.action_context import (  # noqa: PLC0415
+            mobile_scope_granted,
+            run_in_executor_with_mobile_context,
+        )
 
-        completion = await loop.run_in_executor(
-            None,
+        completion = await run_in_executor_with_mobile_context(
+            loop,
             self._tool_router_fn,
             completion,
             tool_context,
@@ -131,16 +135,20 @@ class ToolResultHandler:
         if plugin_enrichments:
             completion = f"{completion}\n\nAdditional info:\n" + "\n".join(plugin_enrichments)
 
-        if self._ha_bridge is not None and self._ha_bridge.enabled:
-            completion = await loop.run_in_executor(
-                None,
+        if (
+            self._ha_bridge is not None
+            and self._ha_bridge.enabled
+            and mobile_scope_granted("home.control")
+        ):
+            completion = await run_in_executor_with_mobile_context(
+                loop,
                 self._ha_bridge.post_process_response,
                 completion,
             )
 
         if self._contains_internal_tool_syntax(completion):
-            completion = await loop.run_in_executor(
-                None,
+            completion = await run_in_executor_with_mobile_context(
+                loop,
                 self._sanitize_internal_tool_output,
                 transcript,
                 completion,

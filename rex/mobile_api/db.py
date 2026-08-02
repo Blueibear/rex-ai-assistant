@@ -88,6 +88,11 @@ def migrate_users_db(db_path: Path | str) -> None:
                 device_name TEXT NOT NULL DEFAULT '',
                 platform TEXT NOT NULL DEFAULT '',
                 app_version TEXT NOT NULL DEFAULT '',
+                paired_device_id TEXT NULL,
+                grant_id TEXT NULL,
+                grant_version INTEGER NULL,
+                desktop_id TEXT NULL,
+                strong_auth_at TEXT NULL,
                 created_at TEXT NOT NULL,
                 last_seen_at TEXT NOT NULL,
                 expires_at TEXT NOT NULL,
@@ -96,9 +101,25 @@ def migrate_users_db(db_path: Path | str) -> None:
                 FOREIGN KEY (user_id) REFERENCES users(id)
             )
             """)
+        session_columns = _table_columns(conn, "mobile_sessions")
+        session_migrations = {
+            "paired_device_id": "TEXT NULL",
+            "grant_id": "TEXT NULL",
+            "grant_version": "INTEGER NULL",
+            "desktop_id": "TEXT NULL",
+            "strong_auth_at": "TEXT NULL",
+        }
+        for column, definition in session_migrations.items():
+            if column not in session_columns:
+                conn.execute(f"ALTER TABLE mobile_sessions ADD COLUMN {column} {definition}")
+                logger.info("users.db migration: added mobile_sessions.%s", column)
         conn.execute("""
             CREATE INDEX IF NOT EXISTS idx_mobile_sessions_user
             ON mobile_sessions(user_id, revoked_at)
+            """)
+        conn.execute("""
+            CREATE INDEX IF NOT EXISTS idx_mobile_sessions_grant
+            ON mobile_sessions(paired_device_id, grant_id, revoked_at)
             """)
         conn.execute("""
             CREATE TABLE IF NOT EXISTS mobile_refresh_tokens (
@@ -212,12 +233,43 @@ def migrate_users_db(db_path: Path | str) -> None:
                 scopes_json TEXT NOT NULL,
                 created_at TEXT NOT NULL,
                 expires_at TEXT NOT NULL,
+                last_strong_auth_at TEXT NULL,
                 revoked_at TEXT NULL,
                 revoke_reason TEXT NULL,
                 UNIQUE (device_id, version),
                 FOREIGN KEY (device_id) REFERENCES mobile_paired_devices(device_id),
                 FOREIGN KEY (user_id) REFERENCES users(id)
             )
+            """)
+        grant_columns = _table_columns(conn, "mobile_device_grants")
+        if "last_strong_auth_at" not in grant_columns:
+            conn.execute(
+                "ALTER TABLE mobile_device_grants ADD COLUMN last_strong_auth_at TEXT NULL"
+            )
+            logger.info("users.db migration: added mobile_device_grants.last_strong_auth_at")
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS mobile_device_session_challenges (
+                challenge_id TEXT PRIMARY KEY,
+                bootstrap_session_id TEXT NOT NULL,
+                user_id TEXT NOT NULL,
+                device_id TEXT NOT NULL,
+                grant_id TEXT NOT NULL,
+                grant_version INTEGER NOT NULL,
+                desktop_id TEXT NOT NULL,
+                nonce_b64 TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                expires_at TEXT NOT NULL,
+                used_at TEXT NULL,
+                replacement_session_id TEXT NULL,
+                FOREIGN KEY (bootstrap_session_id) REFERENCES mobile_sessions(session_id),
+                FOREIGN KEY (user_id) REFERENCES users(id),
+                FOREIGN KEY (device_id) REFERENCES mobile_paired_devices(device_id),
+                FOREIGN KEY (grant_id) REFERENCES mobile_device_grants(grant_id)
+            )
+            """)
+        conn.execute("""
+            CREATE INDEX IF NOT EXISTS idx_mobile_device_session_challenges_expiry
+            ON mobile_device_session_challenges(expires_at, used_at)
             """)
         conn.execute("""
             CREATE TABLE IF NOT EXISTS mobile_pairing_audit (

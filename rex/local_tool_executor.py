@@ -264,6 +264,22 @@ def execute_tool(tool_name: str, args: dict[str, Any] | None = None) -> str:
     if tool_name not in EXECUTABLE_TOOLS:
         raise UnknownToolError(tool_name)
 
+    from rex.mobile_api.action_context import authorize_mobile_tool  # noqa: PLC0415
+
+    authorize_mobile_tool(
+        tool_name,
+        operation=(
+            "mutation"
+            if tool_name
+            in {
+                "send_email",
+                "calendar_create_event",
+                "home_assistant_call_service",
+            }
+            else "read"
+        ),
+    )
+
     from rex.tools.execution import ToolExecutionLifecycle
     from rex.tools.registry import Tool
 

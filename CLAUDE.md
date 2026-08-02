@@ -617,5 +617,11 @@ The first two files are the product sources of truth. Other PRDs are supporting 
 - `rex/mobile_api/pairing.py`, `device_proof.py`, and `grants.py` implement the desktop-owned P-256 pairing authority.
 - Password login never creates a device grant. The mobile HTTP API exposes only proof submission and private-token status polling; challenge creation, approval, denial, listing, and revocation remain local Electron IPC operations through `bridge/rex_pairing_bridge.py`.
 - Challenges expire after 120 seconds and are single-use. Proof binds desktop ID, challenge/nonce, canonical public key, user, scopes, and one-time code.
-- Persisted grants are immutable/versioned, expiring, revocable, and audited. S6 must enforce them on every mobile action. S7 must enforce non-loopback TLS and certificate/public-key pinning before production LAN access.
-- See `docs/mobile/DEVICE_PAIRING.md` and `tests/mobile_api/test_pairing.py`.
+- Persisted grants are immutable/versioned, expiring, revocable, and audited.
+- S6 session enforcement lives in `rex/mobile_api/authorization.py`, `auth.py`, and `sessions.py`. Password login is bootstrap-only with zero scopes. Device activation requires a short-lived P-256 proof challenge and atomically replaces/revokes the bootstrap session family.
+- Never authorize from JWT/client-supplied scopes or device metadata. Every request/refresh must resolve the current device, latest grant version, desktop/user binding, scopes, expiry, and revocation from SQLite. Long-lived SSE/WS output must revalidate while streaming.
+- Mobile authorization is the intersection of the immutable device grant and live Rex user permissions. Home scopes require `ha_control` or `admin`; approval responses require `admin`. Permission metadata or capability tags must never widen authority.
+- Device revocation and grant supersession revoke all bound sessions and refresh families. Existing device keys cannot be reassigned across Rex users.
+- Pairing key possession is not strong authentication. Keep `strong_auth_at` null until S8 records a server-verified, challenge-bound assertion; never stamp it during pairing/session activation.
+- S7 must enforce non-loopback TLS and certificate/public-key pinning before production LAN access.
+- See `docs/mobile/DEVICE_PAIRING.md`, `tests/mobile_api/test_pairing.py`, and `tests/mobile_api/test_grant_enforcement.py`.
