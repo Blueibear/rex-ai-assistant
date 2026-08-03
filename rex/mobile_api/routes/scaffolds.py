@@ -21,7 +21,6 @@ from rex.mobile_api.services import MobileApiServices
 # streaming, voice, and TTS graduated to real routes in Session 2 and are
 # registered by their own blueprints.
 _SCAFFOLD_ROUTES: tuple[tuple[str, tuple[str, ...], str], ...] = (
-    ("home_entities", ("GET",), "/mobile/home/entities"),
     ("notifications", ("GET",), "/mobile/notifications"),
     ("approvals", ("GET",), "/mobile/approvals"),
     ("tasks", ("GET",), "/mobile/tasks"),
