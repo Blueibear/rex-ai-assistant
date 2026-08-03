@@ -35,6 +35,8 @@ AUTH_REFRESH_REUSED = "AUTH_REFRESH_REUSED"
 FORBIDDEN = "FORBIDDEN"
 PERMISSION_DENIED = "PERMISSION_DENIED"
 APPROVAL_REQUIRED = "APPROVAL_REQUIRED"
+STRONG_AUTH_REQUIRED = "STRONG_AUTH_REQUIRED"
+STRONG_AUTH_INVALID = "STRONG_AUTH_INVALID"
 PAIRING_INVALID = "PAIRING_INVALID"
 PAIRING_PENDING = "PAIRING_PENDING"
 NOT_FOUND = "NOT_FOUND"
@@ -84,12 +86,14 @@ class MobileApiError(Exception):
         http_status: int,
         *,
         retryable: bool = False,
+        details: dict[str, Any] | None = None,
     ) -> None:
         super().__init__(message)
         self.code = code
         self.message = message
         self.http_status = http_status
         self.retryable = retryable
+        self.details = details
 
 
 def _current_request_id() -> str | None:
@@ -104,19 +108,20 @@ def mobile_error_response(
     http_status: int,
     *,
     retryable: bool = False,
+    details: dict[str, Any] | None = None,
 ) -> tuple[Any, int]:
     """Return a Flask ``(response, status)`` tuple with the mobile envelope."""
     from flask import jsonify  # noqa: PLC0415
 
-    body: dict[str, Any] = {
-        "error": {
-            "code": code,
-            "message": message,
-            "retryable": retryable,
-            "request_id": _current_request_id(),
-        }
+    error: dict[str, Any] = {
+        "code": code,
+        "message": message,
+        "retryable": retryable,
+        "request_id": _current_request_id(),
     }
-    return jsonify(body), http_status
+    if details is not None:
+        error["details"] = details
+    return jsonify({"error": error}), http_status
 
 
 def install_mobile_error_handlers(app: Any) -> None:
@@ -130,7 +135,11 @@ def install_mobile_error_handlers(app: Any) -> None:
     @app.errorhandler(MobileApiError)
     def _handle_mobile_error(exc: MobileApiError) -> tuple[Any, int]:
         return mobile_error_response(
-            exc.code, exc.message, exc.http_status, retryable=exc.retryable
+            exc.code,
+            exc.message,
+            exc.http_status,
+            retryable=exc.retryable,
+            details=exc.details,
         )
 
     @app.errorhandler(HTTPException)
@@ -170,6 +179,8 @@ __all__ = [
     "PERMISSION_DENIED",
     "RATE_LIMITED",
     "REQUEST_IN_PROGRESS",
+    "STRONG_AUTH_INVALID",
+    "STRONG_AUTH_REQUIRED",
     "TLS_REQUIRED",
     "UNSUPPORTED_API_VERSION",
     "install_mobile_error_handlers",

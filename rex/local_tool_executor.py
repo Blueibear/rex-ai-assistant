@@ -264,22 +264,7 @@ def execute_tool(tool_name: str, args: dict[str, Any] | None = None) -> str:
     if tool_name not in EXECUTABLE_TOOLS:
         raise UnknownToolError(tool_name)
 
-    from rex.mobile_api.action_context import authorize_mobile_tool  # noqa: PLC0415
-
-    authorize_mobile_tool(
-        tool_name,
-        operation=(
-            "mutation"
-            if tool_name
-            in {
-                "send_email",
-                "calendar_create_event",
-                "home_assistant_call_service",
-            }
-            else "read"
-        ),
-    )
-
+    from rex.mobile_api.action_context import authorized_mobile_tool  # noqa: PLC0415
     from rex.tools.execution import ToolExecutionLifecycle
     from rex.tools.registry import Tool
 
@@ -313,7 +298,12 @@ def execute_tool(tool_name: str, args: dict[str, Any] | None = None) -> str:
         "user_id": supplied.get("_user_id") or supplied.get("user_id"),
         "request_id": supplied.get("_request_id"),
     }
-    result = ToolExecutionLifecycle().execute(tool, supplied, context)
+    with authorized_mobile_tool(
+        tool_name,
+        operation="mutation" if mutation else "read",
+        arguments=supplied,
+    ):
+        result = ToolExecutionLifecycle().execute(tool, supplied, context)
     if mutation:
         rendered = str(result.detail or result.error)
         if result.status == "denied" and tool_name in {"send_email", "calendar_create_event"}:

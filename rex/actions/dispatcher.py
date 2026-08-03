@@ -237,6 +237,13 @@ class ActionDispatcher:
         _tool_context: str | None = None
         if self._tool_dispatcher is not None:
             _selected_tools = self._tool_dispatcher.select_tools(transcript)
+            if mobile_action_context_active():
+                # Pre-LLM dispatch has only free-form transcript text. Mobile
+                # mutations must wait for a canonical structured tool call so
+                # S8 can bind the exact action hash before execution.
+                _selected_tools = [
+                    tool for tool in _selected_tools if getattr(tool, "operation", "read") == "read"
+                ]
             if _selected_tools:
                 _tool_results = await run_in_executor_with_mobile_context(
                     _loop,
@@ -255,6 +262,7 @@ class ActionDispatcher:
         if (
             self._ha_bridge is not None
             and self._ha_bridge.enabled
+            and not mobile_action_context_active()
             and mobile_scope_granted("home.control")
         ):
             if _UNDO_PATTERN.match(transcript):

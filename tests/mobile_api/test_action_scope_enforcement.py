@@ -9,8 +9,11 @@ import pytest
 
 from rex.mobile_api.action_context import (
     MobileActionDeniedError,
+    MobileStrongAuthRequiredError,
+    authorized_mobile_tool,
     mobile_action_context,
 )
+from rex.mobile_api.strong_auth import StrongAuthError
 from rex.tools.dispatcher import ToolDispatcher
 from rex.tools.registry import Tool, ToolRegistry
 from tests.test_us016_action_dispatcher import (
@@ -56,13 +59,36 @@ def test_tool_dispatcher_denies_home_mutation_without_home_scope() -> None:
 
 
 def test_action_dispatcher_propagates_mobile_context_into_executor_thread() -> None:
-    tool, handler = _tool("home_assistant_call_service", ["smart_home"], "mutation")
+    tool, handler = _tool("weather_now", ["weather"], "read")
     registry = ToolRegistry()
     registry.register(tool)
     dispatcher = _make_dispatcher(tool_dispatcher=ToolDispatcher(registry))
-    with mobile_action_context(frozenset({"chat.send"})):
+    with mobile_action_context(frozenset()):
         with pytest.raises(MobileActionDeniedError):
             asyncio.run(
+                dispatcher.dispatch(
+                    _unhandled_intent(),
+                    _make_context(),
+                    "what is the weather",
+                    user_id="default",
+                )
+            )
+    handler.assert_not_called()
+
+
+def test_free_form_ha_bridge_is_desktop_only_even_with_home_scope() -> None:
+    ha = MagicMock()
+    ha.enabled = True
+    ha.process_transcript.return_value = "Lights changed."
+    ha._command_history = None
+    dispatcher = _make_dispatcher(ha_bridge=ha)
+
+    for scopes, permissions in (
+        (frozenset({"chat.send"}), frozenset()),
+        (frozenset({"chat.send", "home.control"}), frozenset({"ha_control"})),
+    ):
+        with mobile_action_context(scopes, permissions=permissions):
+            result = asyncio.run(
                 dispatcher.dispatch(
                     _unhandled_intent(),
                     _make_context(),
@@ -70,42 +96,9 @@ def test_action_dispatcher_propagates_mobile_context_into_executor_thread() -> N
                     user_id="default",
                 )
             )
-    handler.assert_not_called()
+        assert result.response == "LLM reply"
 
-
-def test_direct_ha_bridge_runs_only_with_home_control() -> None:
-    ha = MagicMock()
-    ha.enabled = True
-    ha.process_transcript.return_value = "Lights changed."
-    ha._command_history = None
-    dispatcher = _make_dispatcher(ha_bridge=ha)
-
-    with mobile_action_context(frozenset({"chat.send"})):
-        denied_result = asyncio.run(
-            dispatcher.dispatch(
-                _unhandled_intent(),
-                _make_context(),
-                "turn on the lights",
-                user_id="default",
-            )
-        )
-    assert denied_result.response == "LLM reply"
     ha.process_transcript.assert_not_called()
-
-    with mobile_action_context(
-        frozenset({"chat.send", "home.control"}),
-        permissions=frozenset({"ha_control"}),
-    ):
-        allowed_result = asyncio.run(
-            dispatcher.dispatch(
-                _unhandled_intent(),
-                _make_context(),
-                "turn on the lights",
-                user_id="default",
-            )
-        )
-    assert allowed_result.response == "Lights changed."
-    ha.process_transcript.assert_called_once_with("turn on the lights")
 
 
 def test_live_revalidation_runs_before_lower_action() -> None:
@@ -136,7 +129,7 @@ def test_unmapped_local_tool_is_denied_for_mobile() -> None:
             )
 
 
-def test_ha_response_post_processing_requires_home_control_scope() -> None:
+def test_free_form_ha_response_post_processing_is_desktop_only() -> None:
     from rex.tools.result_handler import ToolResultHandler
 
     ha = MagicMock()
@@ -170,8 +163,8 @@ def test_ha_response_post_processing_requires_home_control_scope() -> None:
                 plugin_enrichments=[],
             )
         )
-    assert allowed == "Lights changed."
-    ha.post_process_response.assert_called_once()
+    assert allowed == "[[ha:light.turn_on entity_id=light.office]]"
+    ha.post_process_response.assert_not_called()
 
 
 def test_tool_name_fragment_cannot_invent_task_scope() -> None:
@@ -226,9 +219,129 @@ def test_home_scope_alone_cannot_bypass_live_user_permission() -> None:
             ToolDispatcher(registry).dispatch("home_assistant_call_service", {}, {})
     handler.assert_not_called()
 
-    with mobile_action_context(frozenset({"home.control"}), permissions=frozenset({"admin"})):
+    with mobile_action_context(
+        frozenset({"home.control"}),
+        permissions=frozenset({"admin"}),
+    ):
+        with pytest.raises(MobileStrongAuthRequiredError):
+            ToolDispatcher(registry).dispatch(
+                "home_assistant_call_service",
+                {"domain": "light", "service": "turn_off", "entity_id": "light.office"},
+                {"user_id": "default"},
+            )
+    handler.assert_not_called()
+
+
+def test_exact_strong_auth_approval_reaches_dispatch_boundary_once() -> None:
+    tool, handler = _tool("home_assistant_call_service", ["smart_home"], "mutation")
+    registry = ToolRegistry()
+    registry.register(tool)
+    authority = MagicMock()
+    principal = object()
+    args = {
+        "domain": "light",
+        "service": "turn_off",
+        "entity_id": "light.office",
+    }
+
+    with mobile_action_context(
+        frozenset({"home.control"}),
+        permissions=frozenset({"admin"}),
+        strong_auth_authority=authority,
+        strong_auth_principal=principal,
+        strong_auth_approval_id="approval-123",
+    ):
         result = ToolDispatcher(registry).dispatch(
-            "home_assistant_call_service", {}, {"user_id": "default"}
+            "home_assistant_call_service",
+            args,
+            {"user_id": "default"},
         )
+
+    authority.consume_approval.assert_called_once_with(
+        principal,
+        approval_id="approval-123",
+        action_name="home_assistant_call_service",
+        payload=args,
+    )
     assert result.status == "attempted_unverified"
     handler.assert_called_once()
+
+
+def test_one_approval_cannot_execute_same_privileged_action_twice() -> None:
+    tool, handler = _tool("home_assistant_call_service", ["smart_home"], "mutation")
+    registry = ToolRegistry()
+    registry.register(tool)
+    authority = MagicMock()
+    authority.consume_approval.side_effect = [None, StrongAuthError("approval_replayed", "used")]
+    args = {"domain": "light", "service": "turn_off", "entity_id": "light.office"}
+
+    with mobile_action_context(
+        frozenset({"home.control"}),
+        permissions=frozenset({"admin"}),
+        strong_auth_authority=authority,
+        strong_auth_principal=object(),
+        strong_auth_approval_id="approval-123",
+    ):
+        first = ToolDispatcher(registry).dispatch(
+            "home_assistant_call_service", args, {"user_id": "default"}
+        )
+        with pytest.raises(MobileStrongAuthRequiredError):
+            ToolDispatcher(registry).dispatch(
+                "home_assistant_call_service", args, {"user_id": "default"}
+            )
+
+    assert first.status == "attempted_unverified"
+    assert authority.consume_approval.call_count == 2
+    handler.assert_called_once()
+
+
+def test_nested_authorization_layers_consume_one_approval_for_one_execution() -> None:
+    tool, handler = _tool("home_assistant_call_service", ["smart_home"], "mutation")
+    registry = ToolRegistry()
+    registry.register(tool)
+    authority = MagicMock()
+    principal = object()
+    args = {"domain": "light", "service": "turn_off", "entity_id": "light.office"}
+
+    with mobile_action_context(
+        frozenset({"home.control"}),
+        permissions=frozenset({"admin"}),
+        strong_auth_authority=authority,
+        strong_auth_principal=principal,
+        strong_auth_approval_id="approval-123",
+    ):
+        with authorized_mobile_tool(
+            "home_assistant_call_service",
+            operation="mutation",
+            arguments=args,
+        ):
+            result = ToolDispatcher(registry).dispatch(
+                "home_assistant_call_service", args, {"user_id": "default"}
+            )
+
+    authority.consume_approval.assert_called_once()
+    assert result.status == "attempted_unverified"
+    handler.assert_called_once()
+
+
+def test_mobile_pre_llm_dispatch_skips_mutations_without_structured_arguments() -> None:
+    tool, handler = _tool("home_assistant_call_service", ["smart_home"], "mutation")
+    registry = ToolRegistry()
+    registry.register(tool)
+    dispatcher = _make_dispatcher(tool_dispatcher=ToolDispatcher(registry))
+
+    with mobile_action_context(
+        frozenset({"chat.send", "home.control"}),
+        permissions=frozenset({"admin"}),
+    ):
+        result = asyncio.run(
+            dispatcher.dispatch(
+                _unhandled_intent(),
+                _make_context(),
+                "turn off the office light",
+                user_id="default",
+            )
+        )
+
+    assert result.response == "LLM reply"
+    handler.assert_not_called()

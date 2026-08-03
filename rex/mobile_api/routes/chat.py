@@ -137,6 +137,9 @@ def build_chat_blueprint(services: MobileApiServices, limiter: Any) -> Blueprint
                 capability_scopes=principal.scopes,
                 capability_permissions=principal.permissions,
                 authorization_check=authorization_check,
+                strong_auth_authority=services.strong_auth_authority,
+                strong_auth_principal=principal,
+                strong_auth_approval_id=chat_request.strong_auth_approval_id,
             )
             revalidate_principal(
                 services,
@@ -222,6 +225,9 @@ def build_chat_blueprint(services: MobileApiServices, limiter: Any) -> Blueprint
                             capability_scopes=principal.scopes,
                             capability_permissions=principal.permissions,
                             authorization_check=authorization_check,
+                            strong_auth_authority=services.strong_auth_authority,
+                            strong_auth_principal=principal,
+                            strong_auth_approval_id=chat_request.strong_auth_approval_id,
                         )
                     )
                     while True:
@@ -251,6 +257,7 @@ def build_chat_blueprint(services: MobileApiServices, limiter: Any) -> Blueprint
                             message_id=message_id,
                             retryable=exc.retryable,
                             request_id=request_id,
+                            details=exc.details,
                         )
                     )
                     return

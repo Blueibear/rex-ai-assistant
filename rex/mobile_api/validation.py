@@ -43,6 +43,7 @@ _ALLOWED_CHAT_FIELDS = {
     "message",
     "mode",
     "client_context",
+    "strong_auth_approval_id",
 }
 
 
@@ -185,6 +186,7 @@ class ChatRequest:
     message: str
     mode: str = _CHAT_MODE
     client_context: dict[str, str] = field(default_factory=dict)
+    strong_auth_approval_id: str | None = None
 
     def semantic_fields(self) -> dict[str, Any]:
         """Return the semantic execution fields used for the request hash."""
@@ -195,6 +197,7 @@ class ChatRequest:
             "message": self.message,
             "mode": self.mode,
             "client_context": self.client_context,
+            "strong_auth_approval_id": self.strong_auth_approval_id,
         }
 
 
@@ -272,6 +275,16 @@ def parse_chat_payload(payload: dict[str, Any]) -> ChatRequest:
     if mode != _CHAT_MODE:
         raise MobileApiError(merr.BAD_REQUEST, f"Field 'mode' must be '{_CHAT_MODE}'.", 400)
 
+    approval_id = payload.get("strong_auth_approval_id")
+    if approval_id is not None:
+        if not isinstance(approval_id, str) or not approval_id.strip() or len(approval_id) > 128:
+            raise MobileApiError(
+                merr.BAD_REQUEST,
+                "Field 'strong_auth_approval_id' is invalid.",
+                400,
+            )
+        approval_id = approval_id.strip()
+
     return ChatRequest(
         message_id=_require_uuid_field(payload, "message_id"),
         conversation_id=_require_uuid_field(payload, "conversation_id"),
@@ -279,6 +292,7 @@ def parse_chat_payload(payload: dict[str, Any]) -> ChatRequest:
         message=message.strip(),
         mode=mode,
         client_context=_parse_client_context(payload),
+        strong_auth_approval_id=approval_id,
     )
 
 

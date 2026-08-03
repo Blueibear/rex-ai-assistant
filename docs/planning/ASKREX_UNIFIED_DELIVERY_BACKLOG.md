@@ -131,11 +131,12 @@ Priority key: **P0** release blocker / security-critical, **P1** required for sh
 - **External dependency:** physical LAN/WAN validation with a real phone is out of scope for this repo-only cycle
 
 **S8 — Make high-risk mobile actions server-denied until a bound strong-auth assertion is verified** (P0)
-- Files/areas: mobile `hooks/useBiometric.ts:61-123`, `services/biometricService.ts:65-85`, `constants/config.ts:44-49`; `rex/mobile_api/routes/scaffolds.py:26-31` (approvals endpoint)
+- Status (2026-08-02): desktop/server implementation complete on `lead/desktop-s8-strong-auth`; full CI/merge verification pending. Mobile Face ID/passcode orchestration and physical-iPhone validation remain external follow-up gates.
+- Files/areas: `rex/mobile_api/strong_auth.py`, `routes/strong_auth.py`, `routes/home.py`, `action_context.py`; mobile `hooks/useBiometric.ts`, `services/biometricService.ts`, and native device-key bridge
 - Evidence/root cause: F-13 — client-side checks fail open on unavailable hardware or disabled settings; the server approvals endpoint is a 501 scaffold with no principal carrying a recent strong-auth assertion
 - Steps: (1) Implement a server-authoritative approval protocol: challenge-bound, short-lived assertion tied to action hash, device grant, user, expiry, and one-time nonce. (2) Assign risk classification server-side, not client-side. (3) Fail closed on unavailable/cancel/error/timeout.
-- Tests: new `tests/mobile_api/test_approvals.py`; existing `tests/mobile_api/test_pairing.py`
-- Validation commands: `py -3.11 -m pytest -q tests/mobile_api/test_approvals.py tests/mobile_api/test_pairing.py`; mobile `npm.cmd test`
+- Tests: `tests/mobile_api/test_strong_auth.py`, `test_strong_auth_routes.py`, `test_home_strong_auth.py`, `test_chat_strong_auth.py`, and pairing/grant suites
+- Validation commands: `py -3.11 -m pytest -q tests/mobile_api`; mobile `npm test`, typecheck, lint, and physical-device security matrix
 - DoD: no high/critical mobile action executes without a verified server-side assertion bound to the specific action and device grant
 - **External dependency:** physical Face ID/passcode hardware test matrix
 
@@ -389,7 +390,7 @@ These five stories require no external credentials, hardware, or account provisi
 4. **S12** — Build one typed capability manifest from the tool registry, IPC, and UI inventories
 5. **S14** — Fix default AI provider/model validation
 
-**Not selected for first cycle (external dependency, listed for tracking):** S1 (provider token revocation — needs account owner), S5–S8/S25/S27 (pairing + physical hardware/LAN), S31/S33 (code-signing certificates, Apple/Google developer accounts).
+**External validation still tracked:** S1 (provider token revocation — needs account owner), S5–S8 physical phone/LAN/Face ID validation, S25/S27 audio hardware, and S31/S33 code-signing or Apple/Google account dependencies. The repository implementation of S5–S8 may proceed and merge independently when its non-hardware gates pass.
 
 ## 6. External/hardware dependency ledger
 

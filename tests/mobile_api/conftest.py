@@ -117,6 +117,9 @@ class FakeChatService:
         capability_scopes=None,
         capability_permissions=None,
         authorization_check=None,
+        strong_auth_authority=None,
+        strong_auth_principal=None,
+        strong_auth_approval_id=None,
     ) -> str:
         if authorization_check is not None:
             authorization_check()
@@ -133,6 +136,9 @@ class FakeChatService:
         capability_scopes=None,
         capability_permissions=None,
         authorization_check=None,
+        strong_auth_authority=None,
+        strong_auth_principal=None,
+        strong_auth_approval_id=None,
     ):
         if authorization_check is not None:
             authorization_check()

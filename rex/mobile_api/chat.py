@@ -43,6 +43,33 @@ def _default_assistant_factory() -> Any:
     return Assistant()
 
 
+def _strong_auth_required(exc: Any) -> MobileApiError:
+    details = None
+    if exc.challenge is not None and exc.action_name is not None and exc.action is not None:
+        from rex.mobile_api.strong_auth import public_challenge_payload  # noqa: PLC0415
+
+        details = {
+            "strong_auth": {
+                "challenge": public_challenge_payload(exc.challenge),
+                "action": {
+                    "action_name": exc.action_name,
+                    "payload": exc.action,
+                },
+                "execute": {
+                    "method": "POST",
+                    "path": "/mobile/home/command",
+                    "approval_field": "strong_auth_approval_id",
+                },
+            }
+        }
+    return MobileApiError(
+        merr.STRONG_AUTH_REQUIRED,
+        "Strong authentication is required for the requested action.",
+        403,
+        details=details,
+    )
+
+
 def _backend_unavailable(exc: Exception) -> MobileApiError:
     # The client receives a generic truthful failure; details go to the
     # server log only (never a mock reply, never internal text on the wire).
@@ -129,10 +156,14 @@ class MobileChatService:
         capability_scopes: frozenset[str] | None = None,
         capability_permissions: frozenset[str] | None = None,
         authorization_check: Callable[[], None] | None = None,
+        strong_auth_authority: Any | None = None,
+        strong_auth_principal: Any | None = None,
+        strong_auth_approval_id: str | None = None,
     ) -> str:
         """Return one complete reply under the server-derived mobile grant."""
         from rex.mobile_api.action_context import (  # noqa: PLC0415
             MobileActionDeniedError,
+            MobileStrongAuthRequiredError,
             mobile_action_context,
         )
 
@@ -142,6 +173,9 @@ class MobileChatService:
                 capability_scopes or frozenset(),
                 permissions=capability_permissions or frozenset(),
                 revalidate=authorization_check,
+                strong_auth_authority=strong_auth_authority,
+                strong_auth_principal=strong_auth_principal,
+                strong_auth_approval_id=strong_auth_approval_id,
             ):
                 return str(
                     asyncio.run(
@@ -154,6 +188,8 @@ class MobileChatService:
                 )
         except MobileApiError:
             raise
+        except MobileStrongAuthRequiredError as exc:
+            raise _strong_auth_required(exc) from exc
         except MobileActionDeniedError as exc:
             raise MobileApiError(
                 "FORBIDDEN",
@@ -172,6 +208,9 @@ class MobileChatService:
         capability_scopes: frozenset[str] | None = None,
         capability_permissions: frozenset[str] | None = None,
         authorization_check: Callable[[], None] | None = None,
+        strong_auth_authority: Any | None = None,
+        strong_auth_principal: Any | None = None,
+        strong_auth_approval_id: str | None = None,
     ) -> Iterator[str]:
         """Yield reply chunks for ``user_id`` via ``Assistant.stream_reply()``.
 
@@ -182,6 +221,7 @@ class MobileChatService:
         """
         from rex.mobile_api.action_context import (  # noqa: PLC0415
             MobileActionDeniedError,
+            MobileStrongAuthRequiredError,
             mobile_action_context,
         )
 
@@ -193,6 +233,9 @@ class MobileChatService:
                 capability_scopes or frozenset(),
                 permissions=capability_permissions or frozenset(),
                 revalidate=authorization_check,
+                strong_auth_authority=strong_auth_authority,
+                strong_auth_principal=strong_auth_principal,
+                strong_auth_approval_id=strong_auth_approval_id,
             ):
                 agen = assistant.stream_reply(message, active_user_id=user_id)
                 while True:
@@ -202,6 +245,8 @@ class MobileChatService:
                         break
                     except MobileApiError:
                         raise
+                    except MobileStrongAuthRequiredError as exc:
+                        raise _strong_auth_required(exc) from exc
                     except MobileActionDeniedError as exc:
                         raise MobileApiError(
                             "FORBIDDEN",

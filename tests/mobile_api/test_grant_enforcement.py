@@ -285,6 +285,7 @@ def test_sse_stops_before_emitting_chunk_produced_after_revoke(client, services,
         capability_scopes: frozenset[str],
         capability_permissions: frozenset[str],
         authorization_check,
+        **_security_context,
     ):
         assert "chat.send" in capability_scopes
         assert capability_permissions == frozenset()
@@ -353,6 +354,7 @@ def test_websocket_stops_output_and_closes_after_midstream_revoke(
         capability_scopes: frozenset[str],
         capability_permissions: frozenset[str],
         authorization_check,
+        **_security_context,
     ):
         assert "chat.send" in capability_scopes
         assert capability_permissions == frozenset()

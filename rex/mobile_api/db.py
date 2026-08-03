@@ -334,6 +334,61 @@ def migrate_users_db(db_path: Path | str) -> None:
             ON mobile_device_session_challenges(expires_at, used_at)
             """)
         conn.execute("""
+            CREATE TABLE IF NOT EXISTS mobile_strong_auth_challenges (
+                challenge_id TEXT PRIMARY KEY,
+                approval_id TEXT UNIQUE NULL,
+                session_id TEXT NOT NULL,
+                user_id TEXT NOT NULL,
+                device_id TEXT NOT NULL,
+                grant_id TEXT NOT NULL,
+                grant_version INTEGER NOT NULL,
+                desktop_id TEXT NOT NULL,
+                action_name TEXT NOT NULL,
+                action_hash TEXT NOT NULL,
+                risk_level TEXT NOT NULL,
+                required_scope TEXT NOT NULL,
+                nonce_b64 TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                expires_at TEXT NOT NULL,
+                verified_at TEXT NULL,
+                approval_expires_at TEXT NULL,
+                consumed_at TEXT NULL,
+                FOREIGN KEY (session_id) REFERENCES mobile_sessions(session_id),
+                FOREIGN KEY (user_id) REFERENCES users(id),
+                FOREIGN KEY (device_id) REFERENCES mobile_paired_devices(device_id),
+                FOREIGN KEY (grant_id) REFERENCES mobile_device_grants(grant_id)
+            )
+            """)
+        conn.execute("""
+            CREATE INDEX IF NOT EXISTS idx_mobile_strong_auth_challenges_expiry
+            ON mobile_strong_auth_challenges(expires_at, approval_expires_at, consumed_at)
+            """)
+        conn.execute("""
+            CREATE INDEX IF NOT EXISTS idx_mobile_strong_auth_challenges_binding
+            ON mobile_strong_auth_challenges(session_id, device_id, grant_id, action_hash)
+            """)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS mobile_strong_auth_audit (
+                event_id TEXT PRIMARY KEY,
+                event_type TEXT NOT NULL,
+                challenge_id TEXT NULL,
+                approval_id TEXT NULL,
+                session_id TEXT NULL,
+                user_id TEXT NULL,
+                device_id TEXT NULL,
+                grant_id TEXT NULL,
+                action_name TEXT NULL,
+                action_hash TEXT NULL,
+                risk_level TEXT NULL,
+                reason TEXT NULL,
+                created_at TEXT NOT NULL
+            )
+            """)
+        conn.execute("""
+            CREATE INDEX IF NOT EXISTS idx_mobile_strong_auth_audit_created
+            ON mobile_strong_auth_audit(created_at, event_type)
+            """)
+        conn.execute("""
             CREATE TABLE IF NOT EXISTS mobile_pairing_audit (
                 event_id TEXT PRIMARY KEY,
                 event_type TEXT NOT NULL,

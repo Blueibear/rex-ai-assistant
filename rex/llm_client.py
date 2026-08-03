@@ -717,12 +717,12 @@ class LanguageModel:
 
         from rex.mobile_api.action_context import (  # noqa: PLC0415
             MobileActionDeniedError,
-            authorize_mobile_tool,
+            authorized_mobile_tool,
         )
 
-        authorize_mobile_tool(function_name)
         try:
-            result = self._tool_functions[function_name](**function_args)
+            with authorized_mobile_tool(function_name, arguments=function_args):
+                result = self._tool_functions[function_name](**function_args)
             return str(result) if result is not None else "No results found"
         except MobileActionDeniedError:
             raise
