@@ -12,6 +12,7 @@ from __future__ import annotations
 import base64
 import hashlib
 import json
+import logging
 import math
 import secrets
 import uuid
@@ -26,6 +27,8 @@ from rex.ha.mutation_service import HARisk, classify_ha_risk
 from rex.mobile_api.authorization import require_scope
 from rex.mobile_api.db import connect
 from rex.mobile_api.device_proof import ProofError, verify_proof
+
+logger = logging.getLogger(__name__)
 
 STRONG_AUTH_DOMAIN = b"AskRex-Strong-Auth-v1"
 STRONG_AUTH_TRANSCRIPT_TYPE = "askrex-strong-auth-proof"
@@ -286,6 +289,17 @@ def _parse_time(value: str) -> datetime:
 
 
 class StrongAuthAuthority:
+    @staticmethod
+    def _rollback(conn: Any, operation: str) -> None:
+        try:
+            conn.execute("ROLLBACK")
+        except Exception:
+            logger.warning(
+                "Strong-auth transaction rollback failed after %s.",
+                operation,
+                exc_info=True,
+            )
+
     def __init__(
         self,
         db_path: Path | str,
@@ -493,10 +507,7 @@ class StrongAuthAuthority:
             conn.execute("COMMIT")
             return challenge
         except StrongAuthError as exc:
-            try:
-                conn.execute("ROLLBACK")
-            except Exception:
-                pass
+            self._rollback(conn, "challenge denial")
             self._audit_denial(
                 "challenge_denied",
                 principal=principal,
@@ -508,10 +519,7 @@ class StrongAuthAuthority:
             )
             raise
         except BaseException:
-            try:
-                conn.execute("ROLLBACK")
-            except Exception:
-                pass
+            self._rollback(conn, "challenge failure")
             raise
         finally:
             conn.close()
@@ -644,10 +652,7 @@ class StrongAuthAuthority:
                 expires_at=approval_expires.isoformat(),
             )
         except StrongAuthError as exc:
-            try:
-                conn.execute("ROLLBACK")
-            except Exception:
-                pass
+            self._rollback(conn, "proof denial")
             self._audit_denial(
                 "proof_denied",
                 principal=principal,
@@ -664,10 +669,7 @@ class StrongAuthAuthority:
             )
             raise
         except BaseException:
-            try:
-                conn.execute("ROLLBACK")
-            except Exception:
-                pass
+            self._rollback(conn, "proof failure")
             raise
         finally:
             conn.close()
@@ -742,10 +744,7 @@ class StrongAuthAuthority:
                 expires_at=str(row["approval_expires_at"]),
             )
         except StrongAuthError as exc:
-            try:
-                conn.execute("ROLLBACK")
-            except Exception:
-                pass
+            self._rollback(conn, "approval denial")
             self._audit_denial(
                 "approval_denied",
                 principal=principal,
@@ -758,10 +757,7 @@ class StrongAuthAuthority:
             )
             raise
         except BaseException:
-            try:
-                conn.execute("ROLLBACK")
-            except Exception:
-                pass
+            self._rollback(conn, "approval failure")
             raise
         finally:
             conn.close()
