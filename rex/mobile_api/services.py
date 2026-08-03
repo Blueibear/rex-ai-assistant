@@ -23,6 +23,7 @@ from rex.mobile_api.db import default_users_db_path
 from rex.mobile_api.idempotency import MobileMessageStore
 from rex.mobile_api.pairing import PairingAuthority
 from rex.mobile_api.sessions import MobileSessionStore
+from rex.mobile_api.strong_auth import StrongAuthAuthority
 from rex.mobile_api.tls import (
     MobileTlsConfigurationError,
     TlsMaterial,
@@ -47,6 +48,7 @@ class MobileApiServices:
     session_store: MobileSessionStore
     message_store: MobileMessageStore
     pairing_authority: PairingAuthority
+    strong_auth_authority: StrongAuthAuthority
     chat_service: MobileChatService
     stt: SpeechToTextAdapter
     tts: TextToSpeechAdapter
@@ -129,6 +131,11 @@ class MobileApiServices:
                 transport_binding_provider=(
                     (lambda: transport_binding) if transport_binding is not None else None
                 ),
+            ),
+            strong_auth_authority=StrongAuthAuthority(
+                resolved_db_path,
+                clock=clock,
+                id_generator=id_generator,
             ),
             chat_service=chat_service or MobileChatService(),
             stt=stt or SpeechToTextAdapter(),

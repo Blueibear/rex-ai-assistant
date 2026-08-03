@@ -80,10 +80,21 @@ class TestFreshMigration:
             "mobile_paired_devices",
             "mobile_device_grants",
             "mobile_device_session_challenges",
+            "mobile_strong_auth_challenges",
+            "mobile_strong_auth_audit",
         } <= tables
         assert "disabled_at" in _user_columns(db_path)
         assert "last_strong_auth_at" in _table_columns(db_path, "mobile_device_grants")
-        assert "last_strong_auth_at" in _table_columns(db_path, "mobile_device_grants")
+        assert {
+            "action_hash",
+            "risk_level",
+            "approval_id",
+            "consumed_at",
+        } <= _table_columns(db_path, "mobile_strong_auth_challenges")
+        audit_columns = _table_columns(db_path, "mobile_strong_auth_audit")
+        assert {"action_hash", "event_type", "reason"} <= audit_columns
+        assert "payload" not in audit_columns
+        assert "signature" not in audit_columns
 
 
 class TestLegacyMigration:

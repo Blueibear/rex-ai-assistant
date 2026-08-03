@@ -1,5 +1,5 @@
 {
-  "contract_version": "2026-08-01.323.3",
+  "contract_version": "2026-08-02.323.4",
   "api_version": "1.0",
   "statuses": {
     "normal_chat": "completed",
@@ -150,6 +150,84 @@
         "notifications": false,
         "approvals": false,
         "home_assistant": false
+      }
+    },
+    "strong_auth": {
+      "challenge_path": "/mobile/auth/strong-auth/challenge",
+      "verify_path": "/mobile/auth/strong-auth/verify",
+      "home_command_path": "/mobile/home/command",
+      "action_name": "home_assistant_call_service",
+      "action": {
+        "domain": "light",
+        "service": "turn_off",
+        "entity_id": "light.downstairs",
+        "data": {
+          "transition": 1
+        }
+      },
+      "canonical_action": "{\"action_name\":\"home_assistant_call_service\",\"payload\":{\"data\":{\"transition\":1},\"domain\":\"light\",\"entity_id\":\"light.downstairs\",\"service\":\"turn_off\"}}",
+      "action_hash": "74f1dcb5d8db66a3c7a4fe41036a8844ad407e6dc2a32d1516d8a49d871e9453",
+      "challenge_request": {
+        "action_name": "home_assistant_call_service",
+        "action": {
+          "domain": "light",
+          "service": "turn_off",
+          "entity_id": "light.downstairs",
+          "data": {
+            "transition": 1
+          }
+        }
+      },
+      "challenge_response": {
+        "challenge_id": "6a4f98a0-1111-4111-8111-111111111111",
+        "action_name": "home_assistant_call_service",
+        "action_hash": "74f1dcb5d8db66a3c7a4fe41036a8844ad407e6dc2a32d1516d8a49d871e9453",
+        "risk_level": "high",
+        "required_scope": "home.control",
+        "nonce": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=",
+        "desktop_id": "desktop-askrex-vector",
+        "session_id": "0d9c3a52-6f4e-4e91-8b7c-2f81f3f0a222",
+        "user_id": "3d6f2c1e-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+        "device_id": "b6a7f7e4-0c3d-4c19-9d8b-3f45f4f0a111",
+        "grant_id": "4b8d7a11-2222-4222-8222-222222222222",
+        "grant_version": 1,
+        "expires_at": "2026-08-02T23:30:00+00:00",
+        "transcript_type": "askrex-strong-auth-proof",
+        "transcript_version": 1
+      },
+      "canonical_transcript": "AskRex-Strong-Auth-v1\n{\"action_hash\":\"74f1dcb5d8db66a3c7a4fe41036a8844ad407e6dc2a32d1516d8a49d871e9453\",\"action_name\":\"home_assistant_call_service\",\"challenge_id\":\"6a4f98a0-1111-4111-8111-111111111111\",\"desktop_id\":\"desktop-askrex-vector\",\"device_id\":\"b6a7f7e4-0c3d-4c19-9d8b-3f45f4f0a111\",\"expires_at\":\"2026-08-02T23:30:00+00:00\",\"grant_id\":\"4b8d7a11-2222-4222-8222-222222222222\",\"grant_version\":1,\"nonce\":\"AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=\",\"required_scope\":\"home.control\",\"risk_level\":\"high\",\"session_id\":\"0d9c3a52-6f4e-4e91-8b7c-2f81f3f0a222\",\"typ\":\"askrex-strong-auth-proof\",\"user_id\":\"3d6f2c1e-aaaa-4aaa-8aaa-aaaaaaaaaaaa\",\"v\":1}",
+      "transcript_sha256": "5508834e9dbf51a8e0e608a635a9f01eb7013f0d5b990bcac9c624c9b3183399",
+      "verify_request": {
+        "challenge_id": "6a4f98a0-1111-4111-8111-111111111111",
+        "signature": "<base64-der-ecdsa-signature>"
+      },
+      "verify_response": {
+        "approval_id": "8c6b77d2-3333-4333-8333-333333333333",
+        "action_name": "home_assistant_call_service",
+        "action_hash": "74f1dcb5d8db66a3c7a4fe41036a8844ad407e6dc2a32d1516d8a49d871e9453",
+        "risk_level": "high",
+        "expires_at": "2026-08-02T23:30:45+00:00",
+        "single_use": true
+      },
+      "home_command_request": {
+        "domain": "light",
+        "service": "turn_off",
+        "entity_id": "light.downstairs",
+        "data": {
+          "transition": 1
+        },
+        "strong_auth_approval_id": "8c6b77d2-3333-4333-8333-333333333333"
+      },
+      "home_command_response": {
+        "action_name": "home_assistant_call_service",
+        "action_hash": "74f1dcb5d8db66a3c7a4fe41036a8844ad407e6dc2a32d1516d8a49d871e9453",
+        "risk_level": "high",
+        "approval_consumed": true,
+        "result": {
+          "status": "verified",
+          "success": true,
+          "entity_id": "light.downstairs"
+        }
       }
     }
   },

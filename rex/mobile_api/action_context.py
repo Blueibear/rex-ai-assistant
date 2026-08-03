@@ -21,11 +21,39 @@ class MobileActionDeniedError(PermissionError):
     """A mobile device grant does not authorize an action."""
 
 
+class MobileStrongAuthRequiredError(MobileActionDeniedError):
+    """A privileged mobile action lacks a valid one-time S8 approval."""
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        challenge: Any | None = None,
+        action_name: str | None = None,
+        action: dict[str, Any] | None = None,
+    ) -> None:
+        super().__init__(message)
+        self.challenge = challenge
+        self.action_name = action_name
+        self.action = action
+
+
+@dataclass
+class MobileAuthorizationState:
+    """Per-request stack preventing duplicate consumption in nested layers."""
+
+    active_actions: list[tuple[str, str]]
+
+
 @dataclass(frozen=True)
 class MobileActionContext:
     scopes: frozenset[str]
     permissions: frozenset[str]
     revalidate: Callable[[], None] | None = None
+    strong_auth_authority: Any | None = None
+    strong_auth_principal: Any | None = None
+    strong_auth_approval_id: str | None = None
+    authorization_state: MobileAuthorizationState | None = None
 
 
 _CONTEXT: contextvars.ContextVar[MobileActionContext | None] = contextvars.ContextVar(
@@ -39,8 +67,21 @@ def mobile_action_context(
     *,
     permissions: frozenset[str] | set[str] | tuple[str, ...] | list[str] = frozenset(),
     revalidate: Callable[[], None] | None = None,
+    strong_auth_authority: Any | None = None,
+    strong_auth_principal: Any | None = None,
+    strong_auth_approval_id: str | None = None,
 ) -> Iterator[None]:
-    token = _CONTEXT.set(MobileActionContext(frozenset(scopes), frozenset(permissions), revalidate))
+    token = _CONTEXT.set(
+        MobileActionContext(
+            scopes=frozenset(scopes),
+            permissions=frozenset(permissions),
+            revalidate=revalidate,
+            strong_auth_authority=strong_auth_authority,
+            strong_auth_principal=strong_auth_principal,
+            strong_auth_approval_id=strong_auth_approval_id,
+            authorization_state=MobileAuthorizationState(active_actions=[]),
+        )
+    )
     try:
         yield
     finally:
@@ -142,12 +183,56 @@ def required_scope_for_tool(
     return None
 
 
-def authorize_mobile_tool(
+def _required_error(
+    context: MobileActionContext,
+    *,
+    action_name: str,
+    action_arguments: dict[str, Any],
+    message: str,
+) -> MobileStrongAuthRequiredError:
+    challenge = None
+    authority = context.strong_auth_authority
+    principal = context.strong_auth_principal
+    if authority is not None and principal is not None:
+        from rex.mobile_api.strong_auth import StrongAuthError  # noqa: PLC0415
+
+        try:
+            challenge = authority.create_challenge(
+                principal,
+                action_name=action_name,
+                payload=action_arguments,
+            )
+        except StrongAuthError as exc:
+            if exc.reason in {
+                "paired_session_required",
+                "scope_denied",
+                "binding_revoked",
+                "binding_changed",
+                "binding_expired",
+                "binding_invalid",
+            }:
+                raise MobileActionDeniedError(str(exc)) from exc
+    public_action = {
+        key: value
+        for key, value in action_arguments.items()
+        if key not in {"_user_id", "_request_id", "context", "strong_auth_approval_id"}
+    }
+    return MobileStrongAuthRequiredError(
+        message,
+        challenge=challenge,
+        action_name=action_name,
+        action=public_action,
+    )
+
+
+@contextmanager
+def authorized_mobile_tool(
     tool_name: str,
     *,
     capability_tags: tuple[str, ...] | list[str] | None = None,
     operation: str | None = None,
-) -> None:
+    arguments: dict[str, Any] | None = None,
+) -> Iterator[None]:
     authorize_mobile_action(
         required_scope_for_tool(
             tool_name,
@@ -156,6 +241,87 @@ def authorize_mobile_tool(
         ),
         f"tool:{tool_name}",
     )
+    context = _CONTEXT.get()
+    if context is None:
+        yield
+        return
+
+    from rex.mobile_api.strong_auth import (  # noqa: PLC0415
+        StrongAuthError,
+        canonical_action,
+        policy_for_action,
+    )
+
+    normalized_name = tool_name.strip().lower()
+    action_arguments = dict(arguments or {})
+    policy = policy_for_action(normalized_name, action_arguments)
+    if normalized_name == "home_assistant_call_service" and policy is None:
+        raise MobileActionDeniedError(
+            "This Home Assistant action is not allowed from a mobile device."
+        )
+    if policy is None or not policy.requires_strong_auth:
+        yield
+        return
+
+    _, _, action_hash = canonical_action(normalized_name, action_arguments)
+    binding = (normalized_name, action_hash)
+    state = context.authorization_state
+    if state is not None and state.active_actions and state.active_actions[-1] == binding:
+        yield
+        return
+
+    if (
+        context.strong_auth_authority is None
+        or context.strong_auth_principal is None
+        or context.strong_auth_approval_id is None
+    ):
+        raise _required_error(
+            context,
+            action_name=normalized_name,
+            action_arguments=action_arguments,
+            message="Strong authentication is required for this mobile action.",
+        )
+    try:
+        context.strong_auth_authority.consume_approval(
+            context.strong_auth_principal,
+            approval_id=context.strong_auth_approval_id,
+            action_name=normalized_name,
+            payload=action_arguments,
+        )
+    except StrongAuthError as exc:
+        raise _required_error(
+            context,
+            action_name=normalized_name,
+            action_arguments=action_arguments,
+            message="The strong-authentication approval is invalid, expired, or already used.",
+        ) from exc
+
+    if state is not None:
+        state.active_actions.append(binding)
+    try:
+        yield
+    finally:
+        if state is not None:
+            popped = state.active_actions.pop()
+            if popped != binding:
+                raise RuntimeError("Mobile authorization stack integrity failure.")
+
+
+def authorize_mobile_tool(
+    tool_name: str,
+    *,
+    capability_tags: tuple[str, ...] | list[str] | None = None,
+    operation: str | None = None,
+    arguments: dict[str, Any] | None = None,
+) -> None:
+    """Compatibility check; execution paths should use authorized_mobile_tool."""
+    with authorized_mobile_tool(
+        tool_name,
+        capability_tags=capability_tags,
+        operation=operation,
+        arguments=arguments,
+    ):
+        return
 
 
 async def run_in_executor_with_mobile_context(
@@ -171,6 +337,8 @@ async def run_in_executor_with_mobile_context(
 __all__ = [
     "MobileActionContext",
     "MobileActionDeniedError",
+    "MobileStrongAuthRequiredError",
+    "authorized_mobile_tool",
     "authorize_mobile_action",
     "authorize_mobile_tool",
     "current_mobile_action_context",

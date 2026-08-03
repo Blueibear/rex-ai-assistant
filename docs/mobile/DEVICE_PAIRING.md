@@ -43,9 +43,13 @@ After desktop approval, the mobile client upgrades the bootstrap session:
 
 The session endpoint reports only server-derived binding metadata: `paired`,
 `device_id`, `grant_id`, `grant_version`, `desktop_id`, `scopes`, and
-`strong_auth_at`. Pairing proof establishes device-key possession, not user
-strong authentication, so `strong_auth_at` remains `null` until S8 verifies a
-challenge-bound biometric/passcode assertion for a specific high-risk action.
+`strong_auth_at`. Pairing proof establishes device-key possession, not strong
+authentication for a privileged action, so `strong_auth_at` remains `null`
+during pairing/session activation. S8 sets it only after the enrolled device
+signs a short-lived server challenge bound to one exact action. Mobile
+Face ID/passcode gating is an additional client factor and remains a separate
+physical-device integration gate; it is never accepted as server authority by
+itself.
 
 ## Capability enforcement
 
@@ -53,9 +57,10 @@ The centralized server-side route map currently enforces:
 
 - HTTP chat, SSE chat, and WebSocket chat: `chat.send`
 - voice upload and TTS playback: `voice.use`
-- reserved mappings for Home Assistant, tasks, and approval actions use
-  `home.read`, `home.control`, `tasks.read`, `tasks.write`, and
-  `approvals.respond` as those mobile routes are enabled.
+- structured Home Assistant commands: `home.control`, plus S8 one-time strong authentication;
+- reserved mappings for Home Assistant reads, tasks, and approval actions use
+  `home.read`, `tasks.read`, `tasks.write`, and `approvals.respond` as those
+  remaining mobile routes are enabled.
 
 Device scopes are an additional restriction, not a replacement for Rex user
 permissions. Home scopes also require the live `ha_control` or `admin` user

@@ -58,6 +58,7 @@ def error_event(
     message_id: str | None = None,
     retryable: bool = False,
     request_id: str | None = None,
+    details: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     event: dict[str, Any] = {
         "type": EVENT_ERROR,
@@ -68,6 +69,8 @@ def error_event(
     }
     if message_id is not None:
         event["message_id"] = message_id
+    if details is not None:
+        event["details"] = details
     return event
 
 

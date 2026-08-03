@@ -18,5 +18,7 @@ These decisions are already resolved for issue #323 and should not be reopened d
 14. Unsupported routes return 501 `NOT_IMPLEMENTED` and false capabilities.
 15. Live duplex voice remains out of scope and false.
 16. Default bind is localhost for development; every non-loopback bind is HTTPS-only with a desktop-owned certificate whose URL, fingerprint, and SPKI pins are signed during pairing and pinned by the mobile client.
-17. Draft mobile PR #3 and #5 must be aligned to this contract before they are integrated.
-18. Implementation is delivered in two Fable sessions/PR phases as defined by the plan.
+17. High/critical mobile actions require S8 strong authentication: a short-lived server challenge signed by the enrolled P-256 device key and bound to the exact canonical action hash, live session/user/device/grant/version/desktop identity, server-owned risk, scope, nonce, and expiry.
+18. Successful challenge verification creates a separate short-lived approval ID that is atomically single-use at the actual execution boundary. Client biometric state, a recent timestamp, or approval verification alone never proves the action completed.
+19. Free-form Home Assistant transcript routing is desktop-only for mobile requests; mobile mutations require the structured, action-bound S8 route.
+20. The desktop/server S8 implementation may merge after repository gates pass. Face ID/passcode orchestration, native signing, and physical-iPhone validation remain separate mobile-repository gates.

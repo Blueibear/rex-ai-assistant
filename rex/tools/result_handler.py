@@ -120,6 +120,7 @@ class ToolResultHandler:
         """
         loop = asyncio.get_running_loop()
         from rex.mobile_api.action_context import (  # noqa: PLC0415
+            mobile_action_context_active,
             mobile_scope_granted,
             run_in_executor_with_mobile_context,
         )
@@ -138,6 +139,7 @@ class ToolResultHandler:
         if (
             self._ha_bridge is not None
             and self._ha_bridge.enabled
+            and not mobile_action_context_active()
             and mobile_scope_granted("home.control")
         ):
             completion = await run_in_executor_with_mobile_context(

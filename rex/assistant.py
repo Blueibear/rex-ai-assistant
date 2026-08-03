@@ -638,6 +638,7 @@ class Assistant:
         loop = asyncio.get_running_loop()
         completion: str | None = None
         from rex.mobile_api.action_context import (  # noqa: PLC0415
+            mobile_action_context_active,
             mobile_scope_granted,
             run_in_executor_with_mobile_context,
         )
@@ -654,7 +655,12 @@ class Assistant:
             yield _intent.response
             return
 
-        if self._ha_bridge and self._ha_bridge.enabled and mobile_scope_granted("home.control"):
+        if (
+            self._ha_bridge
+            and self._ha_bridge.enabled
+            and not mobile_action_context_active()
+            and mobile_scope_granted("home.control")
+        ):
             completion = await run_in_executor_with_mobile_context(
                 loop,
                 self._ha_bridge.process_transcript,
