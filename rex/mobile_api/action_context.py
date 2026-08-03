@@ -38,13 +38,6 @@ class MobileStrongAuthRequiredError(MobileActionDeniedError):
         self.action = action
 
 
-@dataclass
-class MobileAuthorizationState:
-    """Per-request stack preventing duplicate consumption in nested layers."""
-
-    active_actions: list[tuple[str, str]]
-
-
 @dataclass(frozen=True)
 class MobileActionContext:
     scopes: frozenset[str]
@@ -53,11 +46,13 @@ class MobileActionContext:
     strong_auth_authority: Any | None = None
     strong_auth_principal: Any | None = None
     strong_auth_approval_id: str | None = None
-    authorization_state: MobileAuthorizationState | None = None
 
 
 _CONTEXT: contextvars.ContextVar[MobileActionContext | None] = contextvars.ContextVar(
     "askrex_mobile_action_context", default=None
+)
+_AUTHORIZED_ACTIONS: contextvars.ContextVar[tuple[tuple[str, str], ...]] = contextvars.ContextVar(
+    "askrex_mobile_authorized_actions", default=()
 )
 
 
@@ -79,7 +74,6 @@ def mobile_action_context(
             strong_auth_authority=strong_auth_authority,
             strong_auth_principal=strong_auth_principal,
             strong_auth_approval_id=strong_auth_approval_id,
-            authorization_state=MobileAuthorizationState(active_actions=[]),
         )
     )
     try:
@@ -265,8 +259,8 @@ def authorized_mobile_tool(
 
     _, _, action_hash = canonical_action(normalized_name, action_arguments)
     binding = (normalized_name, action_hash)
-    state = context.authorization_state
-    if state is not None and state.active_actions and state.active_actions[-1] == binding:
+    authorized_actions = _AUTHORIZED_ACTIONS.get()
+    if authorized_actions and authorized_actions[-1] == binding:
         yield
         return
 
@@ -296,15 +290,11 @@ def authorized_mobile_tool(
             message="The strong-authentication approval is invalid, expired, or already used.",
         ) from exc
 
-    if state is not None:
-        state.active_actions.append(binding)
+    token = _AUTHORIZED_ACTIONS.set((*authorized_actions, binding))
     try:
         yield
     finally:
-        if state is not None:
-            popped = state.active_actions.pop()
-            if popped != binding:
-                raise RuntimeError("Mobile authorization stack integrity failure.")
+        _AUTHORIZED_ACTIONS.reset(token)
 
 
 def authorize_mobile_tool(

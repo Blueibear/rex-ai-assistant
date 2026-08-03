@@ -295,6 +295,51 @@ def test_one_approval_cannot_execute_same_privileged_action_twice() -> None:
     handler.assert_called_once()
 
 
+def test_concurrent_same_action_cannot_share_one_approval() -> None:
+    authority = MagicMock()
+    authority.consume_approval.side_effect = [
+        None,
+        StrongAuthError("approval_replayed", "used"),
+    ]
+    principal = object()
+    args = {"domain": "light", "service": "turn_off", "entity_id": "light.office"}
+
+    async def scenario() -> None:
+        first_entered = asyncio.Event()
+        release_first = asyncio.Event()
+
+        async def first_execution() -> None:
+            with authorized_mobile_tool(
+                "home_assistant_call_service",
+                operation="mutation",
+                arguments=args,
+            ):
+                first_entered.set()
+                await release_first.wait()
+
+        with mobile_action_context(
+            frozenset({"home.control"}),
+            permissions=frozenset({"admin"}),
+            strong_auth_authority=authority,
+            strong_auth_principal=principal,
+            strong_auth_approval_id="approval-123",
+        ):
+            first_task = asyncio.create_task(first_execution())
+            await first_entered.wait()
+            with pytest.raises(MobileStrongAuthRequiredError):
+                with authorized_mobile_tool(
+                    "home_assistant_call_service",
+                    operation="mutation",
+                    arguments=args,
+                ):
+                    pass
+            release_first.set()
+            await first_task
+
+    asyncio.run(scenario())
+    assert authority.consume_approval.call_count == 2
+
+
 def test_nested_authorization_layers_consume_one_approval_for_one_execution() -> None:
     tool, handler = _tool("home_assistant_call_service", ["smart_home"], "mutation")
     registry = ToolRegistry()
