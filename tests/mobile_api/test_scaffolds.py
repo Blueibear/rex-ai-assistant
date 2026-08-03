@@ -12,7 +12,6 @@ from tests.mobile_api.conftest import auth_header, create_user, login_tokens
 # Chat, streaming, voice, TTS, and Home Assistant command execution became
 # real authenticated routes and are covered by their own test modules.
 _SCAFFOLDS = [
-    ("get", "/mobile/home/entities"),
     ("get", "/mobile/notifications"),
     ("get", "/mobile/approvals"),
     ("get", "/mobile/tasks"),
