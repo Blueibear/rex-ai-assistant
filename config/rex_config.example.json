@@ -231,5 +231,10 @@
         "enabled": false
       }
     ]
+  },
+  "openrouter": {
+    "model": "openai/gpt-4o",
+    "base_url": "https://openrouter.ai/api/v1"
   }
+
 }

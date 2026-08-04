@@ -22,7 +22,7 @@ rex-config migrate-legacy-env
 | `REX_WAKEWORD` | `hey rex` | Wake word keyword override |
 | `REX_INPUT_DEVICE` | auto | Audio input device index or name |
 | `REX_SAMPLE_RATE` | `16000` | Audio sample rate in Hz |
-| `REX_LLM_PROVIDER` | `openai` | LLM backend provider (`openai`, `ollama`, `local`) |
+| `REX_LLM_PROVIDER` | `openai` | LLM backend provider (`openai`, `openrouter`, `ollama`, `local`) |
 | `REX_TTS_PROVIDER` | `xtts` | TTS backend provider (`xtts`, `edge-tts`, `pyttsx3`) |
 
 ## Core Secrets

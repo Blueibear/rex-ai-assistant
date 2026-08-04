@@ -37,6 +37,7 @@ DEFAULT_CREDENTIAL_MAPPING: dict[str, str] = {
     "home_assistant": "HA_TOKEN",
     "brave": "BRAVE_API_KEY",
     "openai": "OPENAI_API_KEY",
+    "openrouter": "OPENROUTER_API_KEY",
     "anthropic": "ANTHROPIC_API_KEY",
     "ollama": "OLLAMA_API_KEY",
     "serpapi": "SERPAPI_API_KEY",

@@ -213,10 +213,12 @@ export interface AiModelRoutingSettings {
 }
 
 export interface AiSettings {
-  model: 'gpt-4o' | 'gpt-4-turbo' | 'claude-opus-4' | 'claude-sonnet-4' | 'gemini-1.5-pro'
-  provider: 'openai' | 'ollama' | 'local'
+  model: string
+  provider: 'openai' | 'openrouter' | 'ollama' | 'local'
   customModelId: string
   ollamaBaseUrl: string
+  openrouterModel: string
+  openrouterBaseUrl: string
   temperature: number
   maxTokens: number
   systemPrompt: string
@@ -740,7 +742,7 @@ export interface RexAPI {
   sendChatAudio: (
     audioBase64: string
   ) => Promise<{ ok: boolean; transcript?: string; error?: string }>
-  getApiKeys: () => Promise<{ openai_key_set: boolean; error?: string }>
+  getApiKeys: () => Promise<{ openai_key_set: boolean; openrouter_key_set: boolean; error?: string }>
   setApiKey: (name: string, value: string) => Promise<{ ok: boolean; error?: string }>
   getSmartSpeakers: () => Promise<{ ok: boolean; speakers: SmartSpeaker[]; error?: string }>
   restartRex: () => Promise<{ ok: boolean; error?: string }>

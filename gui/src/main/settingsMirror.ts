@@ -23,18 +23,44 @@ export function mirrorToRexConfig(section: string, values: Settings): MirrorResu
       const models = ((rexConfig.models ?? {}) as Record<string, unknown>)
       if (typeof values.temperature === 'number') models.llm_temperature = String(values.temperature)
       if (typeof values.maxTokens === 'number') models.llm_max_tokens = values.maxTokens
-      const provider = normalizeGuiAiProvider(values.provider)
-      models.llm_provider = toRuntimeAiProvider(provider)
-      const llm = ((rexConfig.llm ?? {}) as Record<string, unknown>)
-      llm.provider = provider
-      rexConfig.llm = llm
-      if (typeof values.customModelId === 'string' && values.customModelId.trim()) {
+      const providerWasSupplied = typeof values.provider === 'string'
+      const provider = normalizeGuiAiProvider(
+        providerWasSupplied ? values.provider : models.llm_provider
+      )
+      if (providerWasSupplied) {
+        models.llm_provider = toRuntimeAiProvider(provider)
+        const llm = ((rexConfig.llm ?? {}) as Record<string, unknown>)
+        delete llm.provider
+        rexConfig.llm = llm
+      }
+      if (
+        (provider === 'ollama' || provider === 'local')
+        && (providerWasSupplied || typeof values.customModelId === 'string')
+      ) {
+        if (typeof values.customModelId !== 'string' || !values.customModelId.trim()) {
+          return { ok: false, error: 'Model identifier is required' }
+        }
         models.llm_model = values.customModelId.trim()
       }
-      if (provider === 'openai' && typeof values.model === 'string') {
+      if (provider === 'openai' && (providerWasSupplied || typeof values.model === 'string')) {
+        if (typeof values.model !== 'string' || !values.model.trim()) {
+          return { ok: false, error: 'OpenAI model is required' }
+        }
         const openai = ((rexConfig.openai ?? {}) as Record<string, unknown>)
-        openai.model = values.model
+        openai.model = values.model.trim()
         rexConfig.openai = openai
+      }
+      if (
+        provider === 'openrouter'
+        && (providerWasSupplied || typeof values.openrouterModel === 'string')
+      ) {
+        if (typeof values.openrouterModel !== 'string' || !values.openrouterModel.trim()) {
+          return { ok: false, error: 'OpenRouter model is required' }
+        }
+        const openrouter = ((rexConfig.openrouter ?? {}) as Record<string, unknown>)
+        openrouter.model = values.openrouterModel.trim()
+        openrouter.base_url = 'https://openrouter.ai/api/v1'
+        rexConfig.openrouter = openrouter
       }
       if (typeof values.ollamaBaseUrl === 'string' && values.ollamaBaseUrl.trim()) {
         const ollama = ((rexConfig.ollama ?? {}) as Record<string, unknown>)

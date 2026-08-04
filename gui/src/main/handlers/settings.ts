@@ -21,6 +21,7 @@ import { safeIpcErrorMessage, SafeValidationError } from '../ipcErrors'
 
 const ALLOWED_API_KEYS = [
   'OPENAI_API_KEY',
+  'OPENROUTER_API_KEY',
   'ANTHROPIC_API_KEY',
   'OLLAMA_API_KEY',
   'ELEVENLABS_API_KEY',
@@ -416,24 +417,32 @@ export function registerSettingsHandlers(session: ElectronSessionIdentity): void
     }
   )
 
-  ipcMain.handle('rex:getApiKeys', async (): Promise<{ openai_key_set: boolean; error?: string }> => {
-    try {
-      const config = readRexConfigStrict()
-      const context = apiKeyContext('OPENAI_API_KEY')
-      const record = getVaultReference(config, 'OPENAI_API_KEY', context, session.userId)
-      return {
-        openai_key_set: record
-          ? await vaultHasSecret(session, record.ref, context)
-          : false
+  ipcMain.handle(
+    'rex:getApiKeys',
+    async (): Promise<{ openai_key_set: boolean; openrouter_key_set: boolean; error?: string }> => {
+      try {
+        const config = readRexConfigStrict()
+        const hasKey = async (name: 'OPENAI_API_KEY' | 'OPENROUTER_API_KEY'): Promise<boolean> => {
+          const context = apiKeyContext(name)
+          const record = getVaultReference(config, name, context, session.userId)
+          return record ? await vaultHasSecret(session, record.ref, context) : false
+        }
+        const [openaiKeySet, openrouterKeySet] = await Promise.all([
+          hasKey('OPENAI_API_KEY'),
+          hasKey('OPENROUTER_API_KEY')
+        ])
+        return { openai_key_set: openaiKeySet, openrouter_key_set: openrouterKeySet }
+      } catch {
+        // Vault unavailable: fail closed and report "not configured" rather
+        // than reading any legacy plaintext credential location (S4).
+        return {
+          openai_key_set: false,
+          openrouter_key_set: false,
+          error: 'Stored API-key state could not be verified'
+        }
       }
-    } catch {
-      // Vault unavailable: fail closed and report "not configured" rather
-      // than reading the legacy plaintext .env location (S4) - a vault
-      // outage must never silently reveal whether a plaintext secret is
-      // sitting on disk.
-      return { openai_key_set: false, error: 'Stored API-key state could not be verified' }
     }
-  })
+  )
 
   ipcMain.handle(
     'rex:setApiKey',

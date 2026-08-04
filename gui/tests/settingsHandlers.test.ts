@@ -52,6 +52,7 @@ const session: ElectronSessionIdentity = {
 }
 const ref = `cred_${'S'.repeat(32)}`
 const openAiContext = { scope: 'household', integration: 'openai', account: null, slot: 'api_key' }
+const openRouterContext = { scope: 'household', integration: 'openrouter', account: null, slot: 'api_key' }
 const haContext = { scope: 'household', integration: 'home_assistant', account: null, slot: 'token' }
 const emailContext = { scope: 'user', integration: 'email', account: 'work', slot: 'password' }
 let guiSettings: Record<string, unknown>
@@ -90,6 +91,16 @@ describe('settings vault routing (S4)', () => {
     })
   })
 
+  it('stores OpenRouter credentials under a separate vault context', async () => {
+    const result = await invoke('rex:setApiKey', 'OPENROUTER_API_KEY', 'router-value')
+    expect(result).toEqual({ ok: true })
+    expect(mockVault.vaultSetSecret).toHaveBeenCalledWith(session, 'router-value', openRouterContext)
+    expect(JSON.stringify(rexConfig)).not.toContain('router-value')
+    expect(rexConfig).toMatchObject({
+      credential_refs: { household: { OPENROUTER_API_KEY: { ref, integration: 'openrouter', account: null, slot: 'api_key' } } }
+    })
+  })
+
   it('does not treat blank input as deletion and rejects arbitrary key names', async () => {
     await expect(invoke('rex:setApiKey', 'OPENAI_API_KEY', '  ')).resolves.toEqual({ ok: true })
     expect(mockVault.vaultSetSecret).not.toHaveBeenCalled()
@@ -115,7 +126,7 @@ describe('settings vault routing (S4)', () => {
       credential_refs: { household: { OPENAI_API_KEY: { ref, integration: 'openai', account: null, slot: 'api_key' } } }
     }
     mockVault.vaultHasSecret.mockResolvedValue(true)
-    await expect(invoke('rex:getApiKeys')).resolves.toEqual({ openai_key_set: true })
+    await expect(invoke('rex:getApiKeys')).resolves.toEqual({ openai_key_set: true, openrouter_key_set: false })
     expect(mockVault.vaultHasSecret).toHaveBeenCalledWith(session, ref, openAiContext)
   })
 
@@ -125,6 +136,7 @@ describe('settings vault routing (S4)', () => {
     }
     await expect(invoke('rex:getApiKeys')).resolves.toEqual({
       openai_key_set: false,
+      openrouter_key_set: false,
       error: 'Stored API-key state could not be verified'
     })
     expect(mockVault.vaultHasSecret).not.toHaveBeenCalled()

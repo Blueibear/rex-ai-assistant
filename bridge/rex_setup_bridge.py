@@ -69,6 +69,9 @@ def _handle_complete(payload: dict[str, Any]) -> None:
     if not username or not password:
         sys.stdout.write(json.dumps({"ok": False, "error": "username and password are required"}))
         return
+    if llm_provider not in {"local", "openai", "openrouter", "anthropic", "ollama"}:
+        sys.stdout.write(json.dumps({"ok": False, "error": "unsupported LLM provider"}))
+        return
 
     from rex.auth import _open_db, create_user  # noqa: PLC2701
     from rex.credential_persistence import persist_household_secrets
@@ -81,6 +84,7 @@ def _handle_complete(payload: dict[str, Any]) -> None:
         if llm_api_key:
             logical_name = {
                 "openai": "OPENAI_API_KEY",
+                "openrouter": "OPENROUTER_API_KEY",
                 "anthropic": "ANTHROPIC_API_KEY",
                 "ollama": "OLLAMA_API_KEY",
             }.get(llm_provider)
@@ -93,9 +97,16 @@ def _handle_complete(payload: dict[str, Any]) -> None:
         bootstrap_admin_if_first_user(user_id)
 
         def update_config(config: dict[str, Any]) -> None:
-            config.setdefault("llm", {})["provider"] = llm_provider
-            if llm_provider == "ollama" and payload.get("ollama_base_url"):
-                config.setdefault("llm", {})["ollama_base_url"] = payload["ollama_base_url"]
+            runtime_provider = "transformers" if llm_provider == "local" else llm_provider
+            config.setdefault("models", {})["llm_provider"] = runtime_provider
+            if llm_provider == "openai":
+                config.setdefault("openai", {}).setdefault("model", "gpt-4o")
+            elif llm_provider == "openrouter":
+                openrouter = config.setdefault("openrouter", {})
+                openrouter.setdefault("model", "openai/gpt-4o")
+                openrouter.setdefault("base_url", "https://openrouter.ai/api/v1")
+            elif llm_provider == "ollama" and payload.get("ollama_base_url"):
+                config.setdefault("ollama", {})["base_url"] = payload["ollama_base_url"]
             config["tts_provider"] = tts_provider
             if ha_base_url:
                 config.setdefault("home_assistant", {})["base_url"] = ha_base_url

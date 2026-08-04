@@ -105,7 +105,7 @@
       "properties": {
         "llm_provider": {
           "type": "string",
-          "description": "LLM provider (transformers, openai, ollama)",
+          "description": "LLM provider (transformers, openai, openrouter, anthropic, ollama)",
           "default": "transformers"
         },
         "llm_backend": {
@@ -346,6 +346,22 @@
         "base_url": {
           "type": ["string", "null"],
           "description": "OpenAI API base URL (for compatible APIs)"
+        }
+      }
+    },
+    "openrouter": {
+      "type": "object",
+      "description": "OpenRouter configuration using its OpenAI-compatible API",
+      "properties": {
+        "model": {
+          "type": ["string", "null"],
+          "description": "OpenRouter model slug, for example openai/gpt-4o"
+        },
+        "base_url": {
+          "type": "string",
+          "description": "Official OpenRouter API base URL",
+          "const": "https://openrouter.ai/api/v1",
+          "default": "https://openrouter.ai/api/v1"
         }
       }
     },

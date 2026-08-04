@@ -12,6 +12,7 @@ describe('GUI settings secret redaction (US-027)', () => {
       'llm_api_key',
       'apiKey',
       'openai_api_key',
+      'openrouter_api_key',
       'password',
       'smtp_passwd',
       'client_secret',

@@ -310,7 +310,7 @@ Common fixes:
 
 - Missing FFmpeg: install FFmpeg and reopen the terminal so `PATH` updates.
 - Missing ML dependencies: install `requirements-cpu.txt` or the matching GPU requirements file.
-- OpenAI/Ollama/model failures: check `config/rex_config.json` model settings and `.env` secrets.
+- OpenAI/OpenRouter/Ollama/model failures: check `config/rex_config.json` model settings and the credential-vault status shown in Settings.
 - TTS API startup failure: set `REX_SPEAK_API_KEY`.
 - Tool server 401s: set `REX_TOOL_API_KEY`.
 

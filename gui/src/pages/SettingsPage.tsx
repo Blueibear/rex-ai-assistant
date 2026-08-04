@@ -1999,14 +1999,6 @@ function VoicePanel(): React.ReactElement {
   )
 }
 
-const AI_MODELS: Array<{ value: AiSettings['model']; label: string }> = [
-  { value: 'gpt-4o', label: 'GPT-4o' },
-  { value: 'gpt-4-turbo', label: 'GPT-4 Turbo' },
-  { value: 'claude-opus-4', label: 'Claude Opus 4' },
-  { value: 'claude-sonnet-4', label: 'Claude Sonnet 4' },
-  { value: 'gemini-1.5-pro', label: 'Gemini 1.5 Pro' }
-]
-
 const MODEL_ROUTING_FIELDS: Array<{
   key: keyof AiSettings['modelRouting']
   label: string
@@ -2043,10 +2035,12 @@ const PERSONALITIES = [
 function AiPanel(): React.ReactElement {
   const addToast = useToast()
   const [form, setForm] = useState<AiSettings>({
-    model: 'claude-sonnet-4',
+    model: 'gpt-4o',
     provider: 'openai',
     customModelId: '',
     ollamaBaseUrl: 'http://localhost:11434',
+    openrouterModel: 'openai/gpt-4o',
+    openrouterBaseUrl: 'https://openrouter.ai/api/v1',
     temperature: 0.7,
     maxTokens: 2048,
     systemPrompt: '',
@@ -2070,9 +2064,11 @@ function AiPanel(): React.ReactElement {
   const [dismissedFields, setDismissedFields] = useState<Set<string>>(new Set())
   const [routingDirty, setRoutingDirty] = useState(false)
   const [savingRouting, setSavingRouting] = useState(false)
-  const [apiKeySet, setApiKeySet] = useState(false)
-  const [apiKeyValue, setApiKeyValue] = useState('')
-  const [apiKeySaving, setApiKeySaving] = useState(false)
+  const [openaiKeySet, setOpenaiKeySet] = useState(false)
+  const [openrouterKeySet, setOpenrouterKeySet] = useState(false)
+  const [openaiKeyValue, setOpenaiKeyValue] = useState('')
+  const [openrouterKeyValue, setOpenrouterKeyValue] = useState('')
+  const [credentialSaving, setCredentialSaving] = useState<'openai' | 'openrouter' | null>(null)
 
   function loadSuggestions(): void {
     window.rex
@@ -2093,16 +2089,22 @@ function AiPanel(): React.ReactElement {
             : {}
         const rawProvider = settings.provider
         const provider: AiSettings['provider'] =
-          rawProvider === 'openai' || rawProvider === 'ollama' || rawProvider === 'local'
+          rawProvider === 'openai' || rawProvider === 'openrouter' || rawProvider === 'ollama' || rawProvider === 'local'
             ? rawProvider
             : 'openai'
         setForm({
-          model: (AI_MODELS.some((m) => m.value === settings.model)
-            ? settings.model
-            : 'claude-sonnet-4') as AiSettings['model'],
+          model: typeof settings.model === 'string' && settings.model.trim() ? settings.model : 'gpt-4o',
           provider,
           customModelId: typeof settings.customModelId === 'string' ? settings.customModelId : '',
           ollamaBaseUrl: typeof settings.ollamaBaseUrl === 'string' ? settings.ollamaBaseUrl : 'http://localhost:11434',
+          openrouterModel:
+            typeof settings.openrouterModel === 'string' && settings.openrouterModel.trim()
+              ? settings.openrouterModel
+              : 'openai/gpt-4o',
+          openrouterBaseUrl:
+            typeof settings.openrouterBaseUrl === 'string' && settings.openrouterBaseUrl.trim()
+              ? settings.openrouterBaseUrl
+              : 'https://openrouter.ai/api/v1',
           temperature: typeof settings.temperature === 'number' ? settings.temperature : 0.7,
           maxTokens: typeof settings.maxTokens === 'number' ? settings.maxTokens : 2048,
           systemPrompt: typeof settings.systemPrompt === 'string' ? settings.systemPrompt : '',
@@ -2134,7 +2136,8 @@ function AiPanel(): React.ReactElement {
     window.rex
       .getApiKeys()
       .then((keys) => {
-        setApiKeySet(keys.openai_key_set)
+        setOpenaiKeySet(keys.openai_key_set)
+        setOpenrouterKeySet(keys.openrouter_key_set)
         if (keys.error) addToast(keys.error, 'error')
       })
       .catch(() => {
@@ -2221,16 +2224,23 @@ function AiPanel(): React.ReactElement {
     setDismissedFields((prev) => new Set(prev).add(field))
   }
 
-  function handleSaveApiKey(): void {
-    if (!apiKeyValue.trim()) return
-    setApiKeySaving(true)
+  function handleSaveApiKey(provider: 'openai' | 'openrouter'): void {
+    const value = provider === 'openai' ? openaiKeyValue.trim() : openrouterKeyValue.trim()
+    if (!value) return
+    setCredentialSaving(provider)
+    const logicalName = provider === 'openai' ? 'OPENAI_API_KEY' : 'OPENROUTER_API_KEY'
     window.rex
-      .setApiKey('OPENAI_API_KEY', apiKeyValue.trim())
+      .setApiKey(logicalName, value)
       .then((result) => {
         if (result.ok) {
-          setApiKeySet(true)
-          setApiKeyValue('')
-          addToast('API key saved', 'success')
+          if (provider === 'openai') {
+            setOpenaiKeySet(true)
+            setOpenaiKeyValue('')
+          } else {
+            setOpenrouterKeySet(true)
+            setOpenrouterKeyValue('')
+          }
+          addToast(`${provider === 'openai' ? 'OpenAI' : 'OpenRouter'} API key saved`, 'success')
         } else {
           addToast(result.error ?? 'Failed to save API key', 'error')
         }
@@ -2238,7 +2248,7 @@ function AiPanel(): React.ReactElement {
       .catch(() => {
         addToast('Failed to save API key', 'error')
       })
-      .finally(() => setApiKeySaving(false))
+      .finally(() => setCredentialSaving(null))
   }
 
   const activeSuggestion = suggestions.find((s) => !dismissedFields.has(s.field)) ?? null
@@ -2301,74 +2311,134 @@ function AiPanel(): React.ReactElement {
           className="w-full bg-surface-raised border border-border rounded-lg px-3 py-2 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-accent"
         >
           <option value="openai">OpenAI</option>
+          <option value="openrouter">OpenRouter</option>
           <option value="ollama">Ollama (local)</option>
           <option value="local">Local Transformers</option>
         </select>
       </div>
 
-      {/* OpenAI: model dropdown + API key */}
+      {/* OpenAI: model ID + API key */}
       {form.provider === 'openai' && (
         <>
           <div className="mb-5">
             <div className="flex items-center justify-between mb-1.5">
               <label htmlFor="aiModel" className="text-sm font-medium text-text-primary">
-                AI Model
+                OpenAI Model ID
               </label>
               <SavedIndicator visible={savedField === 'model'} />
             </div>
-            <select
+            <input
               id="aiModel"
+              type="text"
               value={form.model}
-              onChange={(e) => handleFieldChange('model', e.target.value as AiSettings['model'])}
-              className="w-full bg-surface-raised border border-border rounded-lg px-3 py-2 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-accent"
-            >
-              {AI_MODELS.map((m) => (
-                <option key={m.value} value={m.value}>
-                  {m.label}
-                </option>
-              ))}
-            </select>
+              placeholder="gpt-4o"
+              onChange={(e) => setForm((current) => ({ ...current, model: e.target.value }))}
+              onBlur={(e) => handleFieldChange('model', e.target.value.trim() || 'gpt-4o')}
+              className="w-full bg-surface-raised border border-border rounded-lg px-3 py-2 text-sm text-text-primary placeholder:text-text-secondary focus:outline-none focus:ring-2 focus:ring-accent"
+            />
           </div>
 
-          {/* OpenAI API Key */}
           <div className="mb-5">
             <div className="flex items-center justify-between mb-1.5">
-              <div className="flex items-center gap-1.5">
-                <label htmlFor="openaiApiKey" className="text-sm font-medium text-text-primary">
-                  OpenAI API Key
-                </label>
-                <span
-                  title="Get your API key from platform.openai.com → API keys. Keys start with sk-."
-                  className="flex-shrink-0 w-4 h-4 rounded-full bg-surface-raised text-text-muted flex items-center justify-center text-[10px] font-bold cursor-help select-none"
-                  aria-label="API key help"
-                >
-                  ?
-                </span>
-              </div>
-              {apiKeySet && (
-                <span className="text-xs text-success font-medium">Key set</span>
-              )}
+              <label htmlFor="openaiApiKey" className="text-sm font-medium text-text-primary">
+                OpenAI API Key
+              </label>
+              {openaiKeySet && <span className="text-xs text-success font-medium">Key set</span>}
             </div>
             <div className="flex gap-2">
               <div className="flex-1">
                 <PasswordInput
                   id="openaiApiKey"
-                  value={apiKeyValue}
-                  placeholder={apiKeySet ? '••••••••••••••••' : 'sk-…'}
-                  onChange={setApiKeyValue}
+                  value={openaiKeyValue}
+                  placeholder={openaiKeySet ? 'Stored securely' : 'Enter API key'}
+                  onChange={setOpenaiKeyValue}
                 />
               </div>
               <button
                 type="button"
-                onClick={handleSaveApiKey}
-                disabled={apiKeySaving || !apiKeyValue.trim()}
+                onClick={() => handleSaveApiKey('openai')}
+                disabled={credentialSaving !== null || !openaiKeyValue.trim()}
                 className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-accent/90 disabled:cursor-not-allowed disabled:opacity-50 shrink-0"
               >
-                {apiKeySaving ? 'Saving…' : 'Save'}
+                {credentialSaving === 'openai' ? 'Saving...' : 'Save'}
               </button>
             </div>
             <p className="mt-1 text-xs text-text-secondary">
               Stored in the Windows credential vault. The saved key is never loaded back into this field.
+            </p>
+          </div>
+        </>
+      )}
+
+      {/* OpenRouter: OpenAI-compatible endpoint, model slug, and separate key */}
+      {form.provider === 'openrouter' && (
+        <>
+          <div className="mb-5">
+            <div className="flex items-center justify-between mb-1.5">
+              <label htmlFor="openrouterModel" className="text-sm font-medium text-text-primary">
+                OpenRouter Model Slug
+              </label>
+              <SavedIndicator visible={savedField === 'openrouterModel'} />
+            </div>
+            <input
+              id="openrouterModel"
+              type="text"
+              value={form.openrouterModel}
+              placeholder="openai/gpt-4o"
+              onChange={(e) => setForm((current) => ({ ...current, openrouterModel: e.target.value }))}
+              onBlur={(e) => handleFieldChange('openrouterModel', e.target.value.trim())}
+              className="w-full bg-surface-raised border border-border rounded-lg px-3 py-2 text-sm text-text-primary placeholder:text-text-secondary focus:outline-none focus:ring-2 focus:ring-accent"
+            />
+            <p className="mt-1 text-xs text-text-secondary">
+              Use the complete OpenRouter model identifier, including its provider prefix.
+            </p>
+          </div>
+          <div className="mb-5">
+            <div className="flex items-center justify-between mb-1.5">
+              <label htmlFor="openrouterBaseUrl" className="text-sm font-medium text-text-primary">
+                OpenRouter Base URL
+              </label>
+              <SavedIndicator visible={savedField === 'openrouterBaseUrl'} />
+            </div>
+            <input
+              id="openrouterBaseUrl"
+              type="url"
+              value="https://openrouter.ai/api/v1"
+              readOnly
+              aria-readonly="true"
+              className="w-full cursor-not-allowed bg-surface-raised border border-border rounded-lg px-3 py-2 text-sm text-text-secondary"
+            />
+            <p className="mt-1 text-xs text-text-secondary">
+              Locked to OpenRouter's official HTTPS endpoint so the saved key cannot be redirected.
+            </p>
+          </div>
+          <div className="mb-5">
+            <div className="flex items-center justify-between mb-1.5">
+              <label htmlFor="openrouterApiKey" className="text-sm font-medium text-text-primary">
+                OpenRouter API Key
+              </label>
+              {openrouterKeySet && <span className="text-xs text-success font-medium">Key set</span>}
+            </div>
+            <div className="flex gap-2">
+              <div className="flex-1">
+                <PasswordInput
+                  id="openrouterApiKey"
+                  value={openrouterKeyValue}
+                  placeholder={openrouterKeySet ? 'Stored securely' : 'Enter OpenRouter key'}
+                  onChange={setOpenrouterKeyValue}
+                />
+              </div>
+              <button
+                type="button"
+                onClick={() => handleSaveApiKey('openrouter')}
+                disabled={credentialSaving !== null || !openrouterKeyValue.trim()}
+                className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-accent/90 disabled:cursor-not-allowed disabled:opacity-50 shrink-0"
+              >
+                {credentialSaving === 'openrouter' ? 'Saving...' : 'Save'}
+              </button>
+            </div>
+            <p className="mt-1 text-xs text-text-secondary">
+              Stored separately from the OpenAI key in the Windows credential vault.
             </p>
           </div>
         </>

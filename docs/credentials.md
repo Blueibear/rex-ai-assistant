@@ -55,8 +55,8 @@ values never return to the renderer. The renderer receives only blank secret
 inputs plus `hasCredential` and opaque-reference metadata. Blank input means
 unchanged. Deletion is a separate confirmed operation.
 
-Supported desktop settings cover Home Assistant, OpenAI, Anthropic, Ollama,
-Brave, SerpAPI, Google, OpenWeather, Telegram, Twilio/SMS/phone,
+Supported desktop settings cover Home Assistant, OpenAI, OpenRouter, Anthropic,
+Ollama, Brave, SerpAPI, Google, OpenWeather, Telegram, Twilio/SMS/phone,
 ElevenLabs/TTS, OpenClaw gateway, email/calendar client secrets, and per-account
 email passwords/client secrets. Stored/configured status is distinct from
 connected, authenticated, or verified status.

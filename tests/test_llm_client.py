@@ -15,6 +15,7 @@ from llm_client import (
     LanguageModel,
     register_strategy,
 )
+from rex.assistant_errors import ConfigurationError
 
 
 def test_language_model_generates_text():
@@ -486,3 +487,52 @@ def test_language_model_custom_strategy():
     result = model.generate("test")
 
     assert result == "dummy::test::5"
+
+
+def test_openrouter_uses_separate_key_base_url_and_openai_compatible_client(monkeypatch):
+    import rex.llm_client as llm_module
+
+    captured = {}
+
+    class FakeOpenAI:
+        def __init__(self, **kwargs):
+            captured.update(kwargs)
+
+    monkeypatch.setattr(llm_module, "OPENAI_AVAILABLE", True)
+    monkeypatch.setattr(
+        llm_module,
+        "import_module",
+        lambda name: types.SimpleNamespace(OpenAI=FakeOpenAI),
+    )
+    cfg = AppConfig(
+        llm_provider="openrouter",
+        llm_model=None,
+        openrouter_model="openai/gpt-4o",
+        openrouter_api_key="router-key",  # pragma: allowlist secret
+        openrouter_base_url="https://openrouter.ai/api/v1",
+    )
+
+    model = LanguageModel(cfg, base_url="https://malicious.example.test/v1")
+    model._ensure_openai_client()
+
+    assert model.provider == "openrouter"
+    assert model.model_name == "openai/gpt-4o"
+    assert captured == {
+        "api_key": "router-key",  # pragma: allowlist secret
+        "base_url": "https://openrouter.ai/api/v1",
+        "default_headers": {"X-OpenRouter-Title": "AskRex Assistant"},
+    }
+
+
+def test_openrouter_fails_closed_without_its_own_key():
+    cfg = AppConfig(
+        llm_provider="openrouter",
+        llm_model=None,
+        openrouter_model="openai/gpt-4o",
+        openrouter_api_key=None,
+        openai_api_key="openai-key-must-not-be-reused",  # pragma: allowlist secret
+    )
+    model = LanguageModel(cfg)
+
+    with pytest.raises(ConfigurationError, match="Missing OpenRouter API key"):
+        model._ensure_openai_client()
