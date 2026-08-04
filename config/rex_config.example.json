@@ -67,10 +67,6 @@
     "model": null,
     "base_url": null
   },
-  "openrouter": {
-    "model": "openai/gpt-4o",
-    "base_url": "https://openrouter.ai/api/v1"
-  },
   "api": {
     "rate_limit": "30/minute",
     "allowed_origins": [
@@ -235,5 +231,10 @@
         "enabled": false
       }
     ]
+  },
+  "openrouter": {
+    "model": "openai/gpt-4o",
+    "base_url": "https://openrouter.ai/api/v1"
   }
+
 }

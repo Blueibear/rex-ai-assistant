@@ -2068,7 +2068,7 @@ function AiPanel(): React.ReactElement {
   const [openrouterKeySet, setOpenrouterKeySet] = useState(false)
   const [openaiKeyValue, setOpenaiKeyValue] = useState('')
   const [openrouterKeyValue, setOpenrouterKeyValue] = useState('')
-  const [apiKeySaving, setApiKeySaving] = useState<'openai' | 'openrouter' | null>(null)
+  const [credentialSaving, setCredentialSaving] = useState<'openai' | 'openrouter' | null>(null)
 
   function loadSuggestions(): void {
     window.rex
@@ -2227,7 +2227,7 @@ function AiPanel(): React.ReactElement {
   function handleSaveApiKey(provider: 'openai' | 'openrouter'): void {
     const value = provider === 'openai' ? openaiKeyValue.trim() : openrouterKeyValue.trim()
     if (!value) return
-    setApiKeySaving(provider)
+    setCredentialSaving(provider)
     const logicalName = provider === 'openai' ? 'OPENAI_API_KEY' : 'OPENROUTER_API_KEY'
     window.rex
       .setApiKey(logicalName, value)
@@ -2248,7 +2248,7 @@ function AiPanel(): React.ReactElement {
       .catch(() => {
         addToast('Failed to save API key', 'error')
       })
-      .finally(() => setApiKeySaving(null))
+      .finally(() => setCredentialSaving(null))
   }
 
   const activeSuggestion = suggestions.find((s) => !dismissedFields.has(s.field)) ?? null
@@ -2357,10 +2357,10 @@ function AiPanel(): React.ReactElement {
               <button
                 type="button"
                 onClick={() => handleSaveApiKey('openai')}
-                disabled={apiKeySaving !== null || !openaiKeyValue.trim()}
+                disabled={credentialSaving !== null || !openaiKeyValue.trim()}
                 className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-accent/90 disabled:cursor-not-allowed disabled:opacity-50 shrink-0"
               >
-                {apiKeySaving === 'openai' ? 'Saving...' : 'Save'}
+                {credentialSaving === 'openai' ? 'Saving...' : 'Save'}
               </button>
             </div>
             <p className="mt-1 text-xs text-text-secondary">
@@ -2431,10 +2431,10 @@ function AiPanel(): React.ReactElement {
               <button
                 type="button"
                 onClick={() => handleSaveApiKey('openrouter')}
-                disabled={apiKeySaving !== null || !openrouterKeyValue.trim()}
+                disabled={credentialSaving !== null || !openrouterKeyValue.trim()}
                 className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-accent/90 disabled:cursor-not-allowed disabled:opacity-50 shrink-0"
               >
-                {apiKeySaving === 'openrouter' ? 'Saving...' : 'Save'}
+                {credentialSaving === 'openrouter' ? 'Saving...' : 'Save'}
               </button>
             </div>
             <p className="mt-1 text-xs text-text-secondary">

@@ -508,7 +508,7 @@ def test_openrouter_uses_separate_key_base_url_and_openai_compatible_client(monk
         llm_provider="openrouter",
         llm_model=None,
         openrouter_model="openai/gpt-4o",
-        openrouter_api_key="router-key",
+        openrouter_api_key="router-key",  # pragma: allowlist secret
         openrouter_base_url="https://openrouter.ai/api/v1",
     )
 
@@ -518,7 +518,7 @@ def test_openrouter_uses_separate_key_base_url_and_openai_compatible_client(monk
     assert model.provider == "openrouter"
     assert model.model_name == "openai/gpt-4o"
     assert captured == {
-        "api_key": "router-key",
+        "api_key": "router-key",  # pragma: allowlist secret
         "base_url": "https://openrouter.ai/api/v1",
         "default_headers": {"X-OpenRouter-Title": "AskRex Assistant"},
     }
@@ -530,7 +530,7 @@ def test_openrouter_fails_closed_without_its_own_key():
         llm_model=None,
         openrouter_model="openai/gpt-4o",
         openrouter_api_key=None,
-        openai_api_key="openai-key-must-not-be-reused",
+        openai_api_key="openai-key-must-not-be-reused",  # pragma: allowlist secret
     )
     model = LanguageModel(cfg)
 
