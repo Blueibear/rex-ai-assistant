@@ -572,7 +572,10 @@ def register_strategy(name: str, strategy: type[Any]) -> None:
 class LanguageModel:
     def __init__(self, config: AppConfig | None = None, **overrides) -> None:
         self.config = config or load_config()
-        self.provider = (overrides.get("provider") or self.config.llm.llm_provider).lower()
+        llm_config = self.config.llm
+        if llm_config is None:
+            raise ConfigurationError("LLM configuration is unavailable.")
+        self.provider = str(overrides.get("provider") or llm_config.llm_provider).lower()
         if self.provider == "openai":
             self.model_name = (
                 overrides.get("model") or self.config.openai_model or self.config.llm_model
@@ -587,6 +590,8 @@ class LanguageModel:
             )
         else:
             self.model_name = overrides.get("model") or self.config.llm_model
+        self.api_key: str | None
+        self.api_base_url: str | None
         if self.provider == "openrouter":
             self.api_key = overrides.get("openrouter_api_key") or self.config.openrouter_api_key
             self.api_base_url = OPENROUTER_DEFAULT_BASE_URL
