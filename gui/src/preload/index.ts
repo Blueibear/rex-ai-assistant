@@ -327,7 +327,7 @@ const rexAPI = {
     audioBase64: string
   ): Promise<{ ok: boolean; transcript?: string; error?: string }> =>
     ipcRenderer.invoke('rex:sendChatAudio', audioBase64),
-  getApiKeys: (): Promise<{ openai_key_set: boolean }> =>
+  getApiKeys: (): Promise<{ openai_key_set: boolean; openrouter_key_set: boolean; error?: string }> =>
     ipcRenderer.invoke('rex:getApiKeys'),
   setApiKey: (name: string, value: string): Promise<{ ok: boolean; error?: string }> =>
     ipcRenderer.invoke('rex:setApiKey', name, value),

@@ -94,6 +94,7 @@ LLM providers:
 
 - local Transformers
 - OpenAI API
+- OpenRouter (OpenAI-compatible API with a separate credential and model slug)
 - Ollama
 
 Search providers:

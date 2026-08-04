@@ -62,11 +62,12 @@ function StepLLM({ data, onChange }: StepProps): React.ReactElement {
         >
           <option value="local">Local (Transformers / Ollama)</option>
           <option value="openai">OpenAI</option>
+          <option value="openrouter">OpenRouter</option>
           <option value="anthropic">Anthropic</option>
           <option value="ollama">Ollama (custom URL)</option>
         </select>
       </div>
-      {(data.llmProvider === 'openai' || data.llmProvider === 'anthropic') && (
+      {(data.llmProvider === 'openai' || data.llmProvider === 'openrouter' || data.llmProvider === 'anthropic') && (
         <div>
           <label className="block text-sm font-medium text-text-primary mb-1">API Key</label>
           <input
@@ -75,9 +76,9 @@ function StepLLM({ data, onChange }: StepProps): React.ReactElement {
             value={data.llmApiKey}
             onChange={(e) => onChange('llmApiKey', e.target.value)}
             className="w-full px-3 py-2 rounded-lg border border-border bg-surface text-text-primary text-sm focus:outline-none focus:ring-2 focus:ring-accent/50"
-            placeholder={data.llmProvider === 'openai' ? 'sk-...' : 'sk-ant-...'}
+            placeholder={data.llmProvider === 'anthropic' ? 'sk-ant-...' : 'Enter API key'}
           />
-          <p className="text-text-muted text-xs mt-1">Stored securely in your local .env file.</p>
+          <p className="text-text-muted text-xs mt-1">Stored in the Windows credential vault.</p>
         </div>
       )}
     </div>

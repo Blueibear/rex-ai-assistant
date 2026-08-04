@@ -12,7 +12,7 @@ from importlib.util import find_spec
 from typing import Any, Protocol, cast
 
 from rex.assistant_errors import ConfigurationError
-from rex.config import AppConfig, load_config
+from rex.config import OPENROUTER_DEFAULT_BASE_URL, AppConfig, load_config
 from rex.logging_utils import get_logger
 from rex.retry import RetryConfig, with_retry
 
@@ -572,10 +572,14 @@ def register_strategy(name: str, strategy: type[Any]) -> None:
 class LanguageModel:
     def __init__(self, config: AppConfig | None = None, **overrides) -> None:
         self.config = config or load_config()
-        self.provider = (overrides.get("provider") or self.config.llm_provider).lower()
+        self.provider = (overrides.get("provider") or self.config.llm.llm_provider).lower()
         if self.provider == "openai":
             self.model_name = (
                 overrides.get("model") or self.config.openai_model or self.config.llm_model
+            )
+        elif self.provider == "openrouter":
+            self.model_name = (
+                overrides.get("model") or self.config.openrouter_model or self.config.llm_model
             )
         elif self.provider == "anthropic":
             self.model_name = (
@@ -583,7 +587,12 @@ class LanguageModel:
             )
         else:
             self.model_name = overrides.get("model") or self.config.llm_model
-        self.api_key = overrides.get("openai_api_key") or self.config.openai_api_key
+        if self.provider == "openrouter":
+            self.api_key = overrides.get("openrouter_api_key") or self.config.openrouter_api_key
+            self.api_base_url = OPENROUTER_DEFAULT_BASE_URL
+        else:
+            self.api_key = overrides.get("openai_api_key") or self.config.openai_api_key
+            self.api_base_url = overrides.get("base_url") or self.config.openai_base_url
         self.anthropic_api_key = overrides.get("anthropic_api_key") or self.config.anthropic_api_key
 
         self.generation = GenerationConfig(
@@ -615,7 +624,7 @@ class LanguageModel:
         return self._anthropic_client
 
     def _init_strategy(self) -> LLMStrategy:
-        if self.provider == "openai":
+        if self.provider in {"openai", "openrouter"}:
             return cast(LLMStrategy, OpenAIStrategy(self.model_name, self._ensure_openai_client))
 
         if self.provider == "anthropic":
@@ -658,9 +667,12 @@ class LanguageModel:
     def _ensure_openai_client(self):
         if self._openai_client is not None:
             return self._openai_client
-        base_url = self.config.openai_base_url
+        base_url = self.api_base_url
         api_key = self.api_key
-        if not api_key and base_url:
+        if self.provider == "openrouter":
+            if not api_key:
+                raise ConfigurationError("Missing OpenRouter API key.")
+        elif not api_key and base_url:
             api_key = "local"
         if not api_key:
             raise ConfigurationError("Missing OpenAI API key.")
@@ -670,9 +682,12 @@ class LanguageModel:
             OpenAI = import_module("openai").OpenAI
         except Exception as exc:
             raise ConfigurationError("OpenAI backend requires the `openai` package.") from exc
-        self._openai_client = (
-            OpenAI(api_key=api_key, base_url=base_url) if base_url else OpenAI(api_key=api_key)
-        )
+        client_kwargs: dict[str, Any] = {"api_key": api_key}
+        if base_url:
+            client_kwargs["base_url"] = base_url
+        if self.provider == "openrouter":
+            client_kwargs["default_headers"] = {"X-OpenRouter-Title": "AskRex Assistant"}
+        self._openai_client = OpenAI(**client_kwargs)
         return self._openai_client
 
     def register_tool(

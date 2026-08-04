@@ -111,7 +111,7 @@ profile overrides live in `profiles/<name>.json`.
 |   |-- cli.py               # CLI command tree
 |   |-- assistant.py         # Assistant orchestration
 |   |-- config.py            # AppConfig loader and rex-config CLI
-|   |-- llm_client.py        # Transformers/OpenAI/Anthropic/Ollama clients
+|   |-- llm_client.py        # Transformers/OpenAI/OpenRouter/Anthropic/Ollama clients
 |   |-- voice_loop.py        # Package voice-loop exports
 |   |-- voice_loop_optimized.py
 |   |-- gui_app.py           # Flask local API plus experimental browser dashboard

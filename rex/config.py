@@ -56,6 +56,7 @@ from rex.profile_manager import (
 )
 
 LOGGER = get_logger(__name__)
+OPENROUTER_DEFAULT_BASE_URL = "https://openrouter.ai/api/v1"
 ENV_PATH = resolve_env_path()
 
 
@@ -184,6 +185,9 @@ class LLMConfig(BaseModel):
         "sshleifer/tiny-gpt2"  # maps to llm_model; None when openai_model is used
     )
     openai_api_key_env: str = "OPENAI_API_KEY"  # env var name (not the value)
+    openrouter_api_key_env: str = "OPENROUTER_API_KEY"
+    openrouter_model: Optional[str] = None
+    openrouter_base_url: str = OPENROUTER_DEFAULT_BASE_URL
     ollama_url: str = "http://localhost:11434"  # maps to ollama_base_url
     context_length: int = 120  # maps to llm_max_tokens
     temperature: float = 0.7  # maps to llm_temperature
@@ -429,6 +433,10 @@ class AppConfig:
     openai_api_key: Optional[str] = None
     openai_model: Optional[str] = None
     openai_base_url: Optional[str] = None
+
+    openrouter_api_key: Optional[str] = None
+    openrouter_model: Optional[str] = None
+    openrouter_base_url: str = OPENROUTER_DEFAULT_BASE_URL
 
     anthropic_api_key: Optional[str] = None
     anthropic_model: Optional[str] = None
@@ -716,6 +724,9 @@ class AppConfig:
 
     def __post_init__(self) -> None:
         provider = self.llm_provider.lower()
+        self.openrouter_base_url = (self.openrouter_base_url or OPENROUTER_DEFAULT_BASE_URL).rstrip(
+            "/"
+        )
         local_path_providers = {"transformers"}
         if provider in local_path_providers and isinstance(self.llm_model, str):
             model_path = Path(self.llm_model)
@@ -723,6 +734,13 @@ class AppConfig:
                 raise ValueError("llm_model must not contain path traversal components.")
         if provider == "openai" and not self.openai_model:
             raise ValueError("openai.model must be set when llm_provider is 'openai'.")
+        if provider == "openrouter":
+            if not self.openrouter_model:
+                raise ValueError("openrouter.model must be set when llm_provider is 'openrouter'.")
+            if self.openrouter_base_url != OPENROUTER_DEFAULT_BASE_URL:
+                raise ValueError(
+                    "openrouter.base_url must use the official https://openrouter.ai/api/v1 endpoint."
+                )
         if provider == "anthropic" and not self.anthropic_model:
             raise ValueError("anthropic.model must be set when llm_provider is 'anthropic'.")
         if self.llm_backend is None:
@@ -756,6 +774,8 @@ class AppConfig:
         self.llm = LLMConfig(
             llm_provider=self.llm_provider,
             model_name=self.llm_model,
+            openrouter_model=self.openrouter_model,
+            openrouter_base_url=self.openrouter_base_url,
             ollama_url=self.ollama_base_url,
             context_length=self.llm_max_tokens,
             temperature=self.llm_temperature,
@@ -1275,6 +1295,13 @@ def build_app_config(json_config: dict) -> AppConfig:
         openai_model=_get_nested(json_config, "openai.model"),
         openai_base_url=_get_nested(json_config, "openai.base_url"),
         openai_api_key=_secret_env_or_vault("OPENAI_API_KEY", json_config),
+        # OpenRouter from JSON + vault-backed secrets
+        openrouter_model=_get_nested(json_config, "openrouter.model"),
+        openrouter_base_url=(
+            _get_nested(json_config, "openrouter.base_url", OPENROUTER_DEFAULT_BASE_URL)
+            or OPENROUTER_DEFAULT_BASE_URL
+        ),
+        openrouter_api_key=_secret_env_or_vault("OPENROUTER_API_KEY", json_config),
         # Anthropic from JSON + vault-backed secrets
         anthropic_model=_get_nested(json_config, "anthropic.model"),
         anthropic_api_key=_secret_env_or_vault("ANTHROPIC_API_KEY", json_config),

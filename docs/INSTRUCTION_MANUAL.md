@@ -10,7 +10,7 @@ AskRex Assistant is a local-first AI assistant with:
 - CLI text chat
 - wake-word voice interaction
 - Whisper-based speech-to-text
-- LLM backends for local Transformers, OpenAI, Anthropic, and Ollama
+- LLM backends for local Transformers, OpenAI, OpenRouter, Anthropic, and Ollama
 - text-to-speech backends such as XTTS, Edge TTS, Piper, and pyttsx3 paths
 - memory, knowledge base, scheduler, reminders, notifications, workflows, and tools
 - integrations for Home Assistant, email, calendar, SMS, GitHub, browser/OS automation, WordPress, WooCommerce, and remote computer control

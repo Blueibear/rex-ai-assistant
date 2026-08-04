@@ -13,7 +13,7 @@ Credentials alone mean `configured`. They never mean connected, authenticated, w
 | Calendar | Partial / read-only by backend | ICS reads exist. Credentials are configured-only until authenticated. Provider writes and Outlook Graph OAuth are unavailable. |
 | SMS / Phone | Experimental | Twilio paths require complete credentials. Status checks do not claim delivery or calling success; live delivery is externally verified. |
 | Web search | Partial | Provider selection exists. Configuration does not prove current network reachability. |
-| OpenAI / Ollama | Supported provider options | A key or URL is configuration evidence only. Provider availability depends on a live request. |
+| OpenAI / OpenRouter / Ollama | Supported provider options | A key or URL is configuration evidence only. Provider availability depends on a live request. |
 | MQTT / Telegram / Push | Experimental | Visible and configurable, but live broker/provider authentication and delivery are externally verified. |
 | OpenClaw gateway | Experimental and optional | Feature-flagged HTTP client/tool adapters exist. A URL is configured-only evidence; the external gateway is not required by the packaged app. |
 | Browser automation / Windows control | Experimental | Environment-sensitive and permission-gated. Not part of the release-critical end-user path. |

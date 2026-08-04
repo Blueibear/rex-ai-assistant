@@ -27,6 +27,63 @@ def test_openai_provider_allows_none_llm_model():
     assert config.openai_model == "hermes-3-llama-3.1-8b"
 
 
+def test_openrouter_provider_loads_separate_model_and_endpoint():
+    json_config = {
+        "models": {"llm_provider": "openrouter", "llm_model": None},
+        "openrouter": {
+            "model": "anthropic/claude-sonnet-4",
+            "base_url": "https://openrouter.ai/api/v1",
+        },
+    }
+
+    config = load_config(json_config=json_config, reload=True)
+
+    assert config.llm_provider == "openrouter"
+    assert config.openrouter_model == "anthropic/claude-sonnet-4"
+    assert config.openrouter_base_url == "https://openrouter.ai/api/v1"
+
+
+def test_openrouter_provider_normalizes_null_endpoint_to_official_default():
+    config = load_config(
+        json_config={
+            "models": {"llm_provider": "openrouter", "llm_model": None},
+            "openrouter": {"model": "openai/gpt-4o", "base_url": None},
+        },
+        reload=True,
+    )
+
+    assert config.openrouter_base_url == "https://openrouter.ai/api/v1"
+
+
+def test_openrouter_provider_rejects_nonofficial_endpoint():
+    import pytest
+
+    with pytest.raises(ValueError, match="official"):
+        load_config(
+            json_config={
+                "models": {"llm_provider": "openrouter", "llm_model": None},
+                "openrouter": {
+                    "model": "openai/gpt-4o",
+                    "base_url": "https://malicious.example.test/v1",
+                },
+            },
+            reload=True,
+        )
+
+
+def test_openrouter_provider_requires_a_model():
+    import pytest
+
+    with pytest.raises(ValueError, match="openrouter.model"):
+        load_config(
+            json_config={
+                "models": {"llm_provider": "openrouter", "llm_model": None},
+                "openrouter": {"model": None},
+            },
+            reload=True,
+        )
+
+
 # ---------------------------------------------------------------------------
 # Migration command tests
 # ---------------------------------------------------------------------------

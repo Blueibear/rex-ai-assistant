@@ -1,6 +1,10 @@
 import type { AiSettings, Settings } from '../types/ipc'
 import { readRexConfig } from './configStore'
 
+export const OPENROUTER_DEFAULT_BASE_URL = 'https://openrouter.ai/api/v1'
+export const OPENAI_DEFAULT_MODEL = 'gpt-4o'
+export const OPENROUTER_DEFAULT_MODEL = 'openai/gpt-4o'
+
 export function normalizeAiModelRouting(raw: unknown): AiSettings['modelRouting'] {
   const source = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {}
   return {
@@ -14,7 +18,7 @@ export function normalizeAiModelRouting(raw: unknown): AiSettings['modelRouting'
 }
 
 export function normalizeGuiAiProvider(raw: unknown): AiSettings['provider'] {
-  if (raw === 'openai' || raw === 'ollama' || raw === 'local') {
+  if (raw === 'openai' || raw === 'openrouter' || raw === 'ollama' || raw === 'local') {
     return raw
   }
   if (raw === 'transformers') {
@@ -27,22 +31,20 @@ export function toRuntimeAiProvider(provider: AiSettings['provider']): string {
   return provider === 'local' ? 'transformers' : provider
 }
 
+function objectSection(value: unknown): Record<string, unknown> {
+  return value && typeof value === 'object' ? (value as Record<string, unknown>) : {}
+}
+
+function nonEmptyString(value: unknown): string {
+  return typeof value === 'string' && value.trim() ? value.trim() : ''
+}
+
 export function buildAiSettings(raw: Settings = {}): AiSettings {
   const rexConfig = readRexConfig()
-  const models = rexConfig.models && typeof rexConfig.models === 'object'
-    ? (rexConfig.models as Record<string, unknown>)
-    : {}
-  const ollama = rexConfig.ollama && typeof rexConfig.ollama === 'object'
-    ? (rexConfig.ollama as Record<string, unknown>)
-    : {}
-  const rawModel = typeof raw.model === 'string' ? raw.model : null
-  const model = rawModel === 'gpt-4o' || rawModel === 'gpt-4-turbo' || rawModel === 'claude-opus-4' || rawModel === 'claude-sonnet-4' || rawModel === 'gemini-1.5-pro'
-    ? rawModel
-    : 'claude-sonnet-4'
-  const routingSource =
-    raw.modelRouting && typeof raw.modelRouting === 'object'
-      ? raw.modelRouting
-      : rexConfig.model_routing
+  const models = objectSection(rexConfig.models)
+  const openai = objectSection(rexConfig.openai)
+  const openrouter = objectSection(rexConfig.openrouter)
+  const ollama = objectSection(rexConfig.ollama)
   const rawProvider =
     typeof models.llm_provider === 'string'
       ? models.llm_provider
@@ -50,16 +52,32 @@ export function buildAiSettings(raw: Settings = {}): AiSettings {
         ? raw.provider
         : null
   const provider = normalizeGuiAiProvider(rawProvider)
-  const rawCustomModelId = typeof raw.customModelId === 'string' ? raw.customModelId : ''
-  const runtimeModelId = typeof models.llm_model === 'string' ? models.llm_model : ''
+  const runtimeModelId = nonEmptyString(models.llm_model)
+  const model =
+    nonEmptyString(raw.model)
+    || nonEmptyString(openai.model)
+    || (provider === 'openai' ? runtimeModelId : '')
+    || OPENAI_DEFAULT_MODEL
+  const openrouterModel =
+    nonEmptyString(raw.openrouterModel)
+    || nonEmptyString(openrouter.model)
+    || (provider === 'openrouter' ? runtimeModelId : '')
+    || OPENROUTER_DEFAULT_MODEL
   const customModelId =
-    rawCustomModelId || (provider !== 'openai' ? runtimeModelId : '')
+    nonEmptyString(raw.customModelId)
+    || (provider === 'ollama' || provider === 'local' ? runtimeModelId : '')
   const ollamaBaseUrl =
-    typeof raw.ollamaBaseUrl === 'string' && raw.ollamaBaseUrl
-      ? raw.ollamaBaseUrl
-      : typeof ollama.base_url === 'string'
-        ? ollama.base_url
-        : 'http://localhost:11434'
+    nonEmptyString(raw.ollamaBaseUrl)
+    || nonEmptyString(ollama.base_url)
+    || 'http://localhost:11434'
+  const openrouterBaseUrl =
+    nonEmptyString(raw.openrouterBaseUrl)
+    || nonEmptyString(openrouter.base_url)
+    || OPENROUTER_DEFAULT_BASE_URL
+  const routingSource =
+    raw.modelRouting && typeof raw.modelRouting === 'object'
+      ? raw.modelRouting
+      : rexConfig.model_routing
 
   const VALID_PERSONALITIES = ['Friendly', 'Professional', 'Minimal']
   const rawPersonality = typeof raw.personality === 'string' ? raw.personality : null
@@ -74,6 +92,8 @@ export function buildAiSettings(raw: Settings = {}): AiSettings {
     provider,
     customModelId,
     ollamaBaseUrl,
+    openrouterModel,
+    openrouterBaseUrl,
     temperature:
       typeof raw.temperature === 'number'
         ? raw.temperature

@@ -211,7 +211,7 @@ Legacy environment variables are ignored for wake word configuration. Always upd
 ```json
 {
   "models": {
-    "llm_provider": "transformers",    // LLM: transformers, openai, ollama
+    "llm_provider": "transformers",    // LLM: transformers, openai, openrouter, ollama
     "llm_backend": null,               // Alias for llm_provider
     "llm_model": "sshleifer/tiny-gpt2",
     "llm_max_tokens": 120,
@@ -260,7 +260,7 @@ New code should always read settings via the nested path.
 #### `config.llm` — `LLMConfig`
 | Field | Description | Default |
 |-------|-------------|---------|
-| `llm_provider` | LLM backend (`transformers`, `openai`, `ollama`) | `"transformers"` |
+| `llm_provider` | LLM backend (`transformers`, `openai`, `openrouter`, `ollama`) | `"transformers"` |
 | `model_name` | Model name or path | `"sshleifer/tiny-gpt2"` |
 | `openai_api_key_env` | Env var holding OpenAI API key | `"OPENAI_API_KEY"` |
 | `ollama_url` | Ollama server URL | `"http://localhost:11434"` |

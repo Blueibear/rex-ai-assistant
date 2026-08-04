@@ -39,10 +39,12 @@ export const defaultSettingsMap: Record<string, Settings> = {
     wakeWordEmbeddingPath: ''
   } satisfies VoiceSettings,
   ai: {
-    model: 'claude-sonnet-4',
+    model: 'gpt-4o',
     provider: 'openai',
     customModelId: '',
     ollamaBaseUrl: 'http://localhost:11434',
+    openrouterModel: 'openai/gpt-4o',
+    openrouterBaseUrl: 'https://openrouter.ai/api/v1',
     temperature: 0.7,
     maxTokens: 2048,
     systemPrompt: '',

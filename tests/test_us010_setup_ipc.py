@@ -178,3 +178,10 @@ def test_bridge_script_uses_transactional_vault_persistence():
     content = _read(BRIDGE_SCRIPT)
     assert "persist_household_secrets" in content
     assert "_write_env_secrets" not in content
+
+
+def test_bridge_script_rejects_unsupported_llm_providers():
+    """Setup cannot persist an arbitrary provider string into runtime authority."""
+    content = _read(BRIDGE_SCRIPT)
+    assert "unsupported LLM provider" in content
+    assert '"openrouter"' in content

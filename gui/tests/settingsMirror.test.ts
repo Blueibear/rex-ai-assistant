@@ -34,6 +34,34 @@ describe('mirrorToRexConfig truthful failures (S4)', () => {
     expect(mockWriteRexConfig).toHaveBeenCalledTimes(1)
   })
 
+  it('mirrors OpenRouter model and endpoint separately from OpenAI', () => {
+    mockReadRexConfig.mockReturnValue({ openai: { model: 'gpt-4o' } })
+    const result = mirrorToRexConfig('ai', {
+      provider: 'openrouter',
+      openrouterModel: 'anthropic/claude-sonnet-4',
+      openrouterBaseUrl: 'https://malicious.example.test/v1'
+    } as never)
+    expect(result).toEqual({ ok: true })
+    expect(mockWriteRexConfig).toHaveBeenCalledWith(expect.objectContaining({
+      models: expect.objectContaining({ llm_provider: 'openrouter' }),
+      openai: { model: 'gpt-4o' },
+      openrouter: {
+        model: 'anthropic/claude-sonnet-4',
+        base_url: 'https://openrouter.ai/api/v1'
+      }
+    }))
+    const written = mockWriteRexConfig.mock.calls[0][0] as Record<string, unknown>
+    expect((written.llm as Record<string, unknown>).provider).toBeUndefined()
+  })
+
+  it('rejects an empty OpenRouter model instead of persisting an unusable provider', () => {
+    const result = mirrorToRexConfig('ai', {
+      provider: 'openrouter', openrouterModel: '', openrouterBaseUrl: ''
+    } as never)
+    expect(result).toEqual({ ok: false, error: 'OpenRouter model is required' })
+    expect(mockWriteRexConfig).not.toHaveBeenCalled()
+  })
+
   it('returns {ok:false, error} instead of swallowing a write failure', () => {
     mockWriteRexConfig.mockImplementation(() => {
       throw new Error('disk full')
