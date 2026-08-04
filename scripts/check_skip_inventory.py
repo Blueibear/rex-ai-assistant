@@ -134,6 +134,30 @@ def parse_inventory(path: Path = INVENTORY_PATH) -> list[InventoryRow]:
     return sorted(rows)
 
 
+def _validate_row_policy(row: InventoryRow) -> list[str]:
+    """Return classification/action/follow-up errors for one inventory row."""
+    errors: list[str] = []
+    if row.classification not in VALID_CLASSIFICATIONS:
+        return [f"invalid classification at {row.path}:{row.line}: {row.classification!r}"]
+    if row.action not in VALID_ACTIONS:
+        return [f"invalid action at {row.path}:{row.line}: {row.action!r}"]
+
+    if row.classification in {"optional-dep-skip", "platform-skip"}:
+        if row.action != "keep":
+            errors.append(f"permanent guard must use keep at {row.path}:{row.line}")
+        if not row.follow_up.startswith("permanent:"):
+            errors.append(f"kept guard needs permanent rationale at {row.path}:{row.line}")
+    elif row.classification == "retired-surface-skip":
+        if row.action != "archive" or row.follow_up != "US-039":
+            errors.append(f"retired surface must archive under US-039 at {row.path}:{row.line}")
+    elif row.classification == "temporary-bug-skip":
+        if row.action not in {"fix", "replace"}:
+            errors.append(f"temporary bug must use fix/replace at {row.path}:{row.line}")
+        if not FOLLOW_UP_RE.fullmatch(row.follow_up) or row.follow_up == "US-038":
+            errors.append(f"temporary bug needs non-circular story ID at {row.path}:{row.line}")
+    return errors
+
+
 def validate_inventory(
     actual_sites: list[SkipSite], inventory_rows: list[InventoryRow]
 ) -> list[str]:
@@ -157,26 +181,7 @@ def validate_inventory(
                 f"reason drift at {site.path}:{site.line}: "
                 f"inventory={row.reason!r}, source={site.reason!r}"
             )
-        if row.classification not in VALID_CLASSIFICATIONS:
-            errors.append(
-                f"invalid classification at {row.path}:{row.line}: {row.classification!r}"
-            )
-        if row.action not in VALID_ACTIONS:
-            errors.append(f"invalid action at {row.path}:{row.line}: {row.action!r}")
-            continue
-        if row.classification in {"optional-dep-skip", "platform-skip"}:
-            if row.action != "keep":
-                errors.append(f"permanent guard must use keep at {row.path}:{row.line}")
-            if not row.follow_up.startswith("permanent:"):
-                errors.append(f"kept guard needs permanent rationale at {row.path}:{row.line}")
-        elif row.classification == "retired-surface-skip":
-            if row.action != "archive" or row.follow_up != "US-039":
-                errors.append(f"retired surface must archive under US-039 at {row.path}:{row.line}")
-        elif row.classification == "temporary-bug-skip":
-            if row.action not in {"fix", "replace"}:
-                errors.append(f"temporary bug must use fix/replace at {row.path}:{row.line}")
-            if not FOLLOW_UP_RE.fullmatch(row.follow_up) or row.follow_up == "US-038":
-                errors.append(f"temporary bug needs non-circular story ID at {row.path}:{row.line}")
+        errors.extend(_validate_row_policy(row))
     return errors
 
 
