@@ -1245,3 +1245,24 @@ The first Python job was cancelled unnecessarily after its UTC timestamp was
 misread as indicating a five-hour runtime. It had actually run for roughly six
 minutes. Attempt 2 completed successfully and is the authoritative evidence.
 US-038 is complete.
+
+
+=== 2026-08-04 - US-039 retired Flask dashboard tests archived ===
+
+Moved thirteen wholly retired Flask-dashboard placeholder test files from the
+active tests/ tree to archived/flask_dashboard/tests/. Removed only the obsolete
+dashboard-route assertion from tests/test_us174_voice_max_tokens.py, preserving
+all fifteen current voice-response-length tests.
+
+Supported Python 3.11 evidence:
+- baseline collection: 8,451 tests
+- post-archive collection: 8,414 tests, no collection errors
+- retired scope before archive: 15 passed, 37 skipped
+- focused active tests after archive: 26 passed
+- skip inventory validator: 129/129 current
+
+Lowered the enforced runtime skip budget from 119 to 82, updated the inventory,
+archive documentation, CLAUDE.md, and the US-037/039 tracker evidence. Relevant
+GitHub checks remain pending the story PR.
+
+US-039 rebase verification (2026-08-07): rebased cleanly onto master@79b0a97; Python 3.11 collect-only measured 8,541 tests on base and 8,504 after the story, with no collection error. Focused tests test_us038_skip_inventory.py + test_us174_voice_max_tokens.py: 19 passed.

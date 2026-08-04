@@ -2,8 +2,6 @@
 
 from pathlib import Path
 
-import pytest
-
 REPO_ROOT = Path(__file__).parent.parent
 ASSISTANT_SRC = REPO_ROOT / "rex" / "assistant.py"
 BUILDER_SRC = REPO_ROOT / "rex" / "context" / "builder.py"
@@ -125,11 +123,6 @@ class TestVoiceLoopUsesVoiceMode:
         idx = src.index("async def run(self, max_interactions")
         body = src[idx : idx + 5000]
         assert "voice_mode=True" in body
-
-    @pytest.mark.skip(reason="rex/dashboard/routes.py retired in OpenClaw migration (US-P7-014)")
-    def test_chat_mode_not_affected(self):
-        """Chat route should NOT pass voice_mode=True."""
-        pass
 
 
 # ── .env.example documentation ───────────────────────────────────────────────

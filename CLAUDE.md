@@ -220,6 +220,7 @@ Top-level directories:
 - rex/ — main package (CLI, services, workflows, integrations)
 - bridge/ — canonical Electron stdin/stdout JSON bridge processes (plus integration adapters)
 - archived/ — retired files kept for reference; not maintained (see `archived/ARCHIVED.md`)
+  - `archived/flask_dashboard/tests/` preserves retired Flask-dashboard placeholder tests and is outside pytest's active `tests/` collection.
 - scripts/ — operational and install scripts (platform scripts in `scripts/install/`)
 - plugins/ — optional plugins
 - config/ — application configuration (not secrets)

@@ -160,7 +160,7 @@ These principles bind every story in this PRD. They are enforced by review and b
 | D | Bridge layout and root file truth | Root wrappers vs `bridge/` canonicals not codified; docs claim wrong root file count. | Packaging | P0 |
 | E | Security audit triage | **[Partially resolved]** The three stub findings (workflow_bridge, replay, skills/trainer) are fixed on master; logs/HA endpoint auth is implemented and tested. Remaining: confirmation gates (US-025), Twilio fail-closed proof (US-026), GUI secret redaction (US-027/028), and audit closeout (US-029). | Security | P0 |
 | F | CI must match the shipped product | **[Partially resolved]** Wheel smoke, `/api/` guard, secret scan, full-tree ruff, and tree-clean check are in CI. Remaining: security_audit gate (US-034), `scripts/` Black (US-031), skip budget (US-037), deprecated-API guard (US-058), generated-artifact guard (US-035). | CI | P0 |
-| G | Skipped tests and retired surfaces | 98 current `@pytest.mark.skip` hits *(re-verified 2026-07-08)* are not classified; no skip budget; tests for retired surfaces still present. | Tests | P1 |
+| G | Skipped tests and retired surfaces | **[Partially resolved]** US-037/038 enforce an 82-test runtime budget and exact 129-site inventory; US-039 archives retired-surface tests. Temporary supported-surface skips remain for US-040. | Tests | P1 |
 | H | Docker healthcheck truth | Healthcheck is a no-op; Docker's support tier is undocumented. | Packaging | P1 |
 | I | Runtime truth and docs consistency | README, INSTALL, RUNNING, `docs/UI_SURFACES.md`, `SURFACE-CLASSIFICATION.md`, `INTEGRATIONS_STATUS.md`, and `CLAUDE.md` disagree about what is shippable. | Docs | P0 |
 | J | Voice reliability and production voice path | Wake word reliability not measured; Hold-to-Talk not defined as production path; voice pipeline lacks structured logs and latency budgets. | Voice | P0 |
@@ -1383,7 +1383,7 @@ git status --porcelain -- ':!.coverage' ':!coverage.xml' ':!htmlcov/'
 
 **Acceptance Criteria:**
 - [x] Script enforces the budget and fails when exceeded. *(`scripts/check_skip_budget.py`; parser and CLI regression tests in `tests/test_us037_skip_budget.py`.)*
-- [x] Budget is documented and matches the post-US-002 count minus removals from US-039. *(Runtime baseline: 119 skips from PR #347 CI run 968; source-site inventory remains separately classified.)*
+- [x] Budget is documented and matches the post-US-002 count minus removals from US-039. *(PR #348 established 119; US-039 removed 37 retired-dashboard skips and lowered the current budget to 82.)*
 - [x] CI runs the script after the test suite. *(The Python 3.11 job captures `-rs` output to `coverage.txt`, then runs the gate before integration tests.)*
 - [x] All relevant GitHub checks pass. *(PR #348 head `2579060`: CI run 972 and commitlint run 631 succeeded; rerun job `92049529366` reported 8,304 passed / 119 skipped, and `check_skip_budget.py` passed at 119/119.)*
 
@@ -1429,6 +1429,8 @@ grep -E "TODO|FIXME|none" docs/testing/SKIPPED-TESTS-INVENTORY.md || echo "ok"
 
 ### US-039: Remove or archive tests for retired surfaces
 
+**Implementation status (2026-08-04):** Local implementation complete on `lead/us039-retired-tests`. Thirteen wholly retired Flask-dashboard test files were moved under `archived/flask_dashboard/tests/`; the one obsolete dashboard assertion was removed from the otherwise-current voice-length suite. After rebasing onto current master, Python 3.11 collection dropped from 8,541 to 8,504 without error. Remote GitHub verification remains pending.
+
 **Priority:** P1
 **Workstream:** Tests
 **Description:** As a maintainer, I want tests that target removed surfaces (Tkinter GUI, shopping PWA, retired Flask dashboard) gone from the active suite.
@@ -1438,9 +1440,9 @@ grep -E "TODO|FIXME|none" docs/testing/SKIPPED-TESTS-INVENTORY.md || echo "ok"
 - `archived/`
 
 **Acceptance Criteria:**
-- [ ] Tests for retired surfaces are either deleted or moved under `archived/` with the surface they tested.
-- [ ] `pytest --collect-only -q` collects fewer tests after the change AND no collection error appears.
-- [ ] Skip inventory is updated.
+- [x] Tests for retired surfaces are either deleted or moved under `archived/` with the surface they tested. *(Thirteen retired Flask-dashboard files moved to `archived/flask_dashboard/tests/`; no deprecated/current surface tests were archived.)*
+- [x] `pytest --collect-only -q` collects fewer tests after the change AND no collection error appears. *(Python 3.11 on current master: 8,541 before, 8,504 after.)*
+- [x] Skip inventory is updated. *(129 executable sites remain; the runtime budget is reduced from 119 to 82.)*
 - [ ] All relevant GitHub checks pass.
 
 **Validation commands:**
