@@ -1397,6 +1397,8 @@ python scripts/check_skip_budget.py /tmp/pytest.out
 
 ### US-038: Classify each skipped test and link to a follow-up if needed
 
+**Implementation status (2026-08-04):** Complete on `lead/us038-skip-actions`. The current 143 executable skip sites were regenerated from AST, assigned explicit actions, linked to US-039 or US-040 where work remains, protected by a CI drift validator, and verified by all relevant GitHub checks.
+
 **Priority:** P1
 **Workstream:** Tests / Docs
 **Description:** As a maintainer, I want every entry in the skip inventory tied to an action (keep, remove, replace, fix).
@@ -1406,14 +1408,22 @@ python scripts/check_skip_budget.py /tmp/pytest.out
 - `tests/` (annotation only)
 
 **Acceptance Criteria:**
-- [ ] Every inventory row has an action and, where action is non-trivial, a follow-up story ID.
-- [ ] Inventory is committed and current.
-- [ ] All relevant GitHub checks pass.
+- [x] Every inventory row has an action and, where action is non-trivial, a follow-up story ID. *(143 rows: 35 `keep`, 92 `fix`, 2 `replace`, 14 `archive`; non-trivial rows link to US-039 or US-040.)*
+- [x] Inventory is committed and current. *(`scripts/check_skip_inventory.py` verifies exact file, line, type, reason, action, and follow-up parity against the current `tests/` AST.)*
+- [x] All relevant GitHub checks pass. *(PR #349 head `996b076`; CI attempt 2 passed after an unnecessary operator cancellation/retry of the first still-running Python job.)*
 
 **Validation commands:**
 ```bash
 grep -E "TODO|FIXME|none" docs/testing/SKIPPED-TESTS-INVENTORY.md || echo "ok"
 ```
+
+**US-038 remote verification evidence (2026-08-04):**
+- PR #349 head `996b076` passed CodeFactor, GitGuardian, commitlint, Ruff, Black, mypy, GUI lint/typecheck/tests/build, dependency audits, pre-commit, secret scan, security release gate, raw-API guard, wheel contents smoke, and the skip-inventory validator.
+- Python 3.11 coverage suite: 8,308 passed, 119 skipped; 82.36% coverage.
+- Skip budget: 119 skipped against a budget of 119.
+- Integration suite: 36 passed, 3 skipped.
+- Tests left the tracked working tree clean and the coverage artifact uploaded successfully.
+- The first Python job was cancelled while still running because its UTC timestamp was misread as five hours old; it had actually run for only about six minutes. Attempt 2 supplied the valid remote evidence.
 
 ---
 

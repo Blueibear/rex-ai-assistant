@@ -1211,3 +1211,37 @@ tests, or the new gate ran. Only that Python job was rerun; the isolated rerun
 completed successfully. This was infrastructure recovery, not code remediation.
 
 US-037 is now complete.
+
+=== 2026-08-04 - US-038 skip inventory actions ===
+
+Regenerated the skipped-test inventory from the current test AST and found:
+- 143 executable skip sites
+- 29 stale line locations in the prior snapshot
+- 32 current locations absent from the prior snapshot
+- three net-new Windows/DPAPI platform guards
+
+Every row now carries one explicit action:
+- 35 `keep` rows for optional-dependency or platform guards
+- 92 `fix` rows linked to US-040
+- 2 `replace` rows linked to US-040
+- 14 `archive` rows linked to US-039
+
+Added `scripts/check_skip_inventory.py`, focused regression tests, and a CI lint
+step. The validator fails on missing/stale rows, reason drift, invalid actions,
+missing permanent rationales, and circular or absent follow-up stories. Updated
+`CLAUDE.md` with the required maintenance command and rule. Final GitHub checks
+remain pending the story PR.
+
+
+=== 2026-08-04 - US-038 remote verification complete ===
+
+PR #349 head `996b076` passed all relevant checks. The Python 3.11 suite
+reported 8,308 passed and 119 skipped with 82.36% coverage; the skip-budget
+gate held at 119; integration tests reported 36 passed and 3 skipped; and the
+tracked working tree remained clean. CodeFactor also passed after the validator
+policy logic was split into a focused helper.
+
+The first Python job was cancelled unnecessarily after its UTC timestamp was
+misread as indicating a five-hour runtime. It had actually run for roughly six
+minutes. Attempt 2 completed successfully and is the authoritative evidence.
+US-038 is complete.

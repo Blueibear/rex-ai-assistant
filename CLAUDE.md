@@ -398,6 +398,17 @@ The runtime budget is `scripts.check_skip_budget.SKIP_BUDGET`. When skips are
 removed, lower the budget in the same PR. Never raise it without updating
 `docs/testing/SKIPPED-TESTS-INVENTORY.md` with evidence and rationale.
 
+Validate the source-site inventory after adding, removing, or moving any pytest
+skip call/decorator:
+
+```powershell
+python scripts/check_skip_inventory.py
+```
+
+Every inventory row must use one action: `keep`, `fix`, `replace`, or `archive`.
+Permanent guards need a written rationale; non-trivial actions need a non-circular
+`US-###` follow-up. Update the inventory in the same PR as skip-site changes.
+
 Electron GUI quality gates (run from `gui/`):
 
 ```powershell

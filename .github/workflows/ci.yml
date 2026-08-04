@@ -52,6 +52,9 @@ jobs:
       - name: 🗑️ Check no generated artifacts are committed
         run: python scripts/check_no_generated_artifacts.py
 
+      - name: Validate skipped-test inventory
+        run: python scripts/check_skip_inventory.py
+
   security-audit:
     name: Security Audit Gate
     runs-on: ubuntu-latest
