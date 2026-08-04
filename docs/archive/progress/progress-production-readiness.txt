@@ -1146,3 +1146,20 @@ Verified PR #332 (`fable/shipping-readiness`, head `4195c5d`) against GitHub:
 The remaining US-024 acceptance criterion was stale tracker state. No runtime
 behavior changed in this close-out. PRD-production-readiness.md now records the
 current superseding IPC security design and marks US-024 fully complete.
+
+=== 2026-08-04 - PR #332 evidence reconciliation ===
+
+Reconciled the remaining GitHub-check acceptance criteria for US-025, US-026,
+US-027, US-028, US-029, US-031, US-034, US-035, and US-036. Each story's
+implementation, tests, and documentation were already marked complete; only the
+shared PR #332 workflow result remained pending.
+
+Verified immutable GitHub evidence for PR #332 (`fable/shipping-readiness`, head
+`4195c5d`):
+- CI run 917: completed successfully
+- Windows Electron Artifact run 55: completed successfully
+- commitlint run 584: completed successfully
+- merged as `0371154` on 2026-07-28
+
+No runtime behavior changed. US-033 remains open because the master branch is
+currently unprotected and the wheel-smoke job is therefore not required for merge.

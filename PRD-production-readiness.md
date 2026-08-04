@@ -1057,6 +1057,8 @@ pytest tests/test_ha_auth.py -q
 
 ### US-025: Confirmation gates for destructive tools
 
+**Reconciliation status (2026-08-04):** Complete. Current code, tests, and documentation remain present on `master`; PR #332 supplied the previously pending GitHub verification evidence.
+
 **Priority:** P0
 **Workstream:** Security / Verification
 **Description:** As a user, I want destructive tool calls to require explicit confirmation before execution.
@@ -1075,7 +1077,7 @@ pytest tests/test_ha_auth.py -q
 - [x] Calling with the matching token completes the action. *(Confirmed calls execute; HA token round-trip covered by `tests/test_ha_mutation_service.py`.)*
 - [x] A negative test asserts that the first call does not execute the side effect. *(`tests/test_tool_execution_lifecycle.py`, `tests/test_ha_mutation_service.py`.)*
 - [x] `README.md` and `docs/tools.md` document the gate. *(2026-07-28 additions.)*
-- [ ] All relevant GitHub checks pass. *(Pending PR #332 CI.)*
+- [x] All relevant GitHub checks pass. *(PR #332 head `4195c5d`: CI run 917, Windows Electron Artifact run 55, and commitlint run 584 all completed successfully; merged as `0371154` on 2026-07-28.)*
 
 **Validation commands:**
 ```bash
@@ -1092,7 +1094,7 @@ pytest tests/test_destructive_tool_confirmation.py -q
 **Workstream:** Security / Integrations
 **Description:** As an operator, I want SMS to refuse cleanly when Twilio is not configured rather than appear to succeed.
 
-**Reconciliation status (2026-06-12):** Partially satisfied by current tests. `tests/test_twilio_sms_backend.py` covers missing Twilio import and missing credentials, and `tests/test_ph001_twilio_handler.py` covers fail-closed signature validation when Twilio is absent. This story remains open because the acceptance criteria name a specific `IntegrationUnavailable` behavior and user-facing docs that are not yet proven by the current evidence.
+**Reconciliation status (2026-08-04):** Complete. Current code, tests, and documentation remain present on `master`; PR #332 supplied the previously pending GitHub verification evidence.
 
 **Files/areas likely involved:**
 - `rex/messaging_backends/twilio*.py`
@@ -1105,7 +1107,7 @@ pytest tests/test_destructive_tool_confirmation.py -q
 - [x] No code path returns `success` on a missing-config send. *(Construction/credential resolution raise before any send path.)*
 - [x] A test asserts a missing-dep send fails with a user-visible error. *(`tests/test_twilio_sms_backend.py`, `tests/test_ph001_twilio_handler.py`.)*
 - [x] `docs/messaging.md` documents the behavior. *(2026-07-28: "Twilio Fail-Closed Behavior" section.)*
-- [ ] All relevant GitHub checks pass. *(Pending PR #332 CI.)*
+- [x] All relevant GitHub checks pass. *(PR #332 head `4195c5d`: CI run 917, Windows Electron Artifact run 55, and commitlint run 584 all completed successfully; merged as `0371154` on 2026-07-28.)*
 
 **Validation commands:**
 ```bash
@@ -1115,6 +1117,8 @@ pytest tests/test_twilio_fail_closed.py -q
 ---
 
 ### US-027: Redact tokens from GUI settings JSON before persisting
+
+**Reconciliation status (2026-08-04):** Complete. Current code, tests, and documentation remain present on `master`; PR #332 supplied the previously pending GitHub verification evidence.
 
 **Priority:** P0
 **Workstream:** Security
@@ -1131,7 +1135,7 @@ pytest tests/test_twilio_fail_closed.py -q
 - [x] A test loads `config/gui_settings.json` from a fixture and asserts no secret pattern appears. *(Delivered as source-level Vitest coverage: `gui/tests/settingsRedaction.test.ts` asserts secret keys are stripped from persisted settings at every nesting depth, plus legit keys like `max_tokens`/`api_key_env` survive.)*
 - [x] When the renderer needs a secret, it requests via IPC and the main process reads `.env`. *(e.g. `getApiKeys` returns only set/unset booleans; the HA token is read from `.env` in `gui/src/main/homeAssistant.ts` and never returned to the renderer or stored in gui_settings.)*
 - [x] `docs/configuration.md` and `SECURITY.md` document the rule. *(2026-07-28 additions.)*
-- [ ] All relevant GitHub checks pass. *(Pending PR #332 CI.)*
+- [x] All relevant GitHub checks pass. *(PR #332 head `4195c5d`: CI run 917, Windows Electron Artifact run 55, and commitlint run 584 all completed successfully; merged as `0371154` on 2026-07-28.)*
 
 **Validation commands:**
 ```bash
@@ -1142,6 +1146,8 @@ cd gui && npm test -- settingsRedaction || true
 ---
 
 ### US-028: Verify no tokens in tracked config
+
+**Reconciliation status (2026-08-04):** Complete. Current code, tests, and documentation remain present on `master`; PR #332 supplied the previously pending GitHub verification evidence.
 
 **Priority:** P0
 **Workstream:** Security / CI
@@ -1157,7 +1163,7 @@ cd gui && npm test -- settingsRedaction || true
 - [x] A test fixture confirms a known secret pattern under `config/` would fail the scan. *(2026-07-28: `test_planted_secret_under_config_is_detected` plants an AWS-style key in a throwaway config/ JSON and asserts detect-secrets flags it.)*
 - [x] The PR review checklist mentions secret-scan results. *(2026-07-28: `.github/PULL_REQUEST_TEMPLATE.md` Verification checklist.)*
 - [x] `SECURITY.md` documents the rule. *(Security baseline section covers the detect-secrets gate incl. `config/`.)*
-- [ ] All relevant GitHub checks pass. *(Pending PR #332 CI.)*
+- [x] All relevant GitHub checks pass. *(PR #332 head `4195c5d`: CI run 917, Windows Electron Artifact run 55, and commitlint run 584 all completed successfully; merged as `0371154` on 2026-07-28.)*
 
 **Validation commands:**
 ```bash
@@ -1167,6 +1173,8 @@ python -m detect_secrets scan --baseline .secrets.baseline config/
 ---
 
 ### US-029: Close out the security audit inventory
+
+**Reconciliation status (2026-08-04):** Complete. Current code, tests, and documentation remain present on `master`; PR #332 supplied the previously pending GitHub verification evidence.
 
 **Priority:** P0
 **Workstream:** Security / Docs
@@ -1181,7 +1189,7 @@ python -m detect_secrets scan --baseline .secrets.baseline config/
 - [x] No row is `production-blocker` with status `open`. *(Status counts: open=0, resolved=8, documented=206.)*
 - [x] `python scripts/security_audit.py` exits 0 OR exits with only findings explicitly listed in an allowlist with justification. *(2026-07-28 local run of `--release-gate` mode: exit 0, zero exposed secrets; now CI-enforced by the Security Audit Gate job.)*
 - [x] `README.md`'s "Security baseline" section is current. *(Points to the inventory and the release-gate command.)*
-- [ ] All relevant GitHub checks pass. *(Pending PR #332 CI.)*
+- [x] All relevant GitHub checks pass. *(PR #332 head `4195c5d`: CI run 917, Windows Electron Artifact run 55, and commitlint run 584 all completed successfully; merged as `0371154` on 2026-07-28.)*
 
 **Validation commands:**
 ```bash
@@ -1220,7 +1228,7 @@ ruff check .
 **Workstream:** CI
 **Description:** As a maintainer, I want CI Black coverage to include `scripts/` too.
 
-**Reconciliation status (2026-07-28, supersedes 2026-06-12):** Implemented on `fable/shipping-readiness` commit `36f4cb2`: CI now runs `black --check --diff rex/ tests/ bridge/ scripts/ *.py`; `black --check scripts/` passed locally (31 files unchanged) before the change landed.
+**Reconciliation status (2026-08-04):** Complete. Current code, tests, and documentation remain present on `master`; PR #332 supplied the previously pending GitHub verification evidence.
 
 **Files/areas likely involved:**
 - `.github/workflows/ci.yml`
@@ -1228,7 +1236,7 @@ ruff check .
 **Acceptance Criteria:**
 - [x] CI runs `black --check --diff rex/ tests/ bridge/ scripts/ *.py`. *(Commit `36f4cb2`.)*
 - [x] Any unformatted file fails the check. *(Same blocking Lint & Format Check job.)*
-- [ ] All relevant GitHub checks pass. *(Pending PR #332 CI.)*
+- [x] All relevant GitHub checks pass. *(PR #332 head `4195c5d`: CI run 917, Windows Electron Artifact run 55, and commitlint run 584 all completed successfully; merged as `0371154` on 2026-07-28.)*
 
 **Validation commands:**
 ```bash
@@ -1287,6 +1295,8 @@ python scripts/check_wheel_contents.py
 
 ### US-034: Add the security audit as a required CI check
 
+**Reconciliation status (2026-08-04):** Complete. Current code, tests, and documentation remain present on `master`; PR #332 supplied the previously pending GitHub verification evidence.
+
 **Priority:** P0
 **Workstream:** CI / Security
 **Description:** As a maintainer, I want CI to fail when `scripts/security_audit.py` detects new untriaged actionable findings.
@@ -1297,7 +1307,7 @@ python scripts/check_wheel_contents.py
 **Acceptance Criteria:**
 - [x] A `security-audit` job runs `python scripts/security_audit.py` and fails on a non-zero exit. *(2026-07-28: "Security Audit Gate" job in ci.yml runs `--release-gate` mode, which is strictly stricter; local run exits 0.)*
 - [x] The job is documented in `SECURITY.md`. *(Security baseline section.)*
-- [ ] All relevant GitHub checks pass. *(Pending PR #332 CI.)*
+- [x] All relevant GitHub checks pass. *(PR #332 head `4195c5d`: CI run 917, Windows Electron Artifact run 55, and commitlint run 584 all completed successfully; merged as `0371154` on 2026-07-28.)*
 
 **Validation commands:**
 ```bash
@@ -1307,6 +1317,8 @@ python scripts/security_audit.py
 ---
 
 ### US-035: Add "no generated artifacts committed" check to CI
+
+**Reconciliation status (2026-08-04):** Complete. Current code, tests, and documentation remain present on `master`; PR #332 supplied the previously pending GitHub verification evidence.
 
 **Priority:** P0
 **Workstream:** CI
@@ -1321,7 +1333,7 @@ python scripts/security_audit.py
 - [x] Script enumerates generated patterns and fails if any are tracked. *(2026-07-28: `scripts/check_no_generated_artifacts.py`; the deliberately committed `rex/ui/dist/index.html` dashboard bundle is allowlisted with justification; `tests/test_us035_no_generated_artifacts.py` covers patterns, allowlist, and the live tree.)*
 - [x] CI runs the script. *(Step in the Lint & Format Check job.)*
 - [x] `.gitignore` covers each pattern. *(Verified: coverage/dist/build/htmlcov/pycache entries present.)*
-- [ ] All relevant GitHub checks pass. *(Pending PR #332 CI.)*
+- [x] All relevant GitHub checks pass. *(PR #332 head `4195c5d`: CI run 917, Windows Electron Artifact run 55, and commitlint run 584 all completed successfully; merged as `0371154` on 2026-07-28.)*
 
 **Validation commands:**
 ```bash
@@ -1336,7 +1348,7 @@ python scripts/check_no_generated_artifacts.py
 **Workstream:** CI
 **Description:** As a maintainer, I want CI to fail if a test modified a tracked file.
 
-**Reconciliation status (2026-07-28, supersedes 2026-07-08):** The Python 3.11 test job's tree-clean step remains in place, and the GUI Vitest job now has an equivalent "Verify tests did not modify tracked files" step. Both test-running jobs are covered.
+**Reconciliation status (2026-08-04):** Complete. Current code, tests, and documentation remain present on `master`; PR #332 supplied the previously pending GitHub verification evidence.
 
 **Files/areas likely involved:**
 - `.github/workflows/ci.yml` (the existing "Verify tests did not modify tracked files" step — promote to all relevant jobs)
@@ -1344,7 +1356,7 @@ python scripts/check_no_generated_artifacts.py
 **Acceptance Criteria:**
 - [x] Every job that runs tests includes the working-tree-clean check. *(2026-07-28: Python 3.11 Tests & Coverage and GUI Vitest Tests jobs both verify.)*
 - [x] The check ignores documented artifacts (`.coverage`, `coverage.xml`, `htmlcov/`). *(Python job step excludes exactly these.)*
-- [ ] All relevant GitHub checks pass. *(Pending PR #332 CI.)*
+- [x] All relevant GitHub checks pass. *(PR #332 head `4195c5d`: CI run 917, Windows Electron Artifact run 55, and commitlint run 584 all completed successfully; merged as `0371154` on 2026-07-28.)*
 
 **Validation commands:**
 ```bash
