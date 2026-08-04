@@ -1275,15 +1275,15 @@ pytest -m "not slow and not audio and not gpu" -q
 **Workstream:** CI / Packaging
 **Description:** As a maintainer, I want CI to run `scripts/check_wheel_contents.py` as a blocking gate.
 
-**Reconciliation status (2026-07-08):** The **Wheel Contents Smoke Test** job exists in `.github/workflows/ci.yml` (installs `build`, runs `scripts/check_wheel_contents.py`, which builds the wheel and validates contents) and runs green on every recent PR. The only unproven box is "required for merge": branch-protection settings are not readable with the current token (`gh api .../branches/master/protection` → 403), so required-check status needs owner confirmation in the GitHub UI.
+**Reconciliation status (2026-08-04):** Complete. Repository ruleset `8318444` (`Precaution`) is active on `~DEFAULT_BRANCH`, has no bypass actors, preserves deletion protection, and requires `Wheel Contents Smoke Test` with strict latest-code enforcement. PR #346 passed that check and the complete CI/commitlint suite before merging as `dac19c1`.
 
 **Files/areas likely involved:**
 - `.github/workflows/ci.yml`
 
 **Acceptance Criteria:**
 - [x] A wheel-smoke job runs the wheel build and `python scripts/check_wheel_contents.py`. *(Verified 2026-07-08: "Wheel Contents Smoke Test" job in ci.yml.)*
-- [ ] Job is required for merge. *(Owner must confirm in branch-protection settings; not API-readable with the current token.)*
-- [ ] All relevant GitHub checks pass. *(Check together with the box above.)*
+- [x] Job is required for merge. *(Verified through repository ruleset `8318444`: the active no-bypass default-branch ruleset requires `Wheel Contents Smoke Test` and uses strict latest-code enforcement.)*
+- [x] All relevant GitHub checks pass. *(PR #346 head `3f81940`: CI run 966 and commitlint run 627 completed successfully; the required wheel smoke job passed before the PR merged as `dac19c1`.)*
 
 **Validation commands:**
 ```bash

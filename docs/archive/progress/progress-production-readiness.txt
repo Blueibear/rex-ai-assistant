@@ -1163,3 +1163,19 @@ Verified immutable GitHub evidence for PR #332 (`fable/shipping-readiness`, head
 
 No runtime behavior changed. US-033 remains open because the master branch is
 currently unprotected and the wheel-smoke job is therefore not required for merge.
+
+=== 2026-08-04 - US-033 required wheel-smoke enforcement ===
+
+Updated the existing active repository ruleset rather than creating a competing
+legacy branch-protection rule. Ruleset `8318444` (`Precaution`) now:
+- targets `~DEFAULT_BRANCH`
+- remains active with no bypass actors
+- preserves the existing branch-deletion protection
+- requires the `Wheel Contents Smoke Test` status context
+- requires strict latest-code status checks
+
+PR #346 (`lead/prd-reconcile-pr332-evidence`, head `3f81940`) then proved the
+rule in normal operation: the wheel smoke job passed, CI run 966 and commitlint
+run 627 completed successfully, and the PR merged as `dac19c1`.
+
+US-033 is now complete.
