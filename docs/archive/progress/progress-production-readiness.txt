@@ -1179,3 +1179,35 @@ rule in normal operation: the wheel smoke job passed, CI run 966 and commitlint
 run 627 completed successfully, and the PR merged as `dac19c1`.
 
 US-033 is now complete.
+
+=== 2026-08-04 - US-037 skip-budget implementation ===
+
+Implemented a fail-closed runtime skipped-test budget gate:
+- added `scripts/check_skip_budget.py` with `SKIP_BUDGET = 119`
+- parser rejects missing/malformed pytest summaries
+- gate exits non-zero when the executed skip count exceeds the budget
+- added focused parser/CLI regression tests
+- primary CI suite now emits `-rs`, captures `coverage.txt`, and runs the gate
+- documented the runtime baseline separately from the static skip-site inventory
+- updated `CLAUDE.md` with the command and budget-maintenance rule
+
+Baseline evidence: PR #347 CI run 968 reported 8,297 passed and 119 skipped
+in the primary Linux/Python 3.11 suite; 36 integration tests passed with 3
+skips. The final US-037 GitHub-check criterion remains pending the story PR.
+
+=== 2026-08-04 - US-037 GitHub verification close-out ===
+
+PR #348 implementation head `2579060` completed the required verification:
+- CI run 972: success
+- commitlint run 631: success
+- primary Python 3.11 suite: 8,304 passed, 119 skipped
+- skip-budget gate: `OK: pytest skipped 119 tests; budget is 119.`
+- integration suite: 36 passed, 3 skipped
+- tracked-tree cleanliness and coverage upload: passed
+
+The first Python runner was cancelled after remaining stuck in Ubuntu system
+dependency installation for more than ten minutes, before project dependencies,
+tests, or the new gate ran. Only that Python job was rerun; the isolated rerun
+completed successfully. This was infrastructure recovery, not code remediation.
+
+US-037 is now complete.
