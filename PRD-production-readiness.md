@@ -1034,7 +1034,7 @@ pytest tests/test_logs_auth.py -q
 **Workstream:** Security / Home Assistant
 **Description:** As an operator, I want HA admin endpoints to require authentication.
 
-**Reconciliation status (2026-07-08, supersedes 2026-06-12):** Route auth and route tests remain verified on `master@fde0c76` (`rex/routes/ha.py` + `tests/test_rr009_ha_test_auth.py` et al.). Still open: `gui/src/main/handlers/devices.ts` contains no auth/token enforcement (IPC parity box), and `docs/home_assistant.md` documents the HA long-lived token but not the Rex-endpoint auth requirement.
+**Reconciliation status (2026-08-04, supersedes 2026-07-08):** Complete. Route authentication and negative tests remain present. Electron IPC uses the stricter immutable local-session identity plus signed action-bound confirmation-token design delivered before PR #332. `docs/home_assistant.md` documents Rex endpoint authentication. PR #332 merged on 2026-07-28 and its CI, Windows Electron Artifact, and commitlint workflows all completed successfully.
 
 **Files/areas likely involved:**
 - `rex/gui_app.py` route handlers for HA
@@ -1046,7 +1046,7 @@ pytest tests/test_logs_auth.py -q
 - [x] IPC equivalents enforce the same auth via the main-process token store. *(Delivered by the superseding PR #331 design: Electron IPC device control is bound to the immutable local OS session identity (`gui/src/main/sessionIdentity.ts`) and HA mutations require signed action-bound confirmation tokens via the mutation bridge — a stricter control than a shared proxy token. `tests/test_ha_mutation_service.py`.)*
 - [x] Negative tests cover each route. *(`tests/test_rr009_ha_test_auth.py` et al.)*
 - [x] `docs/home_assistant.md` documents the auth requirement. *(2026-07-28: "Rex endpoint authentication" section.)*
-- [ ] All relevant GitHub checks pass. *(Pending PR #332 CI.)*
+- [x] All relevant GitHub checks pass. *(PR #332 head `4195c5d`: CI run 917, Windows Electron Artifact run 55, and commitlint run 584 all completed successfully; merged as `0371154` on 2026-07-28.)*
 
 **Validation commands:**
 ```bash

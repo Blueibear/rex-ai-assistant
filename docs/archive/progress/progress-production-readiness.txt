@@ -1134,3 +1134,15 @@ Cross-reference: PRD-remaining-release-readiness.md is complete except
 two Definition-of-Done boxes (base-deps clean-checkout pytest; owner
 decision on re-added sanitized fixtures profiles/james.json +
 users.json). Treat as historical evidence, not an active tracker.
+
+=== 2026-08-04 - US-024 GitHub checks close-out ===
+
+Verified PR #332 (`fable/shipping-readiness`, head `4195c5d`) against GitHub:
+- CI run 917: completed successfully
+- Windows Electron Artifact run 55: completed successfully
+- commitlint run 584: completed successfully
+- PR merged as `0371154` on 2026-07-28
+
+The remaining US-024 acceptance criterion was stale tracker state. No runtime
+behavior changed in this close-out. PRD-production-readiness.md now records the
+current superseding IPC security design and marks US-024 fully complete.
