@@ -387,6 +387,17 @@ Targeted tests:
 
 pytest -q tests/<file>.py
 
+Skipped-test budget gate (the report must come from the primary CI marker set):
+
+```powershell
+pytest -m "not slow and not audio and not gpu" -rs -q | Tee-Object pytest.out
+python scripts/check_skip_budget.py pytest.out
+```
+
+The runtime budget is `scripts.check_skip_budget.SKIP_BUDGET`. When skips are
+removed, lower the budget in the same PR. Never raise it without updating
+`docs/testing/SKIPPED-TESTS-INVENTORY.md` with evidence and rationale.
+
 Electron GUI quality gates (run from `gui/`):
 
 ```powershell

@@ -285,9 +285,12 @@ jobs:
       - name: 🧪 Run tests with coverage
         shell: bash
         run: |
-          pytest -m "not slow and not audio and not gpu" --cov=rex --cov-fail-under=75 --cov-report=term-missing --cov-report=html --cov-report=xml 2>&1 | tee coverage.txt
+          pytest -m "not slow and not audio and not gpu" -rs --cov=rex --cov-fail-under=75 --cov-report=term-missing --cov-report=html --cov-report=xml 2>&1 | tee coverage.txt
         env:
           REX_FILE_LOGGING_ENABLED: "false"
+
+      - name: Enforce skipped-test budget
+        run: python scripts/check_skip_budget.py coverage.txt
 
       - name: 🔗 Run integration tests
         shell: bash

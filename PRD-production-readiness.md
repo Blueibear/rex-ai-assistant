@@ -1368,6 +1368,8 @@ git status --porcelain -- ':!.coverage' ':!coverage.xml' ':!htmlcov/'
 
 ### US-037: Skip budget enforcement in CI
 
+**Implementation status (2026-08-04):** Implemented on `lead/us037-skip-budget` with a fail-closed parser, 119-test runtime budget, unit tests, CI enforcement, and documentation. The final GitHub-check criterion remains pending this PR.
+
 **Priority:** P0
 **Workstream:** CI / Tests
 **Description:** As a maintainer, I want CI to fail when total skipped tests exceed a documented budget.
@@ -1380,10 +1382,10 @@ git status --porcelain -- ':!.coverage' ':!coverage.xml' ':!htmlcov/'
 **Implementation notes:** Parse the pytest output (`-rs`) to count skipped tests. Compare against `SKIP_BUDGET` declared in `pyproject.toml` or a top-of-file constant. Default budget is the count from US-002.
 
 **Acceptance Criteria:**
-- [ ] Script enforces the budget and fails when exceeded.
-- [ ] Budget is documented and matches the post-US-002 count minus removals from US-039.
-- [ ] CI runs the script after the test suite.
-- [ ] All relevant GitHub checks pass.
+- [x] Script enforces the budget and fails when exceeded. *(`scripts/check_skip_budget.py`; parser and CLI regression tests in `tests/test_us037_skip_budget.py`.)*
+- [x] Budget is documented and matches the post-US-002 count minus removals from US-039. *(Runtime baseline: 119 skips from PR #347 CI run 968; source-site inventory remains separately classified.)*
+- [x] CI runs the script after the test suite. *(The Python 3.11 job captures `-rs` output to `coverage.txt`, then runs the gate before integration tests.)*
+- [ ] All relevant GitHub checks pass. *(Pending this story PR.)*
 
 **Validation commands:**
 ```bash

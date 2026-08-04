@@ -2,6 +2,16 @@
 
 Generated for `US-002` on 2026-06-14 from the current `tests/` tree.
 
+## CI Runtime Skip Budget
+
+- **Budget:** 119 executed skipped tests in the primary Linux/Python 3.11 CI suite.
+- **Command scope:** `pytest -m "not slow and not audio and not gpu" -rs` with the existing coverage options.
+- **Evidence:** PR #347, CI run 968, primary suite: 8,297 passed and 119 skipped; integration suite: 36 passed and 3 skipped.
+- **Enforcement:** `python scripts/check_skip_budget.py coverage.txt` runs immediately after the primary suite and fails if the executed skip count exceeds 119 or the pytest summary cannot be parsed.
+- **Maintenance rule:** when a skipped test is removed, lower `SKIP_BUDGET` in the same PR. Any increase requires an updated inventory entry and explicit rationale.
+
+The runtime count is intentionally separate from the AST-confirmed source-site count below. A single skip marker can skip multiple parameterized tests, and platform or dependency guards may not execute on every runner.
+
 ## Validation Snapshot
 
 - `pytest --collect-only -q`: passed; collected 6635 tests, with 2 module-level skips during collection.
