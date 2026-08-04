@@ -1211,3 +1211,23 @@ tests, or the new gate ran. Only that Python job was rerun; the isolated rerun
 completed successfully. This was infrastructure recovery, not code remediation.
 
 US-037 is now complete.
+
+=== 2026-08-04 - US-038 skip inventory actions ===
+
+Regenerated the skipped-test inventory from the current test AST and found:
+- 143 executable skip sites
+- 29 stale line locations in the prior snapshot
+- 32 current locations absent from the prior snapshot
+- three net-new Windows/DPAPI platform guards
+
+Every row now carries one explicit action:
+- 35 `keep` rows for optional-dependency or platform guards
+- 92 `fix` rows linked to US-040
+- 2 `replace` rows linked to US-040
+- 14 `archive` rows linked to US-039
+
+Added `scripts/check_skip_inventory.py`, focused regression tests, and a CI lint
+step. The validator fails on missing/stale rows, reason drift, invalid actions,
+missing permanent rationales, and circular or absent follow-up stories. Updated
+`CLAUDE.md` with the required maintenance command and rule. Final GitHub checks
+remain pending the story PR.

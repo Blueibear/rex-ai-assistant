@@ -1397,6 +1397,8 @@ python scripts/check_skip_budget.py /tmp/pytest.out
 
 ### US-038: Classify each skipped test and link to a follow-up if needed
 
+**Implementation status (2026-08-04):** Implemented on `lead/us038-skip-actions`. The current 143 executable skip sites were regenerated from AST, assigned explicit actions, linked to US-039 or US-040 where work remains, and protected by a CI drift validator. Final GitHub verification remains pending.
+
 **Priority:** P1
 **Workstream:** Tests / Docs
 **Description:** As a maintainer, I want every entry in the skip inventory tied to an action (keep, remove, replace, fix).
@@ -1406,9 +1408,9 @@ python scripts/check_skip_budget.py /tmp/pytest.out
 - `tests/` (annotation only)
 
 **Acceptance Criteria:**
-- [ ] Every inventory row has an action and, where action is non-trivial, a follow-up story ID.
-- [ ] Inventory is committed and current.
-- [ ] All relevant GitHub checks pass.
+- [x] Every inventory row has an action and, where action is non-trivial, a follow-up story ID. *(143 rows: 35 `keep`, 92 `fix`, 2 `replace`, 14 `archive`; non-trivial rows link to US-039 or US-040.)*
+- [x] Inventory is committed and current. *(`scripts/check_skip_inventory.py` verifies exact file, line, type, reason, action, and follow-up parity against the current `tests/` AST.)*
+- [ ] All relevant GitHub checks pass. *(Pending this story PR.)*
 
 **Validation commands:**
 ```bash
