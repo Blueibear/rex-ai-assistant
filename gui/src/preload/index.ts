@@ -45,7 +45,8 @@ import type {
   IntegrationConnectionStatus,
   ChatStreamCancelHandle,
   VoiceStartOptions,
-  PairingResponse
+  PairingResponse,
+  ProfileOperationResponse
 } from '../types/ipc'
 
 function makeSendChatStream(
@@ -415,7 +416,15 @@ const rexAPI = {
   listPairedDevices: (): Promise<PairingResponse> =>
     ipcRenderer.invoke('rex:listPairedDevices'),
   revokePairedDevice: (deviceId: string): Promise<PairingResponse> =>
-    ipcRenderer.invoke('rex:revokePairedDevice', deviceId)
+    ipcRenderer.invoke('rex:revokePairedDevice', deviceId),
+  getProfile: (): Promise<ProfileOperationResponse> =>
+    ipcRenderer.invoke('rex:getProfile'),
+  updateProfilePreferences: (preferences: Record<string, unknown>): Promise<ProfileOperationResponse> =>
+    ipcRenderer.invoke('rex:updateProfilePreferences', preferences),
+  setProfileAvatar: (mimeType: string, avatarBase64: string): Promise<ProfileOperationResponse> =>
+    ipcRenderer.invoke('rex:setProfileAvatar', mimeType, avatarBase64),
+  removeProfileAvatar: (): Promise<ProfileOperationResponse> =>
+    ipcRenderer.invoke('rex:removeProfileAvatar')
 }
 
 if (process.contextIsolated) {

@@ -611,6 +611,37 @@ export interface PairingResponse<T = undefined> {
   revoked?: boolean
 }
 
+// ---------------------------------------------------------------------------
+// User Profile
+// ---------------------------------------------------------------------------
+
+export type ProfileScopeLabel =
+  | 'user-private'
+  | 'shared'
+
+export interface UserProfile {
+  user_id: string
+  name: string
+  initials: string
+  role: string
+  permissions: string[]
+  preferences: Record<string, unknown>
+  voice_enrolled: boolean
+  voice_model_id: string | null
+  voice_sample_count: number
+  voice_updated_at: string | null
+  avatar_present: boolean
+  avatar_mime_type: string | null
+  avatar_data: string | null
+  scope_labels: Record<string, ProfileScopeLabel>
+}
+
+export interface ProfileOperationResponse {
+  ok: boolean
+  error?: string
+  profile?: UserProfile
+}
+
 // AbortSignal instances do not survive Electron's contextBridge isolation
 // boundary with their EventTarget prototype methods intact (calling
 // addEventListener/removeEventListener on a signal that crossed the bridge
@@ -773,4 +804,8 @@ export interface RexAPI {
   denyPairing: (requestId: string) => Promise<PairingResponse>
   listPairedDevices: () => Promise<PairingResponse>
   revokePairedDevice: (deviceId: string) => Promise<PairingResponse>
+  getProfile: () => Promise<ProfileOperationResponse>
+  updateProfilePreferences: (preferences: Record<string, unknown>) => Promise<ProfileOperationResponse>
+  setProfileAvatar: (mimeType: string, avatarBase64: string) => Promise<ProfileOperationResponse>
+  removeProfileAvatar: () => Promise<ProfileOperationResponse>
 }
