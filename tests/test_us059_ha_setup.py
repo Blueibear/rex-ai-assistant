@@ -205,30 +205,3 @@ class TestHaSave:
             "error": "Home Assistant settings could not be stored securely"
         }
         assert "secret-ha-token" not in response.get_data(as_text=True)
-
-    def test_deferred_setup_persists_neither_ha_url_nor_token(
-        self, flask_client, monkeypatch
-    ) -> None:  # type: ignore[override]
-        """Verify that deferred HA setup does not persist URL or token to config."""
-        token = _register_and_login(flask_client)
-        captured: dict[str, object] = {}
-
-        def fake_persist(values, *, config_path=None, update_config=None):
-            captured["values"] = dict(values)
-            config: dict[str, object] = {}
-            if update_config is not None:
-                update_config(config)
-            captured["config"] = config
-            return {}
-
-        monkeypatch.setattr("rex.credential_persistence.persist_household_secrets", fake_persist)
-
-        # This test is at the bridge level and demonstrates that deferred
-        # setup via the bridge skips HA persistence entirely.
-        # The setup bridge is tested in test_us058, this ensures integration.
-        # For now, we verify that the HA save endpoint requires auth.
-        resp = flask_client.post(
-            "/api/ha/save",
-            json={"ha_base_url": "http://ha.local:8123", "ha_token": "secret"},
-        )
-        assert resp.status_code == 401

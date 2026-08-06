@@ -1,3 +1,5 @@
+import type { SetupCompletePayload } from '../types/ipc'
+
 export interface SetupFormData {
   username: string
   password: string
@@ -12,24 +14,13 @@ export interface SetupSubmissionOptions {
   deferHomeAssistant?: boolean
 }
 
-export interface SetupSubmission {
-  username: string
-  password: string
-  llm_provider: string
-  llm_api_key?: string
-  tts_provider: string
-  ha_base_url: string
-  ha_token: string
-  defer_home_assistant?: boolean
-}
-
 export function buildSetupSubmission(
   data: SetupFormData,
   options?: SetupSubmissionOptions
-): SetupSubmission {
+): SetupCompletePayload {
   const deferHA = options?.deferHomeAssistant ?? false
 
-  const submission: SetupSubmission = {
+  const submission: SetupCompletePayload = {
     username: data.username,
     password: data.password,
     llm_provider: data.llmProvider,

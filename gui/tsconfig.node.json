@@ -6,6 +6,7 @@
     "src/main/**/*",
     "src/preload/**/*",
     "src/types/**/*",
+    "src/pages/setupWizardModel.ts",
     "tests/**/*"
   ],
   "compilerOptions": {

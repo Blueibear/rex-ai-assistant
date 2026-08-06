@@ -182,7 +182,6 @@ export function SetupWizardPage({ onComplete }: SetupWizardPageProps): React.Rea
   const [step, setStep] = useState(0)
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
-  const [deferHomeAssistant, setDeferHomeAssistant] = useState(false)
   const [data, setData] = useState<SetupData>({
     username: '',
     password: '',
@@ -219,7 +218,7 @@ export function SetupWizardPage({ onComplete }: SetupWizardPageProps): React.Rea
     }
   }
 
-  const handleSubmit = async (): Promise<void> => {
+  const handleSubmit = async (deferHomeAssistant = false): Promise<void> => {
     setSubmitting(true)
     setError('')
     try {
@@ -317,8 +316,7 @@ export function SetupWizardPage({ onComplete }: SetupWizardPageProps): React.Rea
                   <button
                     type="button"
                     onClick={() => {
-                      setDeferHomeAssistant(true)
-                      void handleSubmit()
+                      void handleSubmit(true)
                     }}
                     disabled={submitting}
                     className="text-sm text-text-secondary hover:text-text-primary transition-colors"

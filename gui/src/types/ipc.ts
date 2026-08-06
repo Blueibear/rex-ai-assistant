@@ -546,10 +546,11 @@ export interface SetupCompletePayload {
   username: string
   password: string
   llm_provider: string
-  llm_api_key: string
+  llm_api_key?: string
   tts_provider: string
   ha_base_url: string
   ha_token: string
+  defer_home_assistant?: boolean
 }
 
 export interface SetupCompleteResponse {

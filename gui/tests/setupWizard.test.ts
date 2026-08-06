@@ -1,3 +1,5 @@
+import { readFileSync } from 'fs'
+import { fileURLToPath } from 'url'
 import { describe, it, expect } from 'vitest'
 import { buildSetupSubmission } from '../src/pages/setupWizardModel'
 
@@ -87,6 +89,15 @@ describe('setupWizardModel', () => {
       expect(result.ha_base_url).toBe('http://ha.local:8123')
       expect(result.ha_token).toBe('token')
       expect(result.defer_home_assistant).toBe(false)
+    })
+
+    it('wires Do this later directly to a deferred submission', () => {
+      const pagePath = fileURLToPath(new URL('../src/pages/SetupWizardPage.tsx', import.meta.url))
+      const pageSource = readFileSync(pagePath, 'utf8')
+
+      expect(pageSource).toContain('Do this later')
+      expect(pageSource).toContain('void handleSubmit(true)')
+      expect(pageSource).not.toContain('setDeferHomeAssistant')
     })
   })
 })
