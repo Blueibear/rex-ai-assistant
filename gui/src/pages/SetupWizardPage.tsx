@@ -1,4 +1,5 @@
 import React, { useState } from 'react'
+import { buildSetupSubmission } from './setupWizardModel'
 
 interface SetupData {
   username: string
@@ -181,6 +182,7 @@ export function SetupWizardPage({ onComplete }: SetupWizardPageProps): React.Rea
   const [step, setStep] = useState(0)
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [deferHomeAssistant, setDeferHomeAssistant] = useState(false)
   const [data, setData] = useState<SetupData>({
     username: '',
     password: '',
@@ -221,15 +223,8 @@ export function SetupWizardPage({ onComplete }: SetupWizardPageProps): React.Rea
     setSubmitting(true)
     setError('')
     try {
-      const result = await window.rex.completeSetup({
-        username: data.username,
-        password: data.password,
-        llm_provider: data.llmProvider,
-        llm_api_key: data.llmApiKey,
-        tts_provider: data.ttsProvider,
-        ha_base_url: data.haBaseUrl,
-        ha_token: data.haToken
-      })
+      const submission = buildSetupSubmission(data, { deferHomeAssistant })
+      const result = await window.rex.completeSetup(submission)
       if (!result.ok) {
         setError(result.error ?? 'Setup failed.')
         setSubmitting(false)
@@ -317,29 +312,32 @@ export function SetupWizardPage({ onComplete }: SetupWizardPageProps): React.Rea
                 Open Dashboard
               </button>
             ) : (
-              <button
-                type="button"
-                onClick={handleNext}
-                disabled={submitting}
-                className="px-6 py-2 rounded-lg bg-accent text-white text-sm font-medium hover:bg-accent/90 transition-colors disabled:opacity-50"
-              >
-                {submitting ? 'Setting up…' : step === STEPS.length - 2 ? 'Finish' : 'Next →'}
-              </button>
+              <div className="flex items-center gap-2">
+                {step === 3 && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDeferHomeAssistant(true)
+                      void handleSubmit()
+                    }}
+                    disabled={submitting}
+                    className="text-sm text-text-secondary hover:text-text-primary transition-colors"
+                  >
+                    Do this later
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={handleNext}
+                  disabled={submitting}
+                  className="px-6 py-2 rounded-lg bg-accent text-white text-sm font-medium hover:bg-accent/90 transition-colors disabled:opacity-50"
+                >
+                  {submitting ? 'Setting up…' : step === STEPS.length - 2 ? 'Finish' : 'Next →'}
+                </button>
+              </div>
             )}
           </div>
         </div>
-
-        {/* Skip HA step */}
-        {step === 3 && !isDone && (
-          <button
-            type="button"
-            onClick={() => void handleSubmit()}
-            disabled={submitting}
-            className="mt-4 w-full text-center text-sm text-text-muted hover:text-text-secondary transition-colors"
-          >
-            Skip Home Assistant →
-          </button>
-        )}
       </div>
     </div>
   )
