@@ -26,6 +26,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from .config import settings
+from .runtime_paths import memory_dir as get_memory_dir
 
 logger = logging.getLogger(__name__)
 
@@ -88,9 +89,14 @@ def _session_state_path() -> Path:
     return base / "rex-ai" / "session.json"
 
 
-def _known_user_ids() -> list[str]:
-    """Discover known user IDs from Memory/ profiles."""
-    memory_dir = Path(__file__).resolve().parent.parent / "Memory"
+def _known_user_ids(*, memory_dir: Path | None = None) -> list[str]:
+    """Discover known user IDs from Memory/ profiles.
+
+    Args:
+        memory_dir: Override Memory/ directory (defaults to canonical via runtime_paths).
+    """
+    if memory_dir is None:
+        memory_dir = get_memory_dir()
     if not memory_dir.is_dir():
         return []
     users = []
@@ -264,13 +270,17 @@ def resolve_entrypoint_user_id(
     return "default"
 
 
-def list_known_users() -> list[dict]:
+def list_known_users(*, memory_dir: Path | None = None) -> list[dict]:
     """Return info about known users from Memory/ profiles.
+
+    Args:
+        memory_dir: Override Memory/ directory (defaults to canonical via runtime_paths).
 
     Returns:
         List of dicts with ``id`` and ``name`` keys.
     """
-    memory_dir = Path(__file__).resolve().parent.parent / "Memory"
+    if memory_dir is None:
+        memory_dir = get_memory_dir()
     users = []  # type: ignore[var-annotated]
     if not memory_dir.is_dir():
         return users
@@ -309,7 +319,7 @@ def create_user_profile(
         name: Display name for the user.
         role: Optional role description (e.g. 'Owner and primary user').
         preferences: Optional dict of user preferences to embed in the profile.
-        memory_dir: Override the Memory directory (defaults to repo Memory/).
+        memory_dir: Override the Memory directory (defaults to canonical via runtime_paths).
         overwrite: If False (default), raise FileExistsError when profile exists.
 
     Returns:
@@ -321,9 +331,7 @@ def create_user_profile(
     """
     user_id = validate_user_id(user_id)
 
-    base = (
-        memory_dir if memory_dir is not None else Path(__file__).resolve().parent.parent / "Memory"
-    )
+    base = memory_dir if memory_dir is not None else get_memory_dir()
     profile_dir = base / user_id
     core_path = profile_dir / "core.json"
 
@@ -355,7 +363,7 @@ def get_user_profile(
 
     Args:
         user_id: The user ID (directory name) to load.
-        memory_dir: Override the Memory directory.
+        memory_dir: Override the Memory directory (defaults to canonical via runtime_paths).
 
     Returns:
         Profile dict, or None if not found.
@@ -364,9 +372,7 @@ def get_user_profile(
         ValueError: If *user_id* is filesystem-unsafe.
     """
     user_id = validate_user_id(user_id)
-    base = (
-        memory_dir if memory_dir is not None else Path(__file__).resolve().parent.parent / "Memory"
-    )
+    base = memory_dir if memory_dir is not None else get_memory_dir()
     core_path = base / user_id / "core.json"
     if not core_path.exists():
         return None
@@ -388,7 +394,7 @@ def update_user_preferences(
     Args:
         user_id: The user ID to update.
         preferences: Dict of preference key/value pairs to merge.
-        memory_dir: Override the Memory directory.
+        memory_dir: Override the Memory directory (defaults to canonical via runtime_paths).
 
     Returns:
         True if the profile was updated, False if not found.
@@ -397,9 +403,7 @@ def update_user_preferences(
         ValueError: If *user_id* is filesystem-unsafe.
     """
     user_id = validate_user_id(user_id)
-    base = (
-        memory_dir if memory_dir is not None else Path(__file__).resolve().parent.parent / "Memory"
-    )
+    base = memory_dir if memory_dir is not None else get_memory_dir()
     core_path = base / user_id / "core.json"
     if not core_path.exists():
         return False
