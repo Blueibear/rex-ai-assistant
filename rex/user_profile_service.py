@@ -19,7 +19,8 @@ from pathlib import Path
 
 from rex.identity import validate_user_id
 from rex.permissions import get_permissions
-from rex.runtime_paths import memory_dir as get_memory_dir, users_data_dir as get_users_data_dir
+from rex.runtime_paths import memory_dir as get_memory_dir
+from rex.runtime_paths import users_data_dir as get_users_data_dir
 from rex.voice_identity.embeddings_store import EmbeddingsStore
 
 logger = logging.getLogger(__name__)
@@ -209,7 +210,7 @@ class UserProfileService:
 
         # Check size
         if len(image_data) > _MAX_AVATAR_SIZE:
-            raise ValueError(f"Image is larger than 2 MiB")
+            raise ValueError("Image is larger than 2 MiB")
 
         # Validate and process image with Pillow
         try:
@@ -343,7 +344,7 @@ class UserProfileService:
         try:
             serialized = json.dumps(preferences)
             if len(serialized.encode("utf-8")) > _MAX_PREFERENCE_SIZE:
-                raise ValueError(f"Preferences serialized size exceeds 32 KiB")
+                raise ValueError("Preferences serialized size exceeds 32 KiB")
         except TypeError:
             raise ValueError("Preference values are not JSON-serializable") from None
         except ValueError:

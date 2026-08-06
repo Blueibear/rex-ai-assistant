@@ -8,14 +8,12 @@ from __future__ import annotations
 
 import base64
 import json
-from datetime import UTC, datetime
 from pathlib import Path
 from unittest.mock import patch
 
 import pytest
 
-from rex.user_profile_service import UserProfileView, UserProfileService
-
+from rex.user_profile_service import UserProfileService, UserProfileView
 
 # ---------------------------------------------------------------
 # Fixtures
@@ -273,8 +271,9 @@ class TestAvatarHandling:
     def test_set_avatar_jpeg(self, service: UserProfileService, users_data_dir: Path):
         """Set avatar with JPEG image."""
         pytest.importorskip("PIL")
-        from PIL import Image
         import io
+
+        from PIL import Image
 
         # Create a small JPEG
         img = Image.new("RGB", (100, 100), color="red")
@@ -290,8 +289,9 @@ class TestAvatarHandling:
     def test_set_avatar_png(self, service: UserProfileService, users_data_dir: Path):
         """Set avatar with PNG image."""
         pytest.importorskip("PIL")
-        from PIL import Image
         import io
+
+        from PIL import Image
 
         img = Image.new("RGB", (100, 100), color="blue")
         png_bytes = io.BytesIO()
@@ -322,8 +322,9 @@ class TestAvatarHandling:
     def test_set_avatar_mime_mismatch(self, service: UserProfileService):
         """Reject MIME/content mismatch."""
         pytest.importorskip("PIL")
-        from PIL import Image
         import io
+
+        from PIL import Image
 
         img = Image.new("RGB", (100, 100), color="red")
         jpeg_bytes = io.BytesIO()
@@ -337,8 +338,9 @@ class TestAvatarHandling:
     def test_get_avatar_after_set(self, service: UserProfileService):
         """Read avatar after setting."""
         pytest.importorskip("PIL")
-        from PIL import Image
         import io
+
+        from PIL import Image
 
         img = Image.new("RGB", (100, 100), color="green")
         jpeg_bytes = io.BytesIO()
@@ -358,8 +360,9 @@ class TestAvatarHandling:
     def test_remove_avatar_idempotent(self, service: UserProfileService):
         """Remove avatar is idempotent."""
         pytest.importorskip("PIL")
-        from PIL import Image
         import io
+
+        from PIL import Image
 
         img = Image.new("RGB", (100, 100), color="yellow")
         jpeg_bytes = io.BytesIO()
@@ -489,8 +492,9 @@ class TestUserIsolation:
     ):
         """Alice's avatar doesn't affect Bob's."""
         pytest.importorskip("PIL")
-        from PIL import Image
         import io
+
+        from PIL import Image
 
         img = Image.new("RGB", (100, 100), color="red")
         jpeg_bytes = io.BytesIO()
