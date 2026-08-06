@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import base64
 import copy
+import io
 import json
 import logging
 import os
@@ -20,7 +21,12 @@ import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 
-from rex.identity import validate_user_id
+from rex.identity import (
+    create_user_profile,
+    get_user_profile,
+    update_user_preferences,
+    validate_user_id,
+)
 from rex.permissions import get_permissions
 from rex.runtime_paths import memory_dir as get_memory_dir
 from rex.runtime_paths import users_data_dir as get_users_data_dir
@@ -29,6 +35,7 @@ from rex.voice_identity.embeddings_store import EmbeddingsStore
 logger = logging.getLogger(__name__)
 
 _MAX_AVATAR_SIZE = 2 * 1024 * 1024  # 2 MiB
+_MAX_AVATAR_PIXELS = 16_000_000
 _MAX_PREFERENCE_SIZE = 32 * 1024  # 32 KiB
 _MAX_NESTING_DEPTH = 4
 
@@ -37,8 +44,9 @@ _RESERVED_PROFILE_KEYS = {"name", "role", "user", "created_at", "last_updated", 
 
 @dataclass(frozen=True)
 class UserProfileView:
-    """Immutable view of user profile data, JSON-safe for transport.
+    """Frozen top-level profile snapshot, JSON-safe for transport.
 
+    Collection fields are defensive copies and do not alias persisted state.
     All fields are JSON-serializable. Avatar data is base64-encoded if present.
     Scope labels indicate privacy boundaries: user-private fields are keyed
     by user_id, while shared household settings are household-scoped.
@@ -81,50 +89,25 @@ class UserProfileService:
         return self._embeddings_store
 
     def get_profile(self, user_id: str) -> UserProfileView:
-        """Load and compose user profile from all authorities.
-
-        If core.json is missing, returns a safe view using the validated
-        user_id as name, with empty preferences and no permissions.
-
-        Args:
-            user_id: Validated user identifier.
-
-        Returns:
-            Immutable UserProfileView.
-
-        Raises:
-            ValueError: If user_id is filesystem-unsafe.
-        """
+        """Compose a safe profile snapshot from all authoritative stores."""
         user_id = validate_user_id(user_id)
-
-        # Load profile from Memory
         profile_data = self._load_profile(user_id)
-        raw_name = profile_data.get("name", user_id)
-        name = self._sanitize_name(raw_name)
-        if not name:  # Fallback to user_id if sanitization resulted in empty string
-            name = user_id
+        name = self._sanitize_name(profile_data.get("name", user_id)) or user_id
         profile_role = self._sanitize_role(profile_data.get("role", ""))
-        preferences = copy.deepcopy(profile_data.get("preferences", {}))
-        if not isinstance(preferences, dict):
-            preferences = {}
+        raw_preferences = profile_data.get("preferences", {})
+        preferences = copy.deepcopy(raw_preferences) if isinstance(raw_preferences, dict) else {}
 
-        # Get live permissions (sorted) - make a defensive copy
-        permissions = sorted(copy.deepcopy(get_permissions(user_id)))
+        try:
+            permissions = sorted(set(get_permissions(user_id)))
+        except Exception as exc:
+            logger.warning("Failed to load permissions for %s: %s", user_id, exc)
+            permissions = []
 
-        # Derive presentation role from permissions + profile role
         role = self._derive_role(permissions, profile_role)
-
-        # Load voice enrollment summary
         voice_enrolled, voice_model_id, voice_sample_count, voice_updated_at = (
             self._load_voice_summary(user_id)
         )
-
-        # Load avatar metadata
         avatar_present, avatar_mime_type, avatar_data = self._load_avatar(user_id)
-
-        # Derive initials from name
-        initials = self._derive_initials(name)
-
         scope_labels = {
             "profile": "user-private",
             "preferences": "user-private",
@@ -134,13 +117,12 @@ class UserProfileService:
             "voice_identity": "user-private",
             "household_settings": "shared",
         }
-
         return UserProfileView(
             user_id=user_id,
             name=name,
-            initials=initials,
+            initials=self._derive_initials(name),
             role=role,
-            permissions=permissions,
+            permissions=list(permissions),
             preferences=preferences,
             voice_enrolled=voice_enrolled,
             voice_model_id=voice_model_id,
@@ -149,224 +131,101 @@ class UserProfileService:
             avatar_present=avatar_present,
             avatar_mime_type=avatar_mime_type,
             avatar_data=avatar_data,
-            scope_labels=scope_labels,
+            scope_labels=dict(scope_labels),
         )
 
     def update_preferences(self, user_id: str, preferences: object) -> None:
-        """Safely merge preferences into user profile.
-
-        Creates a minimal profile if missing. Validates:
-        - Input is a dict
-        - Reserved keys rejected
-        - All keys are strings (at any depth)
-        - Nesting depth <= 4 levels
-        - All values JSON-serializable (no NaN/Infinity)
-        - Serialized update size <= 32 KiB
-        - Merged total size <= 32 KiB
-
-        Args:
-            user_id: Validated user identifier.
-            preferences: Dict of preference key/value pairs to merge.
-
-        Raises:
-            ValueError: If input is not a dict, contains reserved keys, non-string keys,
-                       nesting exceeds depth, values are not JSON-serializable,
-                       or serialized size exceeds 32 KiB.
-            TypeError: If preferences is not a dict.
-        """
+        """Validate and merge user-private preferences through identity APIs."""
         user_id = validate_user_id(user_id)
-
-        # Reject non-dict input at runtime
         if not isinstance(preferences, dict):
-            raise TypeError("preferences must be a dict")
-
+            raise ValueError("preferences must be a JSON object")
         self._validate_preferences(preferences)
 
-        # Load or create profile
-        profile_data = self._load_profile(user_id)
-        if not profile_data:
-            profile_data = {"name": user_id}
+        profile_path = self._memory_dir / user_id / "core.json"
+        profile_data = get_user_profile(user_id, memory_dir=self._memory_dir)
+        if profile_data is None:
+            if profile_path.exists():
+                raise ValueError("existing profile data is invalid")
+            create_user_profile(user_id, name=user_id, memory_dir=self._memory_dir)
+            profile_data = get_user_profile(user_id, memory_dir=self._memory_dir) or {}
 
-        # Merge preferences
-        existing_prefs = profile_data.get("preferences", {})
-        if not isinstance(existing_prefs, dict):
-            existing_prefs = {}
-        merged_prefs = copy.deepcopy(existing_prefs)
-        merged_prefs.update(preferences)
-
-        # Validate merged preferences size
-        try:
-            merged_serialized = json.dumps(merged_prefs, allow_nan=False)
-            if len(merged_serialized.encode("utf-8")) > _MAX_PREFERENCE_SIZE:
-                raise ValueError("Merged preferences serialized size exceeds 32 KiB")
-        except (TypeError, ValueError) as e:
-            if "NaN" in str(e) or "Infinity" in str(e):
-                raise ValueError("Preference values contain NaN or Infinity") from None
-            raise
-
-        # Update timestamps
-        from datetime import UTC, datetime
-
-        now = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
-        profile_data["preferences"] = merged_prefs
-        profile_data["last_updated"] = now
-
-        # Write back to disk
-        profile_dir = self._memory_dir / user_id
-        profile_dir.mkdir(parents=True, exist_ok=True)
-        profile_path = profile_dir / "core.json"
-        profile_path.write_text(json.dumps(profile_data, indent=2), encoding="utf-8")
-        logger.info("Updated preferences for user %s", user_id)
+        existing = profile_data.get("preferences", {})
+        existing_preferences = copy.deepcopy(existing) if isinstance(existing, dict) else {}
+        merged = {**existing_preferences, **copy.deepcopy(preferences)}
+        self._validate_preferences(merged, label="Merged preferences")
+        if not update_user_preferences(user_id, preferences, memory_dir=self._memory_dir):
+            raise RuntimeError("failed to persist user preferences")
 
     def set_avatar(self, user_id: str, image_data: bytes, mime_type: str) -> None:
-        """Store a user avatar with validation.
-
-        Accepts only image/jpeg or image/png. Validates:
-        - MIME type is supported
-        - Size <= 2 MiB
-        - Data is valid image of declared format
-        - Format and MIME match
-
-        Converts to RGB, center-crops and resizes to 256x256, writes as JPEG quality 85.
-        Uses atomic tempfile + replace for safe writes.
-
-        Args:
-            user_id: Validated user identifier.
-            image_data: Raw image bytes.
-            mime_type: Declared MIME type (image/jpeg or image/png).
-
-        Raises:
-            ValueError: If MIME type unsupported, size exceeds 2 MiB,
-                       data is invalid, or MIME/content mismatch.
-        """
+        """Validate, normalize, and atomically persist a private avatar."""
         user_id = validate_user_id(user_id)
-
-        # Check MIME type
-        if mime_type not in ("image/jpeg", "image/png"):
+        if not isinstance(image_data, bytes):
+            raise ValueError("image_data must be bytes")
+        if mime_type not in {"image/jpeg", "image/png"}:
             raise ValueError("Only image/jpeg and image/png are supported")
-
-        # Check size
+        if not image_data:
+            raise ValueError("Image data is empty")
         if len(image_data) > _MAX_AVATAR_SIZE:
             raise ValueError("Image is larger than 2 MiB")
 
-        # Validate and process image with Pillow
         try:
-            from PIL import Image
-        except ImportError:
-            raise ValueError("Pillow is required for avatar processing")
-
-        import io
+            from PIL import Image, ImageOps
+        except ImportError as exc:
+            raise ValueError("Pillow is required for avatar processing") from exc
 
         try:
-            with Image.open(io.BytesIO(image_data)) as img_opened:
-                img_opened.load()  # Force decode to catch corruption
-                # Validate MIME/format match
-                format_to_mime = {"JPEG": "image/jpeg", "PNG": "image/png"}
-                actual_mime = format_to_mime.get(img_opened.format or "", "")
+            with Image.open(io.BytesIO(image_data)) as opened:
+                actual_mime = {"JPEG": "image/jpeg", "PNG": "image/png"}.get(opened.format or "")
                 if actual_mime != mime_type:
                     raise ValueError(
-                        f"Image format {img_opened.format} does not match declared MIME type {mime_type}"
+                        f"Image format {opened.format} does not match declared MIME type {mime_type}"
                     )
-
-                # Convert to RGB, center-crop and resize to 256x256
-                img = img_opened
-                if img.mode != "RGB":
-                    img = img.convert("RGB")  # type: ignore[assignment]
-
-                # Center-crop to square
-                width, height = img.size
-                crop_size = min(width, height)
-                left = (width - crop_size) // 2
-                top = (height - crop_size) // 2
-                right = left + crop_size
-                bottom = top + crop_size
-                img = img.crop((left, top, right, bottom))  # type: ignore[assignment]
-
-                # Resize to 256x256
-                img = img.resize((256, 256), Image.Resampling.LANCZOS)  # type: ignore[assignment]
-
-                # Prepare avatar directory
-                avatar_dir = self._users_data_dir / user_id / "profile"
-                avatar_dir.mkdir(parents=True, exist_ok=True)
-                avatar_path = avatar_dir / "avatar.jpg"
-
-                # Write atomically using tempfile + os.replace
-                avatar_buffer = io.BytesIO()
-                img.save(avatar_buffer, format="JPEG", quality=85)
-                avatar_data = avatar_buffer.getvalue()
-
-                # Create temp file in same directory for atomic replace
-                temp_fd, temp_path = tempfile.mkstemp(
-                    dir=avatar_dir, prefix=".avatar_", suffix=".tmp"
+                width, height = opened.size
+                if width <= 0 or height <= 0 or width * height > _MAX_AVATAR_PIXELS:
+                    raise ValueError("Image dimensions are not allowed")
+                opened.load()
+                normalized = ImageOps.fit(
+                    opened.convert("RGB"),
+                    (256, 256),
+                    method=Image.Resampling.LANCZOS,
+                    centering=(0.5, 0.5),
                 )
-                try:
-                    os.write(temp_fd, avatar_data)
-                    os.fsync(temp_fd)
-                    os.close(temp_fd)
-                    os.replace(temp_path, avatar_path)
-                    logger.info("Set avatar for user %s", user_id)
-                except Exception:
-                    os.close(temp_fd)
-                    if Path(temp_path).exists():
-                        Path(temp_path).unlink()
-                    raise
+                output = io.BytesIO()
+                normalized.save(
+                    output,
+                    format="JPEG",
+                    quality=85,
+                    optimize=False,
+                    progressive=False,
+                )
+                avatar_bytes = output.getvalue()
         except ValueError:
             raise
         except Exception as exc:
-            raise ValueError(f"Image data is not a valid image: {exc}") from None
+            raise ValueError("Image data is not a valid image") from exc
+
+        avatar_path = self._avatar_path(user_id)
+        self._atomic_write(avatar_path, avatar_bytes)
+        logger.info("Set avatar for user %s", user_id)
 
     def remove_avatar(self, user_id: str) -> None:
-        """Remove user avatar (idempotent).
-
-        Args:
-            user_id: Validated user identifier.
-        """
+        """Remove a private avatar idempotently."""
         user_id = validate_user_id(user_id)
-        avatar_path = self._users_data_dir / user_id / "profile" / "avatar.jpg"
-        if avatar_path.exists():
-            avatar_path.unlink()
-            logger.info("Removed avatar for user %s", user_id)
-
-    # -----------------------------------------------------------------------
-    # Private helpers
-    # -----------------------------------------------------------------------
+        self._avatar_path(user_id).unlink(missing_ok=True)
+        logger.info("Removed avatar for user %s", user_id)
 
     def _load_profile(self, user_id: str) -> dict:
-        """Load profile JSON from Memory/<user_id>/core.json.
-
-        Returns empty dict if file missing, corrupt, or if JSON is non-object.
-        Never raises.
-        """
-        profile_path = self._memory_dir / user_id / "core.json"
-        if not profile_path.exists():
-            return {}
-        try:
-            data = json.loads(profile_path.read_text(encoding="utf-8"))
-            # Valid JSON but not an object (array, scalar, etc.) - treat as missing
-            if not isinstance(data, dict):
-                return {}
-            return data
-        except Exception as exc:
-            logger.warning("Failed to load profile for %s: %s", user_id, exc)
-            return {}
+        """Load a profile object, degrading missing or malformed data safely."""
+        profile = get_user_profile(user_id, memory_dir=self._memory_dir)
+        return copy.deepcopy(profile) if isinstance(profile, dict) else {}
 
     def _sanitize_name(self, name: object) -> str:
-        """Sanitize name to non-empty string with length cap.
-
-        Returns the name if it's a non-empty string, otherwise empty string.
-        """
-        if isinstance(name, str) and name:
-            return name[:255]  # Cap at 255 chars
-        return ""
+        """Return a trimmed display name capped for UI and IPC transport."""
+        return name.strip()[:128] if isinstance(name, str) and name.strip() else ""
 
     def _sanitize_role(self, role: object) -> str:
-        """Sanitize role to non-empty string with length cap.
-
-        Returns the role if it's a non-empty string, otherwise empty string.
-        """
-        if isinstance(role, str) and role:
-            return role[:255]  # Cap at 255 chars
-        return ""
+        """Return a trimmed presentation role capped for UI transport."""
+        return role.strip()[:128] if isinstance(role, str) and role.strip() else ""
 
     def _derive_initials(self, name: str) -> str:
         """Derive initials from name (up to 2 uppercase letters).
@@ -400,65 +259,75 @@ class UserProfileService:
         return "Member"
 
     def _load_voice_summary(self, user_id: str) -> tuple[bool, str | None, int, str | None]:
-        """Load voice enrollment summary.
-
-        Returns (enrolled, model_id, sample_count, updated_at).
-        """
+        """Load voice enrollment metadata without exposing embedding vectors."""
         try:
             embedding = self._get_embeddings_store().load(user_id)
-        except Exception:
+        except Exception as exc:
+            logger.warning("Failed to load voice enrollment for %s: %s", user_id, exc)
             embedding = None
         if embedding is None:
             return False, None, 0, None
         return True, embedding.model_id, embedding.sample_count, embedding.updated_at or None
 
     def _load_avatar(self, user_id: str) -> tuple[bool, str | None, str | None]:
-        """Load avatar metadata and base64 content.
-
-        Refuses avatars larger than 2 MiB.
-        Returns (present, mime_type, base64_data).
-        """
-        avatar_path = self._users_data_dir / user_id / "profile" / "avatar.jpg"
-        if not avatar_path.exists():
-            return False, None, None
+        """Read at most 2 MiB of normalized JPEG avatar data."""
+        avatar_path = self._avatar_path(user_id)
         try:
-            # Check size bound before reading
-            if avatar_path.stat().st_size > _MAX_AVATAR_SIZE:
-                logger.warning("Avatar for %s exceeds 2 MiB, ignoring", user_id)
-                return False, None, None
-            avatar_bytes = avatar_path.read_bytes()
-            avatar_b64 = base64.b64encode(avatar_bytes).decode("ascii")
-            return True, "image/jpeg", avatar_b64
-        except Exception as exc:
+            with avatar_path.open("rb") as handle:
+                avatar_bytes = handle.read(_MAX_AVATAR_SIZE + 1)
+        except FileNotFoundError:
+            return False, None, None
+        except OSError as exc:
             logger.warning("Failed to load avatar for %s: %s", user_id, exc)
             return False, None, None
+        if len(avatar_bytes) > _MAX_AVATAR_SIZE or not avatar_bytes.startswith(b"\xff\xd8"):
+            logger.warning("Ignoring invalid stored avatar for %s", user_id)
+            return False, None, None
+        return True, "image/jpeg", base64.b64encode(avatar_bytes).decode("ascii")
 
-    def _validate_preferences(self, preferences: dict) -> None:
-        """Validate preferences for reserved keys, non-string keys, nesting, and JSON-ability.
+    def _avatar_path(self, user_id: str) -> Path:
+        """Return the validated private avatar path."""
+        return self._users_data_dir / validate_user_id(user_id) / "profile" / "avatar.jpg"
 
-        Raises ValueError if validation fails.
-        """
-        # Check for reserved keys
-        if any(key in _RESERVED_PROFILE_KEYS for key in preferences.keys()):
-            raise ValueError("Preferences contain reserved profile keys")
-
-        # Check all keys are strings (at any depth)
-        self._check_string_keys(preferences)
-
-        # Check nesting depth
-        self._check_nesting_depth(preferences)
-
-        # Check JSON-serializable with no NaN/Infinity and size
+    def _atomic_write(self, path: Path, data: bytes) -> None:
+        """Atomically write bytes in the destination directory."""
+        path.parent.mkdir(parents=True, exist_ok=True)
+        temporary: Path | None = None
         try:
-            serialized = json.dumps(preferences, allow_nan=False)
-            if len(serialized.encode("utf-8")) > _MAX_PREFERENCE_SIZE:
-                raise ValueError("Preferences serialized size exceeds 32 KiB")
-        except TypeError:
-            raise ValueError("Preference values are not JSON-serializable") from None
-        except ValueError as e:
-            if "NaN" in str(e) or "Infinity" in str(e):
-                raise ValueError("Preference values contain NaN or Infinity") from None
-            raise
+            with tempfile.NamedTemporaryFile(
+                mode="wb",
+                dir=path.parent,
+                prefix=".avatar-",
+                suffix=".tmp",
+                delete=False,
+            ) as handle:
+                temporary = Path(handle.name)
+                handle.write(data)
+                handle.flush()
+                os.fsync(handle.fileno())
+            os.replace(temporary, path)
+            temporary = None
+        finally:
+            if temporary is not None:
+                temporary.unlink(missing_ok=True)
+
+    def _validate_preferences(self, preferences: dict, *, label: str = "Preferences") -> None:
+        """Validate a JSON object, including keys, depth, values, and size."""
+        self._check_string_keys(preferences)
+        if any(key in _RESERVED_PROFILE_KEYS for key in preferences):
+            raise ValueError(f"{label} contain reserved profile keys")
+        self._check_nesting_depth(preferences)
+        try:
+            serialized = json.dumps(
+                preferences,
+                allow_nan=False,
+                sort_keys=True,
+                separators=(",", ":"),
+            )
+        except (TypeError, ValueError) as exc:
+            raise ValueError(f"{label} are not JSON-serializable") from exc
+        if len(serialized.encode("utf-8")) > _MAX_PREFERENCE_SIZE:
+            raise ValueError(f"{label} serialized size exceeds 32 KiB")
 
     def _check_string_keys(self, obj: object, depth: int = 0) -> None:
         """Recursively check all dict keys are strings."""

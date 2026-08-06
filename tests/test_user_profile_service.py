@@ -393,7 +393,7 @@ class TestPreferenceUpdate:
         profile_dir.mkdir(parents=True)
         (profile_dir / "core.json").write_text(json.dumps({"name": "Alice"}), encoding="utf-8")
 
-        reserved_keys = ["name", "role", "user", "created_at", "last_updated"]
+        reserved_keys = ["name", "role", "user", "created_at", "last_updated", "preferences"]
         for key in reserved_keys:
             with pytest.raises(ValueError, match="reserved"):
                 service.update_preferences("alice", {key: "value"})
@@ -901,3 +901,98 @@ class TestDeepImmutability:
         view2 = service.get_profile("alice")
         assert "new_permission" not in view2.permissions
         assert view2.permissions[0] == "admin"
+
+
+class TestSupervisorReviewRegressions:
+    """Regression tests for security and persistence findings from review."""
+
+    def test_avatar_failed_replace_preserves_existing_and_cleans_temp(
+        self, service: UserProfileService, users_data_dir: Path, monkeypatch
+    ):
+        pytest.importorskip("PIL")
+        import io
+        import os
+
+        from PIL import Image
+
+        def image_bytes(color: str) -> bytes:
+            image = Image.new("RGB", (100, 100), color=color)
+            output = io.BytesIO()
+            image.save(output, format="JPEG")
+            return output.getvalue()
+
+        service.set_avatar("alice", image_bytes("red"), "image/jpeg")
+        avatar_path = users_data_dir / "alice" / "profile" / "avatar.jpg"
+        original = avatar_path.read_bytes()
+
+        def fail_replace(source, destination):
+            raise OSError("simulated replace failure")
+
+        monkeypatch.setattr(os, "replace", fail_replace)
+        with pytest.raises(OSError, match="replace failure"):
+            service.set_avatar("alice", image_bytes("blue"), "image/jpeg")
+
+        assert avatar_path.read_bytes() == original
+        assert not list(avatar_path.parent.glob(".avatar-*.tmp"))
+
+    def test_small_invalid_stored_avatar_is_ignored(
+        self, service: UserProfileService, users_data_dir: Path
+    ):
+        avatar_dir = users_data_dir / "alice" / "profile"
+        avatar_dir.mkdir(parents=True)
+        (avatar_dir / "avatar.jpg").write_bytes(b"not-a-jpeg")
+
+        view = service.get_profile("alice")
+        assert view.avatar_present is False
+        assert view.avatar_data is None
+
+    def test_update_rejects_existing_corrupt_profile(
+        self, service: UserProfileService, memory_dir: Path
+    ):
+        profile_dir = memory_dir / "alice"
+        profile_dir.mkdir(parents=True)
+        profile_path = profile_dir / "core.json"
+        profile_path.write_text("[1, 2, 3]", encoding="utf-8")
+
+        with pytest.raises(ValueError, match="existing profile data is invalid"):
+            service.update_preferences("alice", {"theme": "dark"})
+
+        assert profile_path.read_text(encoding="utf-8") == "[1, 2, 3]"
+
+    def test_permission_store_failure_fails_closed(
+        self, service: UserProfileService, mock_permissions
+    ):
+        mock_permissions.side_effect = OSError("database unavailable")
+
+        view = service.get_profile("alice")
+        assert view.permissions == []
+        assert view.role == "Member"
+
+    def test_whitespace_name_uses_validated_user_id(
+        self, service: UserProfileService, memory_dir: Path, mock_permissions
+    ):
+        mock_permissions.return_value = []
+        profile_dir = memory_dir / "alice"
+        profile_dir.mkdir(parents=True)
+        (profile_dir / "core.json").write_text(
+            json.dumps({"name": "   ", "role": "   "}), encoding="utf-8"
+        )
+
+        view = service.get_profile("alice")
+        assert view.name == "alice"
+        assert view.initials == "A"
+        assert view.role == "Member"
+
+    def test_compressed_oversized_dimensions_are_rejected(self, service: UserProfileService):
+        pytest.importorskip("PIL")
+        import io
+
+        from PIL import Image
+
+        image = Image.new("1", (5000, 4000), color=1)
+        output = io.BytesIO()
+        image.save(output, format="PNG")
+        assert len(output.getvalue()) < 2 * 1024 * 1024
+
+        with pytest.raises(ValueError, match="dimensions"):
+            service.set_avatar("alice", output.getvalue(), "image/png")

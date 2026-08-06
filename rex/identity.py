@@ -22,6 +22,7 @@ import json
 import logging
 import os
 import re
+import tempfile
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -90,22 +91,16 @@ def _session_state_path() -> Path:
 
 
 def _known_user_ids(*, memory_dir: Path | None = None) -> list[str]:
-    """Discover known user IDs from Memory/ profiles.
-
-    Args:
-        memory_dir: Override Memory/ directory (defaults to canonical via runtime_paths).
-    """
-    if memory_dir is None:
-        memory_dir = get_memory_dir()
-    if not memory_dir.is_dir():
+    """Discover known user IDs from canonical or test Memory storage."""
+    root = memory_dir if memory_dir is not None else get_memory_dir()
+    if not root.is_dir():
         return []
-    users = []
-    for entry in sorted(memory_dir.iterdir()):
+    users: list[str] = []
+    for entry in sorted(root.iterdir()):
         if entry.is_dir() and (entry / "core.json").exists():
             if _validated_candidate(entry.name, source="Memory directory"):
                 users.append(entry.name)
     return users
-
 
 def _load_session() -> dict:
     """Load the current session state from disk."""
@@ -271,36 +266,53 @@ def resolve_entrypoint_user_id(
 
 
 def list_known_users(*, memory_dir: Path | None = None) -> list[dict]:
-    """Return info about known users from Memory/ profiles.
-
-    Args:
-        memory_dir: Override Memory/ directory (defaults to canonical via runtime_paths).
-
-    Returns:
-        List of dicts with ``id`` and ``name`` keys.
-    """
-    if memory_dir is None:
-        memory_dir = get_memory_dir()
-    users = []  # type: ignore[var-annotated]
-    if not memory_dir.is_dir():
+    """Return known users from canonical or test Memory storage."""
+    root = memory_dir if memory_dir is not None else get_memory_dir()
+    users: list[dict] = []
+    if not root.is_dir():
         return users
-    for entry in sorted(memory_dir.iterdir()):
+    for entry in sorted(root.iterdir()):
         core = entry / "core.json"
-        if entry.is_dir() and core.exists():
-            if not _validated_candidate(entry.name, source="Memory directory"):
-                continue
-            try:
-                data = json.loads(core.read_text(encoding="utf-8"))
-                users.append(
-                    {
-                        "id": entry.name,
-                        "name": data.get("name", entry.name),
-                        "role": data.get("role", ""),
-                    }
-                )
-            except Exception:
-                users.append({"id": entry.name, "name": entry.name, "role": ""})
+        if not entry.is_dir() or not core.exists():
+            continue
+        if not _validated_candidate(entry.name, source="Memory directory"):
+            continue
+        try:
+            data = json.loads(core.read_text(encoding="utf-8"))
+            if not isinstance(data, dict):
+                raise ValueError("profile JSON is not an object")
+            raw_name = data.get("name", entry.name)
+            raw_role = data.get("role", "")
+            name = raw_name if isinstance(raw_name, str) and raw_name else entry.name
+            role = raw_role if isinstance(raw_role, str) else ""
+            users.append({"id": entry.name, "name": name, "role": role})
+        except Exception:
+            users.append({"id": entry.name, "name": entry.name, "role": ""})
     return users
+
+def _atomic_write_json(path: Path, data: dict) -> None:
+    """Atomically write one JSON object beside its destination."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary: Path | None = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="w",
+            encoding="utf-8",
+            dir=path.parent,
+            prefix=f".{path.name}.",
+            suffix=".tmp",
+            delete=False,
+        ) as handle:
+            temporary = Path(handle.name)
+            json.dump(data, handle, indent=2, ensure_ascii=False)
+            handle.write("\n")
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temporary, path)
+        temporary = None
+    finally:
+        if temporary is not None:
+            temporary.unlink(missing_ok=True)
 
 
 def create_user_profile(
@@ -312,34 +324,12 @@ def create_user_profile(
     memory_dir: Path | None = None,
     overwrite: bool = False,
 ) -> Path:
-    """Create a user profile in the Memory directory.
-
-    Args:
-        user_id: Unique identifier for the user (used as directory name).
-        name: Display name for the user.
-        role: Optional role description (e.g. 'Owner and primary user').
-        preferences: Optional dict of user preferences to embed in the profile.
-        memory_dir: Override the Memory directory (defaults to canonical via runtime_paths).
-        overwrite: If False (default), raise FileExistsError when profile exists.
-
-    Returns:
-        Path to the created core.json file.
-
-    Raises:
-        ValueError: If user_id is empty or contains path separators.
-        FileExistsError: If the profile already exists and overwrite is False.
-    """
+    """Create a user profile in canonical or test Memory storage."""
     user_id = validate_user_id(user_id)
-
     base = memory_dir if memory_dir is not None else get_memory_dir()
-    profile_dir = base / user_id
-    core_path = profile_dir / "core.json"
-
+    core_path = base / user_id / "core.json"
     if core_path.exists() and not overwrite:
         raise FileExistsError(f"User profile already exists: {core_path}")
-
-    profile_dir.mkdir(parents=True, exist_ok=True)
-
     now = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
     data: dict = {
         "name": name,
@@ -349,39 +339,30 @@ def create_user_profile(
         "created_at": now,
         "last_updated": now,
     }
-    core_path.write_text(json.dumps(data, indent=2), encoding="utf-8")
-    logger.info("Created user profile: %s", core_path)
+    _atomic_write_json(core_path, data)
+    logger.info("Created user profile for %s", user_id)
     return core_path
-
 
 def get_user_profile(
     user_id: str,
     *,
     memory_dir: Path | None = None,
 ) -> dict | None:
-    """Load a user profile from Memory.
-
-    Args:
-        user_id: The user ID (directory name) to load.
-        memory_dir: Override the Memory directory (defaults to canonical via runtime_paths).
-
-    Returns:
-        Profile dict, or None if not found.
-
-    Raises:
-        ValueError: If *user_id* is filesystem-unsafe.
-    """
+    """Load a user profile object from canonical or test Memory storage."""
     user_id = validate_user_id(user_id)
     base = memory_dir if memory_dir is not None else get_memory_dir()
     core_path = base / user_id / "core.json"
     if not core_path.exists():
         return None
     try:
-        return json.loads(core_path.read_text(encoding="utf-8"))  # type: ignore[no-any-return]
+        data = json.loads(core_path.read_text(encoding="utf-8"))
+        if not isinstance(data, dict):
+            logger.warning("Profile for %s is not a JSON object", user_id)
+            return None
+        return data
     except Exception as exc:
         logger.warning("Failed to load profile for %s: %s", user_id, exc)
         return None
-
 
 def update_user_preferences(
     user_id: str,
@@ -389,19 +370,7 @@ def update_user_preferences(
     *,
     memory_dir: Path | None = None,
 ) -> bool:
-    """Merge preferences into an existing user profile.
-
-    Args:
-        user_id: The user ID to update.
-        preferences: Dict of preference key/value pairs to merge.
-        memory_dir: Override the Memory directory (defaults to canonical via runtime_paths).
-
-    Returns:
-        True if the profile was updated, False if not found.
-
-    Raises:
-        ValueError: If *user_id* is filesystem-unsafe.
-    """
+    """Merge preferences into an existing profile with atomic persistence."""
     user_id = validate_user_id(user_id)
     base = memory_dir if memory_dir is not None else get_memory_dir()
     core_path = base / user_id / "core.json"
@@ -409,19 +378,21 @@ def update_user_preferences(
         return False
     try:
         data = json.loads(core_path.read_text(encoding="utf-8"))
+        if not isinstance(data, dict):
+            return False
         existing_prefs = data.get("preferences", {})
         if not isinstance(existing_prefs, dict):
             existing_prefs = {}
-        existing_prefs.update(preferences)
-        data["preferences"] = existing_prefs
+        merged = dict(existing_prefs)
+        merged.update(preferences)
+        data["preferences"] = merged
         data["last_updated"] = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
-        core_path.write_text(json.dumps(data, indent=2), encoding="utf-8")
+        _atomic_write_json(core_path, data)
         logger.info("Updated preferences for user %s", user_id)
         return True
     except Exception as exc:
         logger.warning("Failed to update preferences for %s: %s", user_id, exc)
         return False
-
 
 __all__ = [
     "clear_session_user",
