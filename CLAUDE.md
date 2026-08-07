@@ -148,6 +148,23 @@ Existing `data/` and `~/.rex` stores migrate with
 overwrite conflicts. Never write runtime state beneath `bridge/`, the
 application archive, or packaged resources.
 
+#### Desktop user profile authority
+
+- `rex.user_profile_service` is the canonical composition layer for desktop
+  profile identity, private preferences, live permissions/role, voice
+  enrollment metadata, and avatar metadata.
+- Electron profile operations use `bridge/rex_profile_bridge.py` through the
+  typed main-process handlers. The renderer never supplies or selects a user
+  ID; the immutable authenticated Electron session is authoritative.
+- Profile avatars are private user data under
+  `data/users/<validated-user-id>/profile/avatar.jpg`. Inputs are bounded,
+  validated as JPEG/PNG, normalized, and never exposed as filesystem paths.
+- Shared household settings stay outside profile storage and remain managed
+  through Settings. Do not duplicate household configuration into profile JSON.
+- SMS remains a direct route/backend for compatibility but is intentionally
+  absent from primary navigation. Settings has one persistent bottom shortcut,
+  not a duplicate scrolling entry.
+
 #### Credential vault (S4)
 
 `rex/credential_vault.py` is the Windows DPAPI-backed credential vault.
