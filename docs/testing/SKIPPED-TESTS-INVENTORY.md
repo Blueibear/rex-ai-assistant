@@ -1,23 +1,24 @@
 # Skipped Tests Inventory
 
-Regenerated for `US-038` on 2026-08-04 from the current executable skip sites under `tests/`.
+Updated for `US-039` on 2026-08-04 after archiving tests for the retired Flask dashboard surface.
 
 ## CI Runtime Skip Budget
 
-- **Budget:** 119 executed skipped tests in the primary Linux/Python 3.11 CI suite.
+- **Budget:** 82 executed skipped tests in the primary Linux/Python 3.11 CI suite.
 - **Command scope:** `pytest -m "not slow and not audio and not gpu" -rs` with the existing coverage options.
-- **Evidence:** PR #348, CI run 972 rerun job `92049529366`: 8,304 passed and 119 skipped; integration suite: 36 passed and 3 skipped.
-- **Enforcement:** `python scripts/check_skip_budget.py coverage.txt` runs immediately after the primary suite and fails if the executed skip count exceeds 119 or the pytest summary cannot be parsed.
+- **Evidence:** PR #348 established the 119-skip baseline; US-039 archived 37 retired-dashboard tests, so the enforced budget is now 82. Final Linux CI confirmation is required before US-039 closes.
+- **Enforcement:** `python scripts/check_skip_budget.py coverage.txt` runs immediately after the primary suite and fails if the executed skip count exceeds 82 or the pytest summary cannot be parsed.
 - **Maintenance rule:** when a skipped test is removed, lower `SKIP_BUDGET` in the same PR. Any increase requires an updated inventory entry and explicit rationale.
 
 The runtime count is intentionally separate from the executable source-site count below. A single skip marker can skip multiple parameterized tests, and platform or dependency guards may not execute on every runner.
 
 ## Validation Snapshot
 
-- `python scripts/check_skip_inventory.py`: passed; 143 executable skip sites match the inventory exactly by file, line, type, and reason.
-- Every row has one explicit action: `keep`, `fix`, `replace`, or `archive`.
+- `python scripts/check_skip_inventory.py`: passed; 129 executable skip sites match the inventory exactly by file, line, type, and reason.
+- Python 3.11 `pytest --collect-only -q`: 8,451 tests before US-039 and 8,414 after, with no collection error.
+- Every remaining row has one explicit action: `keep`, `fix`, or `replace`; all 14 `archive` actions were completed by US-039.
 - Permanent guards retain a written rationale; all non-trivial actions link to a non-circular follow-up story.
-- The previous 140-row snapshot had 29 stale line locations and missed 32 current locations; regeneration resolved the drift and added three current Windows/DPAPI platform guards.
+- US-039 removed 14 retired-surface skip sites from the active suite; the remaining 129 sites cover supported code, temporary repair work, and legitimate platform/dependency guards.
 
 ## Classification and Action Summary
 
@@ -25,7 +26,6 @@ The runtime count is intentionally separate from the executable source-site coun
 |---|---:|---|---|
 | `optional-dep-skip` | 22 | `keep` | permanent: optional dependency/tool/environment guard |
 | `platform-skip` | 13 | `keep` | permanent: platform/runtime-specific guard |
-| `retired-surface-skip` | 14 | `archive` | US-039 |
 | `temporary-bug-skip` | 92 | `fix` | US-040 |
 | `temporary-bug-skip` | 2 | `replace` | US-040 |
 
@@ -158,20 +158,6 @@ The runtime count is intentionally separate from the executable source-site coun
 | `tests/test_us139_install_scripts.py` | 139 | `skipif` | executable bit not relevant on Windows | `platform-skip` | `keep` | permanent: platform/runtime-specific guard |
 | `tests/test_us140_full_extra.py` | 138 | `pytest.skip` | install.sh not present | `temporary-bug-skip` | `fix` | `US-040` |
 | `tests/test_us140_full_extra.py` | 145 | `pytest.skip` | install.ps1 not present | `temporary-bug-skip` | `fix` | `US-040` |
-| `tests/test_us149_gui_shell.py` | 10 | `skip` | rex/dashboard retired in OpenClaw migration (US-P7-014) | `retired-surface-skip` | `archive` | `US-039` |
-| `tests/test_us150_design_system.py` | 10 | `skip` | rex/dashboard retired in OpenClaw migration (US-P7-014) | `retired-surface-skip` | `archive` | `US-039` |
-| `tests/test_us151_nav_state.py` | 10 | `skip` | rex/dashboard retired in OpenClaw migration (US-P7-014) | `retired-surface-skip` | `archive` | `US-039` |
-| `tests/test_us152_chat_message_list.py` | 10 | `skip` | rex/dashboard retired in OpenClaw migration (US-P7-014) | `retired-surface-skip` | `archive` | `US-039` |
-| `tests/test_us153_chat_input.py` | 10 | `skip` | rex/dashboard retired in OpenClaw migration (US-P7-014) | `retired-surface-skip` | `archive` | `US-039` |
-| `tests/test_us157_voice_waveform.py` | 10 | `skip` | rex/dashboard retired in OpenClaw migration (US-P7-014) | `retired-surface-skip` | `archive` | `US-039` |
-| `tests/test_us161_schedule_coming_up.py` | 10 | `skip` | rex/dashboard retired in OpenClaw migration (US-P7-014) | `retired-surface-skip` | `archive` | `US-039` |
-| `tests/test_us163_overview_quick_actions.py` | 10 | `skip` | rex/dashboard retired in OpenClaw migration (US-P7-014) | `retired-surface-skip` | `archive` | `US-039` |
-| `tests/test_us164_hover_focus_states.py` | 10 | `skip` | rex/dashboard retired in OpenClaw migration (US-P7-014) | `retired-surface-skip` | `archive` | `US-039` |
-| `tests/test_us165_loading_error_states.py` | 10 | `skip` | rex/dashboard retired in OpenClaw migration (US-P7-014) | `retired-surface-skip` | `archive` | `US-039` |
-| `tests/test_us166_responsive_layout.py` | 10 | `skip` | rex/dashboard retired in OpenClaw migration (US-P7-014) | `retired-surface-skip` | `archive` | `US-039` |
-| `tests/test_us172_thinking_indicator.py` | 10 | `skip` | rex/dashboard retired in OpenClaw migration (US-P7-014) | `retired-surface-skip` | `archive` | `US-039` |
-| `tests/test_us174.py` | 11 | `skip` | dashboard routes retired — see test_us174_voice_max_tokens.py | `retired-surface-skip` | `archive` | `US-039` |
-| `tests/test_us174_voice_max_tokens.py` | 129 | `skip` | rex/dashboard/routes.py retired in OpenClaw migration (US-P7-014) | `retired-surface-skip` | `archive` | `US-039` |
 | `tests/test_us304_chat_stream_electron_verification.py` | 16 | `skipif` | electron.cmd not found | `optional-dep-skip` | `keep` | permanent: optional dependency/tool/environment guard |
 | `tests/test_us304_chat_stream_electron_verification.py` | 41 | `pytest.skip` | f"Electron verification unavailable: {exc}" | `optional-dep-skip` | `keep` | permanent: optional dependency/tool/environment guard |
 | `tests/test_voice_id_mvp.py` | 590 | `pytest.skip` | speechbrain is installed — cannot test missing-dep path | `optional-dep-skip` | `keep` | permanent: optional dependency/tool/environment guard |

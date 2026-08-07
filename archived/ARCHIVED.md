@@ -117,6 +117,25 @@ Both files were pure re-export shims with `DeprecationWarning` added in US-020/U
 - `logging_utils.py` → `rex.logging_utils`
 - `assistant_errors.py` → `rex.assistant_errors`
 
+### Retired Flask dashboard tests (`archived/flask_dashboard/tests/`)
+
+**Archived in:** US-039 (2026-08-04)
+
+**Files:** Thirteen former `tests/test_us*.py` files covering the removed `rex/dashboard/`
+HTML, CSS, navigation, chat, waveform, schedule, quick-action, responsive-layout, and route
+surfaces. See `archived/flask_dashboard/README.md` for the exact scope.
+
+**Why archived:**
+The Flask dashboard assets and routes were removed during the OpenClaw migration. These files had
+already been reduced to skipped placeholder tests and could not validate the supported Electron
+application. Keeping them in the active suite inflated collection and the skip budget without
+providing product evidence.
+
+**Replacement:**
+The supported React + Electron GUI is tested under `gui/tests/` and by the installed Windows
+artifact workflow. Current voice-response-length tests remain active in
+`tests/test_us174_voice_max_tokens.py`; only its retired-dashboard assertion was removed.
+
 ---
 
 ## Restoring an archived component
