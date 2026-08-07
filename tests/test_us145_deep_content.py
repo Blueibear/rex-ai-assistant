@@ -156,7 +156,7 @@ class TestContentPreserved:
     def test_docker_doc_has_build_command(self):
         content = (DOCS / "docker.md").read_text(encoding="utf-8")
         assert "docker build" in content
-        assert "rex-ai-assistant" in content
+        assert "askrex-assistant" in content
 
     def test_docker_doc_has_run_command(self):
         content = (DOCS / "docker.md").read_text(encoding="utf-8")
