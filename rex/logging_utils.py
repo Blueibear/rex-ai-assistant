@@ -28,6 +28,12 @@ DEFAULT_ERROR_FILE = DEFAULT_ERROR_LOG_FILE
 _SESSION_ID = f"{datetime.now(UTC).strftime('%Y%m%dT%H%M%SZ')}-{os.getpid()}-{uuid.uuid4().hex[:8]}"
 _SESSION_MARKED_PATHS: set[str] = set()
 
+
+def runtime_session_id() -> str:
+    """Return the stable identifier shared by structured logs in this runtime."""
+    return _SESSION_ID
+
+
 # Mapping from string name → logging constant
 _LEVEL_NAMES: dict[str, int] = {
     "DEBUG": logging.DEBUG,

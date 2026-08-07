@@ -76,6 +76,7 @@ This index covers active documentation under `docs/`. Files under `docs/archive/
 | [followup_engine.md](followup_engine.md) | Follow-up cue engine |
 | [knowledge_base.md](knowledge_base.md) | Knowledge base storage and search |
 | [memory.md](memory.md) | Memory systems |
+| [voice_pipeline.md](voice_pipeline.md) | Canonical structured voice-pipeline timing log contract |
 | [voice_identity.md](voice_identity.md) | Voice identity and enrollment |
 | [openclaw-agent-setup.md](openclaw-agent-setup.md) | OpenClaw gateway setup |
 | [openclaw-migration-status.md](openclaw-migration-status.md) | OpenClaw migration history/status |

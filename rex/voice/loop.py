@@ -127,6 +127,34 @@ class VoiceLoop:
         self._post_interaction_cooldown = max(0.0, post_interaction_cooldown)
         self._post_wake_preroll_seconds = max(0.0, post_wake_preroll_seconds)
         self._interaction_id = 0
+        from rex.logging_utils import runtime_session_id
+
+        self._session_id = runtime_session_id()
+
+    def _log_pipeline_event(
+        self,
+        event: str,
+        *,
+        interaction_id: int,
+        start_ns: int,
+        duration_ms: float | None = None,
+        **fields: object,
+    ) -> None:
+        """Emit one stable structured timing record for a voice pipeline stage."""
+        extra: dict[str, object] = {
+            "event": event,
+            "session_id": self._session_id,
+            "interaction_id": interaction_id,
+            "start_ns": start_ns,
+            **fields,
+        }
+        if duration_ms is not None:
+            extra["duration_ms"] = float(duration_ms)
+        _vl().logger.info("[VoicePipeline] %s", event, extra=extra)
+
+    @staticmethod
+    def _duration_ms(start_ns: int) -> float:
+        return round((time.monotonic_ns() - start_ns) / 1_000_000, 3)
 
     @staticmethod
     def _resolve_identify_speaker_signature(
@@ -442,6 +470,10 @@ class VoiceLoop:
                     self._interaction_id += 1
                     interaction_id = self._interaction_id
                     tracker = VoiceLatencyTracker()
+                    wake_detected_ns = time.monotonic_ns()
+                    self._log_pipeline_event(
+                        "wake_detected", interaction_id=interaction_id, start_ns=wake_detected_ns
+                    )
                     _vl().logger.info(
                         "[Wake] Interaction accepted",
                         extra={"event": "wake_interaction_start", "interaction_id": interaction_id},
@@ -464,6 +496,10 @@ class VoiceLoop:
                     # because no-pause commands can otherwise be clipped before
                     # phrase capture begins.
                     capture_started_at = time.perf_counter()
+                    capture_start_ns = time.monotonic_ns()
+                    self._log_pipeline_event(
+                        "capture_started", interaction_id=interaction_id, start_ns=capture_start_ns
+                    )
                     _vl().logger.info(
                         "[Audio] Post-wake phrase capture starting",
                         extra={
@@ -476,6 +512,12 @@ class VoiceLoop:
                         wake_frame,
                         audio,
                         interaction_id=interaction_id,
+                    )
+                    self._log_pipeline_event(
+                        "capture_ended",
+                        interaction_id=interaction_id,
+                        start_ns=capture_start_ns,
+                        duration_ms=self._duration_ms(capture_start_ns),
                     )
                     await self._settle_wake_acknowledgement(ack_task, interaction_id=interaction_id)
 
@@ -516,6 +558,10 @@ class VoiceLoop:
                         },
                     )
                     tracker.mark("stt_start")
+                    stt_start_ns = time.monotonic_ns()
+                    self._log_pipeline_event(
+                        "stt_started", interaction_id=interaction_id, start_ns=stt_start_ns
+                    )
                     try:
                         transcript = await asyncio.wait_for(
                             self._transcribe(audio), timeout=self._stt_timeout
@@ -532,6 +578,12 @@ class VoiceLoop:
                         )
                         continue
                     tracker.mark("stt_end")
+                    self._log_pipeline_event(
+                        "stt_completed",
+                        interaction_id=interaction_id,
+                        start_ns=stt_start_ns,
+                        duration_ms=self._duration_ms(stt_start_ns),
+                    )
                     raw_transcript = transcript.strip()
                     stripped_transcript = _strip_wake_prefix(raw_transcript)
                     transcript = (
@@ -697,10 +749,21 @@ class VoiceLoop:
                     # Get LLM response - voice_mode=True enables conciseness prompt
                     _emit("executing")
                     tracker.mark("llm_start")
+                    llm_start_ns = time.monotonic_ns()
+                    self._log_pipeline_event(
+                        "llm_started", interaction_id=interaction_id, start_ns=llm_start_ns
+                    )
                     llm_response: str | None = None
                     if _speak_streaming is not None and callable(stream_reply):
                         tracker.mark("tts_synthesis_start")
                         tracker.mark("tts_first_chunk")
+                        tts_start_ns = time.monotonic_ns()
+                        self._log_pipeline_event(
+                            "tts_started",
+                            interaction_id=interaction_id,
+                            start_ns=tts_start_ns,
+                            timing_scope="streaming_llm_tts_playback",
+                        )
                         try:
                             token = _VOICE_INTERACTION_ID.set(interaction_id)
                             try:
@@ -726,6 +789,20 @@ class VoiceLoop:
                             )
                             continue
                         tracker.mark("llm_end")
+                        self._log_pipeline_event(
+                            "llm_completed",
+                            interaction_id=interaction_id,
+                            start_ns=llm_start_ns,
+                            duration_ms=self._duration_ms(llm_start_ns),
+                            timing_scope="streaming_llm_tts_playback",
+                        )
+                        self._log_pipeline_event(
+                            "playback_completed",
+                            interaction_id=interaction_id,
+                            start_ns=tts_start_ns,
+                            duration_ms=self._duration_ms(tts_start_ns),
+                            timing_scope="streaming_llm_tts_playback",
+                        )
                     else:
                         try:
                             llm_response = await asyncio.wait_for(
@@ -744,6 +821,12 @@ class VoiceLoop:
                             )
                             continue
                         tracker.mark("llm_end")
+                        self._log_pipeline_event(
+                            "llm_completed",
+                            interaction_id=interaction_id,
+                            start_ns=llm_start_ns,
+                            duration_ms=self._duration_ms(llm_start_ns),
+                        )
 
                         if not llm_response:
                             continue
@@ -761,6 +844,10 @@ class VoiceLoop:
                                 },
                             )
                             tracker.mark("tts_synthesis_start")
+                            tts_start_ns = time.monotonic_ns()
+                            self._log_pipeline_event(
+                                "tts_started", interaction_id=interaction_id, start_ns=tts_start_ns
+                            )
                             token = _VOICE_INTERACTION_ID.set(interaction_id)
                             try:
                                 await asyncio.wait_for(
@@ -768,6 +855,12 @@ class VoiceLoop:
                                 )
                             finally:
                                 _VOICE_INTERACTION_ID.reset(token)
+                            self._log_pipeline_event(
+                                "playback_completed",
+                                interaction_id=interaction_id,
+                                start_ns=tts_start_ns,
+                                duration_ms=self._duration_ms(tts_start_ns),
+                            )
                         except TimeoutError:
                             _vl().logger.error(
                                 "TTS stage timed out after %.0fs — resetting pipeline",

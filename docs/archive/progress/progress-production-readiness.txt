@@ -1339,3 +1339,18 @@ CI dependency drift found during US-042:
 - The same new high-severity `nanoid` advisory was also present in the separate developer-only `rex/ui/` lockfile. Its transitive lock was refreshed from 3.3.16 to 3.3.18 as well. `npm audit --audit-level=high` is now clean for both Node trees; the two remaining React Router findings are moderate and require a breaking major upgrade, so they are not forced into US-042.
 
 US-042 GitHub implementation-head gate: PASS. PR #354 head `10d47cb`; CI run `31221345052`, commitlint run `31221345005`, and Windows Electron Artifact run `31221345114` all completed successfully. Python coverage job `93006401557` and Windows installed-artifact job `93006401583` passed. This tracker closeout commit must itself receive a final green rerun before merge.
+
+
+=== 2026-08-07 - US-043 voice pipeline structured logs ===
+
+Implementation:
+- Added nine canonical structured voice timing events at real pipeline boundaries without removing legacy logs or `VoiceLatencyTracker`.
+- Every canonical event carries the process logging `session_id`, voice `interaction_id`, and monotonic `start_ns`; completed/ended stages carry `duration_ms`.
+- Streaming LLM/TTS/playback overlap is labeled truthfully with `timing_scope=streaming_llm_tts_playback` rather than presenting overlapping durations as isolated measurements.
+- Added `docs/voice_pipeline.md` and indexed it from `docs/INDEX.md`; the contract clarifies that `wake_detected` means accepted activation in Hold-to-Talk as well as literal wake-word mode.
+
+Local evidence so far:
+- Test-first `tests/test_voice_pipeline_logs.py` failed with 0/9 canonical events before implementation, then passed after instrumentation; the final contract test also exercises the overlapping streaming path.
+- Focused voice/log/latency/streaming regression sweep: 84 passed.
+- Ruff + Black on changed Python paths: pass. Mypy on `rex/logging_utils.py` and `rex/voice/loop.py`: pass.
+- Relevant GitHub checks remain pending the story PR.
