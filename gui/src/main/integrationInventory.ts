@@ -12,6 +12,34 @@ import type { ElectronSessionIdentity } from './sessionIdentity'
 import { getVaultReference } from './credentialReferences'
 import { vaultHasSecret, type VaultContext } from './credentialVault'
 
+function statusCopy(
+  state: IntegrationInventoryItem['state'],
+  error?: string
+): Pick<IntegrationInventoryItem, 'detail' | 'next_action'> {
+  if ((state === 'unavailable' || state === 'degraded') && error) {
+    return {
+      detail: error,
+      next_action: state === 'unavailable'
+        ? 'Review the availability note before changing configuration.'
+        : 'Review the error, correct configuration, and run the connection test again.'
+    }
+  }
+  const copy: Record<IntegrationInventoryItem['state'], [string, string]> = {
+    unavailable: ['This integration is unavailable in the current build.', 'Review supported providers before configuring it.'],
+    unconfigured: ['No complete configuration is stored.', 'Open settings and enter the required non-secret values and credentials.'],
+    configured: ['Configuration is stored, but provider access has not been tested.', 'Run the connection test before relying on this integration.'],
+    reachable: ['The service endpoint responded, but authentication is not established.', 'Complete authentication and test again.'],
+    authenticated: ['Provider authentication was tested successfully.', 'Review permissions before enabling any write action.'],
+    degraded: ['The last connection test failed or returned incomplete evidence.', 'Review the error and test again.'],
+    read_only: ['Read access was tested; write access is not available.', 'Use read operations only or update provider permissions.'],
+    write_capable: ['The provider reports write capability, but no write was verified.', 'Use confirmation and verify the first write result.'],
+    write_tested: ['A write test completed, but ongoing actions still require verification.', 'Verify every consequential action before reporting success.'],
+    verified: ['The configured capability has current verified evidence.', 'Retest after credential or configuration changes.']
+  }
+  const [detail, next_action] = copy[state]
+  return { detail, next_action }
+}
+
 export async function buildIntegrationInventory(session: ElectronSessionIdentity): Promise<IntegrationInventoryItem[]> {
   const stored = readGuiSettings()
   const integrations = integrationSettingsFrom(stored)
@@ -27,7 +55,7 @@ export async function buildIntegrationInventory(session: ElectronSessionIdentity
   const make = async (
     item: Omit<
       IntegrationInventoryItem,
-      'state' | 'testedAt' | 'error' | 'available' | 'read_capable' | 'write_capable'
+      'state' | 'testedAt' | 'error' | 'available' | 'read_capable' | 'write_capable' | 'detail' | 'next_action'
     >
   ): Promise<IntegrationInventoryItem> => {
     const status = await integrationStatusFor(session, item.key, stored)
@@ -43,7 +71,8 @@ export async function buildIntegrationInventory(session: ElectronSessionIdentity
       read_capable: readCapable,
       write_capable: writeCapable,
       testedAt: status.testedAt,
-      error: status.error
+      error: status.error,
+      ...statusCopy(state, status.error)
     }
   }
 

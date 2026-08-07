@@ -300,6 +300,8 @@ export interface IntegrationInventoryItem extends IntegrationStatus {
   write_capable: boolean
   configure_url?: string
   testable?: boolean
+  detail: string
+  next_action: string
 }
 
 export interface IntegrationInventoryResponse {
