@@ -1,99 +1,120 @@
-"""Electron bridge for user profile operations.
-
-Reads a JSON payload from stdin and writes a single JSON response to stdout.
-
-Supported actions:
-  - ``get``               -> return the immutable session user's composed profile view
-  - ``update_preferences``-> accept preferences as a JSON object; update only the session user
-  - ``set_avatar``        -> accept mime_type and strict base64 avatar_base64; update session user
-  - ``remove_avatar``     -> remove the session user's avatar
-"""
+"""Authenticated Electron bridge for the immutable desktop user profile."""
 
 from __future__ import annotations
 
 import base64
+import binascii
+import dataclasses
 import json
 import sys
+from typing import Any
 
 from rex.bridge_utils import bridge_safe_error_response
+from rex.identity import validate_user_id
+from rex.user_profile_service import UserProfileService
+
+_MAX_ENCODED_AVATAR = 2_900_000
+_AUTHORITY_FIELDS = ("user_id", "target_user", "target_user_id")
+_SAFE_MESSAGES: dict[type[BaseException], str] = {
+    ValueError: "Request validation failed",
+    PermissionError: "Permission denied",
+    RuntimeError: "Profile operation failed",
+    OSError: "Profile operation failed",
+}
+
+
+def _validated_session_user(payload: dict[str, Any]) -> str:
+    raw_user = payload.get("user")
+    if not isinstance(raw_user, str):
+        raise ValueError("Invalid user")
+    user_id = validate_user_id(raw_user)
+    if payload.get("data_scope") != "private":
+        raise PermissionError("Private scope required")
+    for field in _AUTHORITY_FIELDS:
+        if field not in payload:
+            continue
+        requested = payload[field]
+        if requested not in (None, "", user_id):
+            raise PermissionError("Cross-user profile operation denied")
+    return user_id
+
+
+def _strict_avatar_bytes(payload: dict[str, Any]) -> tuple[bytes, str]:
+    mime_type = payload.get("mime_type")
+    encoded = payload.get("avatar_base64")
+    if mime_type not in {"image/jpeg", "image/png"}:
+        raise ValueError("Unsupported avatar MIME type")
+    if not isinstance(encoded, str) or not encoded:
+        raise ValueError("Avatar data is required")
+    if len(encoded) > _MAX_ENCODED_AVATAR:
+        raise ValueError("Avatar data is too large")
+    try:
+        decoded = base64.b64decode(encoded, validate=True)
+    except (binascii.Error, ValueError) as exc:
+        raise ValueError("Invalid avatar encoding") from exc
+    if not decoded:
+        raise ValueError("Avatar data is required")
+    return decoded, mime_type
+
+
+def _profile_dict(service: UserProfileService, user_id: str) -> dict[str, Any]:
+    return dataclasses.asdict(service.get_profile(user_id))
+
+
+def process_payload(
+    payload: object, *, service: UserProfileService | None = None
+) -> tuple[dict[str, Any], int]:
+    """Execute one profile request and return a renderer-safe response and exit code."""
+    try:
+        if not isinstance(payload, dict):
+            raise ValueError("Payload must be an object")
+        action = payload.get("action")
+        if not isinstance(action, str) or not action:
+            raise ValueError("Action is required")
+        user_id = _validated_session_user(payload)
+        profile_service = service or UserProfileService()
+
+        if action == "get":
+            pass
+        elif action == "update_preferences":
+            preferences = payload.get("preferences")
+            if not isinstance(preferences, dict):
+                raise ValueError("Preferences must be an object")
+            profile_service.update_preferences(user_id, preferences)
+        elif action == "set_avatar":
+            avatar_bytes, mime_type = _strict_avatar_bytes(payload)
+            profile_service.set_avatar(user_id, avatar_bytes, mime_type)
+        elif action == "remove_avatar":
+            profile_service.remove_avatar(user_id)
+        else:
+            raise ValueError("Unsupported action")
+
+        return {"ok": True, "profile": _profile_dict(profile_service, user_id)}, 0
+    except Exception as exc:
+        return (
+            bridge_safe_error_response(
+                exc, messages=_SAFE_MESSAGES, default="Profile operation failed"
+            ),
+            1,
+        )
 
 
 def main() -> None:
     try:
-        payload = json.loads(sys.stdin.read())
-    except Exception:
-        print(json.dumps({"ok": False, "error": "Bad input"}), flush=True)
-        sys.exit(1)
-
-    if not isinstance(payload, dict):
-        print(json.dumps({"ok": False, "error": "Bad input"}), flush=True)
-        sys.exit(1)
-
-    action = str(payload.get("action", "")).strip()
-
-    try:
-        import dataclasses
-
-        from rex.identity import validate_user_id
-        from rex.user_profile_service import UserProfileService
-
-        # Validate session user and scope
-        session_user_id = validate_user_id(str(payload.get("user") or ""))
-        if payload.get("data_scope") != "private":
-            raise PermissionError("Profile operations require private Electron data scope")
-
-        service = UserProfileService()
-
-        if action == "get":
-            profile_view = service.get_profile(session_user_id)
-            profile_dict = dataclasses.asdict(profile_view)
-            print(json.dumps({"ok": True, "profile": profile_dict}), flush=True)
-            return
-
-        if action == "update_preferences":
-            prefs = payload.get("preferences")
-            if not isinstance(prefs, dict):
-                raise ValueError("preferences must be a JSON object")
-            service.update_preferences(session_user_id, prefs)
-            print(json.dumps({"ok": True}), flush=True)
-            return
-
-        if action == "set_avatar":
-            mime_type = str(payload.get("mime_type", "")).strip()
-            avatar_b64 = str(payload.get("avatar_base64", "")).strip()
-
-            if not mime_type:
-                raise ValueError("mime_type is required")
-            if not avatar_b64:
-                raise ValueError("avatar_base64 is required")
-
-            # Strict size validation before decoding
-            if len(avatar_b64) > 2_900_000:  # 2.9 MiB encoded
-                raise ValueError("Avatar data is too large")
-
-            try:
-                avatar_bytes = base64.b64decode(avatar_b64, validate=True)
-            except Exception as exc:
-                raise ValueError("Invalid base64 encoding") from exc
-
-            service.set_avatar(session_user_id, avatar_bytes, mime_type)
-            print(json.dumps({"ok": True}), flush=True)
-            return
-
-        if action == "remove_avatar":
-            service.remove_avatar(session_user_id)
-            print(json.dumps({"ok": True}), flush=True)
-            return
-
-        raise ValueError(f"Unsupported action: {action}")
+        payload: object = json.loads(sys.stdin.read())
     except Exception as exc:
-        error_messages = {
-            ValueError: "Request validation failed",
-            PermissionError: "Permission denied",
-            RuntimeError: "Request failed",
-        }
-        print(json.dumps(bridge_safe_error_response(exc, messages=error_messages)), flush=True)
-        sys.exit(1)
+        response = bridge_safe_error_response(
+            exc,
+            messages={ValueError: "Request validation failed"},
+            default="Request validation failed",
+        )
+        print(json.dumps(response), flush=True)
+        raise SystemExit(1) from None
+
+    response, exit_code = process_payload(payload)
+    print(json.dumps(response), flush=True)
+    if exit_code:
+        raise SystemExit(exit_code)
 
 
 if __name__ == "__main__":

@@ -1,541 +1,222 @@
-"""Tests for rex_profile_bridge.py.
-
-Covers:
-- bridge get/update/avatar/remove happy paths
-- private scope required
-- invalid and cross-user IDs rejected
-- non-object input and unsupported action rejected
-- strict/oversized/empty base64 rejection
-- fixed safe errors without paths, tracebacks, secret markers, or submitted base64
-- dataclass serialization contains permissions, voice summary, avatar, initials, and scope labels
-"""
+"""Behavior and safety tests for the authenticated profile bridge."""
 
 from __future__ import annotations
 
 import base64
+import io
 import json
-import subprocess
-from pathlib import Path
+import sys
+from typing import Any
 
 import pytest
 
-from rex.user_profile_service import UserProfileService
+from bridge import rex_profile_bridge
+from rex.user_profile_service import UserProfileView
 
 
-@pytest.fixture
-def bridge_script():
-    """Return the path to the profile bridge script."""
-    return Path(__file__).parent.parent / "bridge" / "rex_profile_bridge.py"
+class FakeProfileService:
+    def __init__(self) -> None:
+        self.preferences: dict[str, Any] = {}
+        self.avatar: tuple[bytes, str] | None = None
+        self.removed = False
 
-
-@pytest.fixture
-def test_data_dir(tmp_path):
-    """Create temporary test data directories."""
-    memory_dir = tmp_path / "Memory"
-    users_data_dir = tmp_path / "users_data"
-    memory_dir.mkdir()
-    users_data_dir.mkdir()
-    return memory_dir, users_data_dir
-
-
-@pytest.fixture
-def profile_service(test_data_dir):
-    """Create a profile service with test directories."""
-    memory_dir, users_data_dir = test_data_dir
-    service = UserProfileService(memory_dir=memory_dir, users_data_dir=users_data_dir)
-
-    # Create a test user profile
-    user_id = "testuser"
-    from rex.identity import create_user_profile
-
-    create_user_profile(user_id, name="Test User", memory_dir=memory_dir)
-
-    return service, user_id
-
-
-def call_bridge(
-    bridge_script: Path, payload: dict, data_dir: tuple[Path, Path] | None = None
-) -> dict:
-    """Helper to call the bridge script with a payload."""
-    import os
-    import sys
-
-    memory_dir, users_data_dir = data_dir or (Path.home() / "Memory", Path.home().parent / "users")
-
-    env = dict(__import__("os").environ)
-    # Ensure current project is first in Python path
-    pythonpath = str(bridge_script.parent.parent)
-    if "PYTHONPATH" in env:
-        env["PYTHONPATH"] = f"{pythonpath}{os.pathsep}{env['PYTHONPATH']}"
-    else:
-        env["PYTHONPATH"] = pythonpath
-
-    env.update(
-        {
-            "ASKREX_MEMORY_DIR": str(memory_dir),
-            "ASKREX_USERS_DATA_DIR": str(users_data_dir),
-        }
-    )
-
-    result = subprocess.run(
-        [sys.executable, str(bridge_script)],
-        input=json.dumps(payload),
-        capture_output=True,
-        text=True,
-        env=env,
-        cwd=bridge_script.parent.parent,
-    )
-
-    try:
-        return json.loads(result.stdout)
-    except json.JSONDecodeError:
-        pytest.fail(f"Bridge returned invalid JSON: {result.stdout}\nstderr: {result.stderr}")
-
-
-class TestProfileBridgeHappyPaths:
-    """Test successful bridge operations."""
-
-    def test_get_profile_success(self, bridge_script, profile_service, test_data_dir):
-        """Test successful get action."""
-        service, user_id = profile_service
-
-        payload = {
-            "action": "get",
-            "user": user_id,
-            "data_scope": "private",
-        }
-
-        response = call_bridge(bridge_script, payload, test_data_dir)
-
-        assert response["ok"] is True
-        assert "profile" in response
-        profile = response["profile"]
-        assert profile["user_id"] == user_id
-        assert "permissions" in profile
-        assert "voice_enrolled" in profile
-        assert "avatar_present" in profile
-        assert "scope_labels" in profile
-        assert "initials" in profile
-
-    def test_update_preferences_success(self, bridge_script, profile_service, test_data_dir):
-        """Test successful preferences update."""
-        service, user_id = profile_service
-
-        prefs = {"theme": "dark", "notifications": True}
-        payload = {
-            "action": "update_preferences",
-            "user": user_id,
-            "data_scope": "private",
-            "preferences": prefs,
-        }
-
-        response = call_bridge(bridge_script, payload, test_data_dir)
-
-        assert response["ok"] is True
-
-        # Verify the update persisted
-        verify_payload = {
-            "action": "get",
-            "user": user_id,
-            "data_scope": "private",
-        }
-        verify_response = call_bridge(bridge_script, verify_payload, test_data_dir)
-        assert verify_response["ok"] is True
-        assert verify_response["profile"]["preferences"] == prefs
-
-    def test_set_avatar_success(self, bridge_script, profile_service, test_data_dir):
-        """Test successful avatar set."""
-        service, user_id = profile_service
-
-        # Create a minimal valid JPEG
-        import io
-
-        from PIL import Image
-
-        img = Image.new("RGB", (100, 100), color="red")
-        img_bytes = io.BytesIO()
-        img.save(img_bytes, format="JPEG")
-        avatar_data = base64.b64encode(img_bytes.getvalue()).decode("ascii")
-
-        payload = {
-            "action": "set_avatar",
-            "user": user_id,
-            "data_scope": "private",
-            "mime_type": "image/jpeg",
-            "avatar_base64": avatar_data,
-        }
-
-        response = call_bridge(bridge_script, payload, test_data_dir)
-        assert response["ok"] is True
-
-        # Verify avatar is now present
-        verify_payload = {
-            "action": "get",
-            "user": user_id,
-            "data_scope": "private",
-        }
-        verify_response = call_bridge(bridge_script, verify_payload, test_data_dir)
-        assert verify_response["ok"] is True
-        assert verify_response["profile"]["avatar_present"] is True
-        assert verify_response["profile"]["avatar_mime_type"] == "image/jpeg"
-        assert verify_response["profile"]["avatar_data"] is not None
-
-    def test_remove_avatar_success(self, bridge_script, profile_service, test_data_dir):
-        """Test successful avatar removal."""
-        service, user_id = profile_service
-
-        # First set an avatar
-        import io
-
-        from PIL import Image
-
-        img = Image.new("RGB", (100, 100), color="blue")
-        img_bytes = io.BytesIO()
-        img.save(img_bytes, format="JPEG")
-        avatar_data = base64.b64encode(img_bytes.getvalue()).decode("ascii")
-
-        set_payload = {
-            "action": "set_avatar",
-            "user": user_id,
-            "data_scope": "private",
-            "mime_type": "image/jpeg",
-            "avatar_base64": avatar_data,
-        }
-        call_bridge(bridge_script, set_payload, test_data_dir)
-
-        # Now remove it
-        remove_payload = {
-            "action": "remove_avatar",
-            "user": user_id,
-            "data_scope": "private",
-        }
-        response = call_bridge(bridge_script, remove_payload, test_data_dir)
-        assert response["ok"] is True
-
-        # Verify avatar is gone
-        verify_payload = {
-            "action": "get",
-            "user": user_id,
-            "data_scope": "private",
-        }
-        verify_response = call_bridge(bridge_script, verify_payload, test_data_dir)
-        assert verify_response["ok"] is True
-        assert verify_response["profile"]["avatar_present"] is False
-
-
-class TestPrivateScopeRequired:
-    """Test that private scope is enforced."""
-
-    def test_reject_shared_household_scope(self, bridge_script, profile_service, test_data_dir):
-        """Test that shared_household scope is rejected."""
-        service, user_id = profile_service
-
-        payload = {
-            "action": "get",
-            "user": user_id,
-            "data_scope": "shared_household",
-        }
-
-        response = call_bridge(bridge_script, payload, test_data_dir)
-        assert response["ok"] is False
-        assert "error" in response
-        # Error should indicate permission or scope issue
-        error_lower = response["error"].lower()
-        assert (
-            "private" in error_lower or "permission" in error_lower or "data_scope" in error_lower
+    def get_profile(self, user_id: str) -> UserProfileView:
+        return UserProfileView(
+            user_id=user_id,
+            name="Test User",
+            initials="TU",
+            role="Administrator",
+            permissions=["admin"],
+            preferences=dict(self.preferences),
+            voice_enrolled=True,
+            voice_model_id="voice-model",
+            voice_sample_count=3,
+            voice_updated_at="2026-08-06T00:00:00Z",
+            avatar_present=self.avatar is not None,
+            avatar_mime_type=self.avatar[1] if self.avatar else None,
+            avatar_data=base64.b64encode(self.avatar[0]).decode() if self.avatar else None,
+            scope_labels={"profile": "user-private", "household_settings": "shared"},
         )
 
-    def test_reject_missing_scope(self, bridge_script, profile_service, test_data_dir):
-        """Test that missing scope is rejected."""
-        service, user_id = profile_service
+    def update_preferences(self, user_id: str, preferences: dict[str, Any]) -> None:
+        assert user_id == "alice"
+        self.preferences.update(preferences)
 
-        payload = {
-            "action": "get",
-            "user": user_id,
-        }
+    def set_avatar(self, user_id: str, data: bytes, mime_type: str) -> None:
+        assert user_id == "alice"
+        self.avatar = (data, mime_type)
 
-        response = call_bridge(bridge_script, payload, test_data_dir)
-        assert response["ok"] is False
-        assert "error" in response
-
-
-class TestUserValidation:
-    """Test user ID validation and cross-user rejection."""
-
-    def test_reject_invalid_user_id(self, bridge_script, test_data_dir):
-        """Test rejection of invalid user IDs."""
-        invalid_ids = ["", " ", "/etc/passwd", "..", "user/../admin"]
-
-        for invalid_id in invalid_ids:
-            payload = {
-                "action": "get",
-                "user": invalid_id,
-                "data_scope": "private",
-            }
-
-            response = call_bridge(bridge_script, payload, test_data_dir)
-            assert response["ok"] is False
-            assert "error" in response
-
-    def test_reject_cross_user_update(self, bridge_script, profile_service, test_data_dir):
-        """Test rejection of cross-user operations."""
-        service, user_id = profile_service
-
-        payload = {
-            "action": "update_preferences",
-            "user": user_id,
-            "target_user": "otheruser",
-            "data_scope": "private",
-            "preferences": {"theme": "dark"},
-        }
-
-        response = call_bridge(bridge_script, payload, test_data_dir)
-        # Should either accept and only update session user, or reject cross-user
-        assert response["ok"] is True or "error" in response
-
-    def test_reject_user_id_override_in_preferences(
-        self, bridge_script, profile_service, test_data_dir
-    ):
-        """Test that user_id in preferences update is ignored."""
-        service, user_id = profile_service
-
-        payload = {
-            "action": "update_preferences",
-            "user": user_id,
-            "data_scope": "private",
-            "user_id": "otheruser",  # Should be ignored
-            "preferences": {"theme": "dark"},
-        }
-
-        response = call_bridge(bridge_script, payload, test_data_dir)
-        assert response["ok"] is True  # Should succeed, updating session user
+    def remove_avatar(self, user_id: str) -> None:
+        assert user_id == "alice"
+        self.avatar = None
+        self.removed = True
 
 
-class TestInputValidation:
-    """Test input validation and error handling."""
-
-    def test_reject_non_object_input(self, bridge_script, test_data_dir):
-        """Test rejection of non-object JSON input."""
-        import os
-        import sys
-
-        payload_text = '"not an object"'
-
-        env = dict(__import__("os").environ)
-        pythonpath = str(bridge_script.parent.parent)
-        if "PYTHONPATH" in env:
-            env["PYTHONPATH"] = f"{pythonpath}{os.pathsep}{env['PYTHONPATH']}"
-        else:
-            env["PYTHONPATH"] = pythonpath
-
-        result = subprocess.run(
-            [sys.executable, str(bridge_script)],
-            input=payload_text,
-            capture_output=True,
-            text=True,
-            env=env,
-            cwd=bridge_script.parent.parent,
-        )
-
-        response = json.loads(result.stdout)
-        assert response["ok"] is False
-        assert "error" in response
-
-    def test_reject_unsupported_action(self, bridge_script, profile_service, test_data_dir):
-        """Test rejection of unsupported actions."""
-        service, user_id = profile_service
-
-        payload = {
-            "action": "delete_entire_account",
-            "user": user_id,
-            "data_scope": "private",
-        }
-
-        response = call_bridge(bridge_script, payload, test_data_dir)
-        assert response["ok"] is False
-        assert "error" in response
-
-    def test_reject_missing_action(self, bridge_script, profile_service, test_data_dir):
-        """Test rejection of missing action."""
-        service, user_id = profile_service
-
-        payload = {
-            "user": user_id,
-            "data_scope": "private",
-        }
-
-        response = call_bridge(bridge_script, payload, test_data_dir)
-        assert response["ok"] is False
-        assert "error" in response
+@pytest.fixture
+def service() -> FakeProfileService:
+    return FakeProfileService()
 
 
-class TestBase64Validation:
-    """Test strict base64 validation and size limits."""
-
-    def test_reject_invalid_base64(self, bridge_script, profile_service, test_data_dir):
-        """Test rejection of invalid base64 data."""
-        service, user_id = profile_service
-
-        payload = {
-            "action": "set_avatar",
-            "user": user_id,
-            "data_scope": "private",
-            "mime_type": "image/jpeg",
-            "avatar_base64": "not-valid-base64-!@#$%",
-        }
-
-        response = call_bridge(bridge_script, payload, test_data_dir)
-        assert response["ok"] is False
-        assert "error" in response
-
-    def test_reject_oversized_encoded_data(self, bridge_script, profile_service, test_data_dir):
-        """Test rejection of encoded data exceeding 2.9 MiB."""
-        service, user_id = profile_service
-
-        # Create base64 string over 2.9 MiB
-        large_data = "a" * (3 * 1024 * 1024)
-
-        payload = {
-            "action": "set_avatar",
-            "user": user_id,
-            "data_scope": "private",
-            "mime_type": "image/jpeg",
-            "avatar_base64": large_data,
-        }
-
-        response = call_bridge(bridge_script, payload, test_data_dir)
-        assert response["ok"] is False
-        assert "error" in response
-
-    def test_reject_empty_avatar_data(self, bridge_script, profile_service, test_data_dir):
-        """Test rejection of empty avatar data."""
-        service, user_id = profile_service
-
-        payload = {
-            "action": "set_avatar",
-            "user": user_id,
-            "data_scope": "private",
-            "mime_type": "image/jpeg",
-            "avatar_base64": "",
-        }
-
-        response = call_bridge(bridge_script, payload, test_data_dir)
-        assert response["ok"] is False
-        assert "error" in response
+def payload(action: str, **extra: object) -> dict[str, object]:
+    return {
+        "action": action,
+        "user": "alice",
+        "session_id": "session-1",
+        "data_scope": "private",
+        **extra,
+    }
 
 
-class TestSafeErrorResponse:
-    """Test that errors are safe and don't leak sensitive data."""
+def test_get_serializes_complete_profile(service: FakeProfileService) -> None:
+    response, code = rex_profile_bridge.process_payload(payload("get"), service=service)
 
-    def test_no_paths_in_errors(self, bridge_script, profile_service, test_data_dir):
-        """Test that error responses don't include filesystem paths."""
-        service, user_id = profile_service
-
-        # Trigger an error with invalid preferences
-        payload = {
-            "action": "update_preferences",
-            "user": user_id,
-            "data_scope": "private",
-            "preferences": {"too_deep": {"a": {"b": {"c": {"d": {"e": "value"}}}}}},
-        }
-
-        response = call_bridge(bridge_script, payload, test_data_dir)
-        assert response["ok"] is False
-        error_msg = response.get("error", "")
-        # Should not contain path separators or directory structure
-        assert "\\" not in error_msg
-        assert "/Memory/" not in error_msg
-        assert "/users" not in error_msg
-
-    def test_no_traceback_in_errors(self, bridge_script, profile_service, test_data_dir):
-        """Test that error responses don't include tracebacks."""
-        service, user_id = profile_service
-
-        payload = {
-            "action": "unsupported_action",
-            "user": user_id,
-            "data_scope": "private",
-        }
-
-        response = call_bridge(bridge_script, payload, test_data_dir)
-        assert response["ok"] is False
-        error_msg = response.get("error", "")
-        assert "Traceback" not in error_msg
-        assert 'File "' not in error_msg
+    assert code == 0
+    assert response["ok"] is True
+    profile = response["profile"]
+    assert profile["user_id"] == "alice"
+    assert profile["permissions"] == ["admin"]
+    assert profile["voice_sample_count"] == 3
+    assert profile["initials"] == "TU"
+    assert profile["scope_labels"]["household_settings"] == "shared"
 
 
-class TestDataclassSerialization:
-    """Test that dataclass results are properly serialized."""
+def test_mutations_return_refreshed_profile(service: FakeProfileService) -> None:
+    response, code = rex_profile_bridge.process_payload(
+        payload("update_preferences", preferences={"theme": "dark"}), service=service
+    )
+    assert code == 0
+    assert response["profile"]["preferences"] == {"theme": "dark"}
 
-    def test_profile_contains_all_required_fields(
-        self, bridge_script, profile_service, test_data_dir
-    ):
-        """Test that profile contains permissions, voice, avatar, initials, and scope labels."""
-        service, user_id = profile_service
+    encoded = base64.b64encode(b"avatar-bytes").decode("ascii")
+    response, code = rex_profile_bridge.process_payload(
+        payload("set_avatar", mime_type="image/png", avatar_base64=encoded), service=service
+    )
+    assert code == 0
+    assert response["profile"]["avatar_present"] is True
+    assert service.avatar == (b"avatar-bytes", "image/png")
 
-        payload = {
-            "action": "get",
-            "user": user_id,
-            "data_scope": "private",
-        }
+    response, code = rex_profile_bridge.process_payload(payload("remove_avatar"), service=service)
+    assert code == 0
+    assert service.removed is True
+    assert response["profile"]["avatar_present"] is False
 
-        response = call_bridge(bridge_script, payload, test_data_dir)
-        assert response["ok"] is True
 
-        profile = response["profile"]
-        required_fields = [
-            "user_id",
-            "name",
-            "initials",
-            "role",
-            "permissions",
-            "preferences",
-            "voice_enrolled",
-            "voice_model_id",
-            "voice_sample_count",
-            "voice_updated_at",
-            "avatar_present",
-            "avatar_mime_type",
-            "avatar_data",
-            "scope_labels",
-        ]
+@pytest.mark.parametrize("scope", [None, "shared_household", "public"])
+def test_private_scope_is_required(service: FakeProfileService, scope: object) -> None:
+    request_payload = payload("get")
+    request_payload["data_scope"] = scope
+    response, code = rex_profile_bridge.process_payload(request_payload, service=service)
 
-        for field in required_fields:
-            assert field in profile, f"Missing field: {field}"
+    assert code == 1
+    assert response == {"ok": False, "error": "Permission denied"}
 
-        # Verify scope_labels structure
-        assert isinstance(profile["scope_labels"], dict)
-        assert "profile" in profile["scope_labels"]
-        assert "avatar" in profile["scope_labels"]
-        assert "voice_identity" in profile["scope_labels"]
 
-    def test_permissions_list_is_present(self, bridge_script, profile_service, test_data_dir):
-        """Test that permissions list is present in profile."""
-        service, user_id = profile_service
+@pytest.mark.parametrize("user", [None, 123, "", "..", "a/b"])
+def test_user_must_be_a_valid_string(service: FakeProfileService, user: object) -> None:
+    request_payload = payload("get")
+    request_payload["user"] = user
+    response, code = rex_profile_bridge.process_payload(request_payload, service=service)
 
-        payload = {
-            "action": "get",
-            "user": user_id,
-            "data_scope": "private",
-        }
+    assert code == 1
+    assert response == {"ok": False, "error": "Request validation failed"}
 
-        response = call_bridge(bridge_script, payload, test_data_dir)
-        assert response["ok"] is True
-        profile = response["profile"]
-        assert isinstance(profile["permissions"], list)
 
-    def test_initials_derived_from_name(self, bridge_script, profile_service, test_data_dir):
-        """Test that initials are properly derived."""
-        service, user_id = profile_service
+@pytest.mark.parametrize("field", ["user_id", "target_user", "target_user_id"])
+def test_cross_user_authority_fields_are_rejected(service: FakeProfileService, field: str) -> None:
+    response, code = rex_profile_bridge.process_payload(
+        payload("update_preferences", preferences={}, **{field: "bob"}), service=service
+    )
 
-        payload = {
-            "action": "get",
-            "user": user_id,
-            "data_scope": "private",
-        }
+    assert code == 1
+    assert response == {"ok": False, "error": "Permission denied"}
 
-        response = call_bridge(bridge_script, payload, test_data_dir)
-        assert response["ok"] is True
-        profile = response["profile"]
-        # Initials should be a string
-        assert isinstance(profile["initials"], str)
+
+def test_matching_authority_field_does_not_change_session_user(
+    service: FakeProfileService,
+) -> None:
+    response, code = rex_profile_bridge.process_payload(
+        payload("update_preferences", preferences={"theme": "dark"}, user_id="alice"),
+        service=service,
+    )
+    assert code == 0
+    assert response["profile"]["user_id"] == "alice"
+
+
+@pytest.mark.parametrize(
+    "request_payload",
+    [
+        None,
+        [],
+        "text",
+        {},
+        payload("unsupported"),
+        payload("update_preferences", preferences=[]),
+    ],
+)
+def test_malformed_requests_fail_with_fixed_errors(
+    service: FakeProfileService, request_payload: object
+) -> None:
+    response, code = rex_profile_bridge.process_payload(request_payload, service=service)
+
+    assert code == 1
+    assert response == {"ok": False, "error": "Request validation failed"}
+    assert "traceback" not in response
+
+
+@pytest.mark.parametrize(
+    "encoded",
+    ["", "not-base64!", "abc", pytest.param("a" * 2_900_001, id="oversized")],
+)
+def test_avatar_base64_is_strictly_bounded(service: FakeProfileService, encoded: str) -> None:
+    response, code = rex_profile_bridge.process_payload(
+        payload("set_avatar", mime_type="image/jpeg", avatar_base64=encoded),
+        service=service,
+    )
+
+    assert code == 1
+    assert response == {"ok": False, "error": "Request validation failed"}
+
+
+@pytest.mark.parametrize("mime", [None, "", "image/gif", "text/plain"])
+def test_avatar_mime_type_is_restricted(service: FakeProfileService, mime: object) -> None:
+    response, code = rex_profile_bridge.process_payload(
+        payload(
+            "set_avatar",
+            mime_type=mime,
+            avatar_base64=base64.b64encode(b"data").decode("ascii"),
+        ),
+        service=service,
+    )
+
+    assert code == 1
+    assert response == {"ok": False, "error": "Request validation failed"}
+
+
+class ExplodingService(FakeProfileService):
+    def get_profile(self, user_id: str) -> UserProfileView:
+        raise OSError(r"C:\private\profile.jpg token=secret-marker")
+
+
+def test_service_errors_never_leak_private_details() -> None:
+    response, code = rex_profile_bridge.process_payload(payload("get"), service=ExplodingService())
+
+    assert code == 1
+    assert response == {"ok": False, "error": "Profile operation failed"}
+    serialized = json.dumps(response)
+    assert "private" not in serialized
+    assert "secret-marker" not in serialized
+    assert "traceback" not in serialized
+
+
+def test_main_rejects_invalid_json_without_echoing_input(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setattr(sys, "stdin", io.StringIO('{"secret":"marker"'))
+
+    with pytest.raises(SystemExit) as exc_info:
+        rex_profile_bridge.main()
+
+    assert exc_info.value.code == 1
+    response = json.loads(capsys.readouterr().out)
+    assert response == {"ok": False, "error": "Request validation failed"}
+    assert "marker" not in json.dumps(response)
