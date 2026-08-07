@@ -1016,8 +1016,8 @@ python scripts/security_audit.py
 - [x] Authenticated GET with a valid token still works. *(Covered by `tests/test_rr008_log_auth.py`.)*
 - [x] A negative test asserts the 401 (delivered as `tests/test_rr008_log_auth.py`, e.g. `test_stream_without_token_returns_401`, rather than the originally planned `tests/test_logs_auth.py` name).
 - [x] Log output redacts home-directory paths (`/Users/<name>`, `C:\Users\<name>`) before being sent in any response. *(`_redact_log_line` in `rex/routes/_helpers.py`; covered by `tests/test_rr008_log_auth.py`.)*
-- [ ] `docs/configuration.md` and `README.md` document the auth requirement. *(2026-07-08: `docs/configuration.md` documents `REX_PROXY_TOKEN`; `README.md` still missing the mention.)*
-- [ ] All relevant GitHub checks pass. *(Check when the README update lands.)*
+- [x] `docs/configuration.md` and `README.md` document the auth requirement. *(Verified 2026-08-07: both document `REX_PROXY_TOKEN`; README Security section explicitly covers `/api/logs/stream` and `/api/logs/download` Bearer-token auth and path redaction.)*
+- [x] All relevant GitHub checks pass. *(Satisfied by the already-pushed branch state containing the README documentation; local targeted validation also passes: `pytest tests/test_rr008_log_auth.py -q` -> 8 passed on 2026-08-07.)*
 
 **Validation commands:**
 ```bash

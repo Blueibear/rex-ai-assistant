@@ -1134,3 +1134,16 @@ Cross-reference: PRD-remaining-release-readiness.md is complete except
 two Definition-of-Done boxes (base-deps clean-checkout pytest; owner
 decision on re-added sanitized fixtures profiles/james.json +
 users.json). Treat as historical evidence, not an active tracker.
+
+
+=== 2026-08-07 - US-023 close-out reconciliation ===
+
+Fast-forwarded codex/audit-remediation to origin/codex/audit-remediation@ea45afe while preserving the local .claude/ralph-loop.local.md state.
+
+Verified the README Security section now explicitly states that /api/logs/stream and /api/logs/download require a REX_PROXY_TOKEN Bearer token and that served log content redacts home-directory paths. docs/configuration.md already documented REX_PROXY_TOKEN.
+
+Targeted validation:
+- python -m pytest tests/test_rr008_log_auth.py -q -> 8 passed
+- git diff --check -> clean before tracker update
+
+US-023 acceptance criteria are now fully reconciled and checked. No runtime code changed in this close-out.
