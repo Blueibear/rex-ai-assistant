@@ -5,7 +5,7 @@ from __future__ import annotations
 import shutil
 from collections.abc import Awaitable, Callable
 from pathlib import Path
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, Any, cast
 
 from rex.assistant_errors import (
     AudioDeviceError,
@@ -152,6 +152,7 @@ def _build_voice_id_callback() -> IdentifySpeakerCallable | None:
 def build_voice_loop(
     assistant,
     *,
+    activation_mode: str = "wake-word",
     sample_rate: int = 16000,
     detection_seconds: float = 1.0,
     capture_seconds: float | None = None,
@@ -197,7 +198,8 @@ def build_voice_loop(
         },
     )
 
-    from rex.wakeword.listener import build_default_detector
+    if activation_mode not in {"hold-to-talk", "wake-word"}:
+        raise ValueError(f"Unsupported voice activation mode: {activation_mode!r}")
 
     # Smart speaker microphone input (US-SP-003)
     smart_mic_recorder = None
@@ -243,35 +245,55 @@ def build_voice_loop(
         recorder=smart_mic_recorder,
     )
 
-    _vl().logger.info(
-        "[Pipeline] Initialising wake-word detector...",
-        extra={"event": "pipeline_stage_start", "stage": "wake_word"},
-    )
-    try:
-        wake_listener = build_default_detector(
-            sample_rate=sample_rate,
-            chunk_duration=detection_seconds,
-            threshold=getattr(_vl().settings, "wakeword_threshold", 0.1),
-            poll_interval=getattr(_vl().settings, "wakeword_poll_interval", 0.01),
-            keyword=getattr(_vl().settings, "wakeword_keyword", None)
-            or getattr(_vl().settings, "wakeword", None),
-            model_path=getattr(_vl().settings, "wakeword_model_path", None),
-            embedding_path=getattr(_vl().settings, "wakeword_embedding_path", None),
-            backend=getattr(_vl().settings, "wakeword_backend", None),
-            fallback_to_builtin=getattr(_vl().settings, "wakeword_fallback_to_builtin", True),
-            fallback_keyword=getattr(_vl().settings, "wakeword_fallback_keyword", "hey jarvis"),
+    wake_listener: Any
+    if activation_mode == "hold-to-talk":
+        from rex.voice.activation import ManualActivationListener
+
+        wake_listener = ManualActivationListener()
+        _vl().logger.info(
+            "[Pipeline] Manual hold-to-talk activation ready; wake detector not loaded",
+            extra={
+                "event": "pipeline_stage_ok",
+                "stage": "activation",
+                "activation_mode": activation_mode,
+            },
         )
-    except Exception as exc:
-        _vl().logger.error(
-            "[Pipeline] Wake-word stage failed: %s",
-            exc,
-            extra={"event": "pipeline_stage_failed", "stage": "wake_word", "error": str(exc)},
+    else:
+        from rex.wakeword.listener import build_default_detector
+
+        _vl().logger.info(
+            "[Pipeline] Initialising wake-word detector...",
+            extra={"event": "pipeline_stage_start", "stage": "wake_word"},
         )
-        raise
-    _vl().logger.info(
-        "[Pipeline] Wake-word detector ready",
-        extra={"event": "pipeline_stage_ok", "stage": "wake_word"},
-    )
+        try:
+            wake_listener = build_default_detector(
+                sample_rate=sample_rate,
+                chunk_duration=detection_seconds,
+                threshold=getattr(_vl().settings, "wakeword_threshold", 0.1),
+                poll_interval=getattr(_vl().settings, "wakeword_poll_interval", 0.01),
+                keyword=getattr(_vl().settings, "wakeword_keyword", None)
+                or getattr(_vl().settings, "wakeword", None),
+                model_path=getattr(_vl().settings, "wakeword_model_path", None),
+                embedding_path=getattr(_vl().settings, "wakeword_embedding_path", None),
+                backend=getattr(_vl().settings, "wakeword_backend", None),
+                fallback_to_builtin=getattr(_vl().settings, "wakeword_fallback_to_builtin", True),
+                fallback_keyword=getattr(_vl().settings, "wakeword_fallback_keyword", "hey jarvis"),
+            )
+        except Exception as exc:
+            _vl().logger.error(
+                "[Pipeline] Wake-word stage failed: %s",
+                exc,
+                extra={
+                    "event": "pipeline_stage_failed",
+                    "stage": "wake_word",
+                    "error": str(exc),
+                },
+            )
+            raise
+        _vl().logger.info(
+            "[Pipeline] Wake-word detector ready",
+            extra={"event": "pipeline_stage_ok", "stage": "wake_word"},
+        )
 
     _vl().logger.info(
         "[Pipeline] Initialising STT (model=%s, device=%s)...",

@@ -150,7 +150,7 @@ Electron resolves one validated session identity in the main process. Chat, hist
 | **Electron desktop app** | Installed AskRex app; source development: `cd gui; npm.cmd run dev` | **Primary user-facing interface** — Windows artifact is locally validated but unsigned |
 | CLI text chat | `rex` or `python -m rex` | Working basic chat (developer / advanced) |
 | Diagnostics | `rex doctor` or `python -m rex doctor` | Working |
-| Voice loop | `python rex_loop.py` | Developer / advanced source path; wake word is beta |
+| Voice loop | `python rex_loop.py` | Developer / advanced source path; defaults to manual Hold-to-Talk activation. Use `--mode wake-word` to opt into beta wake-word mode. |
 | Python/Flask local API | `rex-gui` | Developer-only compatibility/API surface; not spawned or required by Electron |
 | TTS API | `rex-speak-api` | Implemented service, default `127.0.0.1:5005` (developer / advanced) |
 | OpenClaw tool server | `rex-tool-server` | Implemented service, default `127.0.0.1:18790` (developer / advanced) |
@@ -164,7 +164,7 @@ The Electron app under `gui/` is the current primary GUI. `rex-gui` remains usef
 | Area | Current repo state |
 |---|---|
 | Text chat | Basic CLI and GUI chat work through `rex.assistant.Assistant` and the configured LLM provider. Common day/date phrasing coverage has improved; provider quality still depends on model/configuration. |
-| Voice pipeline | Hold to Talk is the supported production path: record, Whisper STT, streamed response, TTS, selected-device playback, cancel/barge-in, replay, device-loss fallback, and repeated turns. Wake-word mode remains beta while hardware reliability and latency are still being tuned. |
+| Voice pipeline | Hold-to-Talk is the supported production path: the packaged Electron app provides real press/hold recording, Whisper STT, streamed response, TTS, selected-device playback, cancel/barge-in, replay, device-loss fallback, and repeated turns. The source `rex_loop.py` defaults to an explicit Enter-to-talk trigger and accepts `--mode wake-word` for the beta wake detector. |
 | Custom wake support | Built-in openWakeWord remains the safe fallback path. `custom_embedding` is usable as an interim path, and `custom_onnx` is the target path for a real `Hey Rex` wake model. The repo does not ship that custom asset by default. |
 | LLM providers | Local Transformers, OpenAI-compatible API settings, and Ollama routing are supported by config. Local model output quality varies by model and prompt path. |
 | Configuration | Runtime settings live in `config/rex_config.json`; secrets live in the OS-backed credential vault; profiles live in `profiles/`. |

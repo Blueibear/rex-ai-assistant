@@ -1314,3 +1314,18 @@ Local evidence:
 - GitHub checks remain pending before final story closeout.
 
 US-041 GitHub implementation-head gate: PASS. PR #353 head `ced2908`; CI run `31218152883` and commitlint run `31218150711` completed successfully. Windows Electron Artifact run `31218151625`, job `92996384714`, passed in 12m36s after building the managed runtime/installer, verifying packaged resources/privacy, and exercising the installed artifact without machine Python or Node. US-041 acceptance criteria are fully satisfied; this tracker closeout commit must itself receive a final green rerun before merge.
+
+
+=== 2026-08-07 - US-042 Hold-to-Talk production default ===
+
+Implementation:
+- `rex_loop.py` now exposes `--mode {hold-to-talk,wake-word}` and defaults to `hold-to-talk`.
+- Source Hold-to-Talk uses a lightweight Enter-key manual activation listener and does not initialize or consume wake-detection audio. The packaged Electron app remains the true press/hold production UX.
+- Existing direct `build_voice_loop()` callers retain their historical wake-word default for compatibility; the user-facing source entry point passes its explicit mode.
+- Wake-word remains an explicit beta/developer-only opt-in pending US-046 reliability evidence.
+- README, usage, voice-identity, surface classification, CLI help, and CLAUDE.md now describe the same boundary.
+
+Local evidence so far:
+- `pytest tests/test_voice_loop_default_mode.py tests/test_voice_loop.py tests/test_us074_voice_loop_pipeline.py -q`: 38 passed.
+- Ruff and Black on changed Python paths: pass.
+- Relevant GitHub checks remain pending the story PR.

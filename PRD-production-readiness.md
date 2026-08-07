@@ -1531,10 +1531,10 @@ docker run --rm askrex-assistant:smoke python -m rex doctor
 **Implementation notes:** Add a `--mode hold-to-talk` and `--mode wake-word` flag to the voice loop entry, with `hold-to-talk` as the default. Document that wake word is beta until reliability tests pass (US-046).
 
 **Acceptance Criteria:**
-- [ ] CLI default is Hold-to-Talk.
-- [ ] A test confirms the default mode resolves to Hold-to-Talk when no flag is provided.
-- [ ] `README.md` says Hold-to-Talk is the supported production voice mode.
-- [ ] `SURFACE-CLASSIFICATION.md` classifies wake word as `beta`/`developer-only` until US-046.
+- [x] CLI default is Hold-to-Talk. *(`rex_loop.py` exposes `--mode {hold-to-talk,wake-word}` with `hold-to-talk` as the parser default and passes the selected mode into the canonical builder.)*
+- [x] A test confirms the default mode resolves to Hold-to-Talk when no flag is provided. *(`tests/test_voice_loop_default_mode.py` also covers explicit wake-word opt-in and the manual activation listener.)*
+- [x] `README.md` says Hold-to-Talk is the supported production voice mode. *(Electron is the true press/hold production UX; the source CLI documents its Enter-triggered manual activation honestly.)*
+- [x] `SURFACE-CLASSIFICATION.md` classifies wake word as `beta`/`developer-only` until US-046.
 - [ ] All relevant GitHub checks pass.
 
 **Validation commands:**
