@@ -26,8 +26,11 @@ def _cli():
 
 
 def cmd_doctor(args: argparse.Namespace) -> int:
-    """Run environment diagnostics."""
-    from rex.doctor import run_diagnostics
+    """Run environment diagnostics or the lightweight liveness probe."""
+    from rex.doctor import run_diagnostics, run_healthcheck
+
+    if getattr(args, "healthcheck", False):
+        return run_healthcheck()
 
     debug = getattr(args, "debug", False)
     return run_diagnostics(
@@ -205,6 +208,11 @@ def register(subparsers: argparse._SubParsersAction) -> None:
         "--release-gate",
         action="store_true",
         help="Exit nonzero for errors and actionable warnings",
+    )
+    doctor_parser.add_argument(
+        "--healthcheck",
+        action="store_true",
+        help="Run a lightweight core-runtime liveness probe and exit nonzero on failure",
     )
     doctor_parser.set_defaults(func=_cli().cmd_doctor)
 

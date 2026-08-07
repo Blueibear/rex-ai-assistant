@@ -249,7 +249,10 @@ journalctl -u rex-api.service -f
 journalctl -u rex-tts.service --since "1 hour ago"
 ```
 
-## Docker
+## Docker (developer-only)
+
+Docker is retained for developer/operator smoke testing only. It is not a
+supported AskRex production deployment path or end-user artifact.
 
 ```bash
 docker build -t askrex-assistant .

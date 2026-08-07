@@ -345,9 +345,15 @@ pip install -r requirements-dev.txt
 
 ## Run
 
-Health check:
+Health/readiness check:
 
 python -m rex doctor
+
+Lightweight process liveness check (used by the developer-only Docker image):
+
+python -m rex doctor --healthcheck
+
+Docker is developer/operator-only and is not an end-user or supported production deployment path.
 
 Release health gate:
 

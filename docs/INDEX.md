@@ -50,7 +50,7 @@ This index covers active documentation under `docs/`. Files under `docs/archive/
 | [runbook.md](runbook.md) | Day-to-day operations runbook |
 | [deployment.md](deployment.md) | Production deployment guide |
 | [DEPLOYMENT_CHECKLIST.md](DEPLOYMENT_CHECKLIST.md) | Deployment checklist |
-| [docker.md](docker.md) | Docker setup |
+| [docker.md](docker.md) | Developer-only Docker smoke-test/operator setup |
 | [advanced-install.md](advanced-install.md) | Advanced install, GPU, and developer setup |
 | [doctor.md](doctor.md) | `rex doctor` reference |
 | [developer_tools.md](developer_tools.md) | Development tooling |

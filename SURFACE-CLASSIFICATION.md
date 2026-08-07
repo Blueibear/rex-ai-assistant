@@ -122,6 +122,7 @@ These modules implement user-facing capabilities invoked by the assistant pipeli
 | Artifact | Classification | Notes |
 |----------|----------------|-------|
 | `askrex-assistant` wheel (`pip install .` / `pip install askrex-assistant`) | `developer-only` | Installs the `rex` Python library, six console scripts, and canonical IPC bridge scripts. **Not** an end-user artifact. The Windows Electron build installs this wheel into its managed runtime; developers/operators use it directly for CLI and service workflows. |
+| Locally built Docker image (`Dockerfile`) | `developer-only` | Operator/development smoke-test path only. Not an end-user artifact or supported production deployment. Uses `python -m rex doctor --healthcheck` for lightweight core-runtime liveness. |
 | Windows Electron Voice installer | `shippable` | Primary end-user artifact. Bundles Electron, canonical bridges, managed Python 3.11, the AskRex wheel, CPU Whisper/Torch dependencies, and FFmpeg. Locally artifact-tested but currently unsigned; public release requires signing and blocking CI. |
 
 ---
@@ -137,7 +138,7 @@ These modules implement user-facing capabilities invoked by the assistant pipeli
 | `removed` | 0 |
 | **Total** | **51** |
 
-(Distribution artifacts are counted separately from the 50 entry points and UI surfaces. The installer classification does not change the total.)
+(Distribution artifacts are counted separately from the 51 entry points and UI surfaces. The Docker image and installer classifications do not change the total.)
 
 ---
 
@@ -152,3 +153,4 @@ These modules implement user-facing capabilities invoked by the assistant pipeli
 | 2026-06-23 | US-017 | Classified all 17 root-level bridge compatibility wrappers as developer-only (count: developer-only 10→27, total 33→50). Updated CLAUDE.md root-file count from 9 to 27. No files moved to archived/ — all bridge wrappers are actively used for test-import compatibility. |
 | 2026-06-24 | US-022 | Added Internal Python APIs section. Classified `rex.skills.trainer` (`SkillTrainer`) as shippable — invoked by assistant when user requests skill creation. |
 | 2026-07-28 | #323 | Added `python -m rex mobile-api` (`rex.mobile_api`) as developer-only — the surface existed on master but was missing from this document (count: developer-only 28→29, total 50→51). |
+| 2026-08-07 | US-041 | Classified the locally built Docker image as developer-only and documented the lightweight core-runtime healthcheck. |
