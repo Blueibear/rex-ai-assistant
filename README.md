@@ -379,7 +379,7 @@ curl http://127.0.0.1:18790/health/live
 
 ## Docker
 
-Run AskRex in a container. See [docs/docker.md](docs/docker.md) for build, run, and GPU options.
+Docker is a **developer-only** smoke-test/operator path, not an end-user or supported production deployment. The Windows Electron Voice installer is the supported end-user artifact. See [docs/docker.md](docs/docker.md) for the developer container workflow and its real liveness check.
 
 ## Memory
 

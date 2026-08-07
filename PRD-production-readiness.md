@@ -1500,10 +1500,10 @@ pytest -q --cov=rex --cov-fail-under=75
 **Implementation notes:** Decision for this PRD: Docker stays a developer-only path. Replace the no-op healthcheck with `python -m rex doctor --healthcheck` (or equivalent) so it returns non-zero on real failure, and classify Docker as `developer-only` everywhere.
 
 **Acceptance Criteria:**
-- [ ] `Dockerfile` HEALTHCHECK invokes a real check that returns non-zero on failure.
-- [ ] `docker build .` succeeds and `docker run --rm askrex-assistant python -m rex doctor` exits 0.
-- [ ] `docs/docker.md`, `README.md`, and `SURFACE-CLASSIFICATION.md` describe Docker as developer-only.
-- [ ] All relevant GitHub checks pass.
+- [x] `Dockerfile` HEALTHCHECK invokes a real check that returns non-zero on failure. *(`python -m rex doctor --healthcheck` verifies supported Python, the installed Rex package/contract, and CLI parser; unit coverage proves non-OK core runtime checks return 1. Image metadata confirms Docker executes this probe.)*
+- [x] `docker build .` succeeds and `docker run --rm askrex-assistant python -m rex doctor` exits 0. *(`docker build -t askrex-assistant:smoke .` passed locally on Docker 28.4.0; both the lightweight probe and full doctor exited 0 inside the built image.)*
+- [x] `docs/docker.md`, `README.md`, and `SURFACE-CLASSIFICATION.md` describe Docker as developer-only. *(The same classification is also propagated to `docs/advanced-install.md`, `docs/deployment.md`, `docs/INDEX.md`, and `CLAUDE.md`.)*
+- [x] All relevant GitHub checks pass. *(PR #353 implementation head `ced2908`: CI run `31218152883` and commitlint run `31218150711` passed; Windows Electron Artifact run `31218151625`, job `92996384714`, passed in 12m36s including installed-artifact exercise without machine Python or Node.)*
 
 **Validation commands:**
 ```bash

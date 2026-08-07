@@ -469,6 +469,12 @@ def check_gpu_availability() -> CheckResult:
 
 def check_audio_input_device() -> CheckResult:
     """Check if an audio input device (microphone) is available."""
+    if os.getenv("ASKREX_DEVELOPER_CONTAINER", "").strip().lower() in {"1", "true", "yes", "on"}:
+        return CheckResult(
+            name="Audio Input",
+            status=Status.INFO,
+            message="Developer-only Docker image: host audio input is outside the supported container contract",
+        )
     try:
         import sounddevice as sd
 
@@ -506,6 +512,12 @@ def check_audio_input_device() -> CheckResult:
 
 def check_audio_output_device() -> CheckResult:
     """Check if an audio output device (speaker/headphones) is available."""
+    if os.getenv("ASKREX_DEVELOPER_CONTAINER", "").strip().lower() in {"1", "true", "yes", "on"}:
+        return CheckResult(
+            name="Audio Output",
+            status=Status.INFO,
+            message="Developer-only Docker image: host audio output is outside the supported container contract",
+        )
     try:
         import sounddevice as sd
 
@@ -581,6 +593,12 @@ def check_stt_backend() -> CheckResult:
     Reports OK when at least one backend is available, ERROR when neither is
     found so that ``rex doctor`` surfaces the gap before the voice loop starts.
     """
+    if os.getenv("ASKREX_DEVELOPER_CONTAINER", "").strip().lower() in {"1", "true", "yes", "on"}:
+        return CheckResult(
+            name="STT Backend",
+            status=Status.INFO,
+            message="Developer-only Docker image: voice STT is outside the supported container contract",
+        )
     has_whisper = find_spec("whisper") is not None
     has_faster_whisper = find_spec("faster_whisper") is not None
 
@@ -1110,6 +1128,34 @@ def check_integration_states() -> CheckResult:
             message="Could not determine integration readiness",
             details=str(exc),
         )
+
+
+def run_healthcheck() -> int:
+    """Run a lightweight process-level liveness probe.
+
+    This intentionally avoids hardware, model, network, and integration checks so
+    container health polling does not load the voice stack every 30 seconds.  Full
+    readiness remains the responsibility of ``rex doctor`` / ``--release-gate``.
+    The liveness probe fails closed if the supported Python runtime, installed Rex
+    package/contract, or CLI parser cannot be loaded.
+    """
+    checks = [check_python_version(), check_package_installation()]
+    for result in checks:
+        print(f"{result.name}: {result.status.value} - {result.message}")
+        if result.status != Status.OK:
+            return 1
+
+    try:
+        from rex.cli import create_parser
+
+        parser = create_parser()
+        parser.parse_args(["version"])
+    except Exception as exc:
+        print(f"CLI Runtime: error - {exc}")
+        return 1
+
+    print("CLI Runtime: ok")
+    return 0
 
 
 def run_diagnostics(

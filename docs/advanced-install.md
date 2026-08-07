@@ -184,10 +184,11 @@ Voice loop:
 python rex_loop.py
 ```
 
-## Docker
+## Docker (developer-only)
 
-The Dockerfile uses Python 3.11 and CPU PyTorch by default. The image default
-command is `python -m rex`.
+Docker is a developer/operator smoke-test path, not a supported production or
+end-user deployment. The Dockerfile uses Python 3.11 and CPU PyTorch by default.
+The image default command is `python -m rex`.
 
 ```bash
 docker build -t askrex-assistant .

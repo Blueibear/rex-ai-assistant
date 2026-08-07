@@ -55,7 +55,7 @@ COPY --from=deps /usr/local/bin /usr/local/bin
 #   /app/transcripts/            — voice transcripts (volume)
 #   /app/logs/                   — application logs (volume)
 COPY rex/ ./rex/
-COPY rex_speak_api.py rex_loop.py voice_loop.py run_gui.py ./
+COPY rex_speak_api.py rex_loop.py voice_loop.py ./
 COPY pyproject.toml setup.py* ./
 COPY config/rex_config.example.json ./config/
 COPY assets/ ./assets/
@@ -70,11 +70,8 @@ USER rex
 
 # Environment variables (set sensible defaults for containers)
 ENV PYTHONUNBUFFERED=1 \
-    REX_WAKEWORD=rex \
-    REX_DEVICE=cpu \
-    REX_LOG_LEVEL=INFO \
-    REX_FILE_LOGGING_ENABLED=false \
-    REX_WHISPER_DEVICE=cpu
+    ASKREX_DEVELOPER_CONTAINER=1 \
+    LOG_LEVEL=INFO
 
 # Mountable volumes for persistent state
 VOLUME ["/app/Memory", "/app/models", "/app/transcripts"]
@@ -84,7 +81,7 @@ EXPOSE 5000
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD python -c "import sys; sys.exit(0)"
+    CMD python -m rex doctor --healthcheck
 
 # Default command: use the module entrypoint
 CMD ["python", "-m", "rex"]
