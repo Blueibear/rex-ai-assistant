@@ -1329,3 +1329,9 @@ Local evidence so far:
 - `pytest tests/test_voice_loop_default_mode.py tests/test_voice_loop.py tests/test_us074_voice_loop_pipeline.py -q`: 38 passed.
 - Ruff and Black on changed Python paths: pass.
 - Relevant GitHub checks remain pending the story PR.
+
+CI dependency drift found during US-042:
+- PR #354 run `31220716305` failed only the GUI Node Dependency Audit because the public advisory feed began flagging transitive `nanoid` 3.3.16 as high severity.
+- `npm audit fix --package-lock-only` safely refreshed the transitive lock to `nanoid` 3.3.18 without changing `package.json` or forcing the breaking React Router v7 migration.
+- `npm audit --audit-level=high` now exits clean with only two moderate React Router advisories remaining; `npm run typecheck` and all 99 GUI Vitest tests pass after a clean `npm ci`.
+- The lock refresh is included in US-042 because the story cannot satisfy its required GitHub gate while the external audit feed rejects the inherited lockfile.
