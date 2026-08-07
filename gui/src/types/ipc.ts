@@ -300,6 +300,8 @@ export interface IntegrationInventoryItem extends IntegrationStatus {
   write_capable: boolean
   configure_url?: string
   testable?: boolean
+  detail: string
+  next_action: string
 }
 
 export interface IntegrationInventoryResponse {
@@ -546,10 +548,11 @@ export interface SetupCompletePayload {
   username: string
   password: string
   llm_provider: string
-  llm_api_key: string
+  llm_api_key?: string
   tts_provider: string
   ha_base_url: string
   ha_token: string
+  defer_home_assistant?: boolean
 }
 
 export interface SetupCompleteResponse {
@@ -608,6 +611,37 @@ export interface PairingResponse<T = undefined> {
   desktop_id?: string
   grant?: T
   revoked?: boolean
+}
+
+// ---------------------------------------------------------------------------
+// User Profile
+// ---------------------------------------------------------------------------
+
+export type ProfileScopeLabel =
+  | 'user-private'
+  | 'shared'
+
+export interface UserProfile {
+  user_id: string
+  name: string
+  initials: string
+  role: string
+  permissions: string[]
+  preferences: Record<string, unknown>
+  voice_enrolled: boolean
+  voice_model_id: string | null
+  voice_sample_count: number
+  voice_updated_at: string | null
+  avatar_present: boolean
+  avatar_mime_type: string | null
+  avatar_data: string | null
+  scope_labels: Record<string, ProfileScopeLabel>
+}
+
+export interface ProfileOperationResponse {
+  ok: boolean
+  error?: string
+  profile?: UserProfile
 }
 
 // AbortSignal instances do not survive Electron's contextBridge isolation
@@ -772,4 +806,8 @@ export interface RexAPI {
   denyPairing: (requestId: string) => Promise<PairingResponse>
   listPairedDevices: () => Promise<PairingResponse>
   revokePairedDevice: (deviceId: string) => Promise<PairingResponse>
+  getProfile: () => Promise<ProfileOperationResponse>
+  updateProfilePreferences: (preferences: Record<string, unknown>) => Promise<ProfileOperationResponse>
+  setProfileAvatar: (mimeType: string, avatarBase64: string) => Promise<ProfileOperationResponse>
+  removeProfileAvatar: () => Promise<ProfileOperationResponse>
 }

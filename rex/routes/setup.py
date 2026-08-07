@@ -49,8 +49,9 @@ def create_blueprint() -> Blueprint:
         llm_provider = (data.get("llm_provider") or "local").strip()
         llm_api_key = (data.get("llm_api_key") or "").strip()
         tts_provider = (data.get("tts_provider") or "none").strip()
-        ha_base_url = (data.get("ha_base_url") or "").strip()
-        ha_token = (data.get("ha_token") or "").strip()
+        defer_home_assistant = data.get("defer_home_assistant") is True
+        ha_base_url = "" if defer_home_assistant else (data.get("ha_base_url") or "").strip()
+        ha_token = "" if defer_home_assistant else (data.get("ha_token") or "").strip()
 
         if not username or not password:
             return jsonify({"error": "username and password are required"}), 400
@@ -65,7 +66,9 @@ def create_blueprint() -> Blueprint:
             from rex.permissions import bootstrap_admin_if_first_user
 
             bootstrap_admin_if_first_user(user["id"])
-            secrets_to_store: dict[str, str] = {"HA_TOKEN": ha_token}
+            secrets_to_store: dict[str, str] = {}
+            if ha_token:
+                secrets_to_store["HA_TOKEN"] = ha_token
             if llm_api_key:
                 logical_name = {
                     "openai": "OPENAI_API_KEY",

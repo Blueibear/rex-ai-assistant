@@ -21,6 +21,7 @@ import { registerDevicesHandlers } from './handlers/devices'
 import { registerQuickActionsHandlers } from './handlers/quickActions'
 import { registerSetupHandlers } from './handlers/setup'
 import { registerPairingHandlers } from './handlers/pairing'
+import { registerProfileHandlers } from './handlers/profile'
 import type { ElectronSessionIdentity } from './sessionIdentity'
 
 export function registerIpcHandlers(mainWindow: BrowserWindow | null, session: ElectronSessionIdentity): void {
@@ -46,4 +47,5 @@ export function registerIpcHandlers(mainWindow: BrowserWindow | null, session: E
   registerQuickActionsHandlers(session)
   registerSetupHandlers()
   registerPairingHandlers(session)
+  registerProfileHandlers(session)
 }

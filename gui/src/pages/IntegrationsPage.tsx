@@ -110,10 +110,14 @@ export function IntegrationsPage(): React.ReactElement {
             )}
             <div className="divide-y divide-border border border-border rounded-xl overflow-hidden">
               {integrations.map((int) => (
-                <div key={int.key} className="flex items-center justify-between px-4 py-3 bg-surface gap-3">
-                  <span className="text-text-primary text-sm font-medium flex-1 min-w-0 truncate">
-                    {int.name}
-                  </span>
+                <div key={int.key} className="flex items-start justify-between px-4 py-3 bg-surface gap-4">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-text-primary text-sm font-medium">{int.name}</p>
+                    <p className="text-text-muted text-xs mt-1">{int.detail}</p>
+                    <p className="text-text-secondary text-xs mt-1">
+                      Next action: {int.next_action}
+                    </p>
+                  </div>
                   <div className="flex items-center gap-3 flex-shrink-0">
                     <StatusBadge integration={int} />
                     {int.configure_url && (

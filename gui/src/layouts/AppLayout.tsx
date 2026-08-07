@@ -3,7 +3,7 @@ import { NavLink, useNavigate } from 'react-router-dom'
 import { useNotificationsStore } from '../store/notificationsStore'
 import { useGlobalShortcuts } from '../hooks/useGlobalShortcuts'
 import { HelpOverlay } from '../components/HelpOverlay'
-import { Tooltip } from '../components/ui/Tooltip'
+import type { UserProfile } from '../types/ipc'
 import brandIcon from "../assets/icon_square.png";
 import brandWordmark from "../assets/Horizontal-UI-Wordmark.png";
 
@@ -114,7 +114,6 @@ interface NavItem {
   path: string
   label: string
   icon: React.ReactElement
-  beta?: boolean
   showUnread?: boolean
 }
 
@@ -222,26 +221,10 @@ const navItems: NavItem[] = [
   {
     path: '/email',
     label: 'Email',
-    beta: true,
     icon: (
       <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
         <rect x="2" y="4" width="14" height="10" rx="1.5" stroke="currentColor" strokeWidth="1.4" />
         <path d="M2 6l7 5 7-5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
-      </svg>
-    )
-  },
-  {
-    path: '/sms',
-    label: 'SMS',
-    beta: true,
-    icon: (
-      <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
-        <path
-          d="M3 3h12a1 1 0 0 1 1 1v7a1 1 0 0 1-1 1H9l-4 3v-3H3a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z"
-          stroke="currentColor"
-          strokeWidth="1.4"
-          strokeLinejoin="round"
-        />
       </svg>
     )
   },
@@ -327,21 +310,6 @@ const navItems: NavItem[] = [
     )
   },
   {
-    path: '/settings',
-    label: 'Settings',
-    icon: (
-      <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
-        <path
-          d="M7.5 2h3l.5 1.5a5 5 0 0 1 1.2.7l1.5-.5 1.5 2.6-1.2 1a5 5 0 0 1 0 1.4l1.2 1-1.5 2.6-1.5-.5A5 5 0 0 1 11 12.3l-.5 1.5h-3L7 12.3a5 5 0 0 1-1.2-.7L4.3 12 2.8 9.4l1.2-1a5 5 0 0 1 0-1.4l-1.2-1L4.3 3.4l1.5.5A5 5 0 0 1 7 3.2L7.5 2z"
-          stroke="currentColor"
-          strokeWidth="1.2"
-          strokeLinejoin="round"
-        />
-        <circle cx="9" cy="9" r="2" stroke="currentColor" strokeWidth="1.2" />
-      </svg>
-    )
-  },
-  {
     path: '/about',
     label: 'About',
     icon: (
@@ -372,6 +340,7 @@ const sectionNames: Record<string, string> = {
   '/usage': 'Usage',
   '/integrations': 'Integrations',
   '/pairing': 'Mobile Pairing',
+  '/profile': 'Profile',
   '/settings': 'Settings',
   '/home/devices': 'Devices',
   '/home-assistant': 'Home Assistant',
@@ -395,10 +364,19 @@ export function AppLayout({ children }: AppLayoutProps): React.ReactElement {
   }, [fetchUnreadCount])
 
   const [sectionName, setSectionName] = useState('Chat')
+  const [sidebarProfile, setSidebarProfile] = useState<UserProfile | null>(null)
 
   useEffect(() => {
     const path = window.location.hash.replace('#', '') || '/chat'
     setSectionName(sectionNames[path] ?? 'Rex')
+  }, [])
+
+  useEffect(() => {
+    let cancelled = false
+    void window.rex.getProfile().then((result) => {
+      if (!cancelled && result.ok && result.profile) setSidebarProfile(result.profile)
+    }).catch(() => undefined)
+    return () => { cancelled = true }
   }, [])
 
   const handleNavClick = (label: string): void => {
@@ -462,20 +440,6 @@ export function AppLayout({ children }: AppLayoutProps): React.ReactElement {
                 <>
                   <span className="flex-1">{item.label}</span>
 
-                  {/* BETA badge — Email and SMS require credentials to be
-                      configured in Settings › Integrations before they show
-                      live data; until then the page shows an empty state. */}
-                  {item.beta && (
-                    <Tooltip
-                      text="Requires credentials in Settings › Integrations"
-                      position="right"
-                    >
-                      <span className="text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-400 leading-none cursor-default">
-                        BETA
-                      </span>
-                    </Tooltip>
-                  )}
-
                   {/* Unread count badge for Notifications */}
                   {item.showUnread && unreadCount > 0 && (
                     <span className="min-w-[18px] h-[18px] flex items-center justify-center rounded-full bg-accent text-white text-[10px] font-bold px-1 leading-none">
@@ -488,21 +452,28 @@ export function AppLayout({ children }: AppLayoutProps): React.ReactElement {
           ))}
         </nav>
 
-        {/* Bottom: user avatar + settings shortcut */}
+        {/* Bottom: user profile + settings shortcut */}
         <div className="flex items-center gap-3 px-4 py-4 border-t border-border">
-          <div
-            className="flex-shrink-0 w-8 h-8 rounded-full bg-surface-raised flex items-center justify-center text-text-secondary text-sm font-medium cursor-pointer overflow-hidden"
-            aria-label="User avatar"
+          <button
+            type="button"
+            onClick={() => {
+              setSectionName('Profile')
+              navigate('/profile')
+            }}
+            className="flex-shrink-0 w-8 h-8 rounded-full bg-surface-raised hover:bg-surface-raised/80 flex items-center justify-center text-text-secondary hover:text-text-primary text-sm font-medium overflow-hidden transition-colors"
+            aria-label="Open user profile"
+            title={narrow ? 'Profile' : undefined}
           >
-            <img
-              src="/api/user/avatar"
-              alt="User avatar"
-              className="w-full h-full object-cover"
-              onError={(e) => {
-                e.currentTarget.style.display = 'none'
-              }}
-            />
-          </div>
+            {sidebarProfile?.avatar_data && sidebarProfile.avatar_mime_type ? (
+              <img
+                src={`data:${sidebarProfile.avatar_mime_type};base64,${sidebarProfile.avatar_data}`}
+                alt="Current user avatar"
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <span aria-hidden="true">{sidebarProfile?.initials ?? 'U'}</span>
+            )}
+          </button>
           {!narrow && (
             <button
               type="button"

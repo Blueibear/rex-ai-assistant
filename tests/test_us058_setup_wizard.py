@@ -170,7 +170,6 @@ class TestSetupComplete:
         )
 
         assert captured["values"] == {
-            "HA_TOKEN": "",
             "OPENAI_API_KEY": "sk-test-key",
         }
         assert captured["config"] == {
@@ -200,3 +199,70 @@ class TestSetupComplete:
         assert "secret-marker" not in response.get_data(as_text=True)
         assert flask_client.get("/api/setup/status").get_json()["needs_setup"] is True
         assert flask_client.application.config["SETUP_TOKEN"] == setup_token
+
+    def test_deferred_home_assistant_ignores_supplied_ha_values(
+        self, flask_client, monkeypatch: pytest.MonkeyPatch
+    ) -> None:  # type: ignore[override]
+        captured: dict[str, object] = {}
+
+        def fake_persist(values, *, config_path=None, update_config=None):
+            captured["values"] = dict(values)
+            config: dict[str, object] = {}
+            if update_config is not None:
+                update_config(config)
+            captured["config"] = config
+            return {}
+
+        monkeypatch.setattr("rex.credential_persistence.persist_household_secrets", fake_persist)
+
+        flask_client.post(
+            "/api/setup/complete",
+            json={
+                "username": "frank",
+                "password": "securepass1",
+                "llm_provider": "local",
+                "tts_provider": "none",
+                "ha_base_url": "http://ha.local:8123",
+                "ha_token": "should-be-ignored",
+                "defer_home_assistant": True,
+            },
+            headers={"X-Setup-Token": _setup_token(flask_client)},
+        )
+
+        assert captured["values"] == {}
+        assert "home_assistant" not in captured["config"]
+
+    def test_defer_field_parsed_strictly_as_boolean(
+        self, flask_client, monkeypatch: pytest.MonkeyPatch
+    ) -> None:  # type: ignore[override]
+        """String 'false' must not be treated as true; only bool True defers."""
+        captured: dict[str, object] = {}
+
+        def fake_persist(values, *, config_path=None, update_config=None):
+            captured["values"] = dict(values)
+            config: dict[str, object] = {}
+            if update_config is not None:
+                update_config(config)
+            captured["config"] = config
+            return {}
+
+        monkeypatch.setattr("rex.credential_persistence.persist_household_secrets", fake_persist)
+
+        # String "false" should NOT defer
+        flask_client.post(
+            "/api/setup/complete",
+            json={
+                "username": "george",
+                "password": "securepass1",
+                "llm_provider": "local",
+                "tts_provider": "none",
+                "ha_base_url": "http://ha.local:8123",
+                "ha_token": "test-token",
+                "defer_home_assistant": "false",
+            },
+            headers={"X-Setup-Token": _setup_token(flask_client)},
+        )
+
+        # When not deferred, HA values should be persisted
+        assert captured["values"] == {"HA_TOKEN": "test-token"}
+        assert captured["config"].get("home_assistant", {}).get("base_url") == "http://ha.local:8123"  # type: ignore[union-attr]

@@ -32,6 +32,7 @@ def test_setup_complete_payload_in_ipc_types():
     """SetupCompletePayload interface is defined in ipc.ts."""
     content = _read(IPC_TYPES)
     assert "SetupCompletePayload" in content
+    assert "defer_home_assistant?: boolean" in content
 
 
 def test_setup_complete_response_in_ipc_types():

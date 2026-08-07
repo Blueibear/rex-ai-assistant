@@ -63,8 +63,11 @@ def _handle_complete(payload: dict[str, Any]) -> None:
     llm_provider = str(payload.get("llm_provider") or "local").strip()
     llm_api_key = str(payload.get("llm_api_key") or "").strip()
     tts_provider = str(payload.get("tts_provider") or "none").strip()
-    ha_base_url = str(payload.get("ha_base_url") or "").strip()
-    ha_token = str(payload.get("ha_token") or "").strip()
+    defer_home_assistant = payload.get("defer_home_assistant") is True
+
+    # When deferring HA setup, ignore supplied HA values
+    ha_base_url = "" if defer_home_assistant else str(payload.get("ha_base_url") or "").strip()
+    ha_token = "" if defer_home_assistant else str(payload.get("ha_token") or "").strip()
 
     if not username or not password:
         sys.stdout.write(json.dumps({"ok": False, "error": "username and password are required"}))
@@ -80,7 +83,9 @@ def _handle_complete(payload: dict[str, Any]) -> None:
     user_id: str | None = None
 
     try:
-        secrets_to_store: dict[str, str] = {"HA_TOKEN": ha_token}
+        secrets_to_store: dict[str, str] = {}
+        if ha_token:
+            secrets_to_store["HA_TOKEN"] = ha_token
         if llm_api_key:
             logical_name = {
                 "openai": "OPENAI_API_KEY",
