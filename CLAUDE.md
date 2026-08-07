@@ -381,9 +381,11 @@ python -m rex
 
 Voice mode:
 
-python rex_loop.py
+python rex_loop.py --mode hold-to-talk
+# beta opt-in only:
+python rex_loop.py --mode wake-word
 
-Electron Hold-to-Talk is the supported production voice path. It runs
+The source CLI defaults to Hold-to-Talk/manual activation and must not initialize the wake-word detector unless `--mode wake-word` is explicitly selected. Electron Hold-to-Talk is the supported production voice path. It runs
 renderer recording -> persistent managed Whisper STT -> streamed assistant
 response -> configured TTS -> selected output-device playback. Preserve
 cancellation/barge-in, replay, microphone device-loss fallback, repeated turns,

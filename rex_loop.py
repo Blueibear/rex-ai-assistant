@@ -110,6 +110,7 @@ async def _run(args) -> None:
         wake_sound_path = getattr(rex.settings, "wake_sound_path", None)
         voice_loop = build_voice_loop(
             assistant,
+            activation_mode=args.mode,
             sample_rate=rex.settings.sample_rate,
             detection_seconds=rex.settings.detection_frame_seconds,
             capture_seconds=rex.settings.capture_seconds,
@@ -146,8 +147,17 @@ async def _run(args) -> None:
         shutdown_plugins(plugin_specs)
 
 
-def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Run the Rex voice assistant loop.")
+def _create_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description="Run the AskRex voice assistant loop.")
+    parser.add_argument(
+        "--mode",
+        choices=("hold-to-talk", "wake-word"),
+        default="hold-to-talk",
+        help=(
+            "Voice activation mode (default: hold-to-talk). "
+            "Use wake-word to opt into the beta wake detector."
+        ),
+    )
     parser.add_argument("--user", help="Override the active user profile")
     parser.add_argument(
         "--enable-plugin",
@@ -155,8 +165,11 @@ def main(argv: list[str] | None = None) -> int:
         metavar="NAME",
         help="Explicitly enable a plugin by name (omit to load all)",
     )
+    return parser
 
-    args = parser.parse_args(argv)
+
+def main(argv: list[str] | None = None) -> int:
+    args = _create_parser().parse_args(argv)
 
     try:
         asyncio.run(_run(args))

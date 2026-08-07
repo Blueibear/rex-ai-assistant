@@ -1314,3 +1314,28 @@ Local evidence:
 - GitHub checks remain pending before final story closeout.
 
 US-041 GitHub implementation-head gate: PASS. PR #353 head `ced2908`; CI run `31218152883` and commitlint run `31218150711` completed successfully. Windows Electron Artifact run `31218151625`, job `92996384714`, passed in 12m36s after building the managed runtime/installer, verifying packaged resources/privacy, and exercising the installed artifact without machine Python or Node. US-041 acceptance criteria are fully satisfied; this tracker closeout commit must itself receive a final green rerun before merge.
+
+
+=== 2026-08-07 - US-042 Hold-to-Talk production default ===
+
+Implementation:
+- `rex_loop.py` now exposes `--mode {hold-to-talk,wake-word}` and defaults to `hold-to-talk`.
+- Source Hold-to-Talk uses a lightweight Enter-key manual activation listener and does not initialize or consume wake-detection audio. The packaged Electron app remains the true press/hold production UX.
+- Existing direct `build_voice_loop()` callers retain their historical wake-word default for compatibility; the user-facing source entry point passes its explicit mode.
+- Wake-word remains an explicit beta/developer-only opt-in pending US-046 reliability evidence.
+- README, usage, voice-identity, surface classification, CLI help, and CLAUDE.md now describe the same boundary.
+
+Local evidence so far:
+- `pytest tests/test_voice_loop_default_mode.py tests/test_voice_loop.py tests/test_us074_voice_loop_pipeline.py -q`: 38 passed.
+- Ruff and Black on changed Python paths: pass.
+- Relevant GitHub checks remain pending the story PR.
+
+CI dependency drift found during US-042:
+- PR #354 run `31220716305` failed only the GUI Node Dependency Audit because the public advisory feed began flagging transitive `nanoid` 3.3.16 as high severity.
+- `npm audit fix --package-lock-only` safely refreshed the transitive lock to `nanoid` 3.3.18 without changing `package.json` or forcing the breaking React Router v7 migration.
+- `npm audit --audit-level=high` now exits clean with only two moderate React Router advisories remaining; `npm run typecheck` and all 99 GUI Vitest tests pass after a clean `npm ci`.
+- The lock refresh is included in US-042 because the story cannot satisfy its required GitHub gate while the external audit feed rejects the inherited lockfile.
+
+- The same new high-severity `nanoid` advisory was also present in the separate developer-only `rex/ui/` lockfile. Its transitive lock was refreshed from 3.3.16 to 3.3.18 as well. `npm audit --audit-level=high` is now clean for both Node trees; the two remaining React Router findings are moderate and require a breaking major upgrade, so they are not forced into US-042.
+
+US-042 GitHub implementation-head gate: PASS. PR #354 head `10d47cb`; CI run `31221345052`, commitlint run `31221345005`, and Windows Electron Artifact run `31221345114` all completed successfully. Python coverage job `93006401557` and Windows installed-artifact job `93006401583` passed. This tracker closeout commit must itself receive a final green rerun before merge.

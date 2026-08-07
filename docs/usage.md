@@ -30,25 +30,30 @@ Install the ML/audio stack first:
 pip install -r requirements-cpu.txt
 ```
 
-Then run:
+Then run the supported source default:
 
 ```bash
 python rex_loop.py
+# equivalent to: python rex_loop.py --mode hold-to-talk
 ```
+
+The source CLI's Hold-to-Talk mode uses an explicit Enter-key trigger followed by the existing VAD-bounded phrase capture. The packaged Electron app provides the production press/hold recording UX. Source Hold-to-Talk does not initialize the wake-word detector.
 
 Optional:
 
 ```bash
 python rex_loop.py --user james
 python rex_loop.py --enable-plugin web_search
+python rex_loop.py --mode wake-word
 ```
 
-Voice mode uses wake word detection, Whisper STT, the configured LLM provider, and TTS. Wake-word settings live under the canonical `wakeword` key in `config/rex_config.json`.
+Wake-word mode uses the configured wake detector before Whisper STT, the configured LLM provider, and TTS. It is an explicit beta opt-in until US-046 reliability evidence passes. Wake-word settings live under the canonical `wakeword` key in `config/rex_config.json`.
 
 Current voice state:
 
-- Hold to Talk is usable in current live testing.
-- Wake-word mode is wired and can work end to end, but reliability and latency are still being improved.
+- Electron Hold-to-Talk is the supported production voice path.
+- Source `rex_loop.py` defaults to manual Hold-to-Talk activation.
+- Wake-word mode is wired and can work end to end, but remains beta while reliability and latency are being measured.
 - Long answers now use a cleaner spoken handoff to the on-screen transcript.
 - Custom wake support is wired for built-in fallback, `custom_embedding`, and `custom_onnx`, but the repo does not ship a real `Hey Rex` custom asset by default.
 

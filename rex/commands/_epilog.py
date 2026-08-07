@@ -15,6 +15,10 @@ Examples:
   rex approvals --approve <id>
   rex workflows
 
+Voice commands:
+  python rex_loop.py --mode hold-to-talk   # supported default
+  python rex_loop.py --mode wake-word      # beta opt-in
+
 Planning and execution commands:
   rex plan "send monthly newsletter"
   rex plan "check weather in Dallas" --execute

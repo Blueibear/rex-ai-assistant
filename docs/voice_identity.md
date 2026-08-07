@@ -128,7 +128,7 @@ Without `--write-config`, the report is printed only.  With `--write-config
 
 ## How runtime recognition works
 
-1. The voice loop records audio after wake word detection.
+1. The voice loop records audio after the selected activation: Hold-to-Talk by default in `rex_loop.py`, or the beta wake-word detector when `--mode wake-word` is requested.
 2. If `voice_identity.enabled=true` and at least one user is enrolled, an
    `identify_speaker` callback is built at startup and wired into the voice loop.
 3. The callback converts the recorded numpy audio to PCM bytes and passes them

@@ -52,7 +52,8 @@ The mobile API gateway is a CLI subcommand, not a `[project.scripts]` console sc
 
 | File | Classification | Notes |
 |------|----------------|-------|
-| `rex_loop.py` | `developer-only` | Source voice-loop entry point. The packaged Electron Hold-to-Talk path is the supported end-user voice surface; wake word remains beta. |
+| `rex_loop.py` | `developer-only` | Source voice-loop entry point. Defaults to manual Hold-to-Talk activation; `--mode wake-word` is the explicit beta opt-in. The packaged Electron Hold-to-Talk path is the supported end-user voice surface. |
+| Wake-word voice activation | `beta` / `developer-only` | Available from `rex_loop.py --mode wake-word`; not a production claim until US-046 reliability evidence passes. |
 | `rex_speak_api.py` | `developer-only` | Same function as `rex-speak-api` entry point. Root-level script kept for direct invocation (`python rex_speak_api.py`). |
 | `wsgi.py` | `developer-only` | WSGI deployment entry point for `rex-gui`. Operator use for production deployments (e.g., gunicorn). |
 | `sitecustomize.py` | `developer-only` | Windows UTF-8 encoding fix; applied automatically at interpreter start. Not a user-facing entry point. |
