@@ -1,7 +1,7 @@
 # User Acceptance Remediation Design
 
-**Date:** 2026-08-06  
-**Owner:** AskRex project supervisor  
+**Date:** 2026-08-06
+**Owner:** AskRex project supervisor
 **Authorization boundary:** The user granted autonomous design, implementation, push, PR creation, and merge for the findings recorded in this document only. Existing no-new-spend rules remain in force.
 
 ## Purpose
