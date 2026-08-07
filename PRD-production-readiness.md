@@ -1457,21 +1457,26 @@ pytest -q
 
 ### US-040: Add or restore tests for current supported surfaces that lost coverage
 
+**Implementation status (2026-08-07):** Direct contract coverage is present for every current shippable surface in `SURFACE-CLASSIFICATION.md`, and the stricter legacy implementation-note paths are also covered. The exact PRD coverage command exposed one obsolete generated-artifact assertion in the historical US-098 coverage tests; US-040 replaces that assertion with stable coverage/reporting contracts rather than requiring an ignored `coverage.txt` scratch file. Remaining unrelated temporary skip debt is routed to US-089 through US-093 instead of being falsely closed by this story.
+
 **Priority:** P1
 **Workstream:** Tests
 **Description:** As a maintainer, I want the test suite to actually cover the surfaces this PRD classifies as shippable.
 
 **Files/areas likely involved:**
-- `tests/test_cli_smoke.py` or equivalent
-- `tests/test_voice_loop_smoke.py`
-- `tests/test_electron_bridge_contract.py`
+- `tests/test_console_scripts_smoke.py`
+- `tests/test_skill_trainer.py` and `tests/test_skills_trainer.py`
+- `tests/smoke/test_electron_package.sh`
+- `tests/test_us005_bridge_json_io.py`
+- `tests/test_us074_voice_loop_pipeline.py`
+- `tests/test_us098_test_coverage.py`
 
-**Implementation notes:** Identify shippable surfaces (`rex` CLI, packaged Electron app, bridge scripts, `rex_loop.py`) with weak or missing coverage. Add minimum-viable tests that exercise the public contract.
+**Implementation notes:** `SURFACE-CLASSIFICATION.md` is authoritative: the `rex` CLI and Electron desktop app are shippable user-facing surfaces, `SkillTrainer` is a shippable internal user-facing capability, and the Windows Electron Voice installer is the shippable distribution artifact. Bridge wrappers and `rex_loop.py` are developer-only today, but direct tests remain required here because the original US-040 note named them. Add tests only where a real public-contract gap exists; do not add meta-tests that merely assert other tests exist.
 
 **Acceptance Criteria:**
-- [ ] At least one direct test per shippable surface.
-- [ ] Coverage gate (`fail_under = 75`) still passes.
-- [ ] All relevant GitHub checks pass.
+- [x] At least one direct test per shippable surface. *(CLI: `tests/test_console_scripts_smoke.py`; SkillTrainer: `tests/test_skill_trainer.py` + `tests/test_skills_trainer.py`; Electron/installer: `tests/smoke/test_electron_package.sh` plus Windows artifact smoke workflow. Legacy-note bridge/`rex_loop.py` paths: `tests/test_us005_bridge_json_io.py` + `tests/test_us074_voice_loop_pipeline.py`. Local focused runs: 26/26 and 39/39 passed on Python 3.11.9; Windows artifact run 31148746251 passed installed-artifact smoke.)*
+- [x] Coverage gate (`fail_under = 75`) still passes. *(`python -m pytest -q --cov=rex --cov-fail-under=75`: 8,449 passed, 49 skipped, 0 failed; total coverage 83.26% on Python 3.11.9.)*
+- [x] All relevant GitHub checks pass. *(PR #352 implementation head `f127392`; CI run 31213049056 plus commitlint run 31213049246: all 17 checks passed. Python 3.11 Tests & Coverage job 92980116557 passed in 9m37s, including coverage, skip-budget enforcement, integration tests, working-tree-clean verification, and coverage artifact upload.)*
 
 **Validation commands:**
 ```bash
@@ -3070,6 +3075,87 @@ grep -n "askrex.app\|Cloudflare\|CORS\|rate limit\|revocation" docs/deployment.m
 
 ---
 
+### US-089: Remove obsolete CalendarService compatibility skips
+
+**Priority:** P2
+**Workstream:** Tests / Technical Debt
+**Description:** As a maintainer, I want `tests/test_calendar_service.py` to test the canonical CalendarService API directly instead of carrying alternate-generation skip branches.
+
+**Acceptance Criteria:**
+- [ ] The canonical CalendarService/Event model API is identified from current production code and documented in the test module.
+- [ ] Obsolete alternate-API tests are removed or rewritten against the canonical API; no `temporary-bug-skip` site remains in `tests/test_calendar_service.py`.
+- [ ] Direct calendar service/backend tests pass.
+- [ ] Skip inventory and runtime budget are updated if the executed skip count changes.
+- [ ] All relevant GitHub checks pass.
+
+---
+
+### US-090: Remove obsolete EmailService compatibility skips
+
+**Priority:** P2
+**Workstream:** Tests / Technical Debt
+**Description:** As a maintainer, I want `tests/test_email_service.py` to test the canonical EmailService API directly instead of carrying alternate-generation skip branches.
+
+**Acceptance Criteria:**
+- [ ] The canonical EmailService/EmailSummary API is identified from current production code and documented in the test module.
+- [ ] Obsolete alternate-API tests are removed or rewritten against the canonical API; no `temporary-bug-skip` site remains in `tests/test_email_service.py`.
+- [ ] Direct email service/backend tests pass.
+- [ ] Skip inventory and runtime budget are updated if the executed skip count changes.
+- [ ] All relevant GitHub checks pass.
+
+---
+
+### US-091: Remove obsolete Scheduler compatibility skips
+
+**Priority:** P2
+**Workstream:** Tests / Technical Debt
+**Description:** As a maintainer, I want `tests/test_scheduler.py` to target the canonical Scheduler API without legacy/newer implementation skip branches.
+
+**Acceptance Criteria:**
+- [ ] The canonical Scheduler constructor and persistence API are identified from current production code.
+- [ ] Obsolete alternate-API tests are removed or rewritten; no `temporary-bug-skip` site remains in `tests/test_scheduler.py`.
+- [ ] Scheduler and scheduling integration tests pass.
+- [ ] Skip inventory and runtime budget are updated if the executed skip count changes.
+- [ ] All relevant GitHub checks pass.
+
+---
+
+### US-092: Remove obsolete EventBus compatibility skips
+
+**Priority:** P2
+**Workstream:** Tests / Technical Debt
+**Description:** As a maintainer, I want `tests/test_event_bus.py` to target the canonical EventBus contract without alternate-generation skip branches.
+
+**Acceptance Criteria:**
+- [ ] The canonical EventBus publish/subscribe contract is identified from current production code.
+- [ ] Obsolete alternate-contract tests are removed or rewritten; no `temporary-bug-skip` site remains in `tests/test_event_bus.py`.
+- [ ] Event bus and OpenClaw event bridge tests pass.
+- [ ] Skip inventory and runtime budget are updated if the executed skip count changes.
+- [ ] All relevant GitHub checks pass.
+
+---
+
+### US-093: Replace remaining generated/missing-artifact test skips
+
+**Priority:** P2
+**Workstream:** Tests / Technical Debt
+**Description:** As a maintainer, I want the remaining temporary skips caused by missing generated docs/scripts/examples to become stable assertions or be removed when their historical artifact is no longer part of the supported repo contract.
+
+**Files/areas likely involved:**
+- `tests/test_us120_performance_baseline.py`
+- `tests/test_us140_full_extra.py`
+- `tests/test_skill_loader.py`
+- `tests/test_us053_secret_management.py`
+
+**Acceptance Criteria:**
+- [ ] Each remaining temporary skip is reconciled against the current supported repo contract rather than silently kept.
+- [ ] Valid requirements become direct tests; obsolete historical requirements are removed with evidence.
+- [ ] No `temporary-bug-skip` site remains in the listed files.
+- [ ] Skip inventory and runtime budget are updated.
+- [ ] All relevant GitHub checks pass.
+
+---
+
 ## 9. Global Acceptance Criteria
 
 Every story in Section 8 inherits these criteria. They are checked in addition to the per-story criteria.
@@ -3137,7 +3223,7 @@ This policy is enforced by Section 9's global acceptance criteria. It is restate
 The release candidate is "Production Ready" when ALL of the following are true on a single commit on `master`:
 
 - [ ] Every P0/P1 User Story US-001 through US-058 and US-064 through US-088 is `[x]`.
-- [ ] Satisfied P2 stories US-059 through US-062 remain documented as baseline evidence, and open P2 story US-063 is either completed or explicitly deferred without partial decomposition on `master`.
+- [ ] Satisfied P2 stories US-059 through US-062 remain documented as baseline evidence, and open P2 stories US-063 and US-089 through US-093 are either completed or explicitly deferred without partial decomposition on `master`.
 - [ ] `python scripts/security_audit.py` exits 0 OR all findings are documented in `docs/security/AUDIT-INVENTORY.md` and accepted with an owner and expiry.
 - [ ] `python scripts/check_no_renderer_api_fetch.py` exits 0 with an empty allowlist.
 - [ ] `python scripts/check_wheel_contents.py` exits 0.

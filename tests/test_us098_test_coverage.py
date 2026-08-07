@@ -1,234 +1,87 @@
-"""
-US-098: Measure and document baseline test coverage
+"""Coverage-contract regression tests.
 
-Acceptance criteria:
-- pytest --cov=rex --cov-report=term-missing runs without error
-- coverage report saved to coverage.txt or equivalent
-- modules with below-50% coverage listed explicitly in the report
-- agreed minimum coverage threshold documented in pyproject.toml or setup.cfg
-- Typecheck passes
+US-098 originally required a generated ``coverage.txt`` file in the repository
+root. That file is now intentionally ignored and is created only by CI's
+``tee`` pipeline so the skip-budget checker can parse the pytest summary.
+Coverage correctness is enforced by pytest-cov and the configured threshold,
+not by the presence of a leftover generated text file.
 """
 
 from __future__ import annotations
 
+import importlib.util
+import json
 import re
 from pathlib import Path
 
-import pytest
-
-PROJECT_ROOT = Path(__file__).parent.parent
-COVERAGE_TXT = PROJECT_ROOT / "coverage.txt"
-COVERAGE_JSON = PROJECT_ROOT / "coverage.json"
-PYPROJECT = PROJECT_ROOT / "pyproject.toml"
-
-
-def _read_coverage_txt() -> str:
-    """Return coverage.txt contents or skip when the file is still being written."""
-    if not COVERAGE_TXT.exists():
-        pytest.skip("coverage.txt has not been generated yet")
-    content = COVERAGE_TXT.read_text(encoding="utf-8")
-    if "TOTAL" not in content:
-        pytest.skip("coverage.txt is still being written by the current coverage run")
-    return content
+ROOT = Path(__file__).resolve().parents[1]
+PYPROJECT = ROOT / "pyproject.toml"
+CI_YML = ROOT / ".github" / "workflows" / "ci.yml"
+GITIGNORE = ROOT / ".gitignore"
+GAP_REPORT = ROOT / "test-audit-coverage-gaps.json"
 
 
-# ---------------------------------------------------------------------------
-# AC1: pytest-cov is installed and importable
-# ---------------------------------------------------------------------------
+def _read(path: Path) -> str:
+    return path.read_text(encoding="utf-8")
+
+
+def _fail_under() -> int:
+    content = _read(PYPROJECT)
+    section = re.search(r"\[tool\.coverage\.report\](.*?)(?=\n\[|\Z)", content, re.DOTALL)
+    assert section, "pyproject.toml missing [tool.coverage.report]"
+    match = re.search(r"fail_under\s*=\s*(\d+)", section.group(1))
+    assert match, "[tool.coverage.report] missing fail_under"
+    return int(match.group(1))
 
 
 def test_pytest_cov_installed() -> None:
-    """pytest-cov package must be available."""
-    import importlib
-
-    spec = importlib.util.find_spec("pytest_cov")
-    assert spec is not None, "pytest-cov is not installed"
+    assert importlib.util.find_spec("pytest_cov") is not None
 
 
 def test_coverage_module_importable() -> None:
-    """coverage package must be importable."""
-    import importlib
-
-    spec = importlib.util.find_spec("coverage")
-    assert spec is not None, "coverage package is not installed"
+    assert importlib.util.find_spec("coverage") is not None
 
 
-# ---------------------------------------------------------------------------
-# AC2: coverage report saved to coverage.txt or equivalent
-# ---------------------------------------------------------------------------
+def test_ci_generates_human_and_machine_readable_coverage_reports() -> None:
+    ci = _read(CI_YML)
+    assert "--cov=rex" in ci
+    assert "--cov-report=term-missing" in ci
+    assert "--cov-report=html" in ci
+    assert "--cov-report=xml" in ci
 
 
-def test_coverage_txt_exists() -> None:
-    """coverage.txt must exist in the project root."""
-    assert COVERAGE_TXT.exists(), (
-        f"coverage.txt not found at {COVERAGE_TXT}. "
-        "Run: python -m pytest --cov=rex --cov-report=term-missing -q 2>&1 | tee coverage.txt"
-    )
+def test_ci_text_capture_is_ephemeral_not_a_required_repo_artifact() -> None:
+    ci = _read(CI_YML)
+    assert "tee coverage.txt" in ci
+    assert "coverage.txt" in _read(GITIGNORE)
 
 
-def test_coverage_txt_non_empty() -> None:
-    """coverage.txt must contain actual content."""
-    content = _read_coverage_txt()
-    assert len(content) > 500, f"coverage.txt appears too short ({len(content)} bytes)"
+def test_committed_gap_inventory_is_parseable() -> None:
+    data = json.loads(_read(GAP_REPORT))
+    assert isinstance(data, list) and data
+    assert all("module_path" in row and "current_coverage_pct" in row for row in data)
 
 
-def test_coverage_txt_has_summary_line() -> None:
-    """coverage.txt must contain the TOTAL summary line."""
-    content = _read_coverage_txt()
-    assert "TOTAL" in content, "coverage.txt does not contain TOTAL summary line"
+def test_committed_gap_inventory_identifies_low_coverage_modules() -> None:
+    data = json.loads(_read(GAP_REPORT))
+    below_50 = [row for row in data if int(row["current_coverage_pct"]) < 50]
+    assert below_50, "coverage-gap inventory must explicitly identify below-50% modules"
 
 
-def test_coverage_txt_has_rex_modules() -> None:
-    """coverage.txt must list rex package modules."""
-    content = _read_coverage_txt()
-    assert "rex\\" in content or "rex/" in content, "coverage.txt does not list rex package modules"
+def test_pyproject_has_coverage_source_and_threshold() -> None:
+    content = _read(PYPROJECT)
+    assert "[tool.coverage.run]" in content
+    assert 'source = ["rex"]' in content
+    assert "[tool.coverage.report]" in content
+    assert 50 <= _fail_under() <= 100
 
 
-# ---------------------------------------------------------------------------
-# AC3: modules with below-50% coverage are identifiable
-# ---------------------------------------------------------------------------
+def test_ci_threshold_matches_pyproject() -> None:
+    ci = _read(CI_YML)
+    match = re.search(r"--cov-fail-under=(\d+)", ci)
+    assert match, "CI pytest invocation missing --cov-fail-under"
+    assert int(match.group(1)) == _fail_under()
 
 
-def _parse_coverage_txt() -> list[tuple[str, int]]:
-    """Parse coverage.txt and return list of (module, coverage_pct) tuples."""
-    content = _read_coverage_txt()
-    results: list[tuple[str, int]] = []
-    # Match lines like: rex\foo.py   123   45   63%   ...
-    pattern = re.compile(r"^(rex[\\/]\S+)\s+\d+\s+\d+\s+(\d+)%", re.MULTILINE)
-    for match in pattern.finditer(content):
-        module = match.group(1)
-        pct = int(match.group(2))
-        results.append((module, pct))
-    return results
-
-
-def test_coverage_txt_parseable() -> None:
-    """coverage.txt must contain parseable module coverage lines."""
-    rows = _parse_coverage_txt()
-    assert len(rows) > 50, f"Expected >50 module lines in coverage.txt, found {len(rows)}"
-
-
-def test_below_50_modules_present_in_report() -> None:
-    """coverage.txt must contain modules with below-50% coverage.
-
-    These are known low-coverage modules that rely on heavy optional
-    dependencies (audio, GPU, Windows services).
-    """
-    rows = _parse_coverage_txt()
-    assert rows, "Could not parse any module lines from coverage.txt"
-
-    below_50 = [(mod, pct) for mod, pct in rows if pct < 50]
-    assert len(below_50) > 0, (
-        "Expected at least one module below 50% coverage. "
-        "If all modules are now above 50%, update this threshold."
-    )
-
-
-def test_known_low_coverage_modules_visible() -> None:
-    """Known low-coverage modules must appear in the report."""
-    content = _read_coverage_txt()
-
-    # These modules are known to have low coverage due to optional heavy deps
-    known_low = [
-        "wakeword",  # optional audio/ML dependency
-    ]
-    for fragment in known_low:
-        assert (
-            fragment in content
-        ), f"Expected to find '{fragment}' in coverage.txt but it was missing"
-
-
-def test_below_50_modules_list() -> None:
-    """Verify the list of below-50% modules is non-trivial and stable."""
-    rows = _parse_coverage_txt()
-    below_50 = sorted([(mod, pct) for mod, pct in rows if pct < 50])
-
-    # Keep representative legacy/optional surfaces visible until their direct
-    # coverage is improved. This list must track the current report rather than
-    # modules that have already crossed 50%, or the guard becomes a false failure.
-    expected_low = {
-        "rex\\compat.py",
-        "rex/compat.py",
-        "rex\\digest_job.py",
-        "rex/digest_job.py",
-        "rex\\integrations.py",
-        "rex/integrations.py",
-        "rex\\mobile_api\\chat.py",
-        "rex/mobile_api/chat.py",
-        "rex\\mobile_api\\voice.py",
-        "rex/mobile_api/voice.py",
-    }
-    found_low_names = {mod for mod, _ in below_50}
-    # At least one of the expected low-coverage modules must appear
-    overlap = expected_low & found_low_names
-    assert overlap, (
-        f"Expected at least one of {expected_low} in below-50% modules. "
-        f"Found below-50%: {found_low_names}"
-    )
-
-
-# ---------------------------------------------------------------------------
-# AC4: agreed minimum coverage threshold documented in pyproject.toml
-# ---------------------------------------------------------------------------
-
-
-def test_pyproject_has_coverage_section() -> None:
-    """pyproject.toml must have a [tool.coverage.report] section."""
-    content = PYPROJECT.read_text(encoding="utf-8")
-    assert (
-        "[tool.coverage.report]" in content
-    ), "pyproject.toml missing [tool.coverage.report] section"
-
-
-def test_pyproject_has_fail_under() -> None:
-    """pyproject.toml must document a minimum coverage threshold via fail_under."""
-    content = PYPROJECT.read_text(encoding="utf-8")
-    assert (
-        "fail_under" in content
-    ), "pyproject.toml [tool.coverage.report] section must contain 'fail_under'"
-
-
-def test_fail_under_value_reasonable() -> None:
-    """fail_under threshold must be between 50 and 100."""
-    content = PYPROJECT.read_text(encoding="utf-8")
-    match = re.search(r"fail_under\s*=\s*(\d+)", content)
-    assert match, "Could not parse fail_under value from pyproject.toml"
-    value = int(match.group(1))
-    assert 50 <= value <= 100, f"fail_under = {value} is outside acceptable range [50, 100]"
-
-
-def test_total_coverage_meets_threshold() -> None:
-    """Total coverage reported in coverage.txt must meet the documented threshold."""
-    # Parse fail_under from pyproject.toml
-    pyproject_content = PYPROJECT.read_text(encoding="utf-8")
-    match = re.search(r"fail_under\s*=\s*(\d+)", pyproject_content)
-    assert match, "Could not parse fail_under value from pyproject.toml"
-    threshold = int(match.group(1))
-
-    # Parse total from coverage.txt
-    txt_content = _read_coverage_txt()
-    total_match = re.search(r"^TOTAL\s+\d+\s+\d+\s+(\d+)%", txt_content, re.MULTILINE)
-    assert total_match, "Could not parse TOTAL line from coverage.txt"
-    total_pct = int(total_match.group(1))
-
-    assert (
-        total_pct >= threshold
-    ), f"Total coverage {total_pct}% is below fail_under threshold {threshold}%"
-
-
-# ---------------------------------------------------------------------------
-# Utility: print below-50% modules (informational, always passes)
-# ---------------------------------------------------------------------------
-
-
-def test_print_below_50_modules() -> None:
-    """Print modules below 50% coverage for visibility (always passes)."""
-    rows = _parse_coverage_txt()
-    below_50 = sorted([(mod, pct) for mod, pct in rows if pct < 50])
-    if below_50:
-        lines = "\n".join(f"  {pct:3d}%  {mod}" for mod, pct in below_50)
-        print(f"\nModules below 50% coverage ({len(below_50)} total):\n{lines}")
-    else:
-        print("\nAll modules are at or above 50% coverage.")
-    # This test always passes — it's for visibility only
-    assert True
+def test_agreed_coverage_threshold_is_75_percent() -> None:
+    assert _fail_under() == 75

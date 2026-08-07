@@ -1268,3 +1268,23 @@ GitHub checks remain pending the story PR.
 US-039 rebase verification (2026-08-07): rebased cleanly onto master@79b0a97; Python 3.11 collect-only measured 8,541 tests on base and 8,504 after the story, with no collection error. Focused tests test_us038_skip_inventory.py + test_us174_voice_max_tokens.py: 19 passed.
 
 US-039 GitHub verification (2026-08-07): PR #351 head b6d2f4e passed the complete required check set. CI run 31176594845 passed CodeFactor, dependency/security scans, lint/format, mypy, GUI lint/typecheck/tests/build, pre-commit, wheel smoke, commitlint, and Python 3.11 coverage/integration. Python job 92859835933 completed in 10m51s, including skip-budget enforcement, integration tests, tracked-working-tree cleanliness, and coverage artifact upload. US-039 is now fully satisfied.
+
+
+=== 2026-08-07 - US-040 supported-surface coverage reconciliation ===
+
+Fresh direct-contract evidence on master@6ce4bbe:
+- CLI + bridge + rex_loop focused suite: 26 passed on Python 3.11.9
+- SkillTrainer direct suites: 39 passed
+- Windows Electron Artifact run 31148746251: installed-artifact job 92773771118 passed, including managed runtime/installer build, package-content verification, and installed-artifact exercise without machine Python or Node
+
+The exact PRD command `pytest -q --cov=rex --cov-fail-under=75` initially reached 83.28% coverage but exited 1 because historical `test_us098_test_coverage.py::test_coverage_txt_exists` required an ignored `coverage.txt` file that only CI creates via `tee`. Repository history confirms the artifact assertion predates the later skip-budget pipeline. US-040 replaces that generated-file dependency with stable pytest-cov/config/reporting contracts; the rewritten US-098 suite passes 9/9 with `coverage.txt` absent.
+
+The US-038 inventory had routed 94 unrelated temporary compatibility/artifact skip sites to US-040. Two generated-coverage skips are removed here. The remaining debt is reassigned to atomic follow-ups: US-089 CalendarService (26), US-090 EmailService (25), US-091 Scheduler (22), US-092 EventBus (13), and US-093 miscellaneous generated/missing-artifact tests (6). This prevents US-040 from falsely closing unrelated test debt.
+
+Full post-fix coverage and GitHub verification remain pending.
+
+US-040 skip-inventory verification: `python scripts/check_skip_inventory.py` passes with 127/127 executable sites current; focused US-038 + US-098 inventory/coverage-contract tests pass 13/13.
+
+US-040 exact post-fix coverage gate: PASS. `python -m pytest -q --cov=rex --cov-fail-under=75` collected 8,498 tests and finished 8,449 passed, 49 skipped, 0 failed in 562.87s. Coverage: 83.26% (required: 75%). The command exited 0 with `coverage.txt` absent, proving the generated-artifact dependency was removed. GitHub checks remain pending before final story closeout.
+
+US-040 GitHub implementation-head gate: PASS. PR #352 head f127392; CI run 31213049056 and commitlint run 31213049246 completed with all 17 checks green. Python job 92980116557 passed in 9m37s and included coverage, skip-budget enforcement, integration tests, tracked-tree cleanliness, and coverage artifact upload. US-040 acceptance criteria are now fully satisfied; this tracker closeout commit must itself receive a final green rerun before merge.
