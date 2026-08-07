@@ -1266,3 +1266,5 @@ archive documentation, CLAUDE.md, and the US-037/039 tracker evidence. Relevant
 GitHub checks remain pending the story PR.
 
 US-039 rebase verification (2026-08-07): rebased cleanly onto master@79b0a97; Python 3.11 collect-only measured 8,541 tests on base and 8,504 after the story, with no collection error. Focused tests test_us038_skip_inventory.py + test_us174_voice_max_tokens.py: 19 passed.
+
+US-039 GitHub verification (2026-08-07): PR #351 head b6d2f4e passed the complete required check set. CI run 31176594845 passed CodeFactor, dependency/security scans, lint/format, mypy, GUI lint/typecheck/tests/build, pre-commit, wheel smoke, commitlint, and Python 3.11 coverage/integration. Python job 92859835933 completed in 10m51s, including skip-budget enforcement, integration tests, tracked-working-tree cleanliness, and coverage artifact upload. US-039 is now fully satisfied.

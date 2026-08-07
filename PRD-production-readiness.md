@@ -1443,7 +1443,7 @@ grep -E "TODO|FIXME|none" docs/testing/SKIPPED-TESTS-INVENTORY.md || echo "ok"
 - [x] Tests for retired surfaces are either deleted or moved under `archived/` with the surface they tested. *(Thirteen retired Flask-dashboard files moved to `archived/flask_dashboard/tests/`; no deprecated/current surface tests were archived.)*
 - [x] `pytest --collect-only -q` collects fewer tests after the change AND no collection error appears. *(Python 3.11 on current master: 8,541 before, 8,504 after.)*
 - [x] Skip inventory is updated. *(129 executable sites remain; the runtime budget is reduced from 119 to 82.)*
-- [ ] All relevant GitHub checks pass.
+- [x] All relevant GitHub checks pass. *(PR #351 head `b6d2f4e`; CI run `31176594845` passed CodeFactor, dependency/security scans, lint/format, mypy, GUI lint/typecheck/tests/build, pre-commit, wheel smoke, commitlint, and Python 3.11 coverage/integration. Python job `92859835933` completed in 10m51s.)*
 
 **Validation commands:**
 ```bash
