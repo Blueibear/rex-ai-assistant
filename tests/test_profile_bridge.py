@@ -211,7 +211,7 @@ def test_service_errors_never_leak_private_details() -> None:
 def test_main_rejects_invalid_json_without_echoing_input(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    monkeypatch.setattr(sys, "stdin", io.StringIO('{"secret":"marker"'))
+    monkeypatch.setattr(sys, "stdin", io.StringIO('{"secret":"marker"'))  # pragma: allowlist secret
 
     with pytest.raises(SystemExit) as exc_info:
         rex_profile_bridge.main()

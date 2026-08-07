@@ -18,7 +18,7 @@ def _install_setup_fakes(
 
     def fake_create_user(username: str, password: str) -> dict[str, str]:
         assert username == "james"
-        assert password == "securepass1"
+        assert password == "securepass1"  # pragma: allowlist secret
         return {"id": "james"}
 
     def fake_persist(
@@ -45,11 +45,11 @@ def test_deferred_home_assistant_is_omitted_from_persistence(
     rex_setup_bridge._handle_complete(
         {
             "username": "james",
-            "password": "securepass1",
+            "password": "securepass1",  # pragma: allowlist secret
             "llm_provider": "local",
             "tts_provider": "none",
             "ha_base_url": "http://ha.local:8123",
-            "ha_token": "must-not-persist",
+            "ha_token": "must-not-persist",  # pragma: allowlist secret
             "defer_home_assistant": True,
         }
     )
@@ -68,15 +68,15 @@ def test_string_false_does_not_defer_home_assistant(
     rex_setup_bridge._handle_complete(
         {
             "username": "james",
-            "password": "securepass1",
+            "password": "securepass1",  # pragma: allowlist secret
             "llm_provider": "local",
             "tts_provider": "none",
             "ha_base_url": "http://ha.local:8123",
-            "ha_token": "test-token",
+            "ha_token": "test-token",  # pragma: allowlist secret
             "defer_home_assistant": "false",
         }
     )
 
     assert json.loads(capsys.readouterr().out)["ok"] is True
-    assert captured["values"] == {"HA_TOKEN": "test-token"}
+    assert captured["values"] == {"HA_TOKEN": "test-token"}  # pragma: allowlist secret
     assert captured["config"]["home_assistant"]["base_url"] == "http://ha.local:8123"

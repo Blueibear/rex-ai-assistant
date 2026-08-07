@@ -8,7 +8,7 @@ describe('setupWizardModel', () => {
     it('returns basic submission without options', () => {
       const result = buildSetupSubmission({
         username: 'alice',
-        password: 'pass1234',
+        password: 'pass1234', // pragma: allowlist secret
         llmProvider: 'local',
         llmApiKey: '',
         ttsProvider: 'none',
@@ -28,9 +28,9 @@ describe('setupWizardModel', () => {
       const result = buildSetupSubmission(
         {
           username: 'bob',
-          password: 'pass1234',
+          password: 'pass1234', // pragma: allowlist secret
           llmProvider: 'openai',
-          llmApiKey: 'sk-test',
+          llmApiKey: 'sk-test', // pragma: allowlist secret
           ttsProvider: 'edge',
           haBaseUrl: 'http://ha.local:8123',
           haToken: 'secret-token'
@@ -47,9 +47,9 @@ describe('setupWizardModel', () => {
     it('includes llm_api_key when provided', () => {
       const result = buildSetupSubmission({
         username: 'carol',
-        password: 'pass1234',
+        password: 'pass1234', // pragma: allowlist secret
         llmProvider: 'openai',
-        llmApiKey: 'sk-test-key',
+        llmApiKey: 'sk-test-key', // pragma: allowlist secret
         ttsProvider: 'none',
         haBaseUrl: '',
         haToken: ''
@@ -61,7 +61,7 @@ describe('setupWizardModel', () => {
     it('does not include llm_api_key when empty', () => {
       const result = buildSetupSubmission({
         username: 'dave',
-        password: 'pass1234',
+        password: 'pass1234', // pragma: allowlist secret
         llmProvider: 'local',
         llmApiKey: '',
         ttsProvider: 'none',
@@ -76,7 +76,7 @@ describe('setupWizardModel', () => {
       const result = buildSetupSubmission(
         {
           username: 'eve',
-          password: 'pass1234',
+          password: 'pass1234', // pragma: allowlist secret
           llmProvider: 'local',
           llmApiKey: '',
           ttsProvider: 'none',

@@ -102,6 +102,7 @@ def _known_user_ids(*, memory_dir: Path | None = None) -> list[str]:
                 users.append(entry.name)
     return users
 
+
 def _load_session() -> dict:
     """Load the current session state from disk."""
     path = _session_state_path()
@@ -290,6 +291,7 @@ def list_known_users(*, memory_dir: Path | None = None) -> list[dict]:
             users.append({"id": entry.name, "name": entry.name, "role": ""})
     return users
 
+
 def _atomic_write_json(path: Path, data: dict) -> None:
     """Atomically write one JSON object beside its destination."""
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -343,6 +345,7 @@ def create_user_profile(
     logger.info("Created user profile for %s", user_id)
     return core_path
 
+
 def get_user_profile(
     user_id: str,
     *,
@@ -363,6 +366,7 @@ def get_user_profile(
     except Exception as exc:
         logger.warning("Failed to load profile for %s: %s", user_id, exc)
         return None
+
 
 def update_user_preferences(
     user_id: str,
@@ -393,6 +397,7 @@ def update_user_preferences(
     except Exception as exc:
         logger.warning("Failed to update preferences for %s: %s", user_id, exc)
         return False
+
 
 __all__ = [
     "clear_session_user",
