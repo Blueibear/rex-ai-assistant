@@ -3,7 +3,6 @@ import { NavLink, useNavigate } from 'react-router-dom'
 import { useNotificationsStore } from '../store/notificationsStore'
 import { useGlobalShortcuts } from '../hooks/useGlobalShortcuts'
 import { HelpOverlay } from '../components/HelpOverlay'
-import { Tooltip } from '../components/ui/Tooltip'
 import type { UserProfile } from '../types/ipc'
 import brandIcon from "../assets/icon_square.png";
 import brandWordmark from "../assets/Horizontal-UI-Wordmark.png";
@@ -115,7 +114,6 @@ interface NavItem {
   path: string
   label: string
   icon: React.ReactElement
-  beta?: boolean
   showUnread?: boolean
 }
 
@@ -223,26 +221,10 @@ const navItems: NavItem[] = [
   {
     path: '/email',
     label: 'Email',
-    beta: true,
     icon: (
       <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
         <rect x="2" y="4" width="14" height="10" rx="1.5" stroke="currentColor" strokeWidth="1.4" />
         <path d="M2 6l7 5 7-5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
-      </svg>
-    )
-  },
-  {
-    path: '/sms',
-    label: 'SMS',
-    beta: true,
-    icon: (
-      <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
-        <path
-          d="M3 3h12a1 1 0 0 1 1 1v7a1 1 0 0 1-1 1H9l-4 3v-3H3a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z"
-          stroke="currentColor"
-          strokeWidth="1.4"
-          strokeLinejoin="round"
-        />
       </svg>
     )
   },
@@ -324,21 +306,6 @@ const navItems: NavItem[] = [
       <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
         <rect x="5" y="2" width="8" height="14" rx="2" stroke="currentColor" strokeWidth="1.4" />
         <path d="M7.5 5h3M8 13h2" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
-      </svg>
-    )
-  },
-  {
-    path: '/settings',
-    label: 'Settings',
-    icon: (
-      <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
-        <path
-          d="M7.5 2h3l.5 1.5a5 5 0 0 1 1.2.7l1.5-.5 1.5 2.6-1.2 1a5 5 0 0 1 0 1.4l1.2 1-1.5 2.6-1.5-.5A5 5 0 0 1 11 12.3l-.5 1.5h-3L7 12.3a5 5 0 0 1-1.2-.7L4.3 12 2.8 9.4l1.2-1a5 5 0 0 1 0-1.4l-1.2-1L4.3 3.4l1.5.5A5 5 0 0 1 7 3.2L7.5 2z"
-          stroke="currentColor"
-          strokeWidth="1.2"
-          strokeLinejoin="round"
-        />
-        <circle cx="9" cy="9" r="2" stroke="currentColor" strokeWidth="1.2" />
       </svg>
     )
   },
@@ -472,20 +439,6 @@ export function AppLayout({ children }: AppLayoutProps): React.ReactElement {
               {!narrow && (
                 <>
                   <span className="flex-1">{item.label}</span>
-
-                  {/* BETA badge — Email and SMS require credentials to be
-                      configured in Settings › Integrations before they show
-                      live data; until then the page shows an empty state. */}
-                  {item.beta && (
-                    <Tooltip
-                      text="Requires credentials in Settings › Integrations"
-                      position="right"
-                    >
-                      <span className="text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-400 leading-none cursor-default">
-                        BETA
-                      </span>
-                    </Tooltip>
-                  )}
 
                   {/* Unread count badge for Notifications */}
                   {item.showUnread && unreadCount > 0 && (
