@@ -4,6 +4,7 @@ import { useNotificationsStore } from '../store/notificationsStore'
 import { useGlobalShortcuts } from '../hooks/useGlobalShortcuts'
 import { HelpOverlay } from '../components/HelpOverlay'
 import { Tooltip } from '../components/ui/Tooltip'
+import type { UserProfile } from '../types/ipc'
 import brandIcon from "../assets/icon_square.png";
 import brandWordmark from "../assets/Horizontal-UI-Wordmark.png";
 
@@ -372,6 +373,7 @@ const sectionNames: Record<string, string> = {
   '/usage': 'Usage',
   '/integrations': 'Integrations',
   '/pairing': 'Mobile Pairing',
+  '/profile': 'Profile',
   '/settings': 'Settings',
   '/home/devices': 'Devices',
   '/home-assistant': 'Home Assistant',
@@ -395,10 +397,19 @@ export function AppLayout({ children }: AppLayoutProps): React.ReactElement {
   }, [fetchUnreadCount])
 
   const [sectionName, setSectionName] = useState('Chat')
+  const [sidebarProfile, setSidebarProfile] = useState<UserProfile | null>(null)
 
   useEffect(() => {
     const path = window.location.hash.replace('#', '') || '/chat'
     setSectionName(sectionNames[path] ?? 'Rex')
+  }, [])
+
+  useEffect(() => {
+    let cancelled = false
+    void window.rex.getProfile().then((result) => {
+      if (!cancelled && result.ok && result.profile) setSidebarProfile(result.profile)
+    }).catch(() => undefined)
+    return () => { cancelled = true }
   }, [])
 
   const handleNavClick = (label: string): void => {
@@ -488,21 +499,28 @@ export function AppLayout({ children }: AppLayoutProps): React.ReactElement {
           ))}
         </nav>
 
-        {/* Bottom: user avatar + settings shortcut */}
+        {/* Bottom: user profile + settings shortcut */}
         <div className="flex items-center gap-3 px-4 py-4 border-t border-border">
-          <div
-            className="flex-shrink-0 w-8 h-8 rounded-full bg-surface-raised flex items-center justify-center text-text-secondary text-sm font-medium cursor-pointer overflow-hidden"
-            aria-label="User avatar"
+          <button
+            type="button"
+            onClick={() => {
+              setSectionName('Profile')
+              navigate('/profile')
+            }}
+            className="flex-shrink-0 w-8 h-8 rounded-full bg-surface-raised hover:bg-surface-raised/80 flex items-center justify-center text-text-secondary hover:text-text-primary text-sm font-medium overflow-hidden transition-colors"
+            aria-label="Open user profile"
+            title={narrow ? 'Profile' : undefined}
           >
-            <img
-              src="/api/user/avatar"
-              alt="User avatar"
-              className="w-full h-full object-cover"
-              onError={(e) => {
-                e.currentTarget.style.display = 'none'
-              }}
-            />
-          </div>
+            {sidebarProfile?.avatar_data && sidebarProfile.avatar_mime_type ? (
+              <img
+                src={`data:${sidebarProfile.avatar_mime_type};base64,${sidebarProfile.avatar_data}`}
+                alt="Current user avatar"
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <span aria-hidden="true">{sidebarProfile?.initials ?? 'U'}</span>
+            )}
+          </button>
           {!narrow && (
             <button
               type="button"
