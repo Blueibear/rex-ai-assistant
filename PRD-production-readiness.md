@@ -1476,7 +1476,7 @@ pytest -q
 **Acceptance Criteria:**
 - [x] At least one direct test per shippable surface. *(CLI: `tests/test_console_scripts_smoke.py`; SkillTrainer: `tests/test_skill_trainer.py` + `tests/test_skills_trainer.py`; Electron/installer: `tests/smoke/test_electron_package.sh` plus Windows artifact smoke workflow. Legacy-note bridge/`rex_loop.py` paths: `tests/test_us005_bridge_json_io.py` + `tests/test_us074_voice_loop_pipeline.py`. Local focused runs: 26/26 and 39/39 passed on Python 3.11.9; Windows artifact run 31148746251 passed installed-artifact smoke.)*
 - [x] Coverage gate (`fail_under = 75`) still passes. *(`python -m pytest -q --cov=rex --cov-fail-under=75`: 8,449 passed, 49 skipped, 0 failed; total coverage 83.26% on Python 3.11.9.)*
-- [ ] All relevant GitHub checks pass.
+- [x] All relevant GitHub checks pass. *(PR #352 implementation head `f127392`; CI run 31213049056 plus commitlint run 31213049246: all 17 checks passed. Python 3.11 Tests & Coverage job 92980116557 passed in 9m37s, including coverage, skip-budget enforcement, integration tests, working-tree-clean verification, and coverage artifact upload.)*
 
 **Validation commands:**
 ```bash

@@ -1286,3 +1286,5 @@ Full post-fix coverage and GitHub verification remain pending.
 US-040 skip-inventory verification: `python scripts/check_skip_inventory.py` passes with 127/127 executable sites current; focused US-038 + US-098 inventory/coverage-contract tests pass 13/13.
 
 US-040 exact post-fix coverage gate: PASS. `python -m pytest -q --cov=rex --cov-fail-under=75` collected 8,498 tests and finished 8,449 passed, 49 skipped, 0 failed in 562.87s. Coverage: 83.26% (required: 75%). The command exited 0 with `coverage.txt` absent, proving the generated-artifact dependency was removed. GitHub checks remain pending before final story closeout.
+
+US-040 GitHub implementation-head gate: PASS. PR #352 head f127392; CI run 31213049056 and commitlint run 31213049246 completed with all 17 checks green. Python job 92980116557 passed in 9m37s and included coverage, skip-budget enforcement, integration tests, tracked-tree cleanliness, and coverage artifact upload. US-040 acceptance criteria are now fully satisfied; this tracker closeout commit must itself receive a final green rerun before merge.
