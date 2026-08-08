@@ -1371,3 +1371,5 @@ Local evidence so far:
 - Ruff and Black on `tests/test_voice_latency_budget.py`: pass.
 - `git diff --check`: pass.
 - Relevant GitHub checks remain pending the story PR.
+
+US-044 GitHub implementation-head gate: PASS. PR #356 head `9a8e706`; CI run `31231785722` and commitlint run `31231785762` completed successfully. The corrected head also passed skip-inventory validation after removing the UTF-8 BOM from the new test file. This tracker closeout commit must itself receive a final green rerun before merge.
