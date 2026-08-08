@@ -126,6 +126,9 @@ def ha_call_service(
     return {
         **result.to_dict(),
         "message": home_assistant_status_message(
-            result.status.value, entity_id=result.entity_id, detail=result.detail
+            result.status.value,
+            entity_id=result.entity_id,
+            detail=result.detail,
+            expected=result.expected,
         ),
     }

@@ -1438,3 +1438,17 @@ Local evidence so far:
 - Relevant GitHub checks remain pending the story PR.
 
 US-048 GitHub implementation gate: PASS. PR #361 head a56fc79b85a995b6a69820b2f7b565af3c9cc918 passed CI run 31257576337, Commitlint run 31257576383, and Windows Electron Artifact run 31257576346. The tracker is closed with this evidence; this closeout commit itself must also remain green before merge.
+
+=== 2026-08-08 - US-049 truthful Home Assistant response language ===
+
+Implementation:
+- Extended the canonical Home Assistant response helper to distinguish `attempted_unverified`, `completed`, `verified`, and `failed` without upgrading uncertain outcomes into success claims.
+- Verified responses can name the independently observed target state (`Confirmed light kitchen is on.`); completed-but-not-verified responses say `I asked HA to...`; attempted-unverified responses say `I tried...` and disclose the missing verification; definite failures say `That failed because...`.
+- The OpenClaw HA adapter now passes the verifier's `expected` evidence into the response helper so confirmed wording is grounded in the actual verification contract.
+- README documents the exact status vocabulary and links to the Home Assistant evidence contract.
+
+Local evidence so far:
+- TDD red phase: the new tests failed because the helper had no `completed` mapping, no expected-state input, and failure wording did not follow the documented vocabulary; the README vocabulary test also failed before documentation was added.
+- `tests/test_response_verification_language.py`: 11 passed after implementation and documentation.
+- Broader HA/OpenClaw/mobile verification-language sweep: 38 passed; only two unrelated pre-existing `AppConfig.llm_provider` deprecation warnings were emitted.
+- Relevant GitHub checks remain pending the story PR.

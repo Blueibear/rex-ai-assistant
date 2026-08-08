@@ -178,6 +178,8 @@ The Electron app under `gui/` is the current primary GUI. `rex-gui` remains usef
 | WordPress/WooCommerce | WordPress health checks and WooCommerce order/product reads are implemented; WooCommerce order status and coupon writes are approval-gated. |
 | OpenClaw | Optional experimental HTTP gateway/client adapters and a standalone Rex tool server are present; feature flags under `openclaw` control gateway-backed paths. Configuration does not prove gateway reachability. |
 
+Home Assistant result wording mirrors the verification evidence. `attempted_unverified` uses **"I tried..."**, `completed` uses **"I asked HA to..."** without claiming state proof, `verified` alone may use **"Confirmed..."**, and a definite dispatch failure uses **"That failed because..."**. See [docs/home_assistant.md](docs/home_assistant.md) for the status and evidence contract.
+
 ## Requirements
 
 | Component | Requirement |
