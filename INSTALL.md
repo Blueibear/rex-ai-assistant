@@ -203,13 +203,13 @@ rex-config migrate-legacy-env
 
 | Mode | Command | Notes |
 |---|---|---|
-| **Electron desktop app** | Windows: `cd gui; npm.cmd run dev`; macOS/Linux: `cd gui && npm run dev` | **Primary user-facing interface** — requires Node/npm and Python bridges |
+| **Electron desktop app** | Packaged Windows installer; source development: `cd gui; npm.cmd run dev` | **Shippable installer; source command is development-only** - packaged end-user runtime needs no machine Python/Node; source development does |
 | Text chat (CLI) | `rex` or `python -m rex` | Developer / advanced — default interactive CLI |
 | Diagnostics | `rex doctor` | Environment and dependency checks |
-| Voice loop | `python rex_loop.py` | Developer / advanced — wake word -> STT -> LLM -> TTS |
+| Voice loop | `python rex_loop.py` | **Developer-only** - defaults to Hold-to-Talk; `--mode wake-word` is beta opt-in |
 | Flask API/dashboard | `rex-gui` | Developer-only compatibility surface; Electron does not spawn or require it |
 | TTS API | `rex-speak-api` | Developer / advanced — requires `REX_SPEAK_API_KEY`; default port 5005 |
-| OpenClaw tool server | `rex-tool-server` | Developer / advanced — requires `REX_TOOL_API_KEY`; default port 18790 |
+| OpenClaw tool server | `rex-tool-server` | **Experimental** - off by default; requires explicit gateway configuration and `REX_TOOL_API_KEY` for the Rex tool-server surface |
 | Windows computer agent | `rex-agent` | Developer / advanced — optional remote PC control agent |
 
 The Tkinter launchers are archived under `archived/tkinter_gui/` and are not supported runtime paths.
