@@ -1562,10 +1562,10 @@ python -m rex --help | grep -i "voice\|hold"
 **Implementation notes:** Emit JSON log records for `wake_detected`, `capture_started`, `capture_ended`, `stt_started`, `stt_completed`, `llm_started`, `llm_completed`, `tts_started`, `playback_completed`. Each record includes a `session_id`, monotonic `start_ns`, and `duration_ms` where applicable.
 
 **Acceptance Criteria:**
-- [ ] All nine events are emitted with the documented fields.
-- [ ] A test captures the log stream and asserts every expected event for one happy-path session.
-- [ ] `docs/voice_identity.md` (or new `docs/voice_pipeline.md`) documents the log contract.
-- [ ] All relevant GitHub checks pass.
+- [x] All nine events are emitted with the documented fields. *(`rex/voice/loop.py` emits stable JSON-extra fields using the process logging session ID and `time.monotonic_ns()` timing.)*
+- [x] A test captures the log stream and asserts every expected event for one happy-path session. *(`tests/test_voice_pipeline_logs.py` validates event order, fields, durations, and JSON serialization.)*
+- [x] `docs/voice_identity.md` (or new `docs/voice_pipeline.md`) documents the log contract. *(`docs/voice_pipeline.md` documents event semantics, timing fields, streaming overlap, and failure behavior.)*
+- [x] All relevant GitHub checks pass. *(PR #355 implementation head `c022660`: CI run `31223622521`, commitlint run `31223622680`, and Windows Electron Artifact run `31223622614` all passed; Python job `93013287284` completed in 8m09s and installed-artifact job `93013287155` in 12m42s.)*
 
 **Validation commands:**
 ```bash
