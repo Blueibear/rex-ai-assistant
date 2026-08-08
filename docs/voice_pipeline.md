@@ -35,3 +35,28 @@ The streaming path deliberately overlaps LLM token generation, sentence bufferin
 ## Failure behavior
 
 A completion event is emitted only when that stage completes successfully. Existing `pipeline_timeout`, `stt_error`, `tts_error`, and other stage-specific error records remain the failure contract. AskRex must not emit a successful completion record for a timed-out or failed stage.
+
+
+## Synthetic CI latency budgets
+
+`tests/test_voice_latency_budget.py` exercises the real canonical `VoiceLoop` with synthetic,
+non-hardware callbacks. The budgets below are regression guards for AskRex orchestration and
+stage hand-offs; they are not end-user hardware, network, or model-provider SLAs. Real Whisper,
+LLM, TTS, audio-driver, and speaker latency is tracked separately by runtime telemetry and the
+performance baseline.
+
+The first release uses intentionally wide margins so shared CI runners do not create false
+failures while still catching accidental blocking calls, sleeps, or serial regressions.
+
+| Synthetic stage | Budget key | Maximum |
+|---|---|---|
+| Activation accepted -> capture start | `activation_to_capture` | 250 ms |
+| Capture callback | `capture` | 500 ms |
+| STT callback | `stt` | 500 ms |
+| LLM response callback | `llm` | 500 ms |
+| TTS/playback callback | `tts_playback` | 500 ms |
+| Activation -> playback complete | `total` | 2000 ms |
+
+The budget test runs in the default pytest marker set because it uses synthetic callbacks and
+completes in well under one second. If a budget is intentionally changed, update this table and
+the enforced constants in the same change so documentation and CI cannot drift apart.

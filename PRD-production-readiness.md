@@ -1587,10 +1587,10 @@ pytest tests/test_voice_pipeline_logs.py -q
 **Implementation notes:** Define stage budgets (e.g., STT < 1500 ms, LLM token-to-first < 500 ms for local provider) and assert under a synthetic input fixture. Mark as `slow` if needed.
 
 **Acceptance Criteria:**
-- [ ] Budget table documented in `docs/voice_pipeline.md`.
-- [ ] At least one test enforces a budget on each stage.
-- [ ] Test runs on CI under `slow` only OR under default markers if fast enough.
-- [ ] All relevant GitHub checks pass.
+- [x] Budget table documented in `docs/voice_pipeline.md`.
+- [x] At least one test enforces a budget on each stage.
+- [x] Test runs on CI under `slow` only OR under default markers if fast enough.
+- [x] All relevant GitHub checks pass. (PR #356 implementation head `9a8e706`; CI run `31231785722` and commitlint run `31231785762` passed.)
 
 **Validation commands:**
 ```bash
