@@ -1883,12 +1883,12 @@ grep -n "rex-gui\|rex_loop\|wake word\|OpenClaw\|Docker" README.md INSTALL.md RU
 - `CLAUDE.md`
 
 **Acceptance Criteria:**
-- [ ] Root `.py` file count and list are accurate.
-- [ ] Console-script list matches `pyproject.toml`.
-- [ ] Voice-mode default matches US-042.
-- [ ] OpenClaw status matches US-050.
-- [ ] Docker tier matches US-041.
-- [ ] Documentation links and references are accurate.
+- [x] Root `.py` file count and list are accurate.
+- [x] Console-script list matches `pyproject.toml`.
+- [x] Voice-mode default matches US-042.
+- [x] OpenClaw status matches US-050.
+- [x] Docker tier matches US-041.
+- [x] Documentation links and references are accurate.
 - [ ] All relevant GitHub checks pass.
 
 **Validation commands:**
