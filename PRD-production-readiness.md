@@ -1698,7 +1698,7 @@ pytest tests/test_ha_confirmation_gate.py -q
 - [x] Return shape is `{ status, expected, actual, latency_ms }`; Electron maps `latency_ms` to `latencyMs` while preserving `expected` and `actual`.
 - [x] Tests cover happy path and the "state did not change" path.
 - [x] `docs/home_assistant.md` documents the verification model.
-- [ ] All relevant GitHub checks pass.
+- [x] All relevant GitHub checks pass. *(PR #361 implementation head `a56fc79b85a995b6a69820b2f7b565af3c9cc918`; CI run `31257576337`, Commitlint run `31257576383`, and Windows Electron Artifact run `31257576346` all completed successfully.)*
 
 **Validation commands:**
 ```bash
