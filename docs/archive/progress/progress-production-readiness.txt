@@ -1490,4 +1490,3 @@ Local evidence so far:
 - Relevant GitHub checks remain pending the story PR.
 
 US-051 broad regression evidence: 638 OpenClaw-selected tests passed (7914 deselected); existing deprecation warnings only. Final changed-surface gates: 36 focused HTTP/bridge/health tests passed, Ruff/Black pass, mypy 0 issues in both changed source files, skip inventory 127/127 current, and git diff --check pass.
-
