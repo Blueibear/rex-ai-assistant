@@ -5,6 +5,7 @@ This report is generated deterministically by `tests/test_wakeword_reliability.p
 ## Controlled result
 
 - Active model: built-in openWakeWord `hey jarvis`
+- Detector package: `openwakeword 0.6.0`
 - Model activation threshold: `0.50`
 - Promotion threshold: precision >= `0.90` and recall >= `0.90`
 - Confusion matrix: TP `4`, FN `0`, FP `1`, TN `7`

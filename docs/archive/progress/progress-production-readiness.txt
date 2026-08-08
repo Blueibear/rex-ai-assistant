@@ -1406,6 +1406,8 @@ Local evidence so far:
 - TDD red phase: the streaming regression initially missed the high-confidence middle chunk because `evaluate_wakeword()` called `predict()` only once on the long frame.
 - Controlled acoustic fixture after the adapter fix: TP 4, FN 0, FP 1, TN 7; precision `0.800`, recall `1.000`, median accepted Rex detection-window end `1000 ms`. The `jarvis`-only negative is the false positive, so the `0.90`/`0.90` promotion threshold fails and wake-word remains beta.
 - `pytest` across all 144 wake-related tests: 144 passed (3 existing deprecation warnings).
-- Tracked report SHA-256 remained `2896357FFFC7E910059432FDD171FA3B80552983FB301B7C39D087487A5D5848` before and after rerunning the suite, proving deterministic report bytes.
+- Tracked report SHA-256 remained `544B993AD9DE84537AFE2C74DEBB26D60B7089D855717014C954006AE16223D9` before and after rerunning the suite, proving deterministic report bytes.
 - Ruff and Black on changed Python paths: pass. Repo-configured mypy: 377 source files, no issues. Skip-inventory validation and `git diff --check`: pass.
 - Relevant GitHub checks remain pending the story PR.
+
+US-046 first GitHub implementation-head run `31236547722` exposed two repository/test-environment contract issues: the repository-integrity test rejected the intentionally tracked synthetic WAV corpus, and the standard `.[dev]` test environment did not install the optional `openwakeword` detector. Remediation keeps the general no-binary rule intact with a narrow `tests/fixtures/wakeword/` exception, pins `openwakeword==0.6.0` in the development extra only (not the default runtime install), and records the detector version in the tracked report. The corrected implementation head requires a fresh GitHub rerun before the story can close.

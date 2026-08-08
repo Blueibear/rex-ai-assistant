@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import statistics
 import wave
+from importlib.metadata import version
 from pathlib import Path
 
 import numpy as np
@@ -100,6 +101,7 @@ def _evaluate_fixture() -> tuple[dict[str, object], list[dict[str, object]]]:
     ]
     metrics: dict[str, object] = {
         "active_label": selection.active_label,
+        "detector_version": version("openwakeword"),
         "tp": tp,
         "fn": fn,
         "fp": fp,
@@ -124,6 +126,7 @@ def _render_report(metrics: dict[str, object], rows: list[dict[str, object]]) ->
         "## Controlled result",
         "",
         f"- Active model: built-in openWakeWord `{metrics['active_label']}`",
+        f"- Detector package: `openwakeword {metrics['detector_version']}`",
         f"- Model activation threshold: `{MODEL_THRESHOLD:.2f}`",
         f"- Promotion threshold: precision >= `{PROMOTION_THRESHOLD:.2f}` and recall >= `{PROMOTION_THRESHOLD:.2f}`",
         f"- Confusion matrix: TP `{metrics['tp']}`, FN `{metrics['fn']}`, FP `{metrics['fp']}`, TN `{metrics['tn']}`",
