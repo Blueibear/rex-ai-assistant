@@ -20,6 +20,7 @@ import os
 import time
 import uuid
 from collections.abc import Callable
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any, Literal
@@ -579,13 +580,19 @@ def _execute_weather_now(args: dict[str, Any], default_context: dict[str, Any]) 
             "OPENWEATHERMAP_API_KEY is not configured", tool="weather_now", args=args
         )
 
+    def _run_weather() -> dict[str, Any]:
+        return asyncio.run(get_weather(location, api_key))
+
     try:
-        coro = get_weather(location, api_key)
         try:
-            weather = asyncio.run(coro)
+            asyncio.get_running_loop()
         except RuntimeError:
-            loop = asyncio.get_event_loop()
-            weather = loop.run_until_complete(coro)
+            weather = _run_weather()
+        else:
+            # This executor is synchronous API code. A nested event loop cannot
+            # run in the same thread, so isolate the coroutine in one worker.
+            with ThreadPoolExecutor(max_workers=1) as pool:
+                weather = pool.submit(_run_weather).result()
     except Exception as exc:
         return _error_result(str(exc), tool="weather_now", args=args)
 

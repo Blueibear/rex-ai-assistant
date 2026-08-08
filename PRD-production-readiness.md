@@ -1933,8 +1933,8 @@ pytest -q
 - `rex/tts_voices.py` lines 192, 244
 
 **Acceptance Criteria:**
-- [ ] `grep -rn "asyncio.get_event_loop" rex/` returns no results.
-- [ ] Tests cover the replaced call sites.
+- [x] `grep -rn "asyncio.get_event_loop" rex/` returns no results.
+- [x] Tests cover the replaced call sites.
 - [ ] All relevant GitHub checks pass.
 
 **Validation commands:**
