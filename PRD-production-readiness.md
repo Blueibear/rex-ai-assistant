@@ -1694,10 +1694,10 @@ pytest tests/test_ha_confirmation_gate.py -q
 **Implementation notes:** After dispatching, poll the entity state up to a configurable timeout. Compare expected vs actual. Report `verified` when the state matches, `attempted` when dispatch returned but state did not yet change, `completed` when state changes were applied but verification is not applicable, `failed` on dispatch error.
 
 **Acceptance Criteria:**
-- [ ] Verification is run for switchable domains (`switch`, `light`, `lock`, `cover`).
-- [ ] Return shape is `{ status, expected, actual, latency_ms }`.
-- [ ] Tests cover happy path and the "state did not change" path.
-- [ ] `docs/home_assistant.md` documents the verification model.
+- [x] Verification is run for switchable domains (`switch`, `light`, `lock`, `cover`).
+- [x] Return shape is `{ status, expected, actual, latency_ms }`; Electron maps `latency_ms` to `latencyMs` while preserving `expected` and `actual`.
+- [x] Tests cover happy path and the "state did not change" path.
+- [x] `docs/home_assistant.md` documents the verification model.
 - [ ] All relevant GitHub checks pass.
 
 **Validation commands:**

@@ -43,13 +43,17 @@ The Electron renderer sends device commands via the `window.rex.sendDeviceComman
 // Renderer usage
 const result = await window.rex.sendDeviceCommand(entityId, command, payload?)
 // result: { status: 'verified' | 'attempted_unverified' |
-//   'confirmation_required' | 'denied' | 'failed', detail?: string }
+//   'confirmation_required' | 'denied' | 'failed', detail?: string,
+//   expected?: { state: string, attributes: object } | null,
+//   actual?: object | null, latencyMs?: number }
 ```
 
 The main-process handler delegates to `bridge/rex_ha_mutation_bridge.py`. That bridge and the
 OpenClaw HA tool both use `rex.ha.mutation_service.HAMutationService`; renderer code cannot bypass
 the policy service. The service validates the immutable Electron user, classifies risk, dispatches,
 then reads entity state independently. An HTTP 2xx response is never treated as proof.
+
+For switchable domains (`switch`, `light`, `lock`, and `cover`), the default verifier polls up to four state reads with 250 ms between successful reads. This gives Home Assistant a short settling window without treating dispatch acceptance as success. Each HTTP request remains bounded by the configured Home Assistant request timeout; `latency_ms` records the complete dispatch-and-verification duration.
 
 **Status semantics:**
 
