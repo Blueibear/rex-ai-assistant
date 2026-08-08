@@ -404,6 +404,9 @@ export type DeviceCommandStatus =
 export interface DeviceCommandResponse {
   status: DeviceCommandStatus
   detail?: string
+  expected?: { state: string; attributes: Record<string, unknown> } | null
+  actual?: Record<string, unknown> | null
+  latencyMs?: number
   confirmationToken?: string
   requestId?: string
 }

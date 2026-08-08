@@ -123,6 +123,9 @@ export type DeviceCommandStatus =
 export interface DeviceCommandResponse {
   status: DeviceCommandStatus
   detail?: string
+  expected?: { state: string; attributes: Record<string, unknown> } | null
+  actual?: Record<string, unknown> | null
+  latencyMs?: number
   confirmationToken?: string
   requestId?: string
 }
@@ -186,6 +189,9 @@ export function callDeviceCommand(
           ok: boolean
           status?: DeviceCommandStatus
           detail?: string
+          expected?: { state: string; attributes: Record<string, unknown> } | null
+          actual?: Record<string, unknown> | null
+          latency_ms?: number
           confirmation_token?: string
           request_id?: string
           error?: string
@@ -194,6 +200,9 @@ export function callDeviceCommand(
           resolve({
             status: result.status,
             detail: result.detail,
+            expected: result.expected,
+            actual: result.actual,
+            latencyMs: result.latency_ms,
             confirmationToken: result.confirmation_token,
             requestId: result.request_id
           })

@@ -1421,3 +1421,20 @@ US-046 GitHub implementation-head gate: PASS. PR #358 head `c2978e938337e8b288c4
 US-047 local implementation gate: `script` and `scene` moved from prohibited to the canonical sensitive HA mutation class alongside `lock`, `cover`, and `alarm_control_panel`; `automation`, `hassio`, `homeassistant`, `python_script`, `shell_command`, `update`, and unknown domains remain fail-closed. New `tests/test_ha_confirmation_gate.py` covers all five sensitive domains and proves the first unconfirmed call returns `confirmation_required` with zero `call_service` side effects, while the signed confirmed replay dispatches exactly once. Focused acceptance tests passed 17/17; broader HA/OpenClaw/IPC/mobile regression passed 59/59. `docs/home_assistant.md` and `CLAUDE.md` document the gate. GitHub checks remain required before story closeout.
 
 US-047 GitHub gate: PASS. PR #359 head 9f269a2866f410a17063dfdf01a9b312d052d42a passed CI run 31242596301, Commitlint run 31242596359, and Windows Electron Artifact run 31242596280, then merged to master as 1de6d06f58cf26b425c861e74e97820172ffbab1. The production-readiness tracker is closed with that evidence.
+
+=== 2026-08-08 - US-048 Home Assistant post-control state verification ===
+
+Implementation:
+- Reconciled the already-present HAMutationService verifier against the US-048 contract and added direct acceptance coverage for switch, light, lock, and cover state verification.
+- Preserved `expected`, `actual`, and `latency_ms` evidence across the Electron mutation bridge; the TypeScript IPC contract exposes the latency as `latencyMs` while retaining the backend evidence objects.
+- Documented the four-attempt / 250 ms default state-polling model and the distinction between dispatch acceptance and independently observed state.
+
+Local evidence so far:
+- TDD red phase: `tests/test_ha_verification.py` initially failed because Electron `DeviceCommandResponse` omitted verification evidence even though Python produced it.
+- Focused acceptance/regression sweep: 35 passed across US-048, mutation-service, confirmation-gate, and US-007 IPC tests on Python 3.11.9.
+- GUI: TypeScript typecheck passed, production build passed, and 20 Vitest files / 100 tests passed.
+- Ruff + Black on the new Python test: pass. Touched TypeScript ESLint: pass. Skip inventory: 127/127 current. `git diff --check`: pass.
+- Local npm 11.6.0 on Node 24.14.0 failed inside `electron-winstaller` install-script spawning; using the repo's previously validated npm 10.9.2 completed `npm ci` successfully. No repository change was required for that host-tooling issue.
+- Relevant GitHub checks remain pending the story PR.
+
+US-048 GitHub implementation gate: PASS. PR #361 head a56fc79b85a995b6a69820b2f7b565af3c9cc918 passed CI run 31257576337, Commitlint run 31257576383, and Windows Electron Artifact run 31257576346. The tracker is closed with this evidence; this closeout commit itself must also remain green before merge.
