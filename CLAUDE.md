@@ -108,6 +108,10 @@ Search providers:
 - Google CSE
 - DuckDuckGo
 
+Home Assistant safety:
+
+- `lock`, `cover`, `alarm_control_panel`, broad `script.*`, and broad `scene.*` mutations are sensitive and must use the canonical short-lived confirmation-token gate before dispatch. The first unconfirmed call must have no side effect. Keep `automation`, `python_script`, `shell_command`, `update`, and unknown domains fail-closed unless a later reviewed policy explicitly changes them.
+
 ### Style and quality
 
 - Prefer clear, testable functions over clever code.

@@ -1667,10 +1667,10 @@ pytest tests/test_wakeword_reliability.py -q
 - `tests/test_ha_confirmation_gate.py` (new)
 
 **Acceptance Criteria:**
-- [ ] Calling a risky-domain action without confirmation returns `requires_confirmation`.
-- [ ] Confirmed call proceeds.
-- [ ] Negative test asserts side effect did not occur on the first call.
-- [ ] `docs/home_assistant.md` lists the risky domains and the gate.
+- [x] Calling a risky-domain action without confirmation returns `requires_confirmation` (the canonical AskRex wire status is `confirmation_required`).
+- [x] Confirmed call proceeds.
+- [x] Negative test asserts side effect did not occur on the first call.
+- [x] `docs/home_assistant.md` lists the risky domains and the gate.
 - [ ] All relevant GitHub checks pass.
 
 **Validation commands:**

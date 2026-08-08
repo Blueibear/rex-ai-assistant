@@ -78,13 +78,12 @@ class HAClient(Protocol):
 
 
 _SAFE_DOMAINS = {"light", "switch", "fan", "climate", "media_player"}
-_SENSITIVE_DOMAINS = {"lock", "alarm_control_panel", "cover"}
+_SENSITIVE_DOMAINS = {"lock", "alarm_control_panel", "cover", "script", "scene"}
 _PROHIBITED_DOMAINS = {
     "automation",
     "hassio",
     "homeassistant",
     "python_script",
-    "script",
     "shell_command",
     "update",
 }
