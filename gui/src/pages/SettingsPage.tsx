@@ -2261,6 +2261,14 @@ function AiPanel(): React.ReactElement {
     <div className="p-6 max-w-lg">
       <h2 className="text-lg font-semibold text-text-primary mb-6">AI</h2>
 
+      <div className="mb-6 rounded-xl border border-warning/40 bg-warning/5 p-4">
+        <div className="text-sm font-semibold text-text-primary">OpenClaw</div>
+        <div className="mt-1 text-xs font-medium text-warning">Experimental - off by default</div>
+        <p className="mt-2 text-xs text-text-secondary">
+          Gateway-backed tools and voice stay disabled unless an operator explicitly configures both a gateway URL and credential token.
+        </p>
+      </div>
+
       {/* Personality */}
       <div className="mb-6">
         <div className="flex items-center justify-between mb-2">

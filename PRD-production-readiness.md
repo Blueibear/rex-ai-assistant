@@ -1748,11 +1748,11 @@ pytest tests/test_response_verification_language.py -q
 - `SURFACE-CLASSIFICATION.md`
 
 **Acceptance Criteria:**
-- [ ] Defaults for both OpenClaw flags are False.
-- [ ] Enabling either flag without a valid gateway URL+token raises a clear error at startup.
-- [ ] `SURFACE-CLASSIFICATION.md` classifies OpenClaw surfaces as `experimental`.
-- [ ] GUI settings label OpenClaw as "Experimental — off by default".
-- [ ] A test asserts defaults and the fail-closed startup behavior.
+- [x] Defaults for both OpenClaw flags are False.
+- [x] Enabling either flag without a valid gateway URL+token raises a clear error at startup.
+- [x] `SURFACE-CLASSIFICATION.md` classifies OpenClaw surfaces as `experimental`.
+- [x] GUI settings label OpenClaw as "Experimental — off by default".
+- [x] A test asserts defaults and the fail-closed startup behavior.
 - [ ] All relevant GitHub checks pass.
 
 **Validation commands:**

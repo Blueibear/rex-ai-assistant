@@ -14,6 +14,7 @@ here first, then propagated to docs, packaging config, and CI.
 |----------------|---------|
 | `shippable` | Supported, user-facing surface included in or required by a release artifact. Security fixes and regressions are P0. |
 | `developer-only` | Supported for developer and operator use but not exposed to end users in the packaged app. Not in the packaged Electron installer. |
+| `experimental` | Optional pre-release surface. Disabled by default and not part of the supported end-user contract until explicit promotion criteria pass. |
 | `deprecated` | Still present for backward compatibility. Emits `DeprecationWarning` on use. Will be removed in a future release. No new features. Security fixes only. |
 | `archived` | Not maintained. Entry points removed. Kept in `archived/` for reference. May be permanently deleted in a future major version. |
 | `removed` | Deleted from the repo. Listed here as a historical record only. |
@@ -29,7 +30,7 @@ here first, then propagated to docs, packaging config, and CI.
 | `rex-config` | `rex.config:cli` | `developer-only` | Config inspection and migration utility. Operator/developer use only. |
 | `rex-speak-api` | `rex_speak_api:main` | `developer-only` | Standalone TTS API with auth and rate limiting. Backend service; not user-facing. |
 | `rex-agent` | `rex.computers.agent_server:main` | `developer-only` | Optional remote PC control API. Not enabled by default; requires explicit configuration. |
-| `rex-tool-server` | `rex.openclaw.tool_server:main` | `developer-only` | OpenClaw tool adapter backend at `/rex/tools/{tool_name}`. Backend service; not user-facing. |
+| `rex-tool-server` | `rex.openclaw.tool_server:main` | `experimental` | OpenClaw tool adapter backend at `/rex/tools/{tool_name}`. Disabled by default; requires explicit gateway configuration and is not part of the supported end-user contract. |
 
 The mobile API gateway is a CLI subcommand, not a `[project.scripts]` console script:
 
@@ -133,7 +134,8 @@ These modules implement user-facing capabilities invoked by the assistant pipeli
 | Classification | Count |
 |----------------|-------|
 | `shippable` | 2 |
-| `developer-only` | 29 |
+| `developer-only` | 28 |
+| `experimental` | 1 |
 | `deprecated` | 5 |
 | `archived` | 15 |
 | `removed` | 0 |
