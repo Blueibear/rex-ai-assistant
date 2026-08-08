@@ -2,6 +2,14 @@
 
 > **Release status:** Experimental and off by default. Enabling OpenClaw tools or voice requires both a valid HTTP(S) gateway URL and a credential-vault token; incomplete configuration fails closed during config validation.
 
+## Gateway health and graceful degradation
+
+`OpenClawClient.health()` probes `GET /healthz` and returns explicit `up`/`down` evidence with request latency. Transport, authentication, and API failures are represented as a down result rather than being mistaken for gateway availability.
+
+Normal OpenClaw requests use the configured `openclaw_gateway_max_retries` as a retry bound: the initial attempt plus at most that many retries. Connection/timeout failures and retryable HTTP 429/5xx responses back off within that bound. For tool execution, an exhausted connection/auth/429/5xx gateway failure emits a structured `openclaw.tool_fallback` warning and then runs the canonical local Rex tool path. A 403 remains a policy denial and never falls back around policy; a 404 means that specific tool is absent remotely and uses the existing local-tool fallback.
+
+There is no sticky circuit breaker. A fallback applies only to the failed call, so a later request probes/uses the gateway again and automatically resumes remote execution when it has recovered.
+
 Tracks every Rex module's migration state as Rex pivots to an OpenClaw-based architecture.
 
 **Classifications:**

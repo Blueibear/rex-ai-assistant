@@ -1474,3 +1474,20 @@ Local evidence so far:
 - Relevant GitHub checks remain pending the story PR.
 
 US-050 GitHub implementation gate: PASS. PR #363 head `74f699a380215a000b0c263ffaaeccb1e8b7e20a` passed all 18 reported checks after rebase onto merged US-049, including Python 3.11 Tests & Coverage (9m49s), Installed Windows Electron artifact (10m42s), CI quality/security jobs, Commitlint, CodeFactor, and GitGuardian. The tracker is closed with that evidence.
+=== 2026-08-08 - US-051 OpenClaw health, retry bounds, and graceful degradation ===
+
+Implementation:
+- Added `OpenClawClient.health()` using `GET /healthz`, returning explicit availability/status, latency, details on success, and sanitized error type/message on failure.
+- Connection and timeout errors now retry with the same configured `max_retries` bound used for retryable HTTP failures (initial attempt plus at most `max_retries` retries).
+- Exhausted connection/auth/429/5xx tool-gateway failures emit a structured `openclaw.tool_fallback` warning and fall back to the canonical local executor. 403 remains a hard policy denial; other non-retryable API errors still surface.
+- No sticky circuit breaker was added: the next tool call tries OpenClaw again, so recovery returns automatically to remote dispatch.
+- Documented the health, retry, fallback, policy-denial, and recovery model.
+
+Local evidence so far:
+- TDD red phase: all 5 new acceptance tests failed before implementation (no health method, no connection retry bound, no structured event metadata, and exhausted 5xx escaped instead of degrading locally).
+- Focused US-051 acceptance: 5 passed after implementation.
+- HTTP client + tool-bridge + health regression set: 36 passed after updating one stale 5xx expectation to the new graceful-degradation contract.
+- Relevant GitHub checks remain pending the story PR.
+
+US-051 broad regression evidence: 638 OpenClaw-selected tests passed (7914 deselected); existing deprecation warnings only. Final changed-surface gates: 36 focused HTTP/bridge/health tests passed, Ruff/Black pass, mypy 0 issues in both changed source files, skip inventory 127/127 current, and git diff --check pass.
+

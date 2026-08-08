@@ -1774,11 +1774,11 @@ pytest tests/test_openclaw_defaults.py -q
 - `tests/test_openclaw_health.py` (new)
 
 **Acceptance Criteria:**
-- [ ] `GET /healthz` (or equivalent) detects gateway availability.
-- [ ] On gateway failure, tool dispatch falls back to local execution AND emits a structured warning; it does not silently succeed.
-- [ ] Reconnect attempts are bounded by config.
-- [ ] Tests cover up/down/recovery paths.
-- [ ] `docs/openclaw-migration-status.md` documents the model.
+- [x] `GET /healthz` (or equivalent) detects gateway availability.
+- [x] On gateway failure, tool dispatch falls back to local execution AND emits a structured warning; it does not silently succeed.
+- [x] Reconnect attempts are bounded by config.
+- [x] Tests cover up/down/recovery paths.
+- [x] `docs/openclaw-migration-status.md` documents the model.
 - [ ] All relevant GitHub checks pass.
 
 **Validation commands:**
