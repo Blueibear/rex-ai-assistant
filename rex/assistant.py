@@ -8,7 +8,7 @@ import re
 import threading
 from collections.abc import AsyncIterator, Iterable
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -590,7 +590,7 @@ class Assistant:
         # Never write history, transcripts, or in-memory windows under an
         # unvalidated key (issue #303).
         uid = validate_user_id(uid)
-        now = datetime.utcnow()
+        now = datetime.now(UTC)
         history_store = getattr(self, "_history_store", None)
         if history_store is not None:
             try:
@@ -1072,7 +1072,7 @@ class Assistant:
             self._transcripts_dir.mkdir(parents=True, exist_ok=True)
             user_dir = self._transcripts_dir / uid
             user_dir.mkdir(parents=True, exist_ok=True)
-            timestamp = datetime.utcnow()
+            timestamp = datetime.now(UTC)
             file_path = user_dir / f"{timestamp:%Y-%m-%d}.txt"
             with file_path.open("a", encoding="utf-8") as handle:
                 handle.write(f"{timestamp:%H:%M:%S} user: {transcript.strip()}\n")
