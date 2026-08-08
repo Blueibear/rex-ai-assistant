@@ -17,6 +17,7 @@ from pathlib import Path
 from typing import Any, cast
 
 from rex.assistant_errors import (
+    AudioDeviceError,
     TextToSpeechError,
 )
 from rex.tts_utils import chunk_text_for_xtts
@@ -254,6 +255,8 @@ class TextToSpeech:
                 run_metrics["path_used"] = "stdout"
                 run_metrics["speech_start_delay_s"] = 0.0
                 print(f"Rex: {text}")
+        except AudioDeviceError:
+            raise
         except Exception as exc:
             if self._provider == "xtts" and self._xtts_init_error:
                 reason = f"XTTS not initialized ({self._xtts_init_error})"
@@ -495,14 +498,21 @@ class TextToSpeech:
 
             if Path(chunk_path).exists():
                 routed = await asyncio.to_thread(self._try_smart_speaker, chunk_path)
-                if not routed and _vl().sa is not None:
+                if not routed:
+                    if _vl().sa is None:
+                        raise AudioDeviceError(
+                            "Local speaker playback is unavailable because simpleaudio is not installed."
+                        )
 
                     def _play(_path=chunk_path) -> None:
                         wave_obj = _vl().sa.WaveObject.from_wave_file(_path)
                         play_obj = wave_obj.play()
                         play_obj.wait_done()
 
-                    await asyncio.to_thread(_play)
+                    try:
+                        await asyncio.to_thread(_play)
+                    except Exception as exc:
+                        raise AudioDeviceError(f"Speaker playback failed: {exc}") from exc
         finally:
             try:
                 os.unlink(chunk_path)
@@ -539,8 +549,12 @@ class TextToSpeech:
                     continue
                 try:
                     await self.speak(sentence, speaker_wav=speaker_wav)
+                except AudioDeviceError:
+                    raise
                 except Exception as exc:
                     _vl().logger.error("[TTS streaming] chunk failed: %s", exc)
+        except AudioDeviceError:
+            raise
         except Exception as exc:
             _vl().logger.error("[TTS streaming] failed: %s", exc)
 
@@ -673,18 +687,9 @@ class TextToSpeech:
         )
 
         if _vl().sa is None:
-            _vl().logger.error("LOCAL PLAYBACK ERROR: simpleaudio is not available in _speak_edge")
-            return {
-                "path_used": "edge",
-                "voice": voice,
-                "first_audio_chunk_s": first_audio_chunk_s,
-                "synthesis_ready_s": synthesis_ready_s,
-                "speech_start_delay_s": None,
-                "playback_duration_s": 0.0,
-                "audio_duration_s": audio_duration_s,
-                "used_streaming": used_streaming,
-                "playback_available": False,
-            }
+            raise AudioDeviceError(
+                "Local speaker playback is unavailable because simpleaudio is not installed."
+            )
 
         def _play(_pcm=pcm_data, _sample_rate=sample_rate, _channels=channel_count) -> None:
             play_obj = _vl().sa.play_buffer(
@@ -713,7 +718,10 @@ class TextToSpeech:
             channel_count,
             int(pcm_data.shape[0]),
         )
-        await asyncio.to_thread(_play)
+        try:
+            await asyncio.to_thread(_play)
+        except Exception as exc:
+            raise AudioDeviceError(f"Speaker playback failed: {exc}") from exc
         playback_duration_s = round(time.perf_counter() - playback_started_at, 3)
         _vl().logger.info(
             "[TTS:edge] Local playback finished",
@@ -791,7 +799,12 @@ class TextToSpeech:
                 if initialized:
                     pythoncom.CoUninitialize()
 
-        await asyncio.to_thread(_speak)
+        try:
+            await asyncio.to_thread(_speak)
+        except TextToSpeechError:
+            raise
+        except Exception as exc:
+            raise AudioDeviceError(f"Windows speaker output failed: {exc}") from exc
         _vl().logger.info(
             "[TTS:windows] Local SAPI playback finished",
             extra=_voice_log_extra(
@@ -838,7 +851,10 @@ class TextToSpeech:
             engine.runAndWait()
 
         started_at = time.perf_counter()
-        await asyncio.to_thread(_speak)
+        try:
+            await asyncio.to_thread(_speak)
+        except Exception as exc:
+            raise AudioDeviceError(f"Windows speaker output failed: {exc}") from exc
         return {
             "path_used": "pyttsx3",
             "speech_start_delay_s": speech_start_delay_s,

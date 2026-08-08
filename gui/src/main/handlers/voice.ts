@@ -22,6 +22,8 @@ type VoiceBridgeEvent = {
   message?: string
   extra?: Record<string, unknown>
   traceback?: string
+  code?: string
+  device_kind?: string
 }
 type VoiceBridgeEventContext = {
   process: ChildProcess
@@ -157,6 +159,8 @@ function handleVoiceErrorEvent(event: VoiceBridgeEvent, context: VoiceBridgeEven
   appendElectronLog('ERROR', 'GUI voice bridge error event', {
     event: 'voice_bridge_error',
     error,
+    code: event.code,
+    device_kind: event.device_kind,
     traceback: event.traceback,
     pid: context.process.pid
   })

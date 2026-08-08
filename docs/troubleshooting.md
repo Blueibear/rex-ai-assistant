@@ -135,3 +135,30 @@ REX_SPEAK_STORAGE_URI=redis://localhost:6379/0
 1. Use smaller Whisper model: `REX_WHISPER_MODEL=tiny` or `base`
 2. Reduce max tokens: `REX_LLM_MAX_TOKENS=50`
 3. Switch to CPU: `REX_DEVICE=cpu` and `REX_WHISPER_DEVICE=cpu`
+
+
+## Microphone Unavailable in Voice Mode
+
+**Error:** `Microphone unavailable. Reconnect or select a microphone in Voice settings, then check your operating-system microphone permissions.`
+
+**What it means:** AskRex could not initialize or continue using the microphone selected for voice mode. The Electron Voice page shows this message directly instead of only reporting a generic voice-pipeline failure.
+
+**Solution:**
+1. Open **Settings → Voice** and select an available microphone, or switch back to the system default.
+2. Reconnect the microphone if it was unplugged or disconnected.
+3. Confirm AskRex/Electron has microphone permission in your operating-system privacy settings.
+4. Close another application temporarily if it may be holding the microphone exclusively, then try voice mode again.
+5. Run `python -m rex doctor` if the device still cannot be opened.
+
+## Speaker Output Unavailable in Voice Mode
+
+**Error:** `Speaker output unavailable. Reconnect or select an output device in Voice settings, then check your operating-system sound output.`
+
+**What it means:** AskRex generated a response but the configured playback device could not be initialized or used. The Voice page shows the output-device error directly.
+
+**Solution:**
+1. Open **Settings → Voice** and select an available output device, or switch back to the system default.
+2. Reconnect or power on the selected speakers/headphones.
+3. Confirm the operating system is routing sound to that device and that it is not disabled.
+4. Close another application temporarily if it may be holding the output device exclusively, then try again.
+5. Run `python -m rex doctor` if output still cannot be opened.

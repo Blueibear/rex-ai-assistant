@@ -1373,3 +1373,21 @@ Local evidence so far:
 - Relevant GitHub checks remain pending the story PR.
 
 US-044 GitHub implementation-head gate: PASS. PR #356 head `9a8e706`; CI run `31231785722` and commitlint run `31231785762` completed successfully. The corrected head also passed skip-inventory validation after removing the UTF-8 BOM from the new test file. This tracker closeout commit must itself receive a final green rerun before merge.
+
+=== 2026-08-07 - US-045 mic/speaker diagnostics surfaced to the user ===
+
+Implementation:
+- Added a stable `audio_device_error` diagnostic contract with `microphone_unavailable` and `speaker_unavailable` codes plus actionable Voice-settings/OS recovery guidance.
+- `VoiceLoop` now emits structured microphone/speaker diagnostics at the real failing stage and forwards them through an optional diagnostic callback without replacing the useful error with the old generic state error.
+- The Electron voice bridge forwards the diagnostic through the existing `rex:voiceError` IPC channel; the Voice page renders the message in an assertive visible alert.
+- Local TTS playback failures now propagate as `AudioDeviceError` instead of being silently reduced to stdout text, while non-device provider/synthesis failures retain their existing fallback behavior.
+- `docs/troubleshooting.md` documents the microphone and speaker errors and recovery steps.
+
+Local evidence so far:
+- TDD red phase: `tests/test_audio_diagnostics.py` initially failed 2/2 because `VoiceLoop` had no diagnostic callback contract.
+- Final `tests/test_audio_diagnostics.py`: 4 passed, including bridge preservation and real TTS device-failure propagation.
+- Voice/audio regression sweep: 91 passed.
+- TTS regression sweep: 90 passed.
+- GUI diagnostic + microphone-routing Vitest tests: 2 passed; GUI TypeScript typecheck and touched-file ESLint: pass.
+- Ruff, Black, mypy, skip-inventory validation, and `git diff --check`: pass on the relevant changed paths.
+- Relevant GitHub checks remain pending the story PR.

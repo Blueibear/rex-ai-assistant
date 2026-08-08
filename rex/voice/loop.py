@@ -13,6 +13,7 @@ from rex.assistant_errors import (
     SpeechToTextError,
     TextToSpeechError,
 )
+from rex.audio_config import build_audio_device_diagnostic
 from rex.voice._types import (
     AudioArray,
     IdentifySpeakerCallable,
@@ -70,6 +71,7 @@ class VoiceLoop:
         post_stt_acknowledge: Callable[[], Awaitable[None]] | None = None,
         identify_speaker: IdentifySpeakerCallable | None = None,
         state_callback: Callable[[str], None] | None = None,
+        diagnostic_callback: Callable[[dict[str, object]], None] | None = None,
         sample_rate: int = 16000,
         stt_timeout: float = 30.0,
         llm_timeout: float = 60.0,
@@ -117,6 +119,7 @@ class VoiceLoop:
         self._post_stt_acknowledge = post_stt_acknowledge
         self._identify_speaker = identify_speaker
         self._state_callback = state_callback
+        self._diagnostic_callback = diagnostic_callback
         self._identify_speaker_accepts_audio = self._resolve_identify_speaker_signature(
             identify_speaker
         )
@@ -155,6 +158,32 @@ class VoiceLoop:
     @staticmethod
     def _duration_ms(start_ns: int) -> float:
         return round((time.monotonic_ns() - start_ns) / 1_000_000, 3)
+
+    def _report_audio_device_error(
+        self,
+        device_kind: str,
+        exc: AudioDeviceError,
+        *,
+        interaction_id: int | None = None,
+    ) -> None:
+        diagnostic = build_audio_device_diagnostic(device_kind, exc)
+        extra: dict[str, object] = {
+            **diagnostic,
+            "session_id": self._session_id,
+        }
+        if interaction_id is not None:
+            extra["interaction_id"] = interaction_id
+        _vl().logger.error(
+            "Audio %s error: %s",
+            diagnostic["device_kind"],
+            exc,
+            extra=extra,
+        )
+        if self._diagnostic_callback is not None:
+            try:
+                self._diagnostic_callback(diagnostic)
+            except Exception:
+                _vl().logger.exception("Voice diagnostic callback failed")
 
     @staticmethod
     def _resolve_identify_speaker_signature(
@@ -469,6 +498,7 @@ class VoiceLoop:
                 try:
                     self._interaction_id += 1
                     interaction_id = self._interaction_id
+                    audio_device_kind = "microphone"
                     tracker = VoiceLatencyTracker()
                     wake_detected_ns = time.monotonic_ns()
                     self._log_pipeline_event(
@@ -631,12 +661,14 @@ class VoiceLoop:
                         _emit("thinking")
                         token = _VOICE_INTERACTION_ID.set(interaction_id)
                         try:
+                            audio_device_kind = "speaker"
                             await asyncio.wait_for(
                                 self._speak(_WEAK_TRANSCRIPT_RETRY_PROMPT),
                                 timeout=self._tts_timeout,
                             )
                         finally:
                             _VOICE_INTERACTION_ID.reset(token)
+                        audio_device_kind = "microphone"
                         transcript = await self._capture_followup_transcript(
                             interaction_id=interaction_id,
                             reason="weak_transcript_retry",
@@ -680,12 +712,14 @@ class VoiceLoop:
                         _emit("thinking")
                         token = _VOICE_INTERACTION_ID.set(interaction_id)
                         try:
+                            audio_device_kind = "speaker"
                             await asyncio.wait_for(
                                 self._speak(_SUSPICIOUS_TRANSCRIPT_RETRY_PROMPT),
                                 timeout=self._tts_timeout,
                             )
                         finally:
                             _VOICE_INTERACTION_ID.reset(token)
+                        audio_device_kind = "microphone"
                         transcript = await self._capture_followup_transcript(
                             interaction_id=interaction_id,
                             reason="suspicious_transcript_retry",
@@ -767,6 +801,7 @@ class VoiceLoop:
                         try:
                             token = _VOICE_INTERACTION_ID.set(interaction_id)
                             try:
+                                audio_device_kind = "speaker"
                                 await asyncio.wait_for(
                                     _speak_streaming(
                                         _sentence_buffer_stream(
@@ -850,6 +885,7 @@ class VoiceLoop:
                             )
                             token = _VOICE_INTERACTION_ID.set(interaction_id)
                             try:
+                                audio_device_kind = "speaker"
                                 await asyncio.wait_for(
                                     self._speak(llm_response), timeout=self._tts_timeout
                                 )
@@ -874,6 +910,7 @@ class VoiceLoop:
                             )
                             continue
                         if _looks_like_clarification_reply(llm_response, transcript):
+                            audio_device_kind = "microphone"
                             followup_transcript = await self._capture_followup_transcript(
                                 interaction_id=interaction_id,
                                 reason="assistant_clarification",
@@ -934,6 +971,7 @@ class VoiceLoop:
                                     token = _VOICE_INTERACTION_ID.set(interaction_id)
                                     try:
                                         try:
+                                            audio_device_kind = "speaker"
                                             await asyncio.wait_for(
                                                 self._speak(followup_response),
                                                 timeout=self._tts_timeout,
@@ -990,8 +1028,12 @@ class VoiceLoop:
                     _emit("error")
                     # Continue loop on TTS errors; text response preserved in log
                 except AudioDeviceError as exc:
-                    _vl().logger.error("Audio device error: %s", exc)
-                    _emit("error")
+                    self._report_audio_device_error(
+                        audio_device_kind,
+                        exc,
+                        interaction_id=interaction_id,
+                    )
+                    _emit("idle" if self._diagnostic_callback is not None else "error")
                     break
                 except Exception as exc:
                     _vl().logger.error("Unexpected error in voice loop: %s", exc)
@@ -1001,9 +1043,10 @@ class VoiceLoop:
                 if max_interactions is not None and interactions >= max_interactions:
                     break
         except AudioDeviceError as exc:
+            self._report_audio_device_error("microphone", exc)
             _vl().logger.error(
                 "Audio device error — pipeline halted: %s",
                 exc,
                 extra={"event": "pipeline_blocker", "stage": "audio_device", "error": str(exc)},
             )
-            _emit("error")
+            _emit("idle" if self._diagnostic_callback is not None else "error")

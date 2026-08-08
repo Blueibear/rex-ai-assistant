@@ -237,6 +237,20 @@ def emit_log(level: str, message: str, extra: dict[str, object] | None = None) -
     )
 
 
+def emit_audio_diagnostic(diagnostic: dict[str, object]) -> None:
+    """Forward a structured audio diagnostic to the Electron error channel."""
+    user_message = str(diagnostic.get("user_message") or "Voice audio device unavailable.")
+    emit_log("ERROR", "Voice audio device unavailable", diagnostic)
+    emit(
+        {
+            "type": "error",
+            "error": user_message,
+            "code": diagnostic.get("code"),
+            "device_kind": diagnostic.get("device_kind"),
+        }
+    )
+
+
 def time_ms() -> int:
     return int(time.time() * 1000)
 
@@ -763,6 +777,7 @@ async def _run_real_loop() -> None:
         acknowledge=ack.play,
         post_stt_acknowledge=wrapped_post_stt_ack,
         state_callback=emit_voice_loop_state,
+        diagnostic_callback=emit_audio_diagnostic,
     )
 
     # Start stdin watcher after startup. On Windows, reading a live stdin pipe

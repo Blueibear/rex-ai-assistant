@@ -1614,10 +1614,10 @@ pytest tests/test_voice_latency_budget.py -q
 - `tests/test_audio_diagnostics.py`
 
 **Acceptance Criteria:**
-- [ ] On mic init failure, voice loop emits a structured error AND the Electron GUI shows a visible error toast/banner.
-- [ ] On speaker init failure, the same holds.
-- [ ] A test confirms the error is surfaced to the IPC handler with a user-actionable message.
-- [ ] `docs/troubleshooting.md` lists the new errors.
+- [x] On mic init failure, voice loop emits a structured error AND the Electron GUI shows a visible error toast/banner.
+- [x] On speaker init failure, the same holds.
+- [x] A test confirms the error is surfaced to the IPC handler with a user-actionable message.
+- [x] `docs/troubleshooting.md` lists the new errors.
 - [ ] All relevant GitHub checks pass.
 
 **Validation commands:**
