@@ -1671,7 +1671,7 @@ pytest tests/test_wakeword_reliability.py -q
 - [x] Confirmed call proceeds.
 - [x] Negative test asserts side effect did not occur on the first call.
 - [x] `docs/home_assistant.md` lists the risky domains and the gate.
-- [ ] All relevant GitHub checks pass.
+- [x] All relevant GitHub checks pass. *(PR #359 head 9f269a2866f410a17063dfdf01a9b312d052d42a; CI run 31242596301, Commitlint run 31242596359, and Windows Electron Artifact run 31242596280 all completed successfully.)*
 
 **Validation commands:**
 ```bash
