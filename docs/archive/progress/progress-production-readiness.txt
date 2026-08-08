@@ -1356,3 +1356,18 @@ Local evidence so far:
 - Relevant GitHub checks remain pending the story PR.
 
 US-043 GitHub implementation-head gate: PASS. PR #355 head `c022660`; CI run `31223622521`, commitlint run `31223622680`, and Windows Electron Artifact run `31223622614` completed successfully. Python job `93013287284` passed in 8m09s and installed Windows artifact job `93013287155` passed in 12m42s. This tracker closeout commit must itself receive a final green rerun before merge.
+
+
+=== 2026-08-07 - US-044 voice latency budget tests ===
+
+Implementation:
+- Added `tests/test_voice_latency_budget.py`, which drives the real canonical `VoiceLoop` with synthetic callbacks and enforces per-stage orchestration budgets for activation-to-capture, capture, STT, LLM, TTS/playback, and total interaction latency.
+- Added matching synthetic CI budget documentation to `docs/voice_pipeline.md` and explicitly separated these regression guards from real hardware/network/model SLAs.
+- The test remains in the default pytest marker set because it is synthetic and completes well under one second; no `slow`, `audio`, or `gpu` marker is required.
+
+Local evidence so far:
+- Red phase: new budget-contract test failed because the budget table was not documented yet; the runtime budget assertion already passed.
+- After documentation: `pytest tests/test_voice_latency_budget.py tests/test_voice_pipeline_logs.py tests/test_us167_voice_latency.py -q`: 34 passed.
+- Ruff and Black on `tests/test_voice_latency_budget.py`: pass.
+- `git diff --check`: pass.
+- Relevant GitHub checks remain pending the story PR.
