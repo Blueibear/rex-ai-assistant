@@ -84,6 +84,10 @@ STT: OpenAI Whisper (offline)
 
 Wake word: openWakeWord
 
+- openWakeWord models are stream-oriented. Keep Rex capture windows independent from model inference chunks: marked openWakeWord models must be evaluated in 1,280-sample / 80 ms chunks at 16 kHz and aggregate the peak score across the longer capture window. Do not pass an arbitrary one-second frame as one model prediction.
+- US-046 wake-word reliability is a deliberate exception to the general no-binary-test-artifacts rule: only `tests/fixtures/wakeword/` may contain the small tracked synthetic WAV corpus. `openwakeword==0.6.0` belongs in the dev extra so the standard CI suite evaluates that corpus with the same detector version used for the tracked report; do not move the full `ml` extra into base CI.
+- Lazy optional-dependency caches must follow live module state, not stale test aliases. For openWakeWord, prefer the explicit compatibility alias while it is present, otherwise use `sys.modules`, and refresh the import when neither is live; do not return a cached fake module after monkeypatch teardown.
+
 TTS: Coqui XTTS (voice cloning supported)
 
 Optional TTS:

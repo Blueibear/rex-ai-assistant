@@ -60,3 +60,9 @@ failures while still catching accidental blocking calls, sleeps, or serial regre
 The budget test runs in the default pytest marker set because it uses synthetic callbacks and
 completes in well under one second. If a budget is intentionally changed, update this table and
 the enforced constants in the same change so documentation and CI cannot drift apart.
+
+## Wake-word reliability evidence
+
+US-046 adds a tracked synthesized acoustic fixture and report at `docs/voice/wakeword-report.md`. The built-in openWakeWord path is evaluated at the configured `0.50` activation threshold, with a `0.90` precision and `0.90` recall promotion threshold. The controlled fixture currently measures precision `0.800` and recall `1.000`, so wake-word remains beta. The fixture is a regression baseline, not a substitute for broader microphone, room-noise, distance, accent, and continuous-negative-audio deployment testing.
+
+Longer Rex microphone windows are split into openWakeWord's native 1,280-sample (80 ms at 16 kHz) streaming chunks before peak aggregation so a wake phrase is not lost merely because its high-confidence frame occurs before the end of a one-second capture window.

@@ -24,13 +24,19 @@ def _import_optional(module_name: str):
 np = _import_optional("numpy")
 
 
+def _resolve_openwakeword_model_type(module):
+    model_ns = getattr(module, "model", None)
+    model_type = getattr(model_ns, "Model", None) if model_ns else None
+    if model_type is not None:
+        return model_type
+    return getattr(module, "Model", object)
+
+
 def _lazy_import_openwakeword():
     module = _import_optional("openwakeword")
     if module is None:
         return None, object
-    model_cls = getattr(module, "model", None)
-    model_type = getattr(model_cls, "Model", object) if model_cls else object
-    return module, model_type
+    return module, _resolve_openwakeword_model_type(module)
 
 
 WakeWordModel = object
@@ -41,22 +47,24 @@ _WAKEWORD_MODEL = object
 
 def _get_openwakeword():
     global _OPENWAKEWORD_MODULE, _WAKEWORD_MODEL, openwakeword
-    if openwakeword is not None and openwakeword is not _OPENWAKEWORD_MODULE:
+    if openwakeword is not None:
         _OPENWAKEWORD_MODULE = openwakeword
-        _WAKEWORD_MODEL = WakeWordModel if WakeWordModel is not object else object
+        _WAKEWORD_MODEL = (
+            WakeWordModel
+            if WakeWordModel is not object
+            else _resolve_openwakeword_model_type(openwakeword)
+        )
         return _OPENWAKEWORD_MODULE, _WAKEWORD_MODEL
 
     module = sys.modules.get("openwakeword")
-    if module is not None and module is not _OPENWAKEWORD_MODULE:
-        model_cls = getattr(module, "model", None)
+    if module is not None:
         _OPENWAKEWORD_MODULE = module
-        _WAKEWORD_MODEL = getattr(model_cls, "Model", object) if model_cls else object
+        _WAKEWORD_MODEL = _resolve_openwakeword_model_type(module)
         openwakeword = module
         return _OPENWAKEWORD_MODULE, _WAKEWORD_MODEL
 
-    if _OPENWAKEWORD_MODULE is None:
-        _OPENWAKEWORD_MODULE, _WAKEWORD_MODEL = _lazy_import_openwakeword()
-        openwakeword = _OPENWAKEWORD_MODULE
+    _OPENWAKEWORD_MODULE, _WAKEWORD_MODEL = _lazy_import_openwakeword()
+    openwakeword = _OPENWAKEWORD_MODULE
     return _OPENWAKEWORD_MODULE, _WAKEWORD_MODEL
 
 
@@ -69,6 +77,9 @@ from .selection import (  # noqa: E402
 )
 
 logger = logging.getLogger(__name__)
+
+# openWakeWord processes 16 kHz PCM in 80 ms (1,280 sample) streaming frames.
+_OPENWAKEWORD_STREAM_CHUNK_SAMPLES = 1280
 
 # Get defaults from config (with fallbacks)
 try:
@@ -327,6 +338,7 @@ def _load_builtin_openwakeword_model(
         inference_framework=inference_framework,
         enable_speex_noise_suppression=False,  # disabled for Windows compatibility
     )
+    wake_model._rex_stream_chunk_samples = _OPENWAKEWORD_STREAM_CHUNK_SAMPLES
     return wake_model, active_label
 
 
@@ -377,6 +389,7 @@ def load_wakeword_model_with_metadata(
                     inference_framework="onnx",
                     enable_speex_noise_suppression=False,
                 )
+                wake_model._rex_stream_chunk_samples = _OPENWAKEWORD_STREAM_CHUNK_SAMPLES
                 return wake_model, WakeWordModelSelection(
                     requested_backend=resolved_backend,
                     active_backend="custom_onnx",
@@ -519,6 +532,26 @@ def load_wakeword_model_with_metadata(
     )
 
 
+def _predict_wakeword_frame(model: WakeWordModel, audio_frame) -> dict[str, float]:
+    """Predict one Rex detection frame without losing native stream peaks."""
+    chunk_samples = int(getattr(model, "_rex_stream_chunk_samples", 0) or 0)
+    if chunk_samples <= 0 or int(audio_frame.size) <= chunk_samples:
+        raw_predictions = model.predict(audio_frame)  # type: ignore[attr-defined]
+        return {str(key): float(value) for key, value in raw_predictions.items()}
+
+    predictions: dict[str, float] = {}
+    for start in range(0, int(audio_frame.size), chunk_samples):
+        chunk = audio_frame[start : start + chunk_samples]
+        if int(chunk.size) < chunk_samples:
+            chunk = np.pad(chunk, (0, chunk_samples - int(chunk.size)))
+        chunk_predictions = model.predict(chunk)  # type: ignore[attr-defined]
+        for key, value in chunk_predictions.items():
+            label = str(key)
+            score = float(value)
+            predictions[label] = max(predictions.get(label, float("-inf")), score)
+    return predictions
+
+
 def detect_wakeword(
     model: WakeWordModel,
     audio_frame: np.ndarray,  # type: ignore[name-defined]
@@ -572,7 +605,7 @@ def evaluate_wakeword(
         int16_float = np.asarray(audio_frame, dtype=np.float32) / float(np.iinfo(np.int16).max)
         audio_rms, audio_peak = _audio_level(int16_float)
 
-    predictions = model.predict(audio_frame)  # type: ignore[attr-defined]
+    predictions = _predict_wakeword_frame(model, audio_frame)
     predictions = {str(key): float(value) for key, value in predictions.items()}
     logger.debug("Predictions: %s", predictions)
 

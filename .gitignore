@@ -89,6 +89,7 @@ Thumbs.db
 
 # Model training & audio artifacts
 *.wav
+!tests/fixtures/wakeword/*.wav
 *.mp3
 *.onnx
 *.pth

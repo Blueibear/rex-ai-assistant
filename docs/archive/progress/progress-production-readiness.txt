@@ -1393,3 +1393,27 @@ Local evidence so far:
 - Relevant GitHub checks remain pending the story PR.
 
 US-045 GitHub implementation-head gate: PASS. PR #357 corrected head `3657005`; CI run `31234847034`, commitlint run `31234847011`, and Windows Electron Artifact run `31234847017` all completed successfully. Python job `93045346469` passed in 9m13s and installed Windows artifact job `93045346341` passed in 12m12s. This tracker closeout commit must itself receive a final green rerun before merge.
+
+=== 2026-08-07 - US-046 wake word reliability classification ===
+
+Implementation:
+- Added a controlled synthetic acoustic fixture with 4 positive `hey jarvis` samples and 8 conversational/adversarial negatives, generated locally with Windows System.Speech/SAPI and containing no human recordings.
+- Added `tests/test_wakeword_reliability.py`, which evaluates the real built-in openWakeWord fallback, writes the deterministic tracked report at `docs/voice/wakeword-report.md`, and guards the native streaming adapter.
+- Corrected the openWakeWord adapter so longer Rex capture windows are evaluated in native 1,280-sample / 80 ms chunks with peak aggregation instead of one prediction over an arbitrary one-second frame. Custom embedding and unmarked predictors retain their prior full-frame behavior.
+- Updated README, surface classification, voice-pipeline docs, and CLAUDE.md with the measured beta classification and the streaming-chunk invariant.
+
+Local evidence so far:
+- TDD red phase: the streaming regression initially missed the high-confidence middle chunk because `evaluate_wakeword()` called `predict()` only once on the long frame.
+- Controlled acoustic fixture after the adapter fix: TP 4, FN 0, FP 1, TN 7; precision `0.800`, recall `1.000`, median accepted Rex detection-window end `1000 ms`. The `jarvis`-only negative is the false positive, so the `0.90`/`0.90` promotion threshold fails and wake-word remains beta.
+- `pytest` across all 144 wake-related tests: 144 passed (3 existing deprecation warnings).
+- Tracked report SHA-256 remained `544B993AD9DE84537AFE2C74DEBB26D60B7089D855717014C954006AE16223D9` before and after rerunning the suite, proving deterministic report bytes.
+- Ruff and Black on changed Python paths: pass. Repo-configured mypy: 377 source files, no issues. Skip-inventory validation and `git diff --check`: pass.
+- Relevant GitHub checks remain pending the story PR.
+
+US-046 first GitHub implementation-head run `31236547722` exposed two repository/test-environment contract issues: the repository-integrity test rejected the intentionally tracked synthetic WAV corpus, and the standard `.[dev]` test environment did not install the optional `openwakeword` detector. Remediation keeps the general no-binary rule intact with a narrow `tests/fixtures/wakeword/` exception, pins `openwakeword==0.6.0` in the development extra only (not the default runtime install), and records the detector version in the tracked report. The corrected implementation head requires a fresh GitHub rerun before the story can close.
+
+US-046 second GitHub implementation-head run `31237195572` proved the dev-only `openwakeword==0.6.0` install and binary-fixture exception were correct, but the full-suite order exposed stale optional-module cache state: a model-selection test temporarily installed parallel fake openWakeWord aliases, `_get_openwakeword()` cached the bare module with `Model=object`, and that cache survived monkeypatch teardown. Two TDD regressions now cover restored-module model-class resolution and stale-cache refresh. The resolver follows the live compatibility alias while present, otherwise `sys.modules`, and re-imports when neither is live. The exact previously failing model-selection -> acoustic-reliability -> repository-integrity order is 19/19 green locally; the complete wake/integrity sweep is 148/148 green with an unchanged tracked-report SHA-256. A fresh GitHub rerun is required before closeout.
+
+Pre-push full local CI-equivalent validation after the cache fix: `pytest -m "not slow and not audio and not gpu" -rs --cov=rex --cov-fail-under=75 --cov-report=term-missing --cov-report=html --cov-report=xml` completed with 8,472 passed, 49 skipped, and 83.32% total coverage in 9m23s (exit 0). This run includes the exact full-suite ordering that previously polluted the openWakeWord cache.
+
+US-046 GitHub implementation-head gate: PASS. PR #358 head `c2978e938337e8b288c43b060d379d129113bcda`; CI run `31240422060` completed successfully, including Python job `93060342800` in 9m38s. Windows artifact run `31240422062`, job `93060342614`, completed successfully in 11m24s. Commitlint run `31240422058` also passed, and every required PR check is green with merge state CLEAN. This tracker closeout commit must itself receive a final green rerun before merge.

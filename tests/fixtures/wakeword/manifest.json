@@ -1,0 +1,90 @@
+{
+  "sample_rate_hz": 22050,
+  "source": "Synthesized locally with Windows System.Speech/SAPI; no human recordings.",
+  "samples": [
+    {
+      "file": "pos_01.wav",
+      "label": "positive",
+      "voice": "Microsoft David Desktop",
+      "rate": -2,
+      "phrase": "hey jarvis"
+    },
+    {
+      "file": "pos_02.wav",
+      "label": "positive",
+      "voice": "Microsoft David Desktop",
+      "rate": 2,
+      "phrase": "hey jarvis"
+    },
+    {
+      "file": "pos_03.wav",
+      "label": "positive",
+      "voice": "Microsoft Zira Desktop",
+      "rate": -2,
+      "phrase": "hey jarvis"
+    },
+    {
+      "file": "pos_04.wav",
+      "label": "positive",
+      "voice": "Microsoft Zira Desktop",
+      "rate": 2,
+      "phrase": "hey jarvis"
+    },
+    {
+      "file": "neg_05.wav",
+      "label": "negative",
+      "voice": "Microsoft David Desktop",
+      "rate": 0,
+      "phrase": "hello there"
+    },
+    {
+      "file": "neg_06.wav",
+      "label": "negative",
+      "voice": "Microsoft David Desktop",
+      "rate": 0,
+      "phrase": "hey james"
+    },
+    {
+      "file": "neg_07.wav",
+      "label": "negative",
+      "voice": "Microsoft David Desktop",
+      "rate": 0,
+      "phrase": "where are you"
+    },
+    {
+      "file": "neg_08.wav",
+      "label": "negative",
+      "voice": "Microsoft David Desktop",
+      "rate": 0,
+      "phrase": "play some music"
+    },
+    {
+      "file": "neg_09.wav",
+      "label": "negative",
+      "voice": "Microsoft Zira Desktop",
+      "rate": 0,
+      "phrase": "good morning"
+    },
+    {
+      "file": "neg_10.wav",
+      "label": "negative",
+      "voice": "Microsoft Zira Desktop",
+      "rate": 0,
+      "phrase": "tell me the weather"
+    },
+    {
+      "file": "neg_11.wav",
+      "label": "negative",
+      "voice": "Microsoft Zira Desktop",
+      "rate": 0,
+      "phrase": "hey siri"
+    },
+    {
+      "file": "neg_12.wav",
+      "label": "negative",
+      "voice": "Microsoft Zira Desktop",
+      "rate": 0,
+      "phrase": "jarvis"
+    }
+  ]
+}
