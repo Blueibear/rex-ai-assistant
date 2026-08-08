@@ -1618,7 +1618,7 @@ pytest tests/test_voice_latency_budget.py -q
 - [x] On speaker init failure, the same holds.
 - [x] A test confirms the error is surfaced to the IPC handler with a user-actionable message.
 - [x] `docs/troubleshooting.md` lists the new errors.
-- [ ] All relevant GitHub checks pass.
+- [x] All relevant GitHub checks pass. (PR #357 corrected implementation head `3657005`; CI run `31234847034`, commitlint run `31234847011`, and Windows Electron Artifact run `31234847017` passed. Python job `93045346469` passed in 9m13s and installed Windows artifact job `93045346341` passed in 12m12s.)
 
 **Validation commands:**
 ```bash
