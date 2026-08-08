@@ -60,7 +60,8 @@ def test_risk_classification_is_fail_closed() -> None:
     assert classify_ha_risk("lock", "unlock") == HARisk.SENSITIVE
     assert classify_ha_risk("alarm_control_panel", "alarm_disarm") == HARisk.SENSITIVE
     assert classify_ha_risk("cover", "open_cover") == HARisk.SENSITIVE
-    assert classify_ha_risk("script", "turn_on") == HARisk.PROHIBITED
+    assert classify_ha_risk("script", "turn_on") == HARisk.SENSITIVE
+    assert classify_ha_risk("scene", "turn_on") == HARisk.SENSITIVE
     assert classify_ha_risk("unknown", "do_thing") == HARisk.PROHIBITED
 
 
@@ -172,7 +173,7 @@ def test_invalid_or_prohibited_commands_never_dispatch(tmp_path: Path) -> None:
     client = FakeHAClient()
     svc = service(tmp_path, client)
     mismatch = mutation(entity="lock.front", domain="light")
-    prohibited = mutation(entity="script.cleanup", domain="script")
+    prohibited = mutation(entity="automation.cleanup", domain="automation")
     assert svc.execute(mismatch).status == HAOutcome.DENIED
     assert svc.execute(prohibited).status == HAOutcome.DENIED
     assert client.calls == []

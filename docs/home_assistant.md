@@ -69,8 +69,8 @@ Results also contain `expected`, `actual`, and `latency_ms` evidence. User-facin
 | Risk | Domains | Behavior |
 |---|---|---|
 | Safe | `light`, `switch`, `fan`, `climate`, `media_player` | Dispatch and verify when a proof rule exists. |
-| Sensitive | `lock`, `alarm_control_panel`, `cover` (including garage doors) | Require explicit confirmation before dispatch. |
-| Prohibited | `automation`, `hassio`, `homeassistant`, `python_script`, `script`, `shell_command`, `update`, and unknown domains | Fail closed; no dispatch. |
+| Sensitive | `lock`, `alarm_control_panel`, `cover` (including garage doors), broad `script.*`, broad `scene.*` | Require explicit confirmation before dispatch; the first call returns `confirmation_required` and performs no side effect. |
+| Prohibited | `automation`, `hassio`, `homeassistant`, `python_script`, `shell_command`, `update`, and unknown domains | Fail closed; no dispatch. |
 
 Confirmations are signed and bound to the validated user, entity, domain, service, complete
 parameter set, expiration, and a random nonce. They are single-use; expired, replayed, modified,
