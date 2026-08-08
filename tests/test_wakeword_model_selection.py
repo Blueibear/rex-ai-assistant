@@ -41,6 +41,42 @@ def _install_dummy_openwakeword(monkeypatch, models):
 
 
 @pytest.mark.unit
+def test_get_openwakeword_resolves_model_class_from_restored_module(monkeypatch):
+    restored = types.SimpleNamespace(
+        MODELS={"hey_jarvis": object()},
+        model=types.SimpleNamespace(Model=DummyWakeModel),
+    )
+    monkeypatch.setattr(wake_utils, "openwakeword", restored)
+    monkeypatch.setattr(wake_utils, "WakeWordModel", object)
+    monkeypatch.setattr(wake_utils, "_OPENWAKEWORD_MODULE", object())
+    monkeypatch.setattr(wake_utils, "_WAKEWORD_MODEL", object)
+
+    module, model_cls = wake_utils._get_openwakeword()
+
+    assert module is restored
+    assert model_cls is DummyWakeModel
+
+
+@pytest.mark.unit
+def test_get_openwakeword_refreshes_stale_cache_when_alias_removed(monkeypatch):
+    stale = types.SimpleNamespace(MODELS={})
+    fresh = types.SimpleNamespace(
+        MODELS={"hey_jarvis": object()},
+        model=types.SimpleNamespace(Model=DummyWakeModel),
+    )
+    monkeypatch.setattr(wake_utils, "openwakeword", None)
+    monkeypatch.setattr(wake_utils, "_OPENWAKEWORD_MODULE", stale)
+    monkeypatch.setattr(wake_utils, "_WAKEWORD_MODEL", object)
+    monkeypatch.delitem(sys.modules, "openwakeword", raising=False)
+    monkeypatch.setattr(wake_utils, "_lazy_import_openwakeword", lambda: (fresh, DummyWakeModel))
+
+    module, model_cls = wake_utils._get_openwakeword()
+
+    assert module is fresh
+    assert model_cls is DummyWakeModel
+
+
+@pytest.mark.unit
 def test_openwakeword_invalid_keyword_falls_back_to_hey_jarvis(monkeypatch, caplog):
     models = {
         "hey_jarvis": {

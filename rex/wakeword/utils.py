@@ -24,13 +24,19 @@ def _import_optional(module_name: str):
 np = _import_optional("numpy")
 
 
+def _resolve_openwakeword_model_type(module):
+    model_ns = getattr(module, "model", None)
+    model_type = getattr(model_ns, "Model", None) if model_ns else None
+    if model_type is not None:
+        return model_type
+    return getattr(module, "Model", object)
+
+
 def _lazy_import_openwakeword():
     module = _import_optional("openwakeword")
     if module is None:
         return None, object
-    model_cls = getattr(module, "model", None)
-    model_type = getattr(model_cls, "Model", object) if model_cls else object
-    return module, model_type
+    return module, _resolve_openwakeword_model_type(module)
 
 
 WakeWordModel = object
@@ -41,22 +47,24 @@ _WAKEWORD_MODEL = object
 
 def _get_openwakeword():
     global _OPENWAKEWORD_MODULE, _WAKEWORD_MODEL, openwakeword
-    if openwakeword is not None and openwakeword is not _OPENWAKEWORD_MODULE:
+    if openwakeword is not None:
         _OPENWAKEWORD_MODULE = openwakeword
-        _WAKEWORD_MODEL = WakeWordModel if WakeWordModel is not object else object
+        _WAKEWORD_MODEL = (
+            WakeWordModel
+            if WakeWordModel is not object
+            else _resolve_openwakeword_model_type(openwakeword)
+        )
         return _OPENWAKEWORD_MODULE, _WAKEWORD_MODEL
 
     module = sys.modules.get("openwakeword")
-    if module is not None and module is not _OPENWAKEWORD_MODULE:
-        model_cls = getattr(module, "model", None)
+    if module is not None:
         _OPENWAKEWORD_MODULE = module
-        _WAKEWORD_MODEL = getattr(model_cls, "Model", object) if model_cls else object
+        _WAKEWORD_MODEL = _resolve_openwakeword_model_type(module)
         openwakeword = module
         return _OPENWAKEWORD_MODULE, _WAKEWORD_MODEL
 
-    if _OPENWAKEWORD_MODULE is None:
-        _OPENWAKEWORD_MODULE, _WAKEWORD_MODEL = _lazy_import_openwakeword()
-        openwakeword = _OPENWAKEWORD_MODULE
+    _OPENWAKEWORD_MODULE, _WAKEWORD_MODEL = _lazy_import_openwakeword()
+    openwakeword = _OPENWAKEWORD_MODULE
     return _OPENWAKEWORD_MODULE, _WAKEWORD_MODEL
 
 
