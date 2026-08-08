@@ -51,7 +51,8 @@ const INTEGRATION_SECRET_FIELDS: SecretFieldSpec[] = [
   { field: 'phoneAuthToken', logicalName: 'TWILIO_PHONE_AUTH_TOKEN', context: { scope: 'household', integration: 'twilio', account: 'phone', slot: 'auth_token' } },
   { field: 'phoneNumber', logicalName: 'TWILIO_PHONE_NUMBER', context: { scope: 'household', integration: 'twilio', account: 'phone', slot: 'phone_number' } },
   { field: 'phoneTransferNumber', logicalName: 'TWILIO_TRANSFER_NUMBER', context: { scope: 'household', integration: 'twilio', account: 'phone', slot: 'transfer_number' } },
-  { field: 'telegramBotToken', logicalName: 'TELEGRAM_BOT_TOKEN', context: { scope: 'household', integration: 'telegram', account: null, slot: 'token' } }
+  { field: 'telegramBotToken', logicalName: 'TELEGRAM_BOT_TOKEN', context: { scope: 'household', integration: 'telegram', account: null, slot: 'token' } },
+  { field: 'openclawToken', logicalName: 'OPENCLAW_GATEWAY_TOKEN', context: { scope: 'household', integration: 'openclaw_gateway', account: null, slot: 'token' } }
 ]
 
 /** Derive a short integration name for vault metadata, e.g. OPENAI_API_KEY -> openai. */
@@ -90,6 +91,20 @@ export function registerSettingsHandlers(session: ElectronSessionIdentity): void
       ...((stored.integrations ?? {}) as Record<string, unknown>)
     } as Record<string, unknown>
     const config = readRexConfigStrict()
+    const explicitIntegrations = (stored.integrations ?? {}) as Record<string, unknown>
+    const openclaw = config.openclaw && typeof config.openclaw === 'object'
+      ? config.openclaw as Record<string, unknown>
+      : {}
+    if (!Object.prototype.hasOwnProperty.call(explicitIntegrations, 'openclawGatewayUrl')) {
+      integrations.openclawGatewayUrl =
+        typeof openclaw.gateway_url === 'string' ? openclaw.gateway_url : ''
+    }
+    if (!Object.prototype.hasOwnProperty.call(explicitIntegrations, 'openclawToolsEnabled')) {
+      integrations.openclawToolsEnabled = openclaw.use_tools === true
+    }
+    if (!Object.prototype.hasOwnProperty.call(explicitIntegrations, 'openclawVoiceEnabled')) {
+      integrations.openclawVoiceEnabled = openclaw.use_voice_backend === true
+    }
     const credentialStatus: Record<string, { ref: string; hasCredential: boolean }> = {}
     for (const spec of INTEGRATION_SECRET_FIELDS) {
       integrations[spec.field] = ''

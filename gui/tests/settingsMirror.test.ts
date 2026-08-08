@@ -84,4 +84,20 @@ describe('mirrorToRexConfig truthful failures (S4)', () => {
     const result = mirrorToRexConfig('unmapped-section', {} as never)
     expect(result).toEqual({ ok: true })
   })
+  it('mirrors OpenClaw URL and enabled flags into the canonical block', () => {
+    const result = mirrorToRexConfig('integrations', {
+      openclawGatewayUrl: 'http://127.0.0.1:18789',
+      openclawToolsEnabled: true,
+      openclawVoiceEnabled: false
+    } as never)
+    expect(result).toEqual({ ok: true })
+    expect(mockWriteRexConfig).toHaveBeenCalledWith(expect.objectContaining({
+      openclaw: expect.objectContaining({
+        gateway_url: 'http://127.0.0.1:18789',
+        use_tools: true,
+        use_voice_backend: false
+      })
+    }))
+  })
+
 })

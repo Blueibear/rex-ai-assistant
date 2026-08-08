@@ -1802,12 +1802,12 @@ pytest tests/test_openclaw_health.py -q
 - `gui/src/preload/`
 
 **Acceptance Criteria:**
-- [ ] A page shows gateway URL, connection health, enabled flags, last error.
-- [ ] Toggling either flag persists via IPC.
-- [ ] Page renders an experimental warning.
-- [ ] If OpenClaw is intentionally developer-only, production Electron UI hides normal-user controls and docs say how a developer enables it.
-- [ ] If OpenClaw is user-configurable, Integrations and Settings both expose honest status, configuration, disable, and health-check controls.
-- [ ] `cd gui && npm run typecheck && npm run build` passes.
+- [x] A page shows gateway URL, connection health, enabled flags, last error.
+- [x] Toggling either flag persists via IPC.
+- [x] Page renders an experimental warning.
+- [x] Developer-only branch is not applicable: the user-configurable path was selected and implemented instead.
+- [x] If OpenClaw is user-configurable, Integrations and Settings both expose honest status, configuration, disable, and health-check controls.
+- [x] `cd gui && npm run typecheck && npm run build` passes. *(Validated locally with npm 10.9.2; full GUI Vitest suite also passed 108/108.)*
 - [ ] Manual: page renders in packaged app.
 - [ ] All relevant GitHub checks pass.
 

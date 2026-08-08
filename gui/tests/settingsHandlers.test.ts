@@ -54,6 +54,7 @@ const ref = `cred_${'S'.repeat(32)}`
 const openAiContext = { scope: 'household', integration: 'openai', account: null, slot: 'api_key' }
 const openRouterContext = { scope: 'household', integration: 'openrouter', account: null, slot: 'api_key' }
 const haContext = { scope: 'household', integration: 'home_assistant', account: null, slot: 'token' }
+const openClawContext = { scope: 'household', integration: 'openclaw_gateway', account: null, slot: 'token' }
 const emailContext = { scope: 'user', integration: 'email', account: 'work', slot: 'password' }
 let guiSettings: Record<string, unknown>
 let rexConfig: Record<string, unknown>
@@ -354,4 +355,46 @@ describe('settings vault routing (S4)', () => {
     expect(guiSettings).toEqual(originalGui)
     expect(rexConfig).toEqual(originalConfig)
   })
+  it('stores the OpenClaw gateway token in the vault and never in GUI settings', async () => {
+    const result = await invoke('rex:setSettings', 'integrations', {
+      openclawGatewayUrl: 'http://127.0.0.1:18789',
+      openclawToolsEnabled: true,
+      openclawVoiceEnabled: false,
+      openclawToken: 'openclaw-secret'
+    })
+    expect(result).toEqual({ ok: true })
+    expect(mockVault.vaultSetSecret).toHaveBeenCalledWith(session, 'openclaw-secret', openClawContext)
+    expect(JSON.stringify(guiSettings)).not.toContain('openclaw-secret')
+    expect((guiSettings.integrations as Record<string, unknown>).openclawToken).toBe('')
+    expect(rexConfig).toHaveProperty('credential_refs.household.OPENCLAW_GATEWAY_TOKEN')
+  })
+
+  it('hydrates unsaved OpenClaw GUI fields from existing rex_config without exposing the token', async () => {
+    rexConfig = {
+      openclaw: {
+        gateway_url: 'http://existing-openclaw:18789',
+        use_tools: true,
+        use_voice_backend: false
+      },
+      credential_refs: {
+        household: {
+          OPENCLAW_GATEWAY_TOKEN: {
+            ref, integration: 'openclaw_gateway', account: null, slot: 'token'
+          }
+        }
+      }
+    }
+    mockVault.vaultHasSecret.mockResolvedValue(true)
+    const loaded = await invoke('rex:getSettings', 'integrations') as Record<string, unknown>
+    expect(loaded).toMatchObject({
+      openclawGatewayUrl: 'http://existing-openclaw:18789',
+      openclawToolsEnabled: true,
+      openclawVoiceEnabled: false,
+      openclawToken: ''
+    })
+    expect(loaded.credentialStatus).toMatchObject({
+      openclawToken: { ref, hasCredential: true }
+    })
+  })
+
 })

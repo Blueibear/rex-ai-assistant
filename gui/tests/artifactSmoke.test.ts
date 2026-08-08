@@ -29,7 +29,9 @@ describe('installed artifact smoke', () => {
       ok: true,
       typed_ipc: true,
       chat: 'AskRex installed artifact chat verified',
-      memories_count: 0
+      memories_count: 0,
+      openclaw_settings: true,
+      openclaw_settings_read_write: true
     })
     const window = {
       webContents: {
@@ -44,6 +46,11 @@ describe('installed artifact smoke', () => {
     loaded?.()
     await vi.waitFor(() => expect(writeFileSync).toHaveBeenCalledOnce())
     expect(executeJavaScript).toHaveBeenCalledOnce()
+    const smokeScript = executeJavaScript.mock.calls[0][0] as string
+    expect(smokeScript).toContain("#/settings?section=integrations")
+    expect(smokeScript).toContain("openclawGatewayUrl")
+    expect(smokeScript).toContain("Enable OpenClaw tools")
+    expect(smokeScript).toContain("setSettings('integrations'")
     expect(writeFileSync).toHaveBeenCalledWith(
       'smoke-result.json',
       expect.stringContaining('"typed_ipc": true'),

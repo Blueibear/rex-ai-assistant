@@ -78,6 +78,10 @@ export const defaultSettingsMap: Record<string, Settings> = {
     contactsFilePath: '',
     telegramBotToken: '',
     telegramChatId: '',
+    openclawGatewayUrl: '',
+    openclawToolsEnabled: false,
+    openclawVoiceEnabled: false,
+    openclawToken: '',
     credentialStatus: {}
   } satisfies IntegrationsSettings,
   system: {

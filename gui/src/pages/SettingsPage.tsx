@@ -2261,14 +2261,6 @@ function AiPanel(): React.ReactElement {
     <div className="p-6 max-w-lg">
       <h2 className="text-lg font-semibold text-text-primary mb-6">AI</h2>
 
-      <div className="mb-6 rounded-xl border border-warning/40 bg-warning/5 p-4">
-        <div className="text-sm font-semibold text-text-primary">OpenClaw</div>
-        <div className="mt-1 text-xs font-medium text-warning">Experimental - off by default</div>
-        <p className="mt-2 text-xs text-text-secondary">
-          Gateway-backed tools and voice stay disabled unless an operator explicitly configures both a gateway URL and credential token.
-        </p>
-      </div>
-
       {/* Personality */}
       <div className="mb-6">
         <div className="flex items-center justify-between mb-2">
@@ -2748,7 +2740,7 @@ function AiPanel(): React.ReactElement {
   )
 }
 
-type IntegrationSection = 'email' | 'calendar' | 'sms' | 'homeassistant' | 'phone'
+type IntegrationSection = 'email' | 'calendar' | 'sms' | 'homeassistant' | 'phone' | 'openclaw'
 type TestStatus = 'idle' | 'testing' | 'configured' | 'ok' | 'error'
 
 function integrationStatusToTestStatus(state: IntegrationInventoryItem['state']): TestStatus {
@@ -2759,7 +2751,7 @@ function integrationStatusToTestStatus(state: IntegrationInventoryItem['state'])
 }
 
 function integrationKeyToSection(key: string): IntegrationSection | null {
-  if (key === 'email' || key === 'calendar' || key === 'sms' || key === 'homeassistant' || key === 'phone') {
+  if (key === 'email' || key === 'calendar' || key === 'sms' || key === 'homeassistant' || key === 'phone' || key === 'openclaw') {
     return key
   }
   return null
@@ -2768,7 +2760,7 @@ function integrationKeyToSection(key: string): IntegrationSection | null {
 const INTEGRATION_SECRET_FIELDS = new Set<keyof IntegrationsSettings>([
   'emailClientSecret', 'calendarClientSecret', 'smsSid', 'smsAuthToken',
   'smsFromNumber', 'haToken', 'phoneSid', 'phoneAuthToken', 'phoneNumber',
-  'phoneTransferNumber', 'telegramBotToken'
+  'phoneTransferNumber', 'telegramBotToken', 'openclawToken'
 ])
 
 function isIntegrationSecretField(field: keyof IntegrationsSettings): boolean {
@@ -2799,6 +2791,14 @@ function sectionsForIntegrationField(field: keyof IntegrationsSettings): Integra
   }
   if (field === 'phoneSid' || field === 'phoneAuthToken' || field === 'phoneNumber') {
     return ['phone']
+  }
+  if (
+    field === 'openclawGatewayUrl' ||
+    field === 'openclawToolsEnabled' ||
+    field === 'openclawVoiceEnabled' ||
+    field === 'openclawToken'
+  ) {
+    return ['openclaw']
   }
   return []
 }
@@ -3020,6 +3020,10 @@ function IntegrationsPanel(): React.ReactElement {
     contactsFilePath: '',
     telegramBotToken: '',
     telegramChatId: '',
+    openclawGatewayUrl: '',
+    openclawToolsEnabled: false,
+    openclawVoiceEnabled: false,
+    openclawToken: '',
     credentialStatus: {}
   })
   const [loading, setLoading] = useState(true)
@@ -3029,7 +3033,8 @@ function IntegrationsPanel(): React.ReactElement {
     calendar: 'idle',
     sms: 'idle',
     homeassistant: 'idle',
-    phone: 'idle'
+    phone: 'idle',
+    openclaw: 'idle'
   })
   const [testErrors, setTestErrors] = useState<Partial<Record<IntegrationSection, string>>>({})
   const savedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -3146,6 +3151,10 @@ function IntegrationsPanel(): React.ReactElement {
           contactsFilePath: typeof settings.contactsFilePath === 'string' ? settings.contactsFilePath : '',
           telegramBotToken: typeof settings.telegramBotToken === 'string' ? settings.telegramBotToken : '',
           telegramChatId: typeof settings.telegramChatId === 'string' ? settings.telegramChatId : '',
+          openclawGatewayUrl: typeof settings.openclawGatewayUrl === 'string' ? settings.openclawGatewayUrl : '',
+          openclawToolsEnabled: settings.openclawToolsEnabled === true,
+          openclawVoiceEnabled: settings.openclawVoiceEnabled === true,
+          openclawToken: typeof settings.openclawToken === 'string' ? settings.openclawToken : '',
           credentialStatus:
             settings.credentialStatus && typeof settings.credentialStatus === 'object'
               ? settings.credentialStatus as IntegrationsSettings['credentialStatus']
@@ -3858,6 +3867,81 @@ function IntegrationsPanel(): React.ReactElement {
       </section>
 
       <div className="border-t border-border mb-7" />
+
+      {/* OpenClaw section */}
+      <section className="mb-7">
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <div>
+            <h3 className="text-sm font-semibold text-text-primary">OpenClaw</h3>
+            <div className="mt-1 text-xs font-medium text-warning">Experimental - off by default</div>
+          </div>
+          <ConnectionBadge
+            status={testStatus.openclaw}
+            hasCredentials={form.openclawGatewayUrl.trim() !== '' && hasStoredCredential(form, 'openclawToken')}
+          />
+        </div>
+        <p className="mb-4 text-xs text-text-secondary">
+          Optional external capability gateway. The token stays in the credential vault and is never returned to the renderer after saving.
+        </p>
+        <div className="mb-4">
+          <div className="mb-1.5 flex items-center justify-between">
+            <label htmlFor="openclawGatewayUrl" className="text-sm font-medium text-text-primary">Gateway URL</label>
+            <SavedIndicator visible={savedField === 'openclawGatewayUrl'} />
+          </div>
+          <input
+            id="openclawGatewayUrl"
+            type="url"
+            value={form.openclawGatewayUrl}
+            placeholder="http://127.0.0.1:18789"
+            onChange={(e) => setForm((f) => ({ ...f, openclawGatewayUrl: e.target.value }))}
+            onBlur={(e) => handleFieldChange('openclawGatewayUrl', e.target.value)}
+            className={inputClass}
+          />
+        </div>
+        <div className="mb-4">
+          <div className="mb-1.5 flex items-center justify-between">
+            <label htmlFor="openclawToken" className="text-sm font-medium text-text-primary">Gateway Token</label>
+            <SavedIndicator visible={savedField === 'openclawToken'} />
+          </div>
+          <PasswordInput
+            id="openclawToken"
+            value={form.openclawToken}
+            placeholder={hasStoredCredential(form, 'openclawToken') ? 'Stored credential (enter to replace)' : 'Enter gateway token'}
+            onChange={(v) => setForm((f) => ({ ...f, openclawToken: v }))}
+            onBlur={() => { if (form.openclawToken) handleFieldChange('openclawToken', form.openclawToken) }}
+          />
+        </div>
+        <div className="mb-4 space-y-2">
+          <label className="flex items-center gap-2 text-sm text-text-primary">
+            <input
+              type="checkbox"
+              checked={form.openclawToolsEnabled}
+              disabled={form.openclawGatewayUrl.trim() === '' || (!hasStoredCredential(form, 'openclawToken') && form.openclawToken.trim() === '')}
+              onChange={(e) => handleFieldChange('openclawToolsEnabled', e.target.checked)}
+            />
+            Enable OpenClaw tools
+          </label>
+          <label className="flex items-center gap-2 text-sm text-text-primary">
+            <input
+              type="checkbox"
+              checked={form.openclawVoiceEnabled}
+              disabled={form.openclawGatewayUrl.trim() === '' || (!hasStoredCredential(form, 'openclawToken') && form.openclawToken.trim() === '')}
+              onChange={(e) => handleFieldChange('openclawVoiceEnabled', e.target.checked)}
+            />
+            Enable OpenClaw voice backend
+          </label>
+        </div>
+        <TestConnectionButton
+          status={testStatus.openclaw}
+          error={testErrors.openclaw}
+          onTest={() => handleTest('openclaw')}
+        />
+        {testStatus.openclaw === 'configured' && !testErrors.openclaw && (
+          <p className="mt-2 text-xs text-text-secondary">
+            Gateway reachable; authentication and tool capability are not yet proven.
+          </p>
+        )}
+      </section>
 
       {/* Phone (Twilio) section */}
       <section className="mb-2">

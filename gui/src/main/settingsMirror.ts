@@ -150,6 +150,17 @@ export function mirrorToRexConfig(section: string, values: Settings): MirrorResu
         telegram.chat_id = values.telegramChatId.trim()
         rexConfig.telegram = telegram
       }
+      const openclaw = ((rexConfig.openclaw ?? {}) as Record<string, unknown>)
+      if (typeof values.openclawGatewayUrl === 'string') {
+        openclaw.gateway_url = values.openclawGatewayUrl.trim()
+      }
+      if (typeof values.openclawToolsEnabled === 'boolean') {
+        openclaw.use_tools = values.openclawToolsEnabled
+      }
+      if (typeof values.openclawVoiceEnabled === 'boolean') {
+        openclaw.use_voice_backend = values.openclawVoiceEnabled
+      }
+      rexConfig.openclaw = openclaw
       writeRexConfig(rexConfig)
     }
 

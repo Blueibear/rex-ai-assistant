@@ -10,6 +10,12 @@ Normal OpenClaw requests use the configured `openclaw_gateway_max_retries` as a 
 
 There is no sticky circuit breaker. A fallback applies only to the failed call, so a later request probes/uses the gateway again and automatically resumes remote execution when it has recovered.
 
+## Electron GUI configuration
+
+OpenClaw is user-configurable under **Settings -> Integrations** and is also listed on the main **Integrations** inventory. Both surfaces label it **Experimental - off by default**. The settings panel exposes the gateway URL, separate tools and voice-backend enable flags, the current connection-test result/last error, and a **Test connection** action. The Integrations inventory exposes the current evidence state plus its own **Test connection** and Configure actions.
+
+The gateway token is a credential-vault secret. The renderer receives only a blank password field plus non-secret credential-presence metadata; health checks retrieve the token inside the Electron main process and never return it to renderer code. Existing `rex_config.json` OpenClaw URL/flags are hydrated into the GUI on first use and are not overwritten by synthesized GUI defaults. Enabling either runtime flag still fails closed in Python startup validation unless both URL and token are configured. A successful GUI health check is reported only as gateway **Reachable**; it does not claim authentication or tool capability was verified.
+
 Tracks every Rex module's migration state as Rex pivots to an OpenClaw-based architecture.
 
 **Classifications:**
