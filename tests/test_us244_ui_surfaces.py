@@ -13,29 +13,25 @@ DEPRECATION_HEADER = "\n".join(
 def test_ui_surfaces_doc_exists_with_expected_rows() -> None:
     text = (ROOT / "docs" / "UI_SURFACES.md").read_text(encoding="utf-8")
 
-    assert "| CLI (text chat) | `rex` | **Primary — keep** | Core text interface |" in text
     assert (
-        "| Voice loop | `python rex_loop.py` | Developer / advanced | Source voice entry point; wake-word mode remains beta |"
+        "| CLI (text chat) | `rex` | **Shippable** | Core text interface; canonical CLI entry point |"
+        in text
+    )
+    assert "| Voice loop | `python rex_loop.py` | **Developer-only** |" in text
+    assert (
+        "| Electron desktop GUI | Installed AskRex app or `cd gui && npm.cmd run dev` | **Shippable** |"
         in text
     )
     assert (
-        "| Electron desktop GUI | Installed AskRex app or `cd gui && npm.cmd run dev` | **Primary GUI — keep** | Packaged app uses canonical `resources/bridge/` scripts and its managed Python runtime; source command is development-only |"
+        "| Python/Flask local API and experimental web dashboard | `rex-gui` | **Developer-only** |"
         in text
     )
+    assert "| Shopping PWA | served by `rex` or `rex-gui` | **Archived** |" in text
+    assert "| TTS API | `rex-speak-api` | **Developer-only** |" in text
+    assert "| OpenClaw tool server | `rex-tool-server` | **Experimental** |" in text
+    assert "| Windows computer agent | `rex-agent` | **Developer-only** |" in text
     assert (
-        "| Python/Flask local API and experimental web dashboard | `rex-gui` | Compatibility/API surface — keep | Starts Flask on `127.0.0.1:8765`, serves local `/api/...` routes and an incomplete `/ui/` browser dashboard; not the primary GUI |"
-        in text
-    )
-    assert (
-        "| Shopping PWA | served by `rex` or `rex-gui` | **Archived** | Surface archived to `/archived/shopping_pwa/`; shopping list logic (`rex/shopping_list.py`) remains |"
-        in text
-    )
-    assert (
-        "| TTS API | `rex-speak-api` | Developer-only service | Optional standalone authenticated TTS service; Electron voice does not require it |"
-        in text
-    )
-    assert (
-        "| Tkinter window (`gui.py`) | `python archived/tkinter_gui/run_gui.py` | **Archived** | Superseded by the Electron desktop GUI; moved to `/archived/tkinter_gui/` |"
+        "| Tkinter window (`gui.py`) | `python archived/tkinter_gui/run_gui.py` | **Archived** |"
         in text
     )
 

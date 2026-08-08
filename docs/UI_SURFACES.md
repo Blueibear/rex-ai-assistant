@@ -4,15 +4,15 @@ This is the active inventory of UI and user-facing service surfaces that ship in
 
 | Surface | Entry point | Status | Notes |
 |---|---|---|---|
-| CLI (text chat) | `rex` | **Primary — keep** | Core text interface |
-| Voice loop | `python rex_loop.py` | Developer / advanced | Source voice entry point; wake-word mode remains beta |
-| Electron desktop GUI | Installed AskRex app or `cd gui && npm.cmd run dev` | **Primary GUI — keep** | Packaged app uses canonical `resources/bridge/` scripts and its managed Python runtime; source command is development-only |
-| Python/Flask local API and experimental web dashboard | `rex-gui` | Compatibility/API surface — keep | Starts Flask on `127.0.0.1:8765`, serves local `/api/...` routes and an incomplete `/ui/` browser dashboard; not the primary GUI |
+| CLI (text chat) | `rex` | **Shippable** | Core text interface; canonical CLI entry point |
+| Voice loop | `python rex_loop.py` | **Developer-only** | Source voice entry point; wake-word mode remains beta. Packaged Electron Hold-to-Talk is the supported end-user voice path |
+| Electron desktop GUI | Installed AskRex app or `cd gui && npm.cmd run dev` | **Shippable** | Primary packaged end-user GUI; development command is source-only |
+| Python/Flask local API and experimental web dashboard | `rex-gui` | **Developer-only** | Local Flask API plus incomplete `/ui/` browser dashboard; not the primary GUI and not required by Electron |
 | Shopping PWA | served by `rex` or `rex-gui` | **Archived** | Surface archived to `/archived/shopping_pwa/`; shopping list logic (`rex/shopping_list.py`) remains |
-| TTS API | `rex-speak-api` | Developer-only service | Optional standalone authenticated TTS service; Electron voice does not require it |
-| OpenClaw tool server | `rex-tool-server` | Experimental service | Optional tool adapter on `127.0.0.1:18790`; requires `REX_TOOL_API_KEY` |
-| Windows computer agent | `rex-agent` | Experimental service | Optional remote PC control agent API |
-| Flask proxy | `python flask_proxy.py` | **Deprecated** | Root-level legacy API/proxy; scheduled for removal. Use `rex-gui` instead. See SURFACE-CLASSIFICATION.md. |
+| TTS API | `rex-speak-api` | **Developer-only** | Optional standalone authenticated TTS service; Electron voice does not require it |
+| OpenClaw tool server | `rex-tool-server` | **Experimental** | Optional tool adapter; off by default and subject to explicit gateway configuration |
+| Windows computer agent | `rex-agent` | **Developer-only** | Optional permission-gated remote PC control service |
+| Flask proxy | `python flask_proxy.py` | **Deprecated** | Root-level legacy API/proxy; scheduled for removal. Use `rex-gui` instead. |
 | Tkinter window (`gui.py`) | `python archived/tkinter_gui/run_gui.py` | **Archived** | Superseded by the Electron desktop GUI; moved to `/archived/tkinter_gui/` |
 
 ## Electron GUI

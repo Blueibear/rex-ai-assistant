@@ -116,6 +116,30 @@ The `askrex-assistant` PyPI package, when published, targets the **developer/ope
 
 This README reflects the current milestone after recent live testing and repair work. The Electron GUI is the current primary user-facing interface. The repo has usable CLI, chat, GUI, Home Assistant, and voice paths, with several areas still being stabilized.
 
+## Capabilities & Status
+
+This is the high-level release/status view. Surface classifications mirror [SURFACE-CLASSIFICATION.md](SURFACE-CLASSIFICATION.md); integration evidence states mirror [INTEGRATIONS_STATUS.md](INTEGRATIONS_STATUS.md). The complete UI inventory is [docs/UI_SURFACES.md](docs/UI_SURFACES.md). Lower-level compatibility wrappers remain enumerated only in the detailed surface inventory.
+
+| Capability / surface | Release status | Current contract | Details |
+|---|---|---|---|
+| Electron desktop GUI | `shippable` | Primary packaged end-user interface | [UI surfaces](docs/UI_SURFACES.md) |
+| CLI (`rex`) | `shippable` | Canonical text/command interface | [Architecture / CLI](docs/ARCHITECTURE.md#cli-command-tree) |
+| Source voice loop / wake word | `developer-only` / beta wake word | Source runner is advanced/developer-only; packaged Electron Hold-to-Talk is the supported end-user voice path | [Voice pipeline](docs/voice_pipeline.md) |
+| Flask/API (`rex-gui`) | `developer-only` | Local API plus incomplete experimental browser dashboard; not required by Electron | [UI surfaces](docs/UI_SURFACES.md) |
+| Config CLI (`rex-config`) | `developer-only` | Operator/developer configuration utility | [Configuration](docs/configuration.md) |
+| TTS API (`rex-speak-api`) | `developer-only` | Optional standalone authenticated TTS service | [API reference](docs/api.md) |
+| Windows agent (`rex-agent`) | `developer-only` | Optional permission-gated remote computer-control service | [Computer control](docs/computers.md) |
+| OpenClaw tool server / gateway | `experimental` | Off by default; health check can prove gateway reachability, not authentication or tool capability | [OpenClaw status](docs/openclaw-migration-status.md) |
+| Mobile API backend | `developer-only` backend; mobile pre-release | Authenticated companion backend; physical-device/LAN release validation remains outstanding | [Mobile API setup](docs/mobile/MOBILE_API_SETUP_WINDOWS.md) |
+| Docker image | `developer-only` | Developer/operator smoke and service path, not an end-user artifact | [Docker](docs/docker.md) |
+| Home Assistant | Supported, credential-gated | Reads require live auth; writes use policy/confirmation and independent verification evidence | [Home Assistant](docs/home_assistant.md) |
+| Email | Partial | IMAP/SMTP paths exist; GUI sending remains draft-only | [Email](docs/email.md) |
+| Calendar | Partial / read-only | ICS reads exist; provider writes/OAuth remain unavailable | [Calendar](docs/calendar.md) |
+| SMS / Phone | Experimental | Twilio-backed capability; live delivery/calling remains externally verified | [Messaging](docs/messaging.md) |
+| Legacy Tkinter / Shopping PWA | `archived` | Retained only under `archived/`; neither is a supported release surface | [UI surfaces](docs/UI_SURFACES.md) |
+
+No surface is currently classified `removed`; historical/low-level entries remain in the canonical surface inventory.
+
 ## Working Now
 
 - Core CLI help and doctor paths work: `rex --help`, `rex doctor`, and `python -m rex doctor`.
@@ -147,15 +171,15 @@ Electron resolves one validated session identity in the main process. Chat, hist
 
 | Surface | Command | Status |
 |---|---|---|
-| **Electron desktop app** | Installed AskRex app; source development: `cd gui; npm.cmd run dev` | **Primary user-facing interface** — Windows artifact is locally validated but unsigned |
-| CLI text chat | `rex` or `python -m rex` | Working basic chat (developer / advanced) |
+| **Electron desktop app** | Installed AskRex app; source development: `cd gui; npm.cmd run dev` | **Shippable** primary user-facing interface; Windows artifact locally validated but unsigned |
+| CLI text chat | `rex` or `python -m rex` | **Shippable** canonical CLI text interface |
 | Diagnostics | `rex doctor` or `python -m rex doctor` | Working |
-| Voice loop | `python rex_loop.py` | Developer / advanced source path; defaults to manual Hold-to-Talk activation. Use `--mode wake-word` to opt into beta wake-word mode. |
-| Python/Flask local API | `rex-gui` | Developer-only compatibility/API surface; not spawned or required by Electron |
-| TTS API | `rex-speak-api` | Implemented service, default `127.0.0.1:5005` (developer / advanced) |
-| OpenClaw tool server | `rex-tool-server` | Implemented service, default `127.0.0.1:18790` (developer / advanced) |
-| Windows computer agent | `rex-agent` | Optional remote PC control agent (developer / advanced) |
-| Runtime config CLI | `rex-config` | Config inspection and legacy env migration (developer / advanced) |
+| Voice loop | `python rex_loop.py` | **Developer-only** source path; defaults to manual Hold-to-Talk. `--mode wake-word` opts into beta wake-word mode. |
+| Python/Flask local API | `rex-gui` | **Developer-only** compatibility/API surface; not spawned or required by Electron |
+| TTS API | `rex-speak-api` | **Developer-only** standalone authenticated TTS service |
+| OpenClaw tool server | `rex-tool-server` | **Experimental**, off by default; gateway health test proves reachability only |
+| Windows computer agent | `rex-agent` | **Developer-only** optional remote PC control service |
+| Runtime config CLI | `rex-config` | **Developer-only** configuration/migration utility |
 
 The Electron app under `gui/` is the current primary GUI. `rex-gui` remains useful as a local Flask/API service and for compatibility testing, but its browser dashboard at `/ui/` is incomplete and should not be treated as the main user interface. The legacy Tkinter launchers (`gui.py` and its entry point) are archived — moved to `archived/tkinter_gui/` and no longer maintained. See [SURFACE-CLASSIFICATION.md](SURFACE-CLASSIFICATION.md).
 
@@ -176,7 +200,7 @@ The Electron app under `gui/` is the current primary GUI. `rex-gui` remains usef
 | Memory and private data | Electron private stores are session-identity scoped and tested with two users. Shared data requires explicit shared ownership; legacy unowned data is quarantined for deliberate migration. |
 | Notifications | Priority routing, quiet hours, digest/escalation logic, CLI commands, and Electron notification UI plumbing are present. Provider delivery remains externally verified. |
 | WordPress/WooCommerce | WordPress health checks and WooCommerce order/product reads are implemented; WooCommerce order status and coupon writes are approval-gated. |
-| OpenClaw | Optional experimental HTTP gateway/client adapters and a standalone Rex tool server are present; feature flags under `openclaw` control gateway-backed paths. Configuration does not prove gateway reachability. |
+| OpenClaw | Optional experimental HTTP gateway/client adapters and a standalone Rex tool server are present; feature flags under `openclaw` control gateway-backed paths. URL/token are configuration evidence; the GUI health check can prove gateway reachability, while authentication and tool capability remain unproven. |
 
 Home Assistant result wording mirrors the verification evidence. `attempted_unverified` uses **"I tried..."**, `completed` uses **"I asked HA to..."** without claiming state proof, `verified` alone may use **"Confirmed..."**, and a definite dispatch failure uses **"That failed because..."**. See [docs/home_assistant.md](docs/home_assistant.md) for the status and evidence contract.
 

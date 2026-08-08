@@ -1833,10 +1833,10 @@ cd gui && npm run typecheck && npm run build
 - `docs/claude/INTEGRATIONS_STATUS.md`
 
 **Acceptance Criteria:**
-- [ ] README has a "Capabilities & Status" table that mirrors `SURFACE-CLASSIFICATION.md`.
-- [ ] Every row links to the deeper doc for that surface.
-- [ ] No conflicting status claims between README, `SURFACE-CLASSIFICATION.md`, `docs/UI_SURFACES.md`, and `INTEGRATIONS_STATUS.md`.
-- [ ] Documentation links and references are accurate.
+- [x] README has a "Capabilities & Status" table that mirrors `SURFACE-CLASSIFICATION.md`.
+- [x] Every row links to the deeper doc for that surface.
+- [x] No conflicting status claims between README, `SURFACE-CLASSIFICATION.md`, `docs/UI_SURFACES.md`, and `INTEGRATIONS_STATUS.md`.
+- [x] Documentation links and references are accurate.
 - [ ] All relevant GitHub checks pass.
 
 **Validation commands:**

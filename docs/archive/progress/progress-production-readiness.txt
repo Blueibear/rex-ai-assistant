@@ -1515,3 +1515,17 @@ Local evidence so far:
 - GitHub: all 18 checks passed. Python 3.11 Tests & Coverage passed in 9m41s; Installed Windows Electron artifact passed in 11m32s; CodeFactor, mypy, GUI Vitest/typecheck/build/ESLint, security, dependency, pre-commit, wheel smoke, and commitlint were green.
 - The installed-artifact smoke directly verified the packaged Settings > Integrations OpenClaw controls plus typed-IPC gateway-setting write/read/restore. This is stronger repeatable evidence than the prior manual-render checkbox.
 - Two packaged-only failures were found and fixed before closeout: Settings deep links did not select Integrations, and smoke bootstrap/Electron used different runtime roots. Regression coverage now protects query routing, condition-based renderer readiness, and the smoke-only shared runtime root.
+
+=== 2026-08-08 - US-053 README capabilities/status table ===
+
+Implementation:
+- Added one linked `Capabilities & Status` table to README covering the primary release surfaces plus high-level Home Assistant/email/calendar/SMS/OpenClaw capability status. Surface rows mirror `SURFACE-CLASSIFICATION.md`; integration rows mirror `INTEGRATIONS_STATUS.md`.
+- Canonicalized `docs/UI_SURFACES.md` high-level status labels to the exact release classes: shippable, developer-only, experimental, deprecated, or archived.
+- Updated stale README Main Entry Point labels and OpenClaw feature wording so the health probe may establish reachability without implying authentication/tool capability.
+- Updated `INTEGRATIONS_STATUS.md` to the same OpenClaw evidence contract and standardized `docs/openclaw-migration-status.md` wording.
+- Added `tests/test_capabilities_status_docs.py` and refreshed the older exact-row UI-surface regression so future documentation drift is executable test debt. Each high-level README row also asserts that its deeper linked document exists.
+
+Local evidence so far:
+- TDD red phase: 3/4 new documentation-contract tests failed (missing table, stale UI labels, stale OpenClaw wording).
+- Final documentation/surface set: 8/8 passed across `test_capabilities_status_docs.py` and `test_us244_ui_surfaces.py`.
+- Relevant GitHub checks remain pending the story PR.
