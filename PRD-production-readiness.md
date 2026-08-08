@@ -1959,8 +1959,8 @@ pytest -q
 - `.github/workflows/ci.yml`
 
 **Acceptance Criteria:**
-- [ ] Ruff rule or check script fails on `datetime.utcnow()` and `asyncio.get_event_loop()` outside `archived/`.
-- [ ] CI runs the check.
+- [x] Ruff rule or check script fails on `datetime.utcnow()` and `asyncio.get_event_loop()` outside `archived/`.
+- [x] CI runs the check.
 - [ ] All relevant GitHub checks pass.
 
 **Validation commands:**
