@@ -84,6 +84,8 @@ STT: OpenAI Whisper (offline)
 
 Wake word: openWakeWord
 
+- openWakeWord models are stream-oriented. Keep Rex capture windows independent from model inference chunks: marked openWakeWord models must be evaluated in 1,280-sample / 80 ms chunks at 16 kHz and aggregate the peak score across the longer capture window. Do not pass an arbitrary one-second frame as one model prediction.
+
 TTS: Coqui XTTS (voice cloning supported)
 
 Optional TTS:

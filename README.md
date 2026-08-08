@@ -126,7 +126,7 @@ This README reflects the current milestone after recent live testing and repair 
 - The Home Assistant status stays authenticated in the UI after a successful live API test; saved credentials alone remain configured-only.
 - GUI Chat shows a visible pending/thinking state while Rex is preparing a reply.
 - Voice Hold to Talk records, transcribes, streams a Rex reply, synthesizes and plays it on the configured output device, supports cancel/barge-in and replay, and can be used repeatedly.
-- Wake-word mode is wired but remains beta; it is not part of the release-verified voice contract.
+- Wake-word mode is wired but remains beta; it is not part of the release-verified voice contract. The controlled US-046 acoustic fixture measured precision `0.800` and recall `1.000`, below the `0.90`/`0.90` promotion threshold; see [the wake-word reliability report](docs/voice/wakeword-report.md).
 - Custom wake backends are wired: built-in openWakeWord fallback, `custom_embedding` as an interim path, and `custom_onnx` as the long-term target when a real asset is present.
 - Day/date phrasing coverage in chat has improved for common variants.
 

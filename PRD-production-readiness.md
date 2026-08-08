@@ -1641,9 +1641,9 @@ pytest tests/test_audio_diagnostics.py -q
 **Implementation notes:** Run a controlled wake word fixture (positives + negatives) and record precision/recall/latency. Until both precision and recall pass a documented threshold (default 0.9), wake word remains `beta` in docs.
 
 **Acceptance Criteria:**
-- [ ] A test produces precision/recall numbers from a fixture and writes them to a tracked report file (`docs/voice/wakeword-report.md`).
-- [ ] If thresholds pass, `SURFACE-CLASSIFICATION.md` may reclassify wake word.
-- [ ] If thresholds fail, docs continue to label wake word as `beta`.
+- [x] A test produces precision/recall numbers from a fixture and writes them to a tracked report file (`docs/voice/wakeword-report.md`).
+- [x] If thresholds pass, `SURFACE-CLASSIFICATION.md` may reclassify wake word. (Controlled thresholds did not pass, so no promotion was performed.)
+- [x] If thresholds fail, docs continue to label wake word as `beta`. (Measured precision `0.800`, recall `1.000`; promotion requires `0.90`/`0.90`.)
 - [ ] All relevant GitHub checks pass.
 
 **Validation commands:**
