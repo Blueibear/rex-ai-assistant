@@ -940,7 +940,7 @@ export function VoicePage(): React.ReactElement {
 
   if (error) {
     return (
-      <div className="flex flex-col items-center justify-center h-full gap-4">
+      <div role="alert" aria-live="assertive" className="flex flex-col items-center justify-center h-full gap-4">
         <EmptyState
           icon={<MicOffIcon />}
           heading="Voice backend unavailable"

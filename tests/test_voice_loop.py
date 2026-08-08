@@ -766,7 +766,8 @@ def _make_tts(monkeypatch, tmp_path):
         return _orig_ntf(*args, **kwargs)
 
     monkeypatch.setattr(tempfile, "NamedTemporaryFile", _patched_ntf)
-    monkeypatch.setattr(_rvl, "sa", None)  # skip audio playback
+    # Model a successful local playback path without requiring audio hardware.
+    monkeypatch.setattr(_rvl, "sa", MagicMock())
 
     tts = TextToSpeech.__new__(TextToSpeech)
     tts._language = "en"

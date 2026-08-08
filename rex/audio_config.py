@@ -60,6 +60,34 @@ def _normalize_device_name(name: str) -> str:
     return re.sub(r"[^a-z0-9]+", " ", value.casefold()).strip()
 
 
+def build_audio_device_diagnostic(
+    device_kind: str,
+    error: BaseException | str,
+) -> dict[str, object]:
+    """Build a stable, user-actionable diagnostic for voice audio failures."""
+    normalized_kind = "speaker" if device_kind == "speaker" else "microphone"
+    detail = str(error).strip() or "audio device unavailable"
+    if normalized_kind == "speaker":
+        code = "speaker_unavailable"
+        user_message = (
+            "Speaker output unavailable. Reconnect or select an output device in Voice settings, "
+            "then check your operating-system sound output."
+        )
+    else:
+        code = "microphone_unavailable"
+        user_message = (
+            "Microphone unavailable. Reconnect or select a microphone in Voice settings, then "
+            "check your operating-system microphone permissions."
+        )
+    return {
+        "event": "audio_device_error",
+        "code": code,
+        "device_kind": normalized_kind,
+        "error": detail,
+        "user_message": user_message,
+    }
+
+
 _HOSTAPI_INPUT_PRIORITY = {
     # DirectSound/MME are the most reliable shared-mode choices for the
     # blocking ``sounddevice.rec`` path used by wake-word capture on
