@@ -48,12 +48,21 @@ _WAKEWORD_MODEL = object
 def _get_openwakeword():
     global _OPENWAKEWORD_MODULE, _WAKEWORD_MODEL, openwakeword
     if openwakeword is not None:
-        _OPENWAKEWORD_MODULE = openwakeword
-        _WAKEWORD_MODEL = (
+        cached_model = (
             WakeWordModel
             if WakeWordModel is not object
             else _resolve_openwakeword_model_type(openwakeword)
         )
+        live_module = sys.modules.get("openwakeword")
+        if cached_model is object and live_module is not None and live_module is not openwakeword:
+            live_model = _resolve_openwakeword_model_type(live_module)
+            if live_model is not object:
+                _OPENWAKEWORD_MODULE = live_module
+                _WAKEWORD_MODEL = live_model
+                openwakeword = live_module
+                return _OPENWAKEWORD_MODULE, _WAKEWORD_MODEL
+        _OPENWAKEWORD_MODULE = openwakeword
+        _WAKEWORD_MODEL = cached_model
         return _OPENWAKEWORD_MODULE, _WAKEWORD_MODEL
 
     module = sys.modules.get("openwakeword")

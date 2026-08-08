@@ -58,6 +58,25 @@ def test_get_openwakeword_resolves_model_class_from_restored_module(monkeypatch)
 
 
 @pytest.mark.unit
+def test_get_openwakeword_refreshes_unusable_stale_alias(monkeypatch):
+    stale = types.SimpleNamespace(MODELS={"hey_jarvis": object()})
+    restored = types.ModuleType("openwakeword")
+    restored.MODELS = {"hey_jarvis": object()}
+    restored.model = types.SimpleNamespace(Model=DummyWakeModel)
+
+    monkeypatch.setattr(wake_utils, "openwakeword", stale)
+    monkeypatch.setattr(wake_utils, "WakeWordModel", object)
+    monkeypatch.setattr(wake_utils, "_OPENWAKEWORD_MODULE", stale)
+    monkeypatch.setattr(wake_utils, "_WAKEWORD_MODEL", object)
+    monkeypatch.setitem(sys.modules, "openwakeword", restored)
+
+    module, model_cls = wake_utils._get_openwakeword()
+
+    assert module is restored
+    assert model_cls is DummyWakeModel
+
+
+@pytest.mark.unit
 def test_get_openwakeword_refreshes_stale_cache_when_alias_removed(monkeypatch):
     stale = types.SimpleNamespace(MODELS={})
     fresh = types.SimpleNamespace(
