@@ -3,14 +3,13 @@ import type { GeneralSettings, VoiceSettings, AiSettings, NotificationsSettings,
 import { useToast } from '../components/ui/Toast'
 import { IntegrationsSettingsSection } from './settings/integrations/IntegrationsSettingsSection'
 import { PasswordInput } from './settings/shared'
+import { settingsCategoryFromHash, type SettingsCategoryId } from '../types/settingsRouting'
 import { PageLoadingFallback } from '../components/ui/PageLoadingFallback'
 import { SkeletonLine } from '../components/ui/SkeletonLine'
 import { Tooltip } from '../components/ui/Tooltip'
 
-type CategoryId = 'general' | 'voice' | 'ai' | 'integrations' | 'notifications' | 'users' | 'audio' | 'system' | 'about'
-
 interface Category {
-  id: CategoryId
+  id: SettingsCategoryId
   label: string
   icon: React.ReactElement
 }
@@ -4254,7 +4253,7 @@ function SystemPanel(): React.ReactElement {
   )
 }
 
-function renderPanel(categoryId: CategoryId): React.ReactElement {
+function renderPanel(categoryId: SettingsCategoryId): React.ReactElement {
   switch (categoryId) {
     case 'general':
       return <GeneralPanel />
@@ -4278,7 +4277,7 @@ function renderPanel(categoryId: CategoryId): React.ReactElement {
 }
 
 export function SettingsPage(): React.ReactElement {
-  const [activeCategory, setActiveCategory] = useState<CategoryId>('general')
+  const [activeCategory, setActiveCategory] = useState<SettingsCategoryId>(() => settingsCategoryFromHash(window.location.hash))
 
   return (
     <div className="flex h-full overflow-hidden">

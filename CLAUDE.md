@@ -282,6 +282,7 @@ Bridge compatibility wrappers (17) — exec canonical `bridge/<name>.py` in thei
 - rex/tools/execution.py — canonical typed tool lifecycle; all registered dispatch must pass availability, argument, identity, permission, risk, confirmation, execution, normalization, independent verification, truthful response, and redacted audit stages. Read-only success is `completed`; mutation success is `verified` only.
 - gui/src/main/ — Electron main-process modules, one per concern (US-REM-029); `index.ts` is a thin entrypoint (app lifecycle wiring only), `ipc.ts` aggregates handler registration, IPC handlers live in `gui/src/main/handlers/`, integration credential persistence/rollback lives in `integrationSettingsStorage.ts`, and settings/integration/HA logic lives in `configStore.ts`, `aiSettings.ts`, `voiceSettings.ts`, `settingsDefaults.ts`, `settingsMirror.ts`, `homeAssistant.ts`, `integrationStatus.ts`, `integrationInventory.ts`, `window.ts`
 - `gui/src/pages/settings/integrations/` owns the Settings > Integrations controller and focused UI components; keep OpenClaw token handling renderer-blind and route all secret persistence through the main-process vault helpers.
+- `gui/src/types/settingsRouting.ts` is the shared parser for Settings deep links such as `#/settings?section=integrations`; invalid or missing sections fail safely to General.
 - rex/credential_vault.py — Windows DPAPI-backed credential vault (S4); see "Credential vault (S4)" above
 - rex/email_backends/
 - rex/calendar_backends/
