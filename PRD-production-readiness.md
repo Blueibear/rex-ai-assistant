@@ -1862,7 +1862,7 @@ grep -n "Capabilities" README.md
 - [x] Every claim is verified against the code at the audit commit. *(Verified on final post-rebase implementation snapshot `2f1e604b286404a4c50aa837c76898453058fc19`: 14/14 cross-doc/capability/UI contract tests passed, with Ruff, Black, pre-commit, and diff hygiene green.)*
 - [x] Conflicts are resolved in the same story.
 - [x] Documentation links and references are accurate.
-- [ ] All relevant GitHub checks pass.
+- [x] All relevant GitHub checks pass. *(PR #367 implementation/evidence head `3fc4d9b50bf9ed2b75f018dffff6f281749ad80f`: all 17 checks passed, including Python 3.11 Tests & Coverage in 10m13s; CodeFactor, GitGuardian, lint/format, mypy, GUI Vitest/typecheck/build/ESLint, dependency/security scans, pre-commit, wheel smoke, and commitlint were green.)*
 
 **Validation commands:**
 ```bash

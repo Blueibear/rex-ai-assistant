@@ -1546,5 +1546,5 @@ Local evidence so far:
 - TDD red phase: all 5 audit tests failed before the audit existed/current-doc conflicts were fixed.
 - Final combined documentation set: 14/14 passed across cross-doc audit, capability-status, and UI-surface tests after adding the merge-safety contract. Ruff/Black pass; skip inventory 127/127 current; `git diff --check` pass.
 - Final post-rebase audit implementation snapshot: `2f1e604b286404a4c50aa837c76898453058fc19` on merged US-053 master. The executable cross-doc/capability/UI contract suite passed 14/14 on this exact tree, with Ruff, Black, pre-commit, and `git diff --check` green; the audit document and PRD now bind their verification evidence to this SHA.
-- Relevant GitHub checks remain pending the final story PR head.
+- GitHub implementation/evidence gate: PASS on PR #367 head `3fc4d9b50bf9ed2b75f018dffff6f281749ad80f`. All 17 checks passed; Python 3.11 Tests & Coverage completed in 10m13s and all quality/security/GUI/dependency/pre-commit/wheel/commitlint checks were green.
 - Repository process finding: GitHub reports `master` is not branch-protected, so `gh pr merge --auto` is unsafe here. CLAUDE and CONTRIBUTING now require all required checks to be green on the exact PR head before any merge command.
