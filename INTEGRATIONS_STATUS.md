@@ -15,7 +15,7 @@ Credentials alone mean `configured`. They never mean connected, authenticated, w
 | Web search | Partial | Provider selection exists. Configuration does not prove current network reachability. |
 | OpenAI / OpenRouter / Ollama | Supported provider options | A key or URL is configuration evidence only. Provider availability depends on a live request. |
 | MQTT / Telegram / Push | Experimental | Visible and configurable, but live broker/provider authentication and delivery are externally verified. |
-| OpenClaw gateway | Experimental and optional | Feature-flagged HTTP client/tool adapters exist. A URL is configured-only evidence; the external gateway is not required by the packaged app. |
+| OpenClaw gateway | Experimental and optional | Disabled by default. URL/token are configuration evidence; the GUI health check can establish `reachable`, but authentication and tool capability remain unproven. The external gateway is not required by the packaged app. |
 | Browser automation / Windows control | Experimental | Environment-sensitive and permission-gated. Not part of the release-critical end-user path. |
 | WordPress / WooCommerce | Experimental operator tools | WordPress is monitoring-oriented. WooCommerce reads and approval-gated writes exist; live stores remain externally verified. |
 | Plex / smart speakers | Experimental | Hardware/service-dependent and not release-verified by automated tests. |
