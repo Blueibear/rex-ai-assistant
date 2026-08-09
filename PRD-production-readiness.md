@@ -1961,7 +1961,7 @@ pytest -q
 **Acceptance Criteria:**
 - [x] Ruff rule or check script fails on `datetime.utcnow()` and `asyncio.get_event_loop()` outside `archived/`.
 - [x] CI runs the check.
-- [ ] All relevant GitHub checks pass.
+- [x] All relevant GitHub checks pass.
 
 **Validation commands:**
 ```bash
