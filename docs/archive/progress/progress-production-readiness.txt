@@ -1454,3 +1454,23 @@ Local evidence so far:
 - Relevant GitHub checks remain pending the story PR.
 
 US-049 GitHub implementation gate: PASS. PR #362 head b380778a9a01e922d86be5d5e3e083b139e25a06 passed CI, Commitlint, and Windows Electron Artifact twice after rebase/reopen (runs 31259723604/31259313682, 31259723610/31259313656, 31259723591/31259313652). The tracker is closed with that evidence; the docs-only closeout head will be retriggered before merge.
+
+=== 2026-08-08 - US-050 OpenClaw defaults and fail-closed configuration ===
+
+Implementation:
+- Confirmed both OpenClaw feature flags already defaulted to false and preserved those defaults.
+- Added central config validation: when tools or voice are enabled, both a non-empty credential-vault token and a syntactically valid HTTP(S) gateway URL are mandatory; incomplete configuration raises a clear ConfigurationError during load_config validation.
+- Reclassified the OpenClaw `rex-tool-server` surface as experimental and added the experimental classification definition/count.
+- Added an AI Settings truth card: `OpenClaw` / `Experimental - off by default`; no new activation control was introduced.
+- Added a release-status banner to the OpenClaw migration status doc.
+
+Local evidence so far:
+- TDD red phase: 5/7 focused tests failed before implementation (missing validation, classification, and GUI label).
+- Focused acceptance: 7/7 passed after implementation.
+- Broad config/OpenClaw selection: 682 passed, 7865 deselected. Warnings are existing deprecation debt outside this story.
+- Ruff + Black on changed Python: pass; mypy on rex/config.py: 0 issues.
+- SettingsPage ESLint: 0 errors (2 pre-existing hook warnings); GUI typecheck and 20-file/100-test Vitest suite pass.
+- Skip inventory: 127/127 current; git diff --check: pass.
+- Relevant GitHub checks remain pending the story PR.
+
+US-050 GitHub implementation gate: PASS. PR #363 head `74f699a380215a000b0c263ffaaeccb1e8b7e20a` passed all 18 reported checks after rebase onto merged US-049, including Python 3.11 Tests & Coverage (9m49s), Installed Windows Electron artifact (10m42s), CI quality/security jobs, Commitlint, CodeFactor, and GitGuardian. The tracker is closed with that evidence.

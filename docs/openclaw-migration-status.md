@@ -1,5 +1,7 @@
 # OpenClaw Migration Status
 
+> **Release status:** Experimental and off by default. Enabling OpenClaw tools or voice requires both a valid HTTP(S) gateway URL and a credential-vault token; incomplete configuration fails closed during config validation.
+
 Tracks every Rex module's migration state as Rex pivots to an OpenClaw-based architecture.
 
 **Classifications:**

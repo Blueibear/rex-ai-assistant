@@ -12,6 +12,7 @@ import json
 import os
 import sys
 from dataclasses import asdict, dataclass, field
+from urllib.parse import urlparse
 
 from rex.exception_handler import wrap_entrypoint
 from pathlib import Path
@@ -1484,6 +1485,21 @@ def validate_config(config: AppConfig) -> None:
         raise ConfigurationError("llm_temperature must be between 0 and 5.")
     if config.memory_max_turns <= 0:
         raise ConfigurationError("memory_max_turns must be positive.")
+    if config.use_openclaw_tools or config.use_openclaw_voice_backend:
+        integrations = config.integrations
+        if integrations is None:
+            raise ConfigurationError("OpenClaw integration settings are unavailable.")
+        gateway_url = integrations.openclaw_gateway_url.strip()
+        gateway_token = (config.openclaw_gateway_token or "").strip()
+        if not gateway_url or not gateway_token:
+            raise ConfigurationError(
+                "OpenClaw features are enabled but a gateway URL and token are not both configured."
+            )
+        parsed_gateway = urlparse(gateway_url)
+        if parsed_gateway.scheme not in {"http", "https"} or not parsed_gateway.hostname:
+            raise ConfigurationError(
+                "OpenClaw features require a valid HTTP(S) gateway URL and token."
+            )
 
 
 def reload_settings(
