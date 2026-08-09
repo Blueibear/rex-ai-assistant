@@ -10,6 +10,8 @@ interface ArtifactSmokeResult {
   memories_count?: number
   openclaw_settings?: boolean
   openclaw_settings_read_write?: boolean
+  settings_sections?: boolean
+  settings_section_failure?: string
   openclaw_settings_failure?: string
   error?: string
 }
@@ -47,16 +49,56 @@ export function runInstalledArtifactSmoke(mainWindow: BrowserWindow): boolean {
           return Boolean(predicate());
         };
         window.location.hash = '#/settings';
-        const integrationsNavigationReady = await waitFor(() =>
+        let settingsSectionFailure = '';
+        const settingsNavigationReady = await waitFor(() =>
           Array.from(document.querySelectorAll('nav button')).some(
-            (node) => node.textContent?.trim() === 'Integrations'
+            (node) => node.textContent?.trim() === 'General'
           )
         );
+        if (!settingsNavigationReady) {
+          const navLabels = Array.from(document.querySelectorAll('nav button'))
+            .map((node) => node.textContent?.trim() ?? '')
+            .filter(Boolean)
+            .join(',');
+          settingsSectionFailure = 'settings-nav-not-ready:' + window.location.hash + ':' + navLabels + ':' + (document.body?.innerText ?? '').slice(0, 240);
+        }
+        const settingsExpectations = [
+          ['General', 'General'],
+          ['Voice', 'Voice'],
+          ['AI', 'AI'],
+          ['Integrations', 'Integrations'],
+          ['Notifications', 'Notifications'],
+          ['Users', 'Users'],
+          ['Audio Output', 'Audio Output'],
+          ['System', 'System & Advanced'],
+          ['About', 'AskRex Assistant']
+        ];
+        let settingsSections = true;
+        for (const [label, expectedHeading] of settingsExpectations) {
+          const button = Array.from(document.querySelectorAll('nav button')).find(
+            (node) => node.textContent?.trim() === label
+          );
+          if (!(button instanceof HTMLElement)) {
+            settingsSections = false;
+            if (!settingsSectionFailure) settingsSectionFailure = 'missing-settings-button:' + label;
+            break;
+          }
+          button.click();
+          const rendered = await waitFor(
+            () => (document.querySelector('main h2')?.textContent?.trim() ?? '') === expectedHeading
+          );
+          if (!rendered) {
+            settingsSections = false;
+            const actualHeading = document.querySelector('main h2')?.textContent?.trim() ?? '';
+            if (!settingsSectionFailure) settingsSectionFailure = 'settings-heading:' + label + ':' + actualHeading;
+            break;
+          }
+        }
         const integrationsButton = Array.from(document.querySelectorAll('nav button')).find(
           (node) => node.textContent?.trim() === 'Integrations'
         );
         if (integrationsButton instanceof HTMLElement) integrationsButton.click();
-        const openclawSettings = integrationsNavigationReady && await waitFor(() => {
+        const openclawSettings = integrationsButton instanceof HTMLElement && await waitFor(() => {
           const bodyText = document.body?.innerText ?? '';
           return (
             bodyText.includes('OpenClaw') &&
@@ -93,13 +135,16 @@ export function runInstalledArtifactSmoke(mainWindow: BrowserWindow): boolean {
           ok:
             chat === 'AskRex installed artifact chat verified' &&
             openclawSettings &&
-            openclawSettingsReadWrite,
+            openclawSettingsReadWrite &&
+            settingsSections,
           typed_ipc: true,
           version,
           chat,
           memories_count: Array.isArray(memories) ? memories.length : -1,
           openclaw_settings: openclawSettings,
           openclaw_settings_read_write: openclawSettingsReadWrite,
+          settings_sections: settingsSections,
+          settings_section_failure: settingsSectionFailure,
           openclaw_settings_failure: openclawSettingsFailure
         };
       })()`)

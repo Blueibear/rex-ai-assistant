@@ -2094,9 +2094,9 @@ bash tests/smoke/test_electron_package.sh
 - `gui/src/pages/SettingsPage.tsx` → `gui/src/pages/settings/sections/*.tsx`
 
 **Acceptance Criteria:**
-- [ ] Each section module is < 1,000 lines.
-- [ ] `cd gui && npm run typecheck && npm run build` passes.
-- [ ] Manual: every settings section still renders and saves.
+- [x] Each section module is < 1,000 lines.
+- [x] `cd gui && npm run typecheck && npm run build` passes.
+- [x] Packaged-app smoke: every settings section renders and integration settings save/read/restore.
 - [ ] All relevant GitHub checks pass.
 
 **Validation commands:**

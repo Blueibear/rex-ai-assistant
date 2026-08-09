@@ -257,7 +257,7 @@ try {
     if (-not $result.ok -or -not $result.typed_ipc -or
         $result.chat -ne 'AskRex installed artifact chat verified' -or
         $result.memories_count -lt 0 -or -not $result.openclaw_settings -or
-        -not $result.openclaw_settings_read_write) {
+        -not $result.openclaw_settings_read_write -or -not $result.settings_sections) {
         throw "Installed app smoke failed: $(Get-Content -LiteralPath $smokeOutput -Raw)"
     }
 

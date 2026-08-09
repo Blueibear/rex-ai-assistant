@@ -79,6 +79,8 @@ API: Flask (Flask-CORS, Flask-Limiter, Flask-Sock for the mobile WebSocket)
 
 GUI: React + Electron under `gui/` is the primary packaged interface. `rex.gui_app` is a developer-only Flask API/dashboard and is not spawned by Electron. Archived Tkinter files are unsupported.
 
+- `gui/src/pages/SettingsPage.tsx` is a thin Settings category/router facade. Section implementations, controllers, and helpers belong under `gui/src/pages/settings/`; keep each settings module below 1,000 lines and preserve the structural regression in `gui/tests/settingsSections.test.ts`.
+
 Config: Pydantic v2, python-dotenv
 
 STT: OpenAI Whisper (offline)
