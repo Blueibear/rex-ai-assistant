@@ -1779,7 +1779,7 @@ pytest tests/test_openclaw_defaults.py -q
 - [x] Reconnect attempts are bounded by config.
 - [x] Tests cover up/down/recovery paths.
 - [x] `docs/openclaw-migration-status.md` documents the model.
-- [ ] All relevant GitHub checks pass.
+- [x] All relevant GitHub checks pass.
 
 **Validation commands:**
 ```bash

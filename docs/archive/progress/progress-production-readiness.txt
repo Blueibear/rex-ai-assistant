@@ -1490,3 +1490,5 @@ Local evidence so far:
 - Relevant GitHub checks remain pending the story PR.
 
 US-051 broad regression evidence: 638 OpenClaw-selected tests passed (7914 deselected); existing deprecation warnings only. Final changed-surface gates: 36 focused HTTP/bridge/health tests passed, Ruff/Black pass, mypy 0 issues in both changed source files, skip inventory 127/127 current, and git diff --check pass.
+
+US-051 GitHub implementation gate: PASS. PR #364 head `2597394d1757cbb36fce2a50a3fdcd201d606cdc` passed all 18 reported checks after rebase onto merged US-050, including Python 3.11 Tests & Coverage (9m31s), Installed Windows Electron artifact (10m08s), CI quality/security jobs, Commitlint, CodeFactor, and GitGuardian. The tracker is closed with that evidence; this docs-only closeout head must also remain green before merge.
