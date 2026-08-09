@@ -270,6 +270,11 @@ export interface IntegrationsSettings {
   // Telegram
   telegramBotToken: string
   telegramChatId: string
+  // OpenClaw
+  openclawGatewayUrl: string
+  openclawToolsEnabled: boolean
+  openclawVoiceEnabled: boolean
+  openclawToken: string
   credentialStatus: Record<string, { ref: string; hasCredential: boolean }>
 }
 
@@ -708,7 +713,7 @@ export interface RexAPI {
     limit?: number
   ) => Promise<{ ok: boolean; history: CommandHistoryEntry[]; error?: string }>
   testVoice: (settings: VoiceSettings) => Promise<{ ok: boolean; error?: string }>
-  testIntegration: (type: 'email' | 'calendar' | 'sms' | 'homeassistant' | 'phone') => Promise<{ ok: boolean; state?: IntegrationConnectionStatus; error?: string }>
+  testIntegration: (type: 'email' | 'calendar' | 'sms' | 'homeassistant' | 'phone' | 'openclaw') => Promise<{ ok: boolean; state?: IntegrationConnectionStatus; error?: string }>
   getIntegrations: () => Promise<IntegrationInventoryResponse>
   getCapabilities: () => Promise<CapabilitiesResponse>
   testHomeAssistant: (baseUrl: string, token: string) => Promise<HomeAssistantConnectionResponse>

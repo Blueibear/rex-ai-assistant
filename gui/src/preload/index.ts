@@ -247,7 +247,7 @@ const rexAPI = {
     ipcRenderer.invoke('rex:getCommandHistory', limit),
   testVoice: (settings: VoiceSettings): Promise<{ ok: boolean; error?: string }> =>
     ipcRenderer.invoke('rex:testVoice', settings),
-  testIntegration: (type: 'email' | 'calendar' | 'sms' | 'homeassistant' | 'phone'): Promise<{ ok: boolean; state?: IntegrationConnectionStatus; error?: string }> =>
+  testIntegration: (type: 'email' | 'calendar' | 'sms' | 'homeassistant' | 'phone' | 'openclaw'): Promise<{ ok: boolean; state?: IntegrationConnectionStatus; error?: string }> =>
     ipcRenderer.invoke('rex:testIntegration', type),
   getIntegrations: () => ipcRenderer.invoke('rex:getIntegrations'),
   getCapabilities: () => ipcRenderer.invoke('rex:getCapabilities'),

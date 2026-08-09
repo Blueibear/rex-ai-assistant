@@ -12,6 +12,11 @@ import { resolveElectronSessionIdentity } from './sessionIdentity'
 import { createWindow } from './window'
 import { runInstalledArtifactSmoke } from './artifactSmoke'
 
+const artifactSmokeRuntimeRoot = process.env['ASKREX_ARTIFACT_SMOKE_RUNTIME_ROOT']
+if (process.env['ASKREX_ARTIFACT_SMOKE'] === '1' && artifactSmokeRuntimeRoot) {
+  app.setPath('userData', artifactSmokeRuntimeRoot)
+}
+
 app.whenReady().then(() => {
   electronApp.setAppUserModelId('com.rex-ai.rex-gui')
   writeElectronSessionStart()

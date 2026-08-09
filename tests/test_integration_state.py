@@ -142,9 +142,11 @@ def test_gui_uses_the_same_state_vocabulary_and_has_no_email_send_stub() -> None
     for state in EXPECTED_STATES:
         assert f"| '{state}'" in ipc or f"= '{state}'" in ipc
 
-    settings = (root / "gui" / "src" / "pages" / "SettingsPage.tsx").read_text(encoding="utf-8")
+    integrations = (
+        root / "gui" / "src" / "pages" / "settings" / "integrations" / "IntegrationControls.tsx"
+    ).read_text(encoding="utf-8")
     email = (root / "gui" / "src" / "pages" / "EmailPage.tsx").read_text(encoding="utf-8")
-    assert "Configured only" in settings
+    assert "Configured only" in integrations
     assert "Copy draft" in email
     assert "Sending is unavailable in this GUI" in email
     assert "[Email stub]" not in email

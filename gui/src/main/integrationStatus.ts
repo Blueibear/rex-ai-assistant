@@ -4,10 +4,11 @@ import { readGuiSettings, readRexConfigStrict, writeGuiSettings } from './config
 import { getVaultReference } from './credentialReferences'
 import { vaultHasSecret, type VaultContext } from './credentialVault'
 import { readSavedHomeAssistantCredentials, testHomeAssistantConnection } from './homeAssistant'
+import { testOpenClawConnection } from './openClaw'
 import { defaultSettingsMap } from './settingsDefaults'
 import type { ElectronSessionIdentity } from './sessionIdentity'
 
-export type TestableIntegration = 'email' | 'calendar' | 'sms' | 'homeassistant' | 'phone'
+export type TestableIntegration = 'email' | 'calendar' | 'sms' | 'homeassistant' | 'phone' | 'openclaw'
 
 export type IntegrationTestResult = {
   ok: boolean
@@ -32,10 +33,20 @@ export function hasText(value: unknown): boolean {
 }
 
 export function integrationSettingsFrom(stored: Record<string, Settings>): Record<string, unknown> {
-  return {
+  const explicit = (stored.integrations ?? {}) as Record<string, unknown>
+  const merged = {
     ...defaultSettingsMap.integrations,
-    ...((stored.integrations ?? {}) as Record<string, unknown>)
+    ...explicit
+  } as Record<string, unknown>
+  for (const field of [
+    'openclawGatewayUrl',
+    'openclawToolsEnabled',
+    'openclawVoiceEnabled',
+    'openclawToken'
+  ]) {
+    if (!Object.prototype.hasOwnProperty.call(explicit, field)) delete merged[field]
   }
+  return merged
 }
 
 function readIntegrationStatuses(stored: Record<string, Settings>): Record<string, StoredIntegrationStatus> {
@@ -125,6 +136,22 @@ async function evidenceFor(
   if (type === 'homeassistant') {
     const saved = await readSavedHomeAssistantCredentials(session)
     return { baseUrl: saved.baseUrl, credentialRef: saved.ref }
+  }
+  if (type === 'openclaw') {
+    const openclaw = config.openclaw && typeof config.openclaw === 'object'
+      ? config.openclaw as Record<string, unknown>
+      : {}
+    return {
+      gatewayUrl: openclaw.gateway_url,
+      useTools: openclaw.use_tools === true,
+      useVoiceBackend: openclaw.use_voice_backend === true,
+      credential: await hasRef(
+        session,
+        config,
+        'OPENCLAW_GATEWAY_TOKEN',
+        context('household', 'openclaw_gateway', null, 'token')
+      )
+    }
   }
   return {}
 }
@@ -250,6 +277,9 @@ export async function testIntegrationByType(
         ? { ...result, state: 'authenticated' }
         : { ...result, state: hasText(baseUrl) && hasText(token) ? 'degraded' : 'unconfigured' }
     }
+  }
+  if (type === 'openclaw') {
+    return { type, result: await testOpenClawConnection(session) }
   }
   return { result: { ok: false, state: 'unavailable', error: 'Unknown integration type' } }
 }

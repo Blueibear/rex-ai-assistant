@@ -1492,3 +1492,26 @@ Local evidence so far:
 US-051 broad regression evidence: 638 OpenClaw-selected tests passed (7914 deselected); existing deprecation warnings only. Final changed-surface gates: 36 focused HTTP/bridge/health tests passed, Ruff/Black pass, mypy 0 issues in both changed source files, skip inventory 127/127 current, and git diff --check pass.
 
 US-051 GitHub implementation gate: PASS. PR #364 head `2597394d1757cbb36fce2a50a3fdcd201d606cdc` passed all 18 reported checks after rebase onto merged US-050, including Python 3.11 Tests & Coverage (9m31s), Installed Windows Electron artifact (10m08s), CI quality/security jobs, Commitlint, CodeFactor, and GitGuardian. The tracker is closed with that evidence; this docs-only closeout head must also remain green before merge.
+
+=== 2026-08-08 - US-052 OpenClaw Electron configuration/status surface ===
+
+Implementation:
+- Added a secure Electron-main OpenClaw configuration/health helper. The gateway token is read only from the existing credential vault; renderer responses contain no token and health failures are sanitized.
+- Added typed OpenClaw gateway URL, tools-enabled, voice-enabled, and token settings. URL/flags mirror into the canonical `openclaw` rex_config block; token writes use `OPENCLAW_GATEWAY_TOKEN` in the credential vault.
+- Added first-launch migration protection so unsaved GUI defaults cannot blank an existing rex_config OpenClaw URL/flags; existing config is hydrated into Settings until explicitly saved.
+- Settings -> Integrations now exposes the experimental warning, gateway URL, vault-backed token field, tools/voice enable checkboxes, connection state/last error, and Test Connection. The main Integrations page now honors `testable` integrations, including OpenClaw, with an independent Test connection action and updated evidence state.
+- Successful `/healthz` results are presented only as gateway reachable; the UI explicitly says authentication and tool capability are not yet proven.
+- Extended the installed-Electron artifact smoke so the packaged app must render the OpenClaw controls and successfully write/read/restore a non-secret OpenClaw gateway setting through typed IPC. The vault-secret write path remains separately covered by handler tests.
+
+Local evidence so far:
+- TDD covered missing main-process health helper, secure token persistence, settings mirroring, UI surface, first-launch migration preservation, packaged smoke rendering/read-write, and Integrations-page health test controls.
+- Focused OpenClaw/settings migrations: 30/30 passed before final UI additions; final OpenClaw + artifact smoke focused set: 7/7 passed.
+- Full GUI: 21 Vitest files / 108 tests passed. Both TypeScript configs passed. Production electron-vite build passed.
+- Changed TypeScript ESLint: 0 errors; SettingsPage retains 2 pre-existing exhaustive-deps warnings. Skip inventory: 127/127 current. `git diff --check`: pass.
+- Installed packaged-app smoke and relevant GitHub checks remain pending the story PR.
+
+2026-08-08 - US-052 final implementation evidence (PR #365)
+- Final implementation head before tracker closeout: `9b1ade19bf179d498245fc3875cffae471873ffa`.
+- GitHub: all 18 checks passed. Python 3.11 Tests & Coverage passed in 9m41s; Installed Windows Electron artifact passed in 11m32s; CodeFactor, mypy, GUI Vitest/typecheck/build/ESLint, security, dependency, pre-commit, wheel smoke, and commitlint were green.
+- The installed-artifact smoke directly verified the packaged Settings > Integrations OpenClaw controls plus typed-IPC gateway-setting write/read/restore. This is stronger repeatable evidence than the prior manual-render checkbox.
+- Two packaged-only failures were found and fixed before closeout: Settings deep links did not select Integrations, and smoke bootstrap/Electron used different runtime roots. Regression coverage now protects query routing, condition-based renderer readiness, and the smoke-only shared runtime root.

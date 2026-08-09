@@ -47,6 +47,8 @@ def test_openclaw_surfaces_are_classified_experimental() -> None:
 
 
 def test_gui_labels_openclaw_experimental_and_off_by_default() -> None:
-    source = Path("gui/src/pages/SettingsPage.tsx").read_text(encoding="utf-8")
+    source = Path("gui/src/pages/settings/integrations/OpenClawIntegrationSection.tsx").read_text(
+        encoding="utf-8"
+    )
     assert "OpenClaw" in source
     assert "Experimental - off by default" in source

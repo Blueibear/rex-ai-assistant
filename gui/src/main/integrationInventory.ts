@@ -174,7 +174,8 @@ export async function buildIntegrationInventory(session: ElectronSessionIdentity
       name: 'OpenClaw',
       key: 'openclaw',
       configured: openclawConfigured,
-      configure_url: '/settings?section=ai'
+      configure_url: '/settings?section=integrations',
+      testable: true
     })
   ])
 }

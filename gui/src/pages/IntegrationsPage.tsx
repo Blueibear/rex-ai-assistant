@@ -4,6 +4,11 @@ import type { CapabilityInfo, IntegrationInventoryItem } from '../types/ipc'
 
 type Integration = IntegrationInventoryItem
 type Capability = CapabilityInfo
+type TestableIntegrationKey = 'email' | 'calendar' | 'sms' | 'homeassistant' | 'phone' | 'openclaw'
+
+function isTestableIntegrationKey(key: string): key is TestableIntegrationKey {
+  return ['email', 'calendar', 'sms', 'homeassistant', 'phone', 'openclaw'].includes(key)
+}
 
 function StatusBadge({ integration }: { integration: Integration }): React.ReactElement {
   const labels: Record<Integration['state'], string> = {
@@ -41,6 +46,8 @@ export function IntegrationsPage(): React.ReactElement {
   const [capabilities, setCapabilities] = useState<Capability[]>([])
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
+  const [testingKey, setTestingKey] = useState<string | null>(null)
+  const [testErrors, setTestErrors] = useState<Record<string, string>>({})
 
   useEffect(() => {
     let cancelled = false
@@ -77,6 +84,43 @@ export function IntegrationsPage(): React.ReactElement {
       cancelled = true
     }
   }, [])
+
+  const handleIntegrationTest = async (integration: Integration): Promise<void> => {
+    if (!integration.testable || !isTestableIntegrationKey(integration.key)) return
+    setTestingKey(integration.key)
+    setTestErrors((current) => ({ ...current, [integration.key]: '' }))
+    try {
+      const result = await window.rex.testIntegration(integration.key)
+      const nextState = result.state ?? (result.ok ? 'reachable' : 'degraded')
+      setIntegrations((current) =>
+        current.map((item) =>
+          item.key === integration.key
+            ? {
+                ...item,
+                state: nextState,
+                testedAt: new Date().toISOString(),
+                error: result.error
+              }
+            : item
+        )
+      )
+      if (result.error) {
+        setTestErrors((current) => ({ ...current, [integration.key]: result.error ?? '' }))
+      }
+    } catch {
+      const error = 'Connection test failed.'
+      setIntegrations((current) =>
+        current.map((item) =>
+          item.key === integration.key
+            ? { ...item, state: 'degraded', testedAt: new Date().toISOString(), error }
+            : item
+        )
+      )
+      setTestErrors((current) => ({ ...current, [integration.key]: error }))
+    } finally {
+      setTestingKey(null)
+    }
+  }
 
   const grouped = capabilities.reduce<Record<string, Capability[]>>((acc, cap) => {
     const cat = cap.category ?? 'General'
@@ -118,15 +162,30 @@ export function IntegrationsPage(): React.ReactElement {
                       Next action: {int.next_action}
                     </p>
                   </div>
-                  <div className="flex items-center gap-3 flex-shrink-0">
-                    <StatusBadge integration={int} />
-                    {int.configure_url && (
-                      <NavLink
-                        to={int.configure_url}
-                        className="text-xs text-accent hover:underline"
-                      >
-                        Configure →
-                      </NavLink>
+                  <div className="flex flex-col items-end gap-2 flex-shrink-0">
+                    <div className="flex items-center gap-3">
+                      <StatusBadge integration={int} />
+                      {int.testable && isTestableIntegrationKey(int.key) && (
+                        <button
+                          type="button"
+                          onClick={() => void handleIntegrationTest(int)}
+                          disabled={testingKey === int.key}
+                          className="text-xs text-accent hover:underline disabled:opacity-50"
+                        >
+                          {testingKey === int.key ? 'Testing…' : 'Test connection'}
+                        </button>
+                      )}
+                      {int.configure_url && (
+                        <NavLink
+                          to={int.configure_url}
+                          className="text-xs text-accent hover:underline"
+                        >
+                          Configure →
+                        </NavLink>
+                      )}
+                    </div>
+                    {testErrors[int.key] && (
+                      <p className="max-w-xs text-right text-xs text-red-300">{testErrors[int.key]}</p>
                     )}
                   </div>
                 </div>
