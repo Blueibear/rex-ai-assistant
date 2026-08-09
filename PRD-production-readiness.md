@@ -4,7 +4,7 @@
 
 > **Ralph execution rule**
 > A task means one full User Story, not one checkbox.
-> Choose the first User Story whose acceptance criteria contain any unchecked `[ ]` box.
+> For the remaining integrated production-readiness/Rex 2.0 work, choose the first User Story with any unchecked `[ ]` acceptance criterion from the **Integrated execution order - 2026-08-08** below; do not use raw file position as the priority signal. Stories outside that list retain their historical status and are not reopened unless a later story explicitly depends on them.
 > Complete exactly one User Story per iteration.
 > A User Story is only complete when current code, tests, and acceptance criteria prove it.
 > When a story is complete, update `PRD-production-readiness.md` and `docs/archive/progress/progress-production-readiness.txt` in the same commit as the implementation.
@@ -20,6 +20,76 @@
 
 > **Audit remediation note — 2026-07-22**
 > Findings A–K from the current audit are implemented in reviewable commits and locally verified as recorded in `docs/audits/AUDIT-REMEDIATION-2026-07-22.md`. This supersedes older baseline prose for calendar isolation, Electron identity/data ownership, HA mutation verification, tool lifecycle, managed Electron runtime, Windows artifact CI, Hold to Talk, integration-state truth, diagnostics/security gates, and GUI dependency gates. Items remain **locally verified**, not CI verified, until the pull-request checks pass. The unsigned installer and hardware/external-provider checks remain explicit release limitations.
+
+> **Rex 2.0 integration reconciliation - 2026-08-08**
+> The reviewed Rex 2.0 intelligence/latency/tooling/memory/self-extension plan is now an architectural amendment to this production-readiness workstream, not a separate future rewrite. Current runtime code remains authoritative until the specific story that migrates a boundary is implemented and verified. The migration is intentionally evolutionary: establish truthful baseline evidence, converge `generate_reply()` and `stream_reply()` on one TurnEngine/event contract, then build capability/action/latency/model/memory/OpenClaw/Forge work on that shared foundation. Rex remains local-first and remains the orchestrator, identity authority, permission/risk layer, verifier, memory system, and final responder; OpenClaw/ClawHub remain optional capability providers. No new paid service is required. Existing fail-closed identity is sufficient to begin the TurnEngine foundation; US-087 later unifies cross-surface and household semantics. SMS remains available through the backend/direct route but intentionally stays out of primary navigation.
+>
+> Design: `docs/superpowers/specs/2026-08-08-rex2-production-readiness-integration-design.md`
+> Implementation plan: `docs/superpowers/plans/2026-08-08-rex2-production-readiness-integration.md`
+
+### Integrated execution order - 2026-08-08
+
+Use this order for task selection after the reconciliation above. Select the first story below that still has any unchecked acceptance criterion:
+
+1. `US-063`
+2. `US-075`
+3. `US-064`
+4. `US-094`
+5. `US-095`
+6. `US-096`
+7. `US-076`
+8. `US-097`
+9. `US-098`
+10. `US-106`
+11. `US-107`
+12. `US-109`
+13. `US-108`
+14. `US-104`
+15. `US-099`
+16. `US-105`
+17. `US-110`
+18. `US-111`
+19. `US-071`
+20. `US-072`
+21. `US-073`
+22. `US-077`
+23. `US-078`
+24. `US-113`
+25. `US-114`
+26. `US-101`
+27. `US-074`
+28. `US-068`
+29. `US-069`
+30. `US-070`
+31. `US-100`
+32. `US-102`
+33. `US-103`
+34. `US-079`
+35. `US-067`
+36. `US-065`
+37. `US-066`
+38. `US-080`
+39. `US-081`
+40. `US-082`
+41. `US-087`
+42. `US-083`
+43. `US-084`
+44. `US-085`
+45. `US-086`
+46. `US-112`
+47. `US-088`
+48. `US-115`
+49. `US-116`
+50. `US-117`
+51. `US-089`
+52. `US-090`
+53. `US-091`
+54. `US-092`
+55. `US-093`
+56. `US-118`
+
+**Dependency/security notes:** TurnEngine work must preserve the already-implemented explicit, fail-closed user identity contract from its first event. US-087 later proves the broader user/household model and James/Cole concurrency invariants. OpenClaw metadata never widens local authority. Mobile remains desktop-paired and least-privilege. All benchmark evidence must label whether it is deterministic/mock, local source runtime, live provider, packaged Windows artifact, or physical hardware/device.
+
 
 ---
 
@@ -2131,6 +2201,10 @@ cd gui && npm run typecheck && npm run build
 - [ ] README and integration docs link to the inventory or summarize its production-facing conclusions.
 - [ ] All relevant GitHub checks pass.
 
+- [ ] A committed migration appendix identifies every current capability/tool registry, its authority, consumers, duplicate metadata, and the target adapter into the future canonical Capability Registry.
+- [ ] Every inventoried capability records source, enabled state, required permissions, health state, operation type (read/mutate), risk tier, and verification support.
+- [ ] SMS remains backend/direct-route compatible but is explicitly absent from primary navigation.
+
 **Validation commands:**
 ```bash
 grep -n "Capability parity" docs/*.md README.md
@@ -2555,6 +2629,11 @@ cd gui && npm run typecheck && npm run build
 - [ ] Tests cover timing event emission with mocked stages.
 - [ ] All relevant GitHub checks pass.
 
+- [ ] A checked-in RexBench baseline reports cold and warm p50/p95 for typed chat, voice, read-only tool, mutating tool, and unavailable-capability request classes.
+- [ ] Baseline stages separately report routing, first token, tool execution, STT, first audio, completion, and total latency where applicable.
+- [ ] Deterministic fixtures/mocks are the default benchmark evidence; live-provider and physical-hardware evidence is stored/labeled separately and never conflated with mock/local measurements.
+- [ ] Benchmark output contains no prompts, transcripts, memory contents, credentials, or user IDs.
+
 **Validation commands:**
 ```bash
 pytest -q tests/test_voice_latency.py tests/test_tool_pipeline.py
@@ -2589,6 +2668,9 @@ pytest -q tests/test_voice_latency.py tests/test_tool_pipeline.py
 - [ ] The UI distinguishes model failure from normal answer refusal.
 - [ ] Tests use mocked bad output and verify no gibberish is returned to the user.
 - [ ] All relevant GitHub checks pass.
+
+- [ ] Output validation runs on the canonical turn-completion path so streaming and non-streaming turns enforce identical safety/coherence rules.
+- [ ] Any response produced after model escalation is independently validated before it can become the terminal user response.
 
 **Validation commands:**
 ```bash
@@ -2661,6 +2743,10 @@ pytest -q tests/test_assistant.py tests/test_capabilities.py tests/test_tools_re
 - [ ] The GUI can render structured recovery actions where available.
 - [ ] Tests cover missing integration, missing key, missing permission, and missing tool responses.
 - [ ] All relevant GitHub checks pass.
+
+- [ ] Before offering to build a missing capability, the recovery path searches in order: enabled local capabilities, disabled local capabilities, OpenClaw/ClawHub, configured MCP providers, configured OpenAPI descriptions, and safely composable capabilities.
+- [ ] Candidate gap-recovery options are filtered by current-user permission, health, risk, identity scope, and configuration before they are offered or ranked.
+- [ ] Rex never enables, installs, composes, or grants capability authority without the required risk-policy decision/confirmation.
 
 **Validation commands:**
 ```bash
@@ -2741,6 +2827,8 @@ cd gui && npm run typecheck && npm run build
 - [ ] Manual or harness verification confirms the page is usable with representative HA fixture data.
 - [ ] All relevant GitHub checks pass.
 
+- [ ] Home Assistant actions consume the canonical action lifecycle; an attempted or unverified mutation is never presented as completed or verified.
+
 **Validation commands:**
 ```bash
 pytest -q tests/test_us313_ha_device_status.py tests/test_us060_devices.py
@@ -2816,6 +2904,8 @@ cd gui && npm run typecheck && npm run build
 - [ ] Tests cover the visible label/status for each outcome.
 - [ ] `cd gui && npm run typecheck && npm run build` passes.
 - [ ] All relevant GitHub checks pass.
+
+- [ ] SMS backend/direct-route compatibility is preserved while SMS remains intentionally hidden from primary navigation.
 
 **Validation commands:**
 ```bash
@@ -2939,6 +3029,10 @@ cd gui && npm run typecheck && npm run build
 - [ ] `cd gui && npm run typecheck && npm run build` passes.
 - [ ] All relevant GitHub checks pass.
 
+- [ ] Memory records declare a memory type (`semantic`, `episodic`, or `preference`) plus scope (`private user` or `household`) before retrieval/ranking.
+- [ ] Scope/identity filtering occurs before ranking, and memory retrieval timing/telemetry does not expose private content.
+- [ ] Procedural/experience memory is excluded from ordinary memory writes and can only be promoted through the guarded procedure story (US-112).
+
 **Validation commands:**
 ```bash
 pytest -q tests/test_identity.py tests/test_voice_identity_fallback.py
@@ -3023,6 +3117,9 @@ cd gui && npm run typecheck && npm run build
 - [ ] Tests cover cross-feature identity consistency.
 - [ ] All relevant GitHub checks pass.
 
+- [ ] Canonical Turn events carry one immutable validated user ID and scope across every interface and asynchronous stage.
+- [ ] Concurrent James/Cole tests prove no cross-user events, caches, prompts/context, memory, tools, or cancellation leakage.
+
 **Validation commands:**
 ```bash
 pytest -q tests/test_identity.py tests/test_us048_data_isolation.py tests/test_voice_id_profile_switch.py
@@ -3064,6 +3161,10 @@ pytest -q tests/test_identity.py tests/test_us048_data_isolation.py tests/test_v
 - [ ] Tests or smoke checks cover auth rejection, rate-limit behavior, and CORS policy for mobile/API routes.
 - [ ] Docs use `askrex.app` as the target domain.
 - [ ] All relevant GitHub checks pass.
+
+- [ ] Mobile chat and voice consume the same canonical TurnEngine/event contract as desktop/CLI rather than a mobile-only intelligence path.
+- [ ] Existing desktop-owned pairing, live grants, revocation, TLS binding, strong authentication, rate limits, and least-privilege scopes remain enforced.
+- [ ] OpenClaw remains optional; its absence or unhealthy state grants no additional mobile authority and does not disable core Rex functionality.
 
 **Validation commands:**
 ```bash
@@ -3156,6 +3257,559 @@ grep -n "askrex.app\|Cloudflare\|CORS\|rate limit\|revocation" docs/deployment.m
 
 ---
 
+## Phase 17 - Rex 2.0 unified runtime, intelligence, and safe self-extension
+
+### US-094: Define TurnEngine contracts and event runtime
+
+**Priority:** P0 | **Workstream:** Runtime / Architecture / Identity | **Dependencies:** US-075 and current fail-closed identity baseline.
+
+**Description:** Introduce canonical interface-agnostic turn/context/event contracts that every response path will migrate onto.
+
+**Why it matters:** Streaming and non-streaming currently have different intelligence paths; one typed runtime is the foundation for parity, cancellation, progress, voice, mobile, verification, and observability.
+
+**Files/areas likely involved:** `rex/runtime/turn.py`, `rex/runtime/events.py`, `rex/runtime/turn_engine.py`, `rex/assistant.py`, `tests/rex2/`.
+
+**Acceptance Criteria:**
+- [ ] TurnContext has a unique turn ID, immutable validated user ID/scope, source/device/response mode, monotonic timing/deadline context, and policy/permission snapshot reference.
+- [ ] Typed ordered events cover turn start, context/route/capability/action/model/response progress and exactly one terminal `completed`, `failed`, or `cancelled` event.
+- [ ] Event timestamps/order/correlation are deterministic; terminal double-emission fails closed.
+- [ ] TurnEngine initially wraps existing components without changing public behavior or bypassing identity/security checks.
+- [ ] Tests prove identity immutability and concurrent-user event isolation.
+- [ ] All relevant GitHub checks pass.
+
+**Validation commands:** `pytest tests/rex2/test_turn_contracts.py -q`; `mypy rex/runtime --ignore-missing-imports`; `ruff check rex/runtime tests/rex2/test_turn_contracts.py`.
+
+**Risk notes:** Define contracts first; do not claim interface parity until US-095 through US-097 land.
+
+### US-095: Move `generate_reply()` onto TurnEngine
+
+**Priority:** P0 | **Workstream:** Runtime / Assistant | **Dependencies:** US-094.
+
+**Description:** Make non-streaming `Assistant.generate_reply()` consume TurnEngine while preserving its public response contract.
+
+**Why it matters:** The complete orchestration path must become one implementation that every delivery mode can share.
+
+**Files/areas likely involved:** `rex/assistant.py`, `rex/runtime/turn_engine.py`, routing/context/action/response services, `tests/rex2/`.
+
+**Acceptance Criteria:**
+- [ ] `generate_reply()` delegates routing, context, capability/action execution, output validation, history, and final response production through TurnEngine.
+- [ ] Existing cache, ModelRouter request scope, ActionDispatcher/verification, ResponseBuilder, and fail-closed identity remain covered and observable through events.
+- [ ] Public callers keep the same final result shape except already-required truthful status corrections.
+- [ ] Regression tests cover direct answer, read-only tool, mutation/confirmation, model failure, and unavailable capability.
+- [ ] No direct model shortcut bypasses TurnEngine from `generate_reply()`.
+- [ ] All relevant GitHub checks pass.
+
+**Validation commands:** `pytest tests/rex2/test_generate_reply_turn_engine.py tests/test_assistant.py -q`; `mypy rex/assistant.py rex/runtime --ignore-missing-imports`.
+
+**Risk notes:** Preserve current identity and verification semantics exactly; this is architecture migration, not permission expansion.
+
+### US-096: Move `stream_reply()` onto TurnEngine
+
+**Priority:** P0 | **Workstream:** Runtime / Streaming | **Dependencies:** US-095.
+
+**Description:** Make streaming delivery consume the same TurnEngine and expose model/response deltas without creating a reduced-intelligence path.
+
+**Why it matters:** Fast must not mean dumb; streaming is a delivery mode, not a different brain.
+
+**Files/areas likely involved:** `rex/assistant.py`, `rex/runtime/events.py`, `rex/runtime/turn_engine.py`, chat stream bridges, `tests/rex2/`.
+
+**Acceptance Criteria:**
+- [ ] Streaming and non-streaming use the same router, cache policy, context, capability/action pipeline, verification, memory/history, and output validation.
+- [ ] Streaming emits ordered deltas/sentences plus the same canonical terminal outcome as non-streaming.
+- [ ] Tool syntax, internal plans, raw provider tool-call payloads, and unverified action claims never leak to the user stream.
+- [ ] Parity fixtures compare final semantic/status outcomes across both delivery modes.
+- [ ] Error/fallback/escalation behavior is equivalent across both delivery modes.
+- [ ] All relevant GitHub checks pass.
+
+**Validation commands:** `pytest tests/rex2/test_stream_turn_parity.py tests/test_assistant_streaming.py -q`; `mypy rex/assistant.py rex/runtime --ignore-missing-imports`.
+
+**Risk notes:** Never buy latency by bypassing ActionDispatcher, verification, identity, or output validation.
+
+### US-097: Adopt TurnEngine across interfaces
+
+**Priority:** P0 | **Workstream:** Runtime / Interfaces | **Dependencies:** US-096.
+
+**Description:** Convert CLI, Electron bridges, canonical voice loop, mobile/API adapters, and supported service callers into thin TurnEngine adapters.
+
+**Why it matters:** One brain only exists if every supported interface actually uses it.
+
+**Files/areas likely involved:** CLI chat, `bridge/rex_chat*_bridge.py`, voice loop/builder, mobile API handlers, API/service adapters, Electron main IPC.
+
+**Acceptance Criteria:**
+- [ ] CLI text, Electron text, canonical voice, and authenticated mobile chat/voice enter the same TurnEngine contract with validated identity/source metadata.
+- [ ] A source guard inventories supported interfaces and fails if one directly calls the model or legacy orchestration instead of TurnEngine.
+- [ ] Interface adapters are limited to authentication/identity, input normalization, transport/stream presentation, and response-mode formatting.
+- [ ] Cross-interface fixtures prove equivalent route/tool/verification outcomes for the same authenticated request.
+- [ ] Existing mobile pairing/scopes and Electron immutable session identity remain authoritative.
+- [ ] All relevant GitHub checks pass.
+
+**Validation commands:** `pytest tests/rex2/test_turn_interface_parity.py tests/test_mobile_api.py -q`; `cd gui && npm run typecheck && npm run build`.
+
+**Risk notes:** Do not let interface convenience reintroduce direct model or tool bypasses.
+
+### US-098: Add turn-scoped cancellation
+
+**Priority:** P0 | **Workstream:** Runtime / Safety / Voice | **Dependencies:** US-097.
+
+**Description:** Give every turn an idempotent cancellation scope that propagates through generation, retrieval, tools, OpenClaw, TTS, and parallel work.
+
+**Why it matters:** Barge-in, correction, stale-request replacement, and safe shutdown require one cancellation truth source.
+
+**Files/areas likely involved:** `rex/runtime/cancellation.py`, TurnContext, LLM streaming, tool execution, OpenClaw client/bridge, TTS/voice loop.
+
+**Acceptance Criteria:**
+- [ ] Cancellation is idempotent and turn-scoped and emits exactly one canonical cancelled terminal event.
+- [ ] Model generation, retrieval/prefetch, cancellable tools/OpenClaw calls, and TTS stop or ignore stale output promptly.
+- [ ] If cancellation/transport loss occurs after a mutation may have dispatched, outcome is `attempted/unverified` until independently proven, never fabricated as failure/success.
+- [ ] Cancelling one user/turn cannot cancel another user's concurrent work.
+- [ ] Tests cover cancellation before dispatch, during generation, during read-only work, after mutation dispatch, and repeated cancellation calls.
+- [ ] All relevant GitHub checks pass.
+
+**Validation commands:** `pytest tests/rex2/test_turn_cancellation.py tests/rex2/test_cancellation_identity_isolation.py -q`; `mypy rex/runtime rex/openclaw --ignore-missing-imports`.
+
+**Risk notes:** Cancellation is not rollback; unknown mutation outcome remains unverified.
+
+### US-099: Add managed warm local runtime
+
+**Priority:** P1 | **Workstream:** Latency / Local Models / Voice | **Dependencies:** US-098 and US-075 baseline.
+
+**Description:** Keep selected local executive/model, STT, TTS, and retrieval/index components warm under a bounded resource policy rather than reloading heavy state per turn.
+
+**Why it matters:** Repeated model/process initialization is incompatible with natural assistant latency.
+
+**Files/areas likely involved:** model/STT/TTS loaders, runtime service lifecycle, health/doctor status, config, RexBench.
+
+**Acceptance Criteria:**
+- [ ] Managed warm-component lifecycle exposes state/health, bounded memory cost, idle/eviction behavior, and lazy fallback.
+- [ ] Common warm-path turns do not reload the same heavy executive/STT/TTS/index dependency per turn.
+- [ ] Startup remains graceful when optional ML/audio dependencies are absent; local-first core text remains usable.
+- [ ] RexBench compares cold vs warm evidence without storing user content.
+- [ ] Diagnostics report which components are warm and approximate resource cost without secrets/private data.
+- [ ] All relevant GitHub checks pass.
+
+**Validation commands:** `pytest tests/rex2/test_warm_runtime.py -q`; `python scripts/rexbench.py --profile warm-runtime`.
+
+**Risk notes:** Do not trade latency for unbounded RAM/VRAM growth or force optional heavy dependencies into base install.
+
+### US-100: Add streaming ASR and semantic endpointing
+
+**Priority:** P1 | **Workstream:** Voice / STT / Latency | **Dependencies:** US-099, US-074, US-068 through US-070.
+
+**Description:** Process speech incrementally and combine acoustic silence with semantic completeness before committing a transcript to TurnEngine.
+
+**Why it matters:** Full-capture-then-transcribe adds avoidable latency and makes turn-taking mechanical.
+
+**Files/areas likely involved:** canonical voice capture/STT pipeline, VAD/endpoint logic, TurnEngine input adapter, voice diagnostics.
+
+**Acceptance Criteria:**
+- [ ] Streaming/partial ASR updates are explicitly non-authoritative and never dispatch actions before final commit.
+- [ ] Endpointing combines bounded silence/VAD evidence with semantic completeness; timeout/device-loss falls back safely to deterministic endpoint behavior.
+- [ ] Final committed transcript may correct earlier partial hypotheses before tool/model dispatch.
+- [ ] Tests cover short command, trailing clause, hesitation, correction, silence timeout, and microphone/STT failure.
+- [ ] RexBench reports capture/first-partial/final-transcript/turn-dispatch timing separately for mock/local/physical evidence.
+- [ ] All relevant GitHub checks pass.
+
+**Validation commands:** `pytest tests/rex2/test_streaming_asr_endpointing.py tests/test_voice_loop.py -q`; `python scripts/rexbench.py --profile voice-endpointing`.
+
+**Risk notes:** A partial transcript must never cause an irreversible action.
+
+### US-101: Add safe speculative read-only prefetch
+
+**Priority:** P1 | **Workstream:** Latency / Context / Tools | **Dependencies:** US-107, US-109, US-108, US-098.
+
+**Description:** Allow bounded cancellable prefetch of likely low-risk read-only context/capabilities while routing is still resolving.
+
+**Why it matters:** Independent reads can hide retrieval/network latency, but speculation must never create side effects or bypass permissions.
+
+**Files/areas likely involved:** TurnEngine prefetch stage, Capability Registry/retrieval, action graph, cancellation/telemetry.
+
+**Acceptance Criteria:**
+- [ ] Only healthy, currently permitted, explicitly read-only/low-risk capabilities are eligible for speculation.
+- [ ] Prefetch has strict concurrency/time/resource budgets, inherits cancellation, and produces no confirmation/mutation side effects.
+- [ ] Unused speculative results are discarded; audit/metrics retain metadata/timing only, not private payload contents.
+- [ ] Prefetched data is revalidated for identity/scope/freshness before final-plan use.
+- [ ] Tests prove mutating/risky/disabled/unauthorized capabilities are never speculatively called.
+- [ ] All relevant GitHub checks pass.
+
+**Validation commands:** `pytest tests/rex2/test_speculative_prefetch.py -q`; `python scripts/rexbench.py --profile speculative-prefetch`.
+
+**Risk notes:** Optimization stays strictly inside the permission boundary; no mutation is eligible.
+
+### US-102: Stream clause/sentence TTS from turn events
+
+**Priority:** P1 | **Workstream:** Voice / TTS / Streaming | **Dependencies:** US-100, US-096, US-109.
+
+**Description:** Start speaking stable response clauses/sentences from canonical events while preserving order and verification truth.
+
+**Why it matters:** Natural perceived latency depends on first audible response, not only final text completion.
+
+**Files/areas likely involved:** Turn response events, TTS queue/playback, canonical voice loop, RexBench.
+
+**Acceptance Criteria:**
+- [ ] Stable response sentences/clauses enter an ordered per-turn TTS queue and are spoken exactly once in text order.
+- [ ] Tool/action success claims are withheld until lifecycle evidence permits truthful wording.
+- [ ] TTS failure/cancellation never removes or corrupts canonical text; stale audio is not played after cancellation.
+- [ ] Backpressure prevents unbounded synthesis queues on long responses.
+- [ ] RexBench reports first-text and first-audio latency separately.
+- [ ] All relevant GitHub checks pass.
+
+**Validation commands:** `pytest tests/rex2/test_turn_tts_streaming.py tests/test_tts_voices.py -q`; `python scripts/rexbench.py --profile streaming-tts`.
+
+**Risk notes:** Spoken content cannot outrun verification evidence for real-world actions.
+
+### US-103: Implement barge-in over canonical cancellation
+
+**Priority:** P1 | **Workstream:** Voice / Cancellation | **Dependencies:** US-102, US-098.
+
+**Description:** Let an authenticated user interrupt Rex speech/current turn and start a replacement turn without stale output continuing.
+
+**Why it matters:** Conversational voice requires interruption to be first-class runtime behavior, not ad-hoc audio stopping.
+
+**Files/areas likely involved:** voice input/playback state machine, Turn cancellation, TTS queue, transcript/turn adapter.
+
+**Acceptance Criteria:**
+- [ ] Barge-in stops/invalidates stale TTS and cancels the current turn before replacement dispatch.
+- [ ] A mutation already dispatched follows canonical attempted/unverified rules rather than being assumed rolled back.
+- [ ] Deterministic echo-suppression fixtures prevent Rex's own audio from creating a replacement turn.
+- [ ] Repeated interruption cannot cross user/session boundaries or produce two active replacement turns.
+- [ ] Physical hardware validation is labeled separately from deterministic/mock tests.
+- [ ] All relevant GitHub checks pass.
+
+**Validation commands:** `pytest tests/rex2/test_voice_barge_in.py -q`; `python scripts/rexbench.py --profile barge-in`.
+
+**Risk notes:** Never hide or "cancel" a real-world action merely by stopping its audio response.
+
+### US-104: Emit progressive status from canonical events
+
+**Priority:** P1 | **Workstream:** UX / Events / Privacy | **Dependencies:** US-097, US-109.
+
+**Description:** Drive `thinking/checking/acting/verifying/speaking` status surfaces solely from canonical Turn events.
+
+**Why it matters:** Progressive UX reduces perceived latency and prevents each interface inventing contradictory activity state.
+
+**Files/areas likely involved:** event-to-status projector, Electron/mobile/voice adapters, typed IPC/mobile events.
+
+**Acceptance Criteria:**
+- [ ] Status is a deterministic projection of canonical events and contains no independent orchestration/business logic.
+- [ ] Status payloads contain no transcript, prompt, memory contents, credentials, or private tool results.
+- [ ] CLI/Electron/voice/mobile show equivalent state transitions for the same turn, adapted only for presentation.
+- [ ] Cancellation/failure/verification terminal states clear stale indicators reliably.
+- [ ] Tests cover privacy redaction and cross-interface status parity.
+- [ ] All relevant GitHub checks pass.
+
+**Validation commands:** `pytest tests/rex2/test_progressive_status.py -q`; `cd gui && npm run typecheck && npm run build`.
+
+**Risk notes:** Status is evidence-derived; never infer `done` from elapsed time or optimistic client state.
+
+### US-105: Add identity-safe prompt/context caching
+
+**Priority:** P1 | **Workstream:** Latency / Context / Privacy | **Dependencies:** US-094 and current identity isolation; US-087 later hardens cross-surface semantics.
+
+**Description:** Cache deterministic prompt/context artifacts only when keys and invalidation make user/policy/model boundaries explicit.
+
+**Why it matters:** Context assembly can be expensive, but underspecified shared caches create severe James/Cole privacy risk.
+
+**Files/areas likely involved:** prompt/context builder, memory/context revision metadata, runtime cache utility, policy/model/config versioning.
+
+**Acceptance Criteria:**
+- [ ] Private cache keys include validated user/scope plus relevant model, policy, capability/config, and prompt-template versions.
+- [ ] Household-safe data is shared only when explicitly household-scoped; private entries are never shared across users.
+- [ ] Deterministic invalidation occurs on relevant identity/scope/policy/model/config/memory revisions.
+- [ ] Cache metrics contain categories/timing but never raw private content or credentials.
+- [ ] Concurrent James/Cole tests prove no cache hit returns the other user's prompt/context/memory.
+- [ ] All relevant GitHub checks pass.
+
+**Validation commands:** `pytest tests/rex2/test_context_cache.py tests/rex2/test_context_cache_identity.py -q`.
+
+**Risk notes:** Prefer a cache miss over stale or cross-user context.
+
+### US-106: Consolidate canonical Capability Registry and Tool Cards
+
+**Priority:** P0 | **Workstream:** Capabilities / Tools / Architecture | **Dependencies:** US-064.
+
+**Description:** Replace divergent capability/tool metadata authorities with one canonical Capability record/registry and adapters for existing local tools.
+
+**Why it matters:** Semantic selection, permissions, health, dynamic OpenClaw, gap detection, and Forge all need one source of truth.
+
+**Files/areas likely involved:** `rex/capabilities/`, existing tool registries/consumers, OpenClaw adapters, capability inventory docs.
+
+**Acceptance Criteria:**
+- [ ] One authoritative Capability/Tool Card schema records ID/source/input-output schema/enabled state/required permissions/health/operation type/risk/verification support and user-facing description/examples.
+- [ ] Existing local registries adapt into or migrate to that authority; duplicate metadata cannot silently diverge.
+- [ ] Registry metadata itself is deterministic; authorization is always evaluated for the current user at selection/execution time.
+- [ ] Compatibility adapters keep current callers functional until their migration removes obsolete paths.
+- [ ] Tests detect duplicate IDs/schema drift and prove remote metadata cannot overwrite local security classification.
+- [ ] All relevant GitHub checks pass.
+
+**Validation commands:** `pytest tests/rex2/test_capability_registry.py tests/test_tool_registry.py -q`; `mypy rex/capabilities --ignore-missing-imports`.
+
+**Risk notes:** Registry consolidation must never broaden what any user may execute.
+
+### US-107: Add permission-aware hybrid capability retrieval
+
+**Priority:** P0 | **Workstream:** Capabilities / Retrieval / Local AI | **Dependencies:** US-106.
+
+**Description:** Retrieve a small relevant capability set using lexical plus local semantic evidence after security/health filtering.
+
+**Why it matters:** Keyword-only selection does not scale, while injecting every tool into prompts hurts quality and latency.
+
+**Files/areas likely involved:** capability retrieval/index, local embedding adapter if available, TurnEngine executive/routing stage.
+
+**Acceptance Criteria:**
+- [ ] Candidate set is filtered by current-user permission, identity scope, enabled/configured state, health, and risk policy before ranking.
+- [ ] Hybrid ranking uses lexical evidence plus a local embedding/semantic signal when available; no paid embedding service is added.
+- [ ] Missing/broken embeddings fall back deterministically to lexical retrieval without disabling tool use.
+- [ ] Selection exposes inspectable score/reason metadata without leaking private payloads.
+- [ ] Golden tests cover paraphrases, ambiguity, denied/unhealthy tools, and no-embedding fallback.
+- [ ] All relevant GitHub checks pass.
+
+**Validation commands:** `pytest tests/rex2/test_capability_retrieval.py -q`; `python scripts/rexbench.py --profile capability-retrieval`.
+
+**Risk notes:** Security filters precede ranking; semantic score never grants authority.
+
+### US-108: Add safe action dependency graphs and parallel execution
+
+**Priority:** P1 | **Workstream:** Planning / Execution | **Dependencies:** US-109, US-107, US-098.
+
+**Description:** Execute independent permitted actions concurrently while preserving explicit dependencies, mutation serialization, cancellation, and verification.
+
+**Why it matters:** Serial independent reads add latency; naive parallelism creates races and unsafe side effects.
+
+**Files/areas likely involved:** plan/action graph models, executor, policy/verification adapters, Turn events.
+
+**Acceptance Criteria:**
+- [ ] Minimal DAG model expresses dependencies, operation type, authorization, and verification/postcondition relationships.
+- [ ] Independent permitted reads may run in bounded parallelism; conflicting or mutating nodes serialize when ordering matters.
+- [ ] Dependent failure/cancellation blocks unsafe descendants and preserves truthful states for already-started nodes.
+- [ ] Confirmation/commit boundaries cannot be bypassed by parallel scheduling.
+- [ ] Tests prove wall-clock concurrency for independent mock reads and deterministic mutation/conflict ordering.
+- [ ] All relevant GitHub checks pass.
+
+**Validation commands:** `pytest tests/rex2/test_action_graph.py tests/rex2/test_parallel_actions.py -q`; `python scripts/rexbench.py --profile parallel-actions`.
+
+**Risk notes:** Different tool names do not imply independent real-world resources.
+
+### US-109: Generalize the action lifecycle
+
+**Priority:** P0 | **Workstream:** Verification / Safety / Audit | **Dependencies:** US-094 and existing HA verification baseline.
+
+**Description:** Promote the verified action vocabulary into one runtime state machine used by tools, Home Assistant, OpenClaw, workflows, and future Forge capabilities.
+
+**Why it matters:** Action truth must be a runtime invariant rather than per-integration wording convention.
+
+**Files/areas likely involved:** action result/evidence models, verification service, Turn events, tool/OpenClaw/HA adapters, audit logging.
+
+**Acceptance Criteria:**
+- [ ] Canonical states are exactly `planned`, `authorized`, `attempted`, `completed`, `verified`, `unverified`, `failed`, and `cancelled`, with documented allowed transitions.
+- [ ] Invalid/out-of-order transitions fail closed and cannot create verified success.
+- [ ] Immutable correlation IDs link plan/action/tool attempt/verification evidence/audit record/user-facing result.
+- [ ] Existing HA/OpenClaw results adapt into the lifecycle without losing evidence detail.
+- [ ] User-facing success wording derives from lifecycle/evidence, never mere absence of an exception.
+- [ ] All relevant GitHub checks pass.
+
+**Validation commands:** `pytest tests/rex2/test_action_lifecycle.py tests/test_home_assistant_verification.py -q`.
+
+**Risk notes:** Preserve `unverified` as a real state; do not collapse it into success or failure for UI convenience.
+
+### US-110: Implement ModelRouter 2.0 fast/deep escalation
+
+**Priority:** P1 | **Workstream:** Models / Routing / Local-first | **Dependencies:** US-096 and US-075.
+
+**Description:** Route deterministic/simple work through fast/local paths and escalate genuinely complex or low-confidence work through configured deep models with explicit evidence.
+
+**Why it matters:** One model for every task wastes latency/resources; opaque heuristic routing is hard to trust and debug.
+
+**Files/areas likely involved:** `rex/model_router.py`, provider strategies, Turn route events, config/UI provider settings, RexBench.
+
+**Acceptance Criteria:**
+- [ ] Routing exposes explicit complexity/confidence/evidence plus chosen fast/deep route in privacy-safe turn metadata.
+- [ ] Low-confidence executive decisions may escalate at most once unless an explicit bounded retry policy says otherwise.
+- [ ] Local-first remains default/configurable; no cloud or paid provider is silently enabled or selected without existing configuration/permission.
+- [ ] Deterministic commands may bypass deep reasoning without bypassing permissions or verification.
+- [ ] Golden tests cover simple command, ambiguous tool choice, complex reasoning, provider outage, and unavailable local model.
+- [ ] All relevant GitHub checks pass.
+
+**Validation commands:** `pytest tests/rex2/test_model_router_v2.py tests/test_model_router.py -q`; `python scripts/rexbench.py --profile model-routing`.
+
+**Risk notes:** A fast route still uses the complete TurnEngine and safety policy.
+
+### US-111: Track provider reliability and routing evals
+
+**Priority:** P1 | **Workstream:** Models / Reliability / Evaluation | **Dependencies:** US-110.
+
+**Description:** Make provider health/reliability/cooldown evidence part of routing and continuously evaluate route quality on a deterministic Rex corpus.
+
+**Why it matters:** A theoretically best model is not useful when it is unavailable, slow, rate-limited, or repeatedly failing.
+
+**Files/areas likely involved:** provider health metrics, ModelRouter, RexBench eval fixtures/reports, diagnostics.
+
+**Acceptance Criteria:**
+- [ ] Provider reliability records bounded latency/failure/rate-limit/cooldown signals without prompt/response/private contents.
+- [ ] Routing respects outages/cooldowns and has deterministic fallback across configured providers.
+- [ ] A checked-in deterministic routing corpus measures selection correctness, fallback, and regression without live-provider dependence.
+- [ ] Live-provider evaluation is opt-in/labeled separately and cannot become a required paid CI dependency.
+- [ ] Diagnostics explain provider unavailability/fallback without exposing credentials.
+- [ ] All relevant GitHub checks pass.
+
+**Validation commands:** `pytest tests/rex2/test_provider_reliability.py tests/rex2/test_routing_eval.py -q`; `python scripts/rexbench.py --profile routing-eval`.
+
+**Risk notes:** Reliability telemetry must not become a covert prompt/user activity log.
+
+### US-112: Add guarded procedural experience memory
+
+**Priority:** P1 | **Workstream:** Memory / Learning / Safety | **Dependencies:** US-085 and US-109.
+
+**Description:** Let Rex learn reusable procedures only from verified outcomes, with provenance, identity/risk boundaries, revalidation, and explicit promotion rules.
+
+**Why it matters:** Experience can reduce repeated planning mistakes, but `worked once` is not a safe permanent procedure.
+
+**Files/areas likely involved:** memory/experience store, action evidence, procedure models/promoter, GUI memory controls/audit.
+
+**Acceptance Criteria:**
+- [ ] Only verified action/workflow outcomes can become procedure candidates; ordinary memory/conversation writes cannot create executable procedures.
+- [ ] Procedures record provenance, owner/scope, capabilities/permissions/risk, version/dependency fingerprint, success/failure counts, last validation, and expiry/revalidation policy.
+- [ ] Procedures containing mutations/elevated risk require explicit human approval before activation.
+- [ ] Users can inspect, disable/revoke, and delete learned procedures within scope; James/Cole private procedures remain isolated.
+- [ ] Repeated failure/version drift can disable a procedure pending revalidation without erasing audit history.
+- [ ] All relevant GitHub checks pass.
+
+**Validation commands:** `pytest tests/rex2/test_procedural_memory.py tests/rex2/test_procedure_identity.py -q`.
+
+**Risk notes:** Experience memory is never implicit privilege escalation.
+
+### US-113: Synchronize OpenClaw/ClawHub capabilities dynamically
+
+**Priority:** P1 | **Workstream:** OpenClaw / Capabilities | **Dependencies:** US-106 and existing authenticated OpenClaw client/health.
+
+**Description:** Discover, validate, normalize, and atomically synchronize available OpenClaw/ClawHub capabilities into the canonical registry at startup and refresh time.
+
+**Why it matters:** OpenClaw can only be an expandable ecosystem if Rex safely learns what it currently provides without manual hard-coding or restart.
+
+**Files/areas likely involved:** `rex/openclaw/`, Capability Registry sync/adapters, health/status UI, tests.
+
+**Acceptance Criteria:**
+- [ ] Discovery uses the authenticated configured gateway and schema-validates remote capability metadata before normalization.
+- [ ] Startup, manual refresh, and supported hot-refresh apply registry changes atomically; removed capabilities become stale/unavailable rather than lingering executable.
+- [ ] Remote metadata may update source/schema/description but can never widen local permission, operation type, risk tier, or verification policy.
+- [ ] Sync failure preserves the last known safe snapshot with explicit unhealthy/stale status and does not break core local Rex.
+- [ ] Tests cover add/update/remove/malformed/duplicate capabilities and malicious risk/permission metadata.
+- [ ] All relevant GitHub checks pass.
+
+**Validation commands:** `pytest tests/rex2/test_openclaw_capability_sync.py tests/test_openclaw_http_client.py -q`.
+
+**Risk notes:** Treat every remote capability description as untrusted data.
+
+### US-114: Harden OpenClaw reconnect and verification
+
+**Priority:** P1 | **Workstream:** OpenClaw / Reliability / Verification | **Dependencies:** US-113, US-109, US-098.
+
+**Description:** Reconcile capability state on reconnect and normalize remote action evidence so gateway outage/recovery cannot create stale authority or false success.
+
+**Why it matters:** Connectivity recovery is unsafe if capability inventory or mutation evidence changed during an outage.
+
+**Files/areas likely involved:** OpenClaw health/reconnect loop, capability sync, tool bridge/executor, action verification adapters.
+
+**Acceptance Criteria:**
+- [ ] Gateway recovery triggers authenticated capability resynchronization before newly recovered remote capabilities dispatch.
+- [ ] In-flight reads fail/fallback per policy; mutations with unknown outcome become `attempted/unverified` unless an independent postcondition proves them.
+- [ ] Remote verification evidence is normalized into the canonical lifecycle and cannot self-declare verified without an accepted Rex adapter/postcondition.
+- [ ] Bounded reconnect/backoff has no hot loop and exposes privacy-safe health transitions.
+- [ ] Tests cover outage before dispatch, outage after mutation dispatch, schema change, stale removal, and local fallback.
+- [ ] All relevant GitHub checks pass.
+
+**Validation commands:** `pytest tests/rex2/test_openclaw_reconnect.py tests/rex2/test_openclaw_verification.py -q`.
+
+**Risk notes:** Reconnection restores connectivity, not trust; resync and policy evaluation come first.
+
+### US-115: Compose capability gaps declaratively
+
+**Priority:** P1 | **Workstream:** Capabilities / Planning / Self-extension | **Dependencies:** US-078, US-107, US-109, US-108.
+
+**Description:** Satisfy supported gaps by composing existing permitted capabilities into a typed declarative graph before considering generated code.
+
+**Why it matters:** Composition is safer, more inspectable, and easier to revoke than arbitrary generated implementation.
+
+**Files/areas likely involved:** gap detector/recovery service, action graph, declarative capability manifest/serializer, simulation/preview evidence.
+
+**Acceptance Criteria:**
+- [ ] Gap resolution attempts typed declarative composition only after the ordered search in US-078 fails to find a direct capability.
+- [ ] Composition uses only currently permitted capabilities and computes least required aggregate authority/risk; it cannot grant missing permissions.
+- [ ] Composed graphs pass schema validation and dry-run/simulation where possible before activation.
+- [ ] Mutating/risky compositions require the same confirmation/approval policy and lifecycle verification as underlying actions.
+- [ ] Unsafe/unresolvable gaps stop with an actionable explanation rather than falling through to automatic code generation.
+- [ ] All relevant GitHub checks pass.
+
+**Validation commands:** `pytest tests/rex2/test_capability_composition.py tests/rex2/test_gap_detector.py -q`.
+
+**Risk notes:** Composition never launders multiple low-risk calls into an undeclared high-risk capability.
+
+### US-116: Build and assess Forge packages
+
+**Priority:** P1 | **Workstream:** Forge / Security / Evaluation | **Dependencies:** US-115; RexBench primitives from US-075 and later stories.
+
+**Description:** Implement a disabled-by-default Forge build pipeline that creates a bounded capability package plus manifest/tests and assesses it without granting runtime authority.
+
+**Why it matters:** Safe self-extension requires generation to be separated from permission to execute.
+
+**Files/areas likely involved:** `rex/forge/`, package/manifest schema, sandbox/build runner, static/security analysis, RexBench adapters, status docs/UI.
+
+**Acceptance Criteria:**
+- [ ] Forge output is self-contained with manifest, I/O schema, requested capabilities/permissions/network/filesystem scope, risk classification, provenance, and executable tests.
+- [ ] Generation/build/test occurs in a constrained sandbox with bounded resources and no inherited user credentials or ambient production authority.
+- [ ] Static/security analysis plus deterministic RexBench/adversarial tests pass before a package can become a promotion candidate.
+- [ ] Generated code receives no runtime authority merely by existing and cannot obtain more authority than the build/test environment could safely evaluate without explicit human approval.
+- [ ] Failed/malicious packages remain quarantined with inspectable evidence and cannot mutate Rex core/package state.
+- [ ] All relevant GitHub checks pass.
+
+**Validation commands:** `pytest tests/rex2/test_forge_package.py tests/rex2/test_forge_sandbox.py tests/rex2/test_forge_security.py -q`; `python scripts/rexbench.py --profile forge-candidate`.
+
+**Risk notes:** Forge packages stay isolated/revocable; Forge does not edit production Rex core in place.
+
+### US-117: Gate Forge promotion and rollback
+
+**Priority:** P1 | **Workstream:** Forge / Approval / Operations | **Dependencies:** US-116, US-109, US-106.
+
+**Description:** Add risk-based promotion, canary observation, traceable human approval for wider authority, and atomic rollback/revocation for Forge packages.
+
+**Why it matters:** Passing tests is not sufficient evidence to silently install autonomous generated code.
+
+**Files/areas likely involved:** Forge registry/promoter, Capability Registry, approval/audit surface, canary health/verification metrics, rollback store.
+
+**Acceptance Criteria:**
+- [ ] Initial autonomous promotion is limited to read-only low-risk packages that passed every build/security/eval gate; mutation, network-write, credential, shell, filesystem-write, messaging/purchase, or elevated-risk authority requires explicit human approval.
+- [ ] Approval records the exact immutable package digest/version and granted authority; package changes invalidate prior approval.
+- [ ] Canary activation monitors health, failures, lifecycle verification, and policy denials without private payload logging.
+- [ ] Threshold breach/manual revoke atomically disables the capability and restores the prior registry version without losing audit evidence.
+- [ ] Tests cover unauthorized promotion, digest change, canary failure, rollback, active-turn revocation, and per-user permission boundaries.
+- [ ] All relevant GitHub checks pass.
+
+**Validation commands:** `pytest tests/rex2/test_forge_promotion.py tests/rex2/test_forge_rollback.py -q`.
+
+**Risk notes:** Approval is a grant to a specific package digest, not blanket trust in Forge.
+
+### US-118: Run final RexBench production-readiness gate
+
+**Priority:** P0 | **Workstream:** Evaluation / Release / Windows | **Dependencies:** Every earlier story in the integrated execution order.
+
+**Description:** Produce one final evidence bundle proving integrated Rex 2.0 production-readiness behavior, performance, privacy, resilience, and safe self-extension boundaries.
+
+**Why it matters:** Release needs measurable evidence, not a collection of `seems faster/smarter` claims.
+
+**Files/areas likely involved:** `scripts/rexbench.py`, `tests/rex2/`, benchmark fixtures/reports, Windows artifact/mobile/voice acceptance docs, CI artifacts.
+
+**Acceptance Criteria:**
+- [ ] RexBench reports cold/warm p50/p95 by typed chat, voice, read-only tool, mutating tool, unavailable/gap-recovery, and representative multi-tool request class with stage breakdowns.
+- [ ] Production profile covers identity/privacy isolation, permission escalation denial, cancellation races, tool/provider failure, OpenClaw outage/recovery, capability-sync attacks, and Forge adversarial/promotion/rollback cases.
+- [ ] Evidence clearly separates deterministic/mock, local source runtime, live-provider, packaged Windows Electron, mobile/device, and physical voice/hardware runs; no category substitutes for another.
+- [ ] Windows packaged Electron and authenticated mobile E2E consume canonical TurnEngine; physical voice evidence covers wake/capture/ASR/TTS/barge-in where hardware is available.
+- [ ] Retained reports contain no prompts, transcripts, memory contents, credentials, raw private tool payloads, or user IDs.
+- [ ] All required GitHub checks plus `python scripts/rexbench.py --profile production-readiness` pass on the release-candidate commit.
+
+**Validation commands:** `python scripts/rexbench.py --profile production-readiness`; `pytest tests/rex2 -q`; `cd gui && npm run typecheck && npm run build`.
+
+**Risk notes:** Physical/signing/external-provider gates that cannot run in CI remain explicit manual release gates; mocks never satisfy them.
+---
+
 ## 9. Global Acceptance Criteria
 
 Every story in Section 8 inherits these criteria. They are checked in addition to the per-story criteria.
@@ -3222,8 +3876,9 @@ This policy is enforced by Section 9's global acceptance criteria. It is restate
 
 The release candidate is "Production Ready" when ALL of the following are true on a single commit on `master`:
 
-- [ ] Every P0/P1 User Story US-001 through US-058 and US-064 through US-088 is `[x]`.
-- [ ] Satisfied P2 stories US-059 through US-062 remain documented as baseline evidence, and open P2 stories US-063 and US-089 through US-093 are either completed or explicitly deferred without partial decomposition on `master`.
+- [ ] Every User Story in **Integrated execution order - 2026-08-08** is `[x]` on the release-candidate commit.
+- [ ] Satisfied P2 stories US-059 through US-062 remain documented as baseline evidence and are not accidentally reopened.
+- [ ] `python scripts/rexbench.py --profile production-readiness` passes with evidence classes labeled truthfully and all required manual physical/signing gates recorded explicitly.
 - [ ] `python scripts/security_audit.py` exits 0 OR all findings are documented in `docs/security/AUDIT-INVENTORY.md` and accepted with an owner and expiry.
 - [ ] `python scripts/check_no_renderer_api_fetch.py` exits 0 with an empty allowlist.
 - [ ] `python scripts/check_wheel_contents.py` exits 0.

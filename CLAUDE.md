@@ -117,6 +117,8 @@ Home Assistant safety:
 
 ### Style and quality
 
+- `PRD-production-readiness.md` is the single authoritative tracker for the current integrated production-readiness/Rex 2.0 work. For remaining work, follow its dated `Integrated execution order` rather than raw story file position. Planned Rex 2.0 contracts are not implemented behavior until their individual story is merged and verified.
+
 - Prefer clear, testable functions over clever code.
 - Keep changes small and reviewable.
 - Add logging for non-trivial behavior.

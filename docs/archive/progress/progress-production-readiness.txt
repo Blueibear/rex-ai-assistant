@@ -1644,3 +1644,15 @@ Local evidence:
 - All 18 reported checks passed on that exact head. Python 3.11 Tests & Coverage passed in 8m24s and Installed Windows Electron artifact passed in 12m28s; CodeFactor, GitGuardian, lint/format, mypy, GUI Vitest/typecheck/build/ESLint, dependency/security scans, pre-commit, wheel smoke, raw-API guard, and commitlint were green.
 - The first CI pass exposed 8 stale US-309 source-location assertions after the Settings split; the runtime behavior was present in the extracted Users/voice modules, and the tests were corrected to follow those canonical modules. The corrected head passed the full Python suite/skip-budget/integration/clean-tree gate plus the complete installed artifact lifecycle.
 - Fresh local validation on the corrected head: 24 GUI files / 114 tests, both TypeScript configs, production Electron build, ESLint 0 errors, US-309 13/13, pre-commit/secrets, and diff hygiene passed; `SettingsPage.tsx` is 173 lines and every extracted Settings module remains below 1,000 lines.
+
+
+=== 2026-08-08 - Rex 2.0 architecture integrated into remaining production-readiness plan ===
+
+Planning/reconciliation only; no runtime behavior changed in this entry.
+- The user-approved Rex 2.0 intelligence/latency/tooling/memory/safe-self-extension plan was reconciled against current source and the remaining US-063 through US-093 production-readiness stories.
+- A scoped read-only Codex audit independently verified which foundations already exist and which remain partial/missing, then mapped overlaps into existing stories and identified new atomic gaps.
+- `PRD-production-readiness.md` remains the sole authoritative tracker and now uses an explicit dependency-ordered remaining execution list instead of raw file position.
+- Existing stories US-064/075/076/078/080/082/085/087/088 were amended rather than duplicated. New stories US-094 through US-118 cover the missing TurnEngine/event runtime, cancellation, capability registry/retrieval, action lifecycle/parallelism, latency/model/memory/OpenClaw work, declarative composition, Forge safety gates, and final RexBench release evidence.
+- Architecture invariants remain unchanged: Rex is local-first and remains the brain/orchestrator/verifier/permission/memory layer; OpenClaw is optional; James/Cole isolation is fail-closed; mobile keeps desktop-owned secure pairing/strong auth; SMS backend/direct route remains while primary navigation stays hidden; no new paid service is required.
+- Design and execution documents were added under `docs/superpowers/specs/` and `docs/superpowers/plans/`.
+- A Claude Code docs-only attempt was stopped after the repository's active Ralph hook caused uncontrolled iteration; all unintended child-process edits were reverted. This preserves the established cost-efficiency rule: agents are used only while they add value.
