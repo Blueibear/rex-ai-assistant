@@ -19,20 +19,30 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).parent.parent
 BRIDGE = REPO_ROOT / "rex_voice_enrollment_bridge.py"
-SETTINGS_PAGE = REPO_ROOT / "gui" / "src" / "pages" / "SettingsPage.tsx"
+USERS_SETTINGS_SECTION = (
+    REPO_ROOT / "gui" / "src" / "pages" / "settings" / "UsersSettingsSection.tsx"
+)
+VOICE_HELPERS = REPO_ROOT / "gui" / "src" / "pages" / "settings" / "voice" / "voiceHelpers.ts"
+
+
+def _read_users_settings() -> str:
+    assert USERS_SETTINGS_SECTION.exists(), "UsersSettingsSection.tsx not found"
+    return USERS_SETTINGS_SECTION.read_text(encoding="utf-8")
+
+
+def _read_voice_helpers() -> str:
+    assert VOICE_HELPERS.exists(), "voiceHelpers.ts not found"
+    return VOICE_HELPERS.read_text(encoding="utf-8")
 
 
 class TestEnrollmentUIConstants:
-    def test_settings_page_has_prompt_phrase_constant(self):
-        """SettingsPage.tsx must define ENROLLMENT_PROMPT_PHRASE."""
-        assert SETTINGS_PAGE.exists(), "SettingsPage.tsx not found"
-        content = SETTINGS_PAGE.read_text(encoding="utf-8")
-        assert "ENROLLMENT_PROMPT_PHRASE" in content
+    def test_settings_modules_have_prompt_phrase_constant(self):
+        """The extracted voice helpers must define ENROLLMENT_PROMPT_PHRASE."""
+        assert "ENROLLMENT_PROMPT_PHRASE" in _read_voice_helpers()
 
     def test_prompt_phrase_contains_meaningful_text(self):
         """ENROLLMENT_PROMPT_PHRASE must be a non-trivial phrase."""
-        content = SETTINGS_PAGE.read_text(encoding="utf-8")
-        # Find the constant value
+        content = _read_voice_helpers()
         import re
 
         match = re.search(r"ENROLLMENT_PROMPT_PHRASE\s*=\s*'([^']+)'", content)
@@ -42,38 +52,34 @@ class TestEnrollmentUIConstants:
         phrase = match.group(1)
         assert len(phrase) > 10, f"Phrase too short: {phrase!r}"
 
-    def test_settings_page_has_min_rms_constant(self):
-        """SettingsPage.tsx must define ENROLLMENT_MIN_RMS."""
-        content = SETTINGS_PAGE.read_text(encoding="utf-8")
-        assert "ENROLLMENT_MIN_RMS" in content
+    def test_settings_modules_have_min_rms_constant(self):
+        """The extracted voice helpers must define ENROLLMENT_MIN_RMS."""
+        assert "ENROLLMENT_MIN_RMS" in _read_voice_helpers()
 
-    def test_settings_page_has_compute_rms_helper(self):
-        """computeRms helper must be defined for audio level validation."""
-        content = SETTINGS_PAGE.read_text(encoding="utf-8")
-        assert "computeRms" in content
+    def test_settings_modules_have_compute_rms_helper(self):
+        """The extracted voice helpers must retain audio-level validation."""
+        assert "computeRms" in _read_voice_helpers()
 
-    def test_settings_page_displays_prompt_phrase_during_recording(self):
-        """The enrollment progress UI must reference ENROLLMENT_PROMPT_PHRASE."""
-        content = SETTINGS_PAGE.read_text(encoding="utf-8")
+    def test_users_settings_displays_prompt_phrase_during_recording(self):
+        """The enrollment progress UI must render ENROLLMENT_PROMPT_PHRASE."""
+        content = _read_users_settings()
         assert "ENROLLMENT_PROMPT_PHRASE" in content
-        # It should be displayed as JSX, not just defined
         assert "{ENROLLMENT_PROMPT_PHRASE}" in content
 
-    def test_settings_page_has_too_quiet_feedback(self):
-        """Enrollment flow must show feedback when sample is too quiet."""
-        content = SETTINGS_PAGE.read_text(encoding="utf-8")
+    def test_users_settings_has_too_quiet_feedback(self):
+        """Enrollment flow must show feedback when a sample is too quiet."""
+        content = _read_users_settings()
         assert "quiet" in content.lower() or "volume" in content.lower()
         assert "ENROLLMENT_MIN_RMS" in content
 
-    def test_settings_page_has_too_short_feedback(self):
-        """Enrollment flow must show feedback when sample is too short."""
-        content = SETTINGS_PAGE.read_text(encoding="utf-8")
+    def test_users_settings_has_too_short_feedback(self):
+        """Enrollment flow must show feedback when a sample is too short."""
+        content = _read_users_settings()
         assert "short" in content.lower() or "duration" in content.lower()
 
     def test_recording_indicator_is_animated(self):
-        """During recording, a visual indicator must show it's active."""
-        content = SETTINGS_PAGE.read_text(encoding="utf-8")
-        # Should have some animation or visual indicator for recording
+        """During recording, the extracted Users UI must show an active indicator."""
+        content = _read_users_settings()
         assert "animate-pulse" in content or "REC" in content
 
 

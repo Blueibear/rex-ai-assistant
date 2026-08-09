@@ -1615,3 +1615,32 @@ Local evidence so far:
 - Final master-based implementation head: `0d65f97232ff8caa69f067389e42bd032aa5abe3`.
 - All 17 reported checks passed on that exact head. Python 3.11 Tests & Coverage passed in 10m05s; CodeFactor, GitGuardian, lint/format, mypy, GUI Vitest/typecheck/build/ESLint, dependency/security scans, pre-commit, wheel smoke, raw-API guard, and commitlint were green. This CI-only story did not trigger the installed Windows Electron artifact workflow.
 - Final local verification: 9/9 deprecation/source-behavior guard tests passed; `python scripts/check_deprecated_apis.py`, compileall, CI wiring, Ruff, Black, pre-commit/secrets, and diff hygiene passed after the final rebase.
+
+
+=== 2026-08-08 - US-063 SettingsPage section decomposition ===
+
+Implementation:
+- Replaced the 5,688-line `gui/src/pages/SettingsPage.tsx` monolith with a 172-line category/router facade and responsibility-focused settings modules.
+- Extracted General, AI, Notifications, Users, Audio Output, System, About, Voice, and Integrations sections. Voice and Integrations were further split into controller/helper/view modules so every settings module remains below 1,000 lines.
+- Added `gui/tests/settingsSections.test.ts` to enforce the facade/module-size architecture and delegation contract.
+- Updated the OpenClaw Settings regression to follow the extracted Integrations implementation rather than assuming all fields live in `SettingsPage.tsx`.
+- Strengthened the Windows installed-artifact smoke to traverse all nine Settings categories and verify each expected heading, plus the existing OpenClaw non-secret Settings get/set/get/restore round-trip.
+- Fixed the artifact smoke's runtime isolation: an explicit smoke-only `ASKREX_ARTIFACT_SMOKE_RUNTIME_ROOT` may override Electron `userData` before `app.whenReady()`, while managed Python uses the same isolated runtime root. Normal production startup is unchanged.
+
+Local evidence:
+- Every extracted Settings module is < 1,000 lines; `SettingsPage.tsx` is 172 lines.
+- Final full GUI regression: 23 files / 111 tests passed, including the smoke-runtime isolation and artifact smoke regressions.
+- Electron TypeScript typecheck passes; production `electron-vite` build passes.
+- Changed-file ESLint has 0 errors; two pre-existing `react-hooks/exhaustive-deps` warnings remain outside this refactor's behavior.
+- Windows managed Voice runtime and NSIS installer build passed on Python 3.11.
+- Direct packaged `win-unpacked` smoke passed with `typed_ipc=true`, chat verified, all nine Settings sections rendered, OpenClaw controls rendered, and Settings read/write/restore verified.
+- Full installed artifact lifecycle passed: install -> packaged resource verification -> identity bridge -> typed IPC/chat/Settings smoke -> uninstall -> reinstall -> resource verification -> final uninstall.
+- `git diff --check` passes.
+- Relevant GitHub checks remain pending the story PR; that final checkbox intentionally remains open.
+- First PR #372 CI pass exposed 8 stale Python source-contract assertions in `tests/test_us309_voice_enrollment_ux.py` that still inspected the pre-split `SettingsPage.tsx`. The guided enrollment behavior itself remained present in `UsersSettingsSection.tsx` plus `voice/voiceHelpers.ts`; the tests now follow those canonical extracted modules without weakening their behavioral assertions. Focused US-309 verification: 13/13 passed.
+
+2026-08-09 - US-063 GitHub implementation gate (PR #372)
+- Final master-based implementation head: `371551fe9d13079e9602be23cc798359201e278b`.
+- All 18 reported checks passed on that exact head. Python 3.11 Tests & Coverage passed in 8m24s and Installed Windows Electron artifact passed in 12m28s; CodeFactor, GitGuardian, lint/format, mypy, GUI Vitest/typecheck/build/ESLint, dependency/security scans, pre-commit, wheel smoke, raw-API guard, and commitlint were green.
+- The first CI pass exposed 8 stale US-309 source-location assertions after the Settings split; the runtime behavior was present in the extracted Users/voice modules, and the tests were corrected to follow those canonical modules. The corrected head passed the full Python suite/skip-budget/integration/clean-tree gate plus the complete installed artifact lifecycle.
+- Fresh local validation on the corrected head: 24 GUI files / 114 tests, both TypeScript configs, production Electron build, ESLint 0 errors, US-309 13/13, pre-commit/secrets, and diff hygiene passed; `SettingsPage.tsx` is 173 lines and every extracted Settings module remains below 1,000 lines.

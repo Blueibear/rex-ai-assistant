@@ -31,7 +31,8 @@ describe('installed artifact smoke', () => {
       chat: 'AskRex installed artifact chat verified',
       memories_count: 0,
       openclaw_settings: true,
-      openclaw_settings_read_write: true
+      openclaw_settings_read_write: true,
+      settings_sections: true
     })
     const window = {
       webContents: {
@@ -54,6 +55,17 @@ describe('installed artifact smoke', () => {
     expect(smokeScript).toContain("openclawGatewayUrl")
     expect(smokeScript).toContain("Enable OpenClaw tools")
     expect(smokeScript).toContain("setSettings('integrations'")
+    expect(smokeScript).toContain("['General', 'General']")
+    expect(smokeScript).toContain("['Voice', 'Voice']")
+    expect(smokeScript).toContain("['AI', 'AI']")
+    expect(smokeScript).toContain("['Integrations', 'Integrations']")
+    expect(smokeScript).toContain("['Notifications', 'Notifications']")
+    expect(smokeScript).toContain("['Users', 'Users']")
+    expect(smokeScript).toContain("['Audio Output', 'Audio Output']")
+    expect(smokeScript).toContain("['System', 'System & Advanced']")
+    expect(smokeScript).toContain("['About', 'AskRex Assistant']")
+    expect(smokeScript).toContain('const waitFor = async')
+    expect(smokeScript).toContain('await waitFor(() =>')
     expect(writeFileSync).toHaveBeenCalledWith(
       'smoke-result.json',
       expect.stringContaining('"typed_ipc": true'),
