@@ -99,8 +99,28 @@ class OpenClawClient:
                     timeout=self.timeout,
                 )
             except (RequestsConnectionError, Timeout) as exc:
-                logger.warning("OpenClaw connection error on %s %s: %s", method.upper(), url, exc)
-                raise OpenClawConnectionError(url, exc) from exc
+                if attempt > self.max_retries:
+                    logger.warning(
+                        "OpenClaw connection error on %s %s after %d attempts: %s",
+                        method.upper(),
+                        url,
+                        attempt,
+                        exc,
+                    )
+                    raise OpenClawConnectionError(url, exc) from exc
+
+                wait = 2 ** (attempt - 1)
+                logger.warning(
+                    "OpenClaw connection error on %s %s; retrying in %.1fs (attempt %d/%d): %s",
+                    method.upper(),
+                    url,
+                    wait,
+                    attempt,
+                    self.max_retries,
+                    exc,
+                )
+                time.sleep(wait)
+                continue
 
             status = response.status_code
             logger.debug("%s %s -> %d", method.upper(), path, status)
@@ -205,6 +225,26 @@ class OpenClawClient:
     def get(self, path: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
         """Send a GET request and return the parsed JSON response."""
         return self._request("GET", path, params=params)
+
+    def health(self) -> dict[str, Any]:
+        """Probe the gateway health endpoint without raising transport errors."""
+        started = time.perf_counter()
+        try:
+            details = self.get("/healthz")
+        except (OpenClawConnectionError, OpenClawAuthError, OpenClawAPIError) as exc:
+            return {
+                "available": False,
+                "status": "down",
+                "latency_ms": (time.perf_counter() - started) * 1000.0,
+                "error_type": type(exc).__name__,
+                "error": str(exc),
+            }
+        return {
+            "available": True,
+            "status": "up",
+            "latency_ms": (time.perf_counter() - started) * 1000.0,
+            "details": details,
+        }
 
     def patch(self, path: str, json: dict[str, Any] | None = None) -> dict[str, Any]:
         """Send a PATCH request and return the parsed JSON response."""

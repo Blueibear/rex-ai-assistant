@@ -102,16 +102,24 @@ class TestExecuteToolHTTPPath:
         mock_local.assert_called_once()
         assert result == local_result
 
-    def test_5xx_raises_after_retries(self):
+    def test_5xx_falls_back_to_local_after_remote_retries(self, caplog):
         cfg = _make_config()
         client = _make_client(post_side_effect=OpenClawAPIError(500, "server error"))
         bridge = ToolBridge(config=cfg)
+        local_result = {"status": "ok", "result": "local"}
 
         with patch("rex.openclaw.tool_bridge.get_openclaw_client", return_value=client):
-            with pytest.raises(OpenClawAPIError) as exc_info:
-                bridge.execute_tool({"tool": "time_now", "args": {}}, {})
+            with patch("rex.openclaw.tool_bridge._execute_tool", return_value=local_result):
+                with caplog.at_level("WARNING", logger="rex.openclaw.tool_bridge"):
+                    result = bridge.execute_tool({"tool": "time_now", "args": {}}, {})
 
-        assert exc_info.value.status == 500
+        assert result == local_result
+        fallback = next(
+            record
+            for record in caplog.records
+            if getattr(record, "event", None) == "openclaw.tool_fallback"
+        )
+        assert fallback.failure == "OpenClawAPIError:500"
 
     def test_connection_error_falls_back_to_local(self):
         cfg = _make_config()

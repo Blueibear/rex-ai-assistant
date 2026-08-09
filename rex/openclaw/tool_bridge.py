@@ -60,6 +60,21 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+def _warn_gateway_fallback(tool_name: str, exc: Exception, *, failure: str | None = None) -> None:
+    """Emit a machine-readable warning before local fallback."""
+    failure_name = failure or type(exc).__name__
+    logger.warning(
+        "OpenClaw gateway unavailable for tool=%s; falling back to local execution: %s",
+        tool_name,
+        exc,
+        extra={
+            "event": "openclaw.tool_fallback",
+            "tool_name": tool_name,
+            "failure": failure_name,
+        },
+    )
+
+
 class ToolBridge:
     """Adapter that presents Rex's tool executor as an OpenClaw tool provider.
 
@@ -167,14 +182,17 @@ class ToolBridge:
                         tool_name,
                     )
                     # fall through to local execution below
+                elif exc.status == 429 or exc.status >= 500:
+                    _warn_gateway_fallback(
+                        tool_name,
+                        exc,
+                        failure=f"OpenClawAPIError:{exc.status}",
+                    )
+                    # fall through to local execution below
                 else:
                     raise
             except (OpenClawConnectionError, OpenClawAuthError) as exc:
-                logger.warning(
-                    "OpenClaw tool dispatch error for tool=%s, falling back to local: %s",
-                    tool_name,
-                    exc,
-                )
+                _warn_gateway_fallback(tool_name, exc)
                 # fall through to local execution below
 
         return _execute_tool(
