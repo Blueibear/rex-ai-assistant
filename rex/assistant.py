@@ -6,11 +6,12 @@ import asyncio
 import logging
 import re
 import threading
+import time
 from collections.abc import AsyncIterator, Iterable
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from .actions.dispatcher import _UNDO_PATTERN
 from .assistant_errors import IdentityRequiredError
@@ -20,6 +21,7 @@ from .followup_engine import FollowupEngine
 from .ha_bridge import HABridge
 from .history_store import HistoryStore
 from .identity import validate_user_id
+from .latency import LatencyTrace
 from .llm_client import LanguageModel
 from .memory import trim_history
 from .model_router import ModelRouter
@@ -544,6 +546,19 @@ class Assistant:
         )
         return prompt
 
+    def _latency_provider_model(self) -> tuple[str, str]:
+        """Return latency-safe provider/model identifiers without deprecated config access."""
+        settings_obj = getattr(self, "_settings", None)
+        llm_config = getattr(settings_obj, "llm", None)
+        provider = getattr(llm_config, "llm_provider", None)
+        if provider is None:
+            provider = getattr(settings_obj, "llm_provider", "unknown")
+        llm_obj = getattr(self, "_llm", None)
+        model = getattr(llm_obj, "model_name", None) or getattr(llm_config, "model_name", None)
+        if model is None:
+            model = getattr(settings_obj, "llm_model", "unknown")
+        return str(provider or "unknown"), str(model or "unknown")
+
     def _generate_model_reply(self, prompt: str, messages: list[dict[str, str]]) -> str:
         try:
             return self._llm.generate(messages=messages)
@@ -632,14 +647,44 @@ class Assistant:
             return "pending"
         return "text"
 
+    async def _stream_home_assistant_completion(
+        self,
+        transcript: str,
+        *,
+        loop: asyncio.AbstractEventLoop,
+        latency_trace: LatencyTrace,
+    ) -> str | None:
+        from rex.mobile_api.action_context import (  # noqa: PLC0415
+            mobile_action_context_active,
+            mobile_scope_granted,
+            run_in_executor_with_mobile_context,
+        )
+
+        if not (
+            self._ha_bridge
+            and self._ha_bridge.enabled
+            and not mobile_action_context_active()
+            and mobile_scope_granted("home.control")
+        ):
+            return None
+
+        latency_trace.start("tool")
+        try:
+            return cast(
+                str | None,
+                await run_in_executor_with_mobile_context(
+                    loop, self._ha_bridge.process_transcript, transcript
+                ),
+            )
+        finally:
+            latency_trace.end("tool")
+
     async def stream_reply(
         self, transcript: str, *, voice_mode: bool = False, active_user_id: str | None = None
     ) -> AsyncIterator[str]:
         loop = asyncio.get_running_loop()
         completion: str | None = None
         from rex.mobile_api.action_context import (  # noqa: PLC0415
-            mobile_action_context_active,
-            mobile_scope_granted,
             run_in_executor_with_mobile_context,
         )
 
@@ -648,30 +693,54 @@ class Assistant:
         effective_user_id = self._resolve_request_user_id(active_user_id)
         self._ensure_followup_session(effective_user_id)
 
+        latency_provider, latency_model = self._latency_provider_model()
+        latency_trace = LatencyTrace(
+            channel="voice" if voice_mode else "chat",
+            provider=latency_provider,
+            model=latency_model,
+            settings_id="voice_stream" if voice_mode else "text_stream",
+        )
+        stream_started_ns = time.perf_counter_ns()
+        first_token_recorded = False
+
+        def _mark_first_token() -> None:
+            nonlocal first_token_recorded
+            if first_token_recorded:
+                return
+            latency_trace.add_duration_ms(
+                "first_token", (time.perf_counter_ns() - stream_started_ns) / 1_000_000
+            )
+            first_token_recorded = True
+
+        latency_trace.start("routing")
+
         # Intent routing: time/date, greetings, recipes (US-015)
         _intent = self._get_or_create_intent_router().route(transcript)
+        latency_trace.end("routing")
         if _intent.handled:
+            latency_trace.start("completion")
             self._record_completion(transcript, _intent.response, user_id=effective_user_id)
+            latency_trace.end("completion")
+            _mark_first_token()
+            latency_trace.finish()
+            latency_trace.log_summary(logger, event="chat_stream_latency")
             yield _intent.response
             return
 
-        if (
-            self._ha_bridge
-            and self._ha_bridge.enabled
-            and not mobile_action_context_active()
-            and mobile_scope_granted("home.control")
-        ):
-            completion = await run_in_executor_with_mobile_context(
-                loop,
-                self._ha_bridge.process_transcript,
-                transcript,
-            )
+        completion = await self._stream_home_assistant_completion(
+            transcript, loop=loop, latency_trace=latency_trace
+        )
 
         if completion is not None:
+            latency_trace.start("completion")
             completion = await self._post_process_completion(
                 transcript, completion, user_id=effective_user_id
             )
             self._record_completion(transcript, completion, user_id=effective_user_id)
+            latency_trace.end("completion")
+            _mark_first_token()
+            latency_trace.finish()
+            latency_trace.log_summary(logger, event="chat_stream_latency")
             yield completion
             return
 
@@ -679,16 +748,23 @@ class Assistant:
             transcript, voice_mode=voice_mode, active_user_id=active_user_id
         )
 
+        latency_trace.start("llm")
         try:
             token_iterator = self._stream_model_reply(prompt, messages)
         except NotImplementedError:
             completion = await run_in_executor_with_mobile_context(
                 loop, self._generate_model_reply, prompt, messages
             )
+            latency_trace.end("llm")
+            latency_trace.start("completion")
             completion = await self._post_process_completion(
                 transcript, completion, user_id=effective_user_id
             )
             self._record_completion(transcript, completion, user_id=effective_user_id)
+            latency_trace.end("completion")
+            _mark_first_token()
+            latency_trace.finish()
+            latency_trace.log_summary(logger, event="chat_stream_latency")
             yield completion
             return
 
@@ -719,6 +795,7 @@ class Assistant:
                 token = str(item)
                 collected_tokens.append(token)
                 if stream_released:
+                    _mark_first_token()
                     yield token
                     continue
 
@@ -726,16 +803,24 @@ class Assistant:
                 prefix_state = self._stream_tool_prefix_state(pending_stream_text)
                 if prefix_state == "text":
                     stream_released = True
+                    _mark_first_token()
                     yield pending_stream_text
                     pending_stream_text = ""
         finally:
             await pump_task
 
+        latency_trace.end("llm")
+        latency_trace.start("completion")
         completion = "".join(collected_tokens).strip() or "(silence)"
         completion = await self._post_process_completion(
             transcript, completion, user_id=effective_user_id
         )
         self._record_completion(transcript, completion, user_id=effective_user_id)
+        latency_trace.end("completion")
+        if not stream_released:
+            _mark_first_token()
+        latency_trace.finish()
+        latency_trace.log_summary(logger, event="chat_stream_latency")
         if not stream_released:
             yield completion
 
@@ -748,13 +833,21 @@ class Assistant:
     ) -> str:
         """Orchestrate a full reply: identity → intent → cache → context → dispatch → response."""
         loop = asyncio.get_running_loop()
-
         # The user this turn belongs to: an explicit validated request
         # identity, otherwise the explicit constructor identity.  Missing
         # identity fails closed before intent routing, cache lookup, early
         # returns, history, context, and tool dispatch (issue #303).
         effective_user_id = self._resolve_request_user_id(active_user_id)
         self._ensure_followup_session(effective_user_id)
+
+        latency_provider, latency_model = self._latency_provider_model()
+        latency_trace = LatencyTrace(
+            channel="voice" if voice_mode else "chat",
+            provider=latency_provider,
+            model=latency_model,
+            settings_id="voice" if voice_mode else "text",
+        )
+        latency_trace.start("routing")
 
         # Route intent: capability queries, pending suggestions, time/date, greetings, recipes
         _intent = self._get_or_create_intent_router().route(
@@ -766,7 +859,12 @@ class Assistant:
         if _intent.handled:
             # Greeting shortcuts are suppressed in multi-user voice sessions
             if not (_intent.intent_type == "greeting" and active_user_id is not None):
+                latency_trace.end("routing")
+                latency_trace.start("completion")
                 self._record_completion(transcript, _intent.response, user_id=effective_user_id)
+                latency_trace.end("completion")
+                latency_trace.finish()
+                latency_trace.log_summary(logger, event="chat_latency")
                 return _intent.response  # type: ignore[no-any-return]
 
         # Fast path: return cached response without hitting the LLM.
@@ -775,13 +873,20 @@ class Assistant:
             transcript, user_id=effective_user_id
         )
         if _cached is not None:
+            latency_trace.end("routing")
+            latency_trace.start("completion")
             self._record_completion(transcript, _cached, user_id=effective_user_id)
+            latency_trace.end("completion")
+            latency_trace.finish()
+            latency_trace.log_summary(logger, event="chat_latency")
             return _cached  # type: ignore[no-any-return]
 
         # Apply per-request model routing; restore in finally.  The request
         # identity is propagated explicitly (never via self._user_id, which
         # would race across overlapping requests for different users).
         prev_model = self._begin_request(transcript)
+        latency_trace.model = str(getattr(self._llm, "model_name", None) or latency_trace.model)
+        latency_trace.end("routing")
         try:
             _ctx = self._get_or_create_context_builder().build(
                 transcript, voice_mode=voice_mode, active_user_id=active_user_id
@@ -794,15 +899,24 @@ class Assistant:
                 active_user_id=active_user_id,
                 user_id=effective_user_id,
                 loop=loop,
+                latency_trace=latency_trace,
             )
+            latency_trace.start("completion")
             final = self._get_or_create_response_builder().build(
                 result, _ctx, transcript=transcript, user_id=effective_user_id
             )
             completion = final.text
+        except Exception:
+            latency_trace.finish()
+            latency_trace.log_summary(logger, event="chat_latency")
+            raise
         finally:
             self._end_request(prev_model)
 
         self._record_completion(transcript, completion, user_id=effective_user_id)
+        latency_trace.end("completion")
+        latency_trace.finish()
+        latency_trace.log_summary(logger, event="chat_latency")
         return completion  # type: ignore[no-any-return]
 
     def _begin_request(self, transcript: str) -> str | None:

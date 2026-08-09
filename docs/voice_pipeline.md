@@ -43,7 +43,7 @@ A completion event is emitted only when that stage completes successfully. Exist
 non-hardware callbacks. The budgets below are regression guards for AskRex orchestration and
 stage hand-offs; they are not end-user hardware, network, or model-provider SLAs. Real Whisper,
 LLM, TTS, audio-driver, and speaker latency is tracked separately by runtime telemetry and the
-performance baseline.
+[performance baseline](performance.md).
 
 The first release uses intentionally wide margins so shared CI runners do not create false
 failures while still catching accidental blocking calls, sleeps, or serial regressions.

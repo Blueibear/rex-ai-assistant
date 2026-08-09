@@ -17,6 +17,8 @@ from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from typing import Any
 
+from rex.latency import LatencyTrace
+
 logger = logging.getLogger(__name__)
 
 _UNDO_PATTERN = re.compile(r"^\s*undo\s*(?:that)?\s*$", re.IGNORECASE)
@@ -129,6 +131,7 @@ class ActionDispatcher:
         active_user_id: str | None = None,
         user_id: str | None = None,
         loop: asyncio.AbstractEventLoop | None = None,
+        latency_trace: LatencyTrace | None = None,
     ) -> ActionResult:
         """Dispatch *transcript* through all action layers and return an :class:`ActionResult`.
 
@@ -245,15 +248,21 @@ class ActionDispatcher:
                     tool for tool in _selected_tools if getattr(tool, "operation", "read") == "read"
                 ]
             if _selected_tools:
-                _tool_results = await run_in_executor_with_mobile_context(
-                    _loop,
-                    functools.partial(
-                        self._tool_dispatcher.execute_tools,
-                        _selected_tools,
-                        transcript,
-                        user_id=effective_user,
-                    ),
-                )
+                if latency_trace is not None:
+                    latency_trace.start("tool")
+                try:
+                    _tool_results = await run_in_executor_with_mobile_context(
+                        _loop,
+                        functools.partial(
+                            self._tool_dispatcher.execute_tools,
+                            _selected_tools,
+                            transcript,
+                            user_id=effective_user,
+                        ),
+                    )
+                finally:
+                    if latency_trace is not None:
+                        latency_trace.end("tool")
                 _tool_context = self._tool_dispatcher.format_tool_context(_tool_results) or None
 
         completion: str | None = None
@@ -265,6 +274,8 @@ class ActionDispatcher:
             and not mobile_action_context_active()
             and mobile_scope_granted("home.control")
         ):
+            if latency_trace is not None:
+                latency_trace.start("tool")
             if _UNDO_PATTERN.match(transcript):
                 completion = await run_in_executor_with_mobile_context(
                     _loop,
@@ -308,6 +319,8 @@ class ActionDispatcher:
                                 completion = f"{completion} {_spoken}"
                         except Exception:
                             pass
+            if latency_trace is not None:
+                latency_trace.end("tool")
 
         # 8. LLM call (if no pre-LLM handler produced a completion)
         if completion is None:
@@ -324,16 +337,22 @@ class ActionDispatcher:
 
             messages = ctx.messages
             prompt = ctx.prompt
+            if latency_trace is not None:
+                latency_trace.start("llm")
             try:
-                completion = await run_in_executor_with_mobile_context(
-                    _loop,
-                    lambda: self._llm.generate(messages=messages),
-                )
-            except TypeError:
-                completion = await run_in_executor_with_mobile_context(
-                    _loop,
-                    lambda: self._llm.generate(prompt),
-                )
+                try:
+                    completion = await run_in_executor_with_mobile_context(
+                        _loop,
+                        lambda: self._llm.generate(messages=messages),
+                    )
+                except TypeError:
+                    completion = await run_in_executor_with_mobile_context(
+                        _loop,
+                        lambda: self._llm.generate(prompt),
+                    )
+            finally:
+                if latency_trace is not None:
+                    latency_trace.end("llm")
 
             # 9. Post-process LLM output (TOOL_REQUEST resolution, OpenClaw bridge)
             plugin_enrichments: list[str] = []
@@ -351,13 +370,19 @@ class ActionDispatcher:
                     model_call_fn = self._model_call_fn_builder(transcript, user_id=effective_user)
                 except TypeError:
                     model_call_fn = self._model_call_fn_builder(transcript)
-            completion = await self._result_handler.process(
-                transcript,
-                completion,
-                tool_context=tool_context_dict,
-                model_call_fn=model_call_fn,
-                plugin_enrichments=plugin_enrichments,
-            )
+            if latency_trace is not None:
+                latency_trace.start("postprocess")
+            try:
+                completion = await self._result_handler.process(
+                    transcript,
+                    completion,
+                    tool_context=tool_context_dict,
+                    model_call_fn=model_call_fn,
+                    plugin_enrichments=plugin_enrichments,
+                )
+            finally:
+                if latency_trace is not None:
+                    latency_trace.end("postprocess")
 
         return ActionResult(
             success=True,

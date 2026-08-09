@@ -285,7 +285,8 @@ Bridge compatibility wrappers (17) — exec canonical `bridge/<name>.py` in thei
 - rex/commands/ — CLI command modules, one per domain (US-REM-027); `rex/cli.py` keeps parser registration, `main()`, and re-exports, and `rex.cli.<name>` remains the import/monkeypatch surface for handlers and service getters
 - rex/voice/ — voice pipeline modules, one per concern (US-REM-028); `rex/voice_loop.py` is the facade and `rex.voice_loop.<name>` remains the import/monkeypatch surface (settings, lazy importers, sa/sd, pipeline classes)
 - rex/tools/execution.py — canonical typed tool lifecycle; all registered dispatch must pass availability, argument, identity, permission, risk, confirmation, execution, normalization, independent verification, truthful response, and redacted audit stages. Read-only success is `completed`; mutation success is `verified` only.
-- gui/src/main/ — Electron main-process modules, one per concern (US-REM-029); `index.ts` is a thin entrypoint (app lifecycle wiring only), `ipc.ts` aggregates handler registration, IPC handlers live in `gui/src/main/handlers/`, integration credential persistence/rollback lives in `integrationSettingsStorage.ts`, and settings/integration/HA logic lives in `configStore.ts`, `aiSettings.ts`, `voiceSettings.ts`, `settingsDefaults.ts`, `settingsMirror.ts`, `homeAssistant.ts`, `integrationStatus.ts`, `integrationInventory.ts`, `window.ts`
+- `rex/latency.py` / `rex/rexbench.py` - privacy-safe request timing and p50/p95 aggregation. Timing telemetry must never include prompts, transcripts, user IDs, memory contents, credentials, or tool payloads; see `docs/performance.md`.
+- gui/src/main/ - Electron main-process modules, one per concern (US-REM-029); `index.ts` is a thin entrypoint (app lifecycle wiring only), `ipc.ts` aggregates handler registration, IPC handlers live in `gui/src/main/handlers/`, integration credential persistence/rollback lives in `integrationSettingsStorage.ts`, and settings/integration/HA logic lives in `configStore.ts`, `aiSettings.ts`, `voiceSettings.ts`, `settingsDefaults.ts`, `settingsMirror.ts`, `homeAssistant.ts`, `integrationStatus.ts`, `integrationInventory.ts`, `window.ts`
 - `gui/src/pages/settings/integrations/` owns the Settings > Integrations controller and focused UI components; keep OpenClaw token handling renderer-blind and route all secret persistence through the main-process vault helpers.
 - `gui/src/types/settingsRouting.ts` is the shared parser for Settings deep links such as `#/settings?section=integrations`; invalid or missing sections fail safely to General.
 - Installed Electron artifact smoke may override Electron `userData` only when `ASKREX_ARTIFACT_SMOKE=1` and `ASKREX_ARTIFACT_SMOKE_RUNTIME_ROOT` is set; the PowerShell harness must point Python `ASKREX_RUNTIME_DIR` and Electron userData at the same isolated temp runtime root.
@@ -375,6 +376,14 @@ Release health gate:
 
 python -m rex doctor --release-gate
 python scripts/security_audit.py --release-gate
+
+Deterministic latency baseline (instrumentation/framework evidence only):
+
+```powershell
+python scripts/rexbench.py --profile baseline --iterations 20 --output docs/performance/rexbench-baseline.json
+```
+
+`deterministic_mock` RexBench results never prove live provider, model, network, audio, or hardware latency is within budget. Use `docs/performance.md` and the final live RexBench release gate for production claims.
 
 Electron identity (required before launch):
 
