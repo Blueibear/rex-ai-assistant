@@ -1472,3 +1472,5 @@ Local evidence so far:
 - SettingsPage ESLint: 0 errors (2 pre-existing hook warnings); GUI typecheck and 20-file/100-test Vitest suite pass.
 - Skip inventory: 127/127 current; git diff --check: pass.
 - Relevant GitHub checks remain pending the story PR.
+
+US-050 GitHub implementation gate: PASS. PR #363 head `74f699a380215a000b0c263ffaaeccb1e8b7e20a` passed all 18 reported checks after rebase onto merged US-049, including Python 3.11 Tests & Coverage (9m49s), Installed Windows Electron artifact (10m42s), CI quality/security jobs, Commitlint, CodeFactor, and GitGuardian. The tracker is closed with that evidence.

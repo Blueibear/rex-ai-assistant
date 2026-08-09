@@ -1753,7 +1753,7 @@ pytest tests/test_response_verification_language.py -q
 - [x] `SURFACE-CLASSIFICATION.md` classifies OpenClaw surfaces as `experimental`.
 - [x] GUI settings label OpenClaw as "Experimental — off by default".
 - [x] A test asserts defaults and the fail-closed startup behavior.
-- [ ] All relevant GitHub checks pass.
+- [x] All relevant GitHub checks pass. *(PR #363, head `74f699a`: CI, Commitlint, Windows Electron Artifact, CodeFactor, and GitGuardian all green on 2026-08-08/09.)*
 
 **Validation commands:**
 ```bash
