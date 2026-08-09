@@ -1637,3 +1637,4 @@ Local evidence:
 - Full installed artifact lifecycle passed: install -> packaged resource verification -> identity bridge -> typed IPC/chat/Settings smoke -> uninstall -> reinstall -> resource verification -> final uninstall.
 - `git diff --check` passes.
 - Relevant GitHub checks remain pending the story PR; that final checkbox intentionally remains open.
+- First PR #372 CI pass exposed 8 stale Python source-contract assertions in `tests/test_us309_voice_enrollment_ux.py` that still inspected the pre-split `SettingsPage.tsx`. The guided enrollment behavior itself remained present in `UsersSettingsSection.tsx` plus `voice/voiceHelpers.ts`; the tests now follow those canonical extracted modules without weakening their behavioral assertions. Focused US-309 verification: 13/13 passed.
