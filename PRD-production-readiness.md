@@ -1889,7 +1889,7 @@ grep -n "rex-gui\|rex_loop\|wake word\|OpenClaw\|Docker" README.md INSTALL.md RU
 - [x] OpenClaw status matches US-050.
 - [x] Docker tier matches US-041.
 - [x] Documentation links and references are accurate.
-- [ ] All relevant GitHub checks pass.
+- [x] All relevant GitHub checks pass.
 
 **Validation commands:**
 ```bash

@@ -1556,3 +1556,8 @@ Verification:
 - Verified the exact 27 root Python files, all six console scripts, source Hold-to-Talk default/beta wake opt-in, experimental/default-off OpenClaw fail-closed/health/fallback contract, developer-only Docker healthcheck tier, packaged-vs-source install distinction, primary Electron GUI, and current referenced documentation paths.
 - The focused contract passed 5/5 on its first run because US-054 had already corrected the substantive CLAUDE drift. No additional production/document prose change was necessary in this story.
 - Relevant GitHub checks remain pending the story PR.
+
+2026-08-09 - US-055 GitHub implementation gate (PR #368)
+- Final master-based implementation head: `be3c8e0d2d3140b8d5ee981b905ad4aa07a3bb37`.
+- All 17 reported checks passed on that exact head. Python 3.11 Tests & Coverage passed in 10m04s; CodeFactor, GitGuardian, lint/format, mypy, GUI Vitest/typecheck/build/ESLint, dependency/security scans, pre-commit, wheel smoke, and commitlint were green.
+- Local CLAUDE/cross-document/status verification remained 19/19 green after the final rebase, with Ruff, Black, pre-commit, and diff hygiene passing.
