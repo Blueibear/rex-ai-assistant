@@ -1561,3 +1561,20 @@ Verification:
 - Final master-based implementation head: `be3c8e0d2d3140b8d5ee981b905ad4aa07a3bb37`.
 - All 17 reported checks passed on that exact head. Python 3.11 Tests & Coverage passed in 10m04s; CodeFactor, GitGuardian, lint/format, mypy, GUI Vitest/typecheck/build/ESLint, dependency/security scans, pre-commit, wheel smoke, and commitlint were green.
 - Local CLAUDE/cross-document/status verification remained 19/19 green after the final rebase, with Ruff, Black, pre-commit, and diff hygiene passing.
+
+=== 2026-08-08 - US-056 timezone-aware assistant UTC timestamps ===
+
+Implementation:
+- Replaced both remaining `datetime.utcnow()` calls in `rex/assistant.py` with timezone-aware `datetime.now(UTC)`. The repo's Ruff UP017 rule requires the Python 3.11 `UTC` alias rather than spelling `timezone.utc`; semantics are equivalent.
+- Added `tests/test_assistant_utc_timestamps.py`, including a behavioral capture of the timestamp passed into persisted history and a source guard against reintroducing `datetime.utcnow()` in Assistant.
+
+Local evidence so far:
+- TDD red phase: both tests failed before implementation because persisted timestamps were naive and source still contained `utcnow()`.
+- Final assistant/history regression set: 116 passed.
+- `rg datetime.utcnow rex` returns no matches. Ruff/Black pass; mypy on `rex/assistant.py` reports 0 issues; skip inventory current; `git diff --check` pass.
+- Relevant GitHub checks remain pending the story PR.
+
+2026-08-09 - US-056 GitHub implementation gate (PR #369)
+- Final master-based implementation head: `f3835b096eddc202b24b61ee0968429c04e5a190`.
+- All 18 reported checks passed on that exact head. Python 3.11 Tests & Coverage passed in 9m20s and Installed Windows Electron artifact passed in 11m57s; CodeFactor, GitGuardian, lint/format, mypy, GUI Vitest/typecheck/build/ESLint, dependency/security scans, pre-commit, wheel smoke, raw-API guard, and commitlint were green.
+- Final local verification found no `datetime.utcnow()` under `rex/`; 50/50 assistant/timestamp tests plus Ruff, Black, mypy, pre-commit, and diff hygiene passed after the final rebase.
