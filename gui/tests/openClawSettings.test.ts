@@ -61,18 +61,26 @@ describe('OpenClaw Electron integration', () => {
   })
   it('exposes honest OpenClaw controls and status in the integrations UI', () => {
     const root = join(__dirname, '..')
-    const page = readFileSync(join(root, 'src/pages/SettingsPage.tsx'), 'utf8')
+    const section = readFileSync(join(root, 'src/pages/settings/integrations/IntegrationsSettingsSection.tsx'), 'utf8')
+    const openclawSection = readFileSync(join(root, 'src/pages/settings/integrations/OpenClawIntegrationSection.tsx'), 'utf8')
+    const controller = readFileSync(join(root, 'src/pages/settings/integrations/useIntegrationsSettingsController.ts'), 'utf8')
+    const settingsUi = `${section}
+${openclawSection}
+${controller}`
     const inventory = readFileSync(join(root, 'src/main/integrationInventory.ts'), 'utf8')
     const types = readFileSync(join(root, 'src/types/ipc.ts'), 'utf8')
     const integrationsPage = readFileSync(join(root, 'src/pages/IntegrationsPage.tsx'), 'utf8')
 
     for (const field of ['openclawGatewayUrl', 'openclawToolsEnabled', 'openclawVoiceEnabled', 'openclawToken']) {
       expect(types).toContain(field)
-      expect(page).toContain(field)
+      expect(settingsUi).toContain(field)
     }
-    expect(page).toContain('Experimental - off by default')
-    expect(page).toContain("handleTest('openclaw')")
-    expect(page).toContain('Gateway reachable; authentication and tool capability are not yet proven.')
+    expect(openclawSection).toContain('Experimental - off by default')
+    expect(section).toContain("onTest={() => handleTest('openclaw')}")
+    expect(openclawSection).toContain('onTest={onTest}')
+    expect(controller).toContain('function handleTest(section: IntegrationSection)')
+    expect(controller).toContain('window.rex.testIntegration(section)')
+    expect(openclawSection).toContain('Gateway reachable; authentication and tool capability are not yet proven.')
     expect(inventory).toContain("key: 'openclaw'")
     expect(inventory).toContain('testable: true')
     expect(inventory).toContain("configure_url: '/settings?section=integrations'")
