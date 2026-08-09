@@ -1722,11 +1722,11 @@ pytest tests/test_ha_verification.py -q
 - `tests/test_response_verification_language.py` (new)
 
 **Acceptance Criteria:**
-- [ ] A response builder helper maps `{ status }` to user-facing text per the documented vocabulary.
-- [ ] Tests assert each status produces the correct phrase ("I tried…", "I asked HA to…", "Confirmed the light is on", "That failed because…").
-- [ ] No code path produces a confident success message when `status != "verified"` and verification was applicable.
-- [ ] `README.md` mentions the verification language.
-- [ ] All relevant GitHub checks pass.
+- [x] A response builder helper maps `{ status }` to user-facing text per the documented vocabulary.
+- [x] Tests assert each status produces the correct phrase ("I tried…", "I asked HA to…", "Confirmed the light is on", "That failed because…").
+- [x] No code path produces a confident success message when `status != "verified"` and verification was applicable.
+- [x] `README.md` mentions the verification language.
+- [x] All relevant GitHub checks pass. *(PR #362 implementation head `b380778a9a01e922d86be5d5e3e083b139e25a06`; CI runs `31259723604`/`31259313682`, Commitlint runs `31259723610`/`31259313656`, and Windows Electron Artifact runs `31259723591`/`31259313652` all completed successfully.)*
 
 **Validation commands:**
 ```bash

@@ -16,18 +16,29 @@ from typing import Any
 logger = logging.getLogger(__name__)
 
 
-def home_assistant_status_message(status: str, *, entity_id: str, detail: str | None = None) -> str:
-    """Render Home Assistant outcomes without overstating an unverified mutation."""
+def home_assistant_status_message(
+    status: str,
+    *,
+    entity_id: str,
+    detail: str | None = None,
+    expected: dict[str, Any] | None = None,
+) -> str:
+    """Render Home Assistant outcomes without overstating verification evidence."""
     friendly = entity_id.replace("_", " ").replace(".", " ")
     if status == "verified":
+        expected_state = expected.get("state") if isinstance(expected, dict) else None
+        if isinstance(expected_state, str) and expected_state:
+            return f"Confirmed {friendly} is {expected_state.replace('_', ' ')}."
         return f"Confirmed the requested state for {friendly}."
     if status == "attempted_unverified":
         return f"I tried to update {friendly}, but I could not verify the result."
+    if status == "completed":
+        return f"I asked HA to update {friendly}."
     if status == "confirmation_required":
         return detail or f"Please confirm the requested change to {friendly}."
     if status == "denied":
         return f"I did not change {friendly}. {detail or 'The action was denied.'}"
-    return f"That failed for {friendly}. {detail or 'Home Assistant reported an error.'}"
+    return f"That failed because {detail or 'Home Assistant reported an error.'}"
 
 
 # ---------------------------------------------------------------------------
