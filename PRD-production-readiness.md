@@ -1808,8 +1808,8 @@ pytest tests/test_openclaw_health.py -q
 - [x] Developer-only branch is not applicable: the user-configurable path was selected and implemented instead.
 - [x] If OpenClaw is user-configurable, Integrations and Settings both expose honest status, configuration, disable, and health-check controls.
 - [x] `cd gui && npm run typecheck && npm run build` passes. *(Validated locally with npm 10.9.2; full GUI Vitest suite also passed 108/108.)*
-- [ ] Manual: page renders in packaged app.
-- [ ] All relevant GitHub checks pass.
+- [x] Manual: page renders in packaged app. *(Satisfied by stronger automated installed-artifact evidence on PR #365 head `9b1ade1`: the packaged Electron app rendered the OpenClaw Settings controls, completed typed-IPC write/read/restore, and the Windows artifact job passed in 11m32s.)*
+- [x] All relevant GitHub checks pass. *(PR #365 implementation head `9b1ade19bf179d498245fc3875cffae471873ffa`: all 18 checks passed, including Python 3.11 Tests & Coverage in 9m41s and Installed Windows Electron artifact in 11m32s.)*
 
 **Validation commands:**
 ```bash

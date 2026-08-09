@@ -1509,3 +1509,9 @@ Local evidence so far:
 - Full GUI: 21 Vitest files / 108 tests passed. Both TypeScript configs passed. Production electron-vite build passed.
 - Changed TypeScript ESLint: 0 errors; SettingsPage retains 2 pre-existing exhaustive-deps warnings. Skip inventory: 127/127 current. `git diff --check`: pass.
 - Installed packaged-app smoke and relevant GitHub checks remain pending the story PR.
+
+2026-08-08 - US-052 final implementation evidence (PR #365)
+- Final implementation head before tracker closeout: `9b1ade19bf179d498245fc3875cffae471873ffa`.
+- GitHub: all 18 checks passed. Python 3.11 Tests & Coverage passed in 9m41s; Installed Windows Electron artifact passed in 11m32s; CodeFactor, mypy, GUI Vitest/typecheck/build/ESLint, security, dependency, pre-commit, wheel smoke, and commitlint were green.
+- The installed-artifact smoke directly verified the packaged Settings > Integrations OpenClaw controls plus typed-IPC gateway-setting write/read/restore. This is stronger repeatable evidence than the prior manual-render checkbox.
+- Two packaged-only failures were found and fixed before closeout: Settings deep links did not select Integrations, and smoke bootstrap/Electron used different runtime roots. Regression coverage now protects query routing, condition-based renderer readiness, and the smoke-only shared runtime root.
