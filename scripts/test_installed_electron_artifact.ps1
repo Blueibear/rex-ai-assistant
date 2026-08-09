@@ -12,6 +12,8 @@ $buildPythonPath = (Get-Command $BuildPython -ErrorAction Stop).Source
 $testRoot = Join-Path ([System.IO.Path]::GetTempPath()) ('askrex-installed-smoke-' + [guid]::NewGuid())
 $installPath = Join-Path $testRoot 'AskRex'
 $localAppData = Join-Path $testRoot 'LocalAppData'
+$appData = Join-Path $testRoot 'AppData'
+$runtimeRoot = Join-Path $testRoot 'Runtime'
 $smokeOutput = Join-Path $testRoot 'smoke.json'
 $script:smokePhase = 'initializing'
 
@@ -181,7 +183,7 @@ function Invoke-IdentityBridge(
 
 try {
     Write-SmokeDiagnostics 'running'
-    New-Item -ItemType Directory -Force -Path $testRoot, $localAppData | Out-Null
+    New-Item -ItemType Directory -Force -Path $testRoot, $localAppData, $appData, $runtimeRoot | Out-Null
 
     Set-SmokePhase 'initial-install'
     Invoke-Installer @('/S', "/D=$installPath")
@@ -201,8 +203,10 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'Installed resource verification failed.' }
 
     $env:LOCALAPPDATA = $localAppData
-    & $runtimePython -I -c "from rex.identity import set_session_user; set_session_user('artifact-ci-user')"
-    if ($LASTEXITCODE -ne 0) { throw 'Managed runtime could not establish the smoke identity.' }
+    $env:APPDATA = $appData
+    $env:ASKREX_RUNTIME_DIR = $runtimeRoot
+    & $runtimePython -I -c "from rex.auth import create_user; from rex.identity import set_session_user; from rex.permissions import bootstrap_admin_if_first_user; u=create_user('artifact-smoke-user','artifact-smoke-password'); bootstrap_admin_if_first_user(str(u['id'])); set_session_user('artifact-ci-user')"
+    if ($LASTEXITCODE -ne 0) { throw 'Managed runtime could not bootstrap setup state and establish the smoke identity.' }
 
     Set-SmokePhase 'identity-bridge'
     $identityPayload = '{"action":"resolve_electron_session"}'
@@ -237,6 +241,7 @@ try {
 
     Set-SmokePhase 'electron-ipc-smoke'
     $env:ASKREX_ARTIFACT_SMOKE = '1'
+    $env:ASKREX_ARTIFACT_SMOKE_RUNTIME_ROOT = $runtimeRoot
     $env:ASKREX_ARTIFACT_SMOKE_OUTPUT = $smokeOutput
     $env:PATH = Join-Path $env:SystemRoot 'System32'
     $app = Start-Process -FilePath $appExe -PassThru
@@ -287,6 +292,8 @@ try {
 } finally {
     Remove-Item Env:ASKREX_ARTIFACT_SMOKE -ErrorAction SilentlyContinue
     Remove-Item Env:ASKREX_ARTIFACT_SMOKE_OUTPUT -ErrorAction SilentlyContinue
+    Remove-Item Env:ASKREX_ARTIFACT_SMOKE_RUNTIME_ROOT -ErrorAction SilentlyContinue
+    Remove-Item Env:ASKREX_RUNTIME_DIR -ErrorAction SilentlyContinue
     if (Test-Path -LiteralPath $installPath) {
         Stop-InstalledProcesses $installPath
     }

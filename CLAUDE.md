@@ -283,6 +283,7 @@ Bridge compatibility wrappers (17) — exec canonical `bridge/<name>.py` in thei
 - gui/src/main/ — Electron main-process modules, one per concern (US-REM-029); `index.ts` is a thin entrypoint (app lifecycle wiring only), `ipc.ts` aggregates handler registration, IPC handlers live in `gui/src/main/handlers/`, integration credential persistence/rollback lives in `integrationSettingsStorage.ts`, and settings/integration/HA logic lives in `configStore.ts`, `aiSettings.ts`, `voiceSettings.ts`, `settingsDefaults.ts`, `settingsMirror.ts`, `homeAssistant.ts`, `integrationStatus.ts`, `integrationInventory.ts`, `window.ts`
 - `gui/src/pages/settings/integrations/` owns the Settings > Integrations controller and focused UI components; keep OpenClaw token handling renderer-blind and route all secret persistence through the main-process vault helpers.
 - `gui/src/types/settingsRouting.ts` is the shared parser for Settings deep links such as `#/settings?section=integrations`; invalid or missing sections fail safely to General.
+- Installed Electron artifact smoke may override Electron `userData` only when `ASKREX_ARTIFACT_SMOKE=1` and `ASKREX_ARTIFACT_SMOKE_RUNTIME_ROOT` is set; the PowerShell harness must point Python `ASKREX_RUNTIME_DIR` and Electron userData at the same isolated temp runtime root.
 - rex/credential_vault.py — Windows DPAPI-backed credential vault (S4); see "Credential vault (S4)" above
 - rex/email_backends/
 - rex/calendar_backends/
