@@ -1534,3 +1534,17 @@ Local evidence so far:
 - Rebased story-only implementation head: `4580f568db1b5784fefebeb03df5ec569621187f`.
 - All 17 reported checks passed. Python 3.11 Tests & Coverage passed in 10m13s; CodeFactor, GitGuardian, lint/format, mypy, GUI Vitest/typecheck/build/ESLint, dependency/security scans, pre-commit, wheel smoke, and commitlint were green.
 - The prior CodeFactor failure belonged to the obsolete stacked US-052 Settings implementation and disappeared after rebasing US-053 onto merged PR #365. Local documentation contract verification remained 8/8 green after rebase.
+
+=== 2026-08-08 - US-054 cross-document consistency audit ===
+
+Implementation so far:
+- Added `docs/AUDIT-CROSS-DOC.md` covering install methods, all six console scripts, the exact 27-file root Python inventory, source voice default, OpenClaw tier/defaults/degradation contract, Docker tier/healthcheck, and Home Assistant verification semantics.
+- Reconciled INSTALL, RUNNING, and CLAUDE against code: packaged-vs-source install truth, Hold-to-Talk source default, experimental/default-off OpenClaw status, and current structured local-fallback behavior.
+- Added executable `tests/test_cross_doc_audit.py` validating the audit against pyproject, the live root filesystem, rex_loop.py, rex/config.py, Dockerfile, HA mutation statuses, current-doc wording, and local audit links.
+
+Local evidence so far:
+- TDD red phase: all 5 audit tests failed before the audit existed/current-doc conflicts were fixed.
+- Final combined documentation set: 14/14 passed across cross-doc audit, capability-status, and UI-surface tests after adding the merge-safety contract. Ruff/Black pass; skip inventory 127/127 current; `git diff --check` pass.
+- Final post-rebase audit implementation snapshot: `2f1e604b286404a4c50aa837c76898453058fc19` on merged US-053 master. The executable cross-doc/capability/UI contract suite passed 14/14 on this exact tree, with Ruff, Black, pre-commit, and `git diff --check` green; the audit document and PRD now bind their verification evidence to this SHA.
+- GitHub implementation/evidence gate: PASS on PR #367 head `3fc4d9b50bf9ed2b75f018dffff6f281749ad80f`. All 17 checks passed; Python 3.11 Tests & Coverage completed in 10m13s and all quality/security/GUI/dependency/pre-commit/wheel/commitlint checks were green.
+- Repository process finding: GitHub reports `master` is not branch-protected, so `gh pr merge --auto` is unsafe here. CLAUDE and CONTRIBUTING now require all required checks to be green on the exact PR head before any merge command.

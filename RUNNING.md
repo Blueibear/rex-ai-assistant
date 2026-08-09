@@ -22,11 +22,11 @@ source .venv/bin/activate
 |---|---|---|
 | Text chat | `rex` or `python -m rex` | Interactive CLI chat |
 | Diagnostics | `rex doctor` or `python -m rex doctor` | Environment, dependency, and config checks |
-| Voice loop | `python rex_loop.py` | Developer voice loop; wake word remains beta |
+| Voice loop | `python rex_loop.py` | Developer-only source voice loop; defaults to Hold-to-Talk; `--mode wake-word` is beta opt-in |
 | Python web dashboard | `rex-gui` | Developer-only browser/API surface at `http://127.0.0.1:8765/ui/` |
 | Electron desktop GUI | Installed AskRex app or `cd gui && npm.cmd run dev` | Primary user-facing surface; source command is development-only |
 | TTS API | `rex-speak-api` | Local speech synthesis service on port 5005 |
-| OpenClaw tool server | `rex-tool-server` | HTTP tool adapter service on port 18790 |
+| OpenClaw tool server | `rex-tool-server` | Experimental, off by default; HTTP tool adapter service on port 18790 |
 | Windows computer agent | `rex-agent` | Optional remote PC control agent |
 
 ## Runtime data locations

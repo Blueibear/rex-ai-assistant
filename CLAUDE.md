@@ -39,6 +39,7 @@ The canonical primary branch is **`master`**.
 
 - All PRs must target `master`.
 - `claude/**` branches are AI-generated and follow the same PR process.
+- `master` is not branch-protected. Do not use `gh pr merge --auto`; it can merge immediately while long checks are still running. Issue a merge command only after independently verifying all required GitHub checks are green on the exact PR head.
 - See `CONTRIBUTING.md` for full branching model details.
 
 ## Tech Stack and Conventions
@@ -48,7 +49,7 @@ The canonical primary branch is **`master`**.
 Language: Python 3.11
 
 Packaging: pyproject.toml with setuptools backend  
-Install via: pip install .
+Developer/operator source install: `pip install .`
 
 Current install/runtime compatibility policy:
 
@@ -241,7 +242,7 @@ Top-level directories:
 
 Active entry points and developer utilities (6):
 
-- rex_loop.py — full voice loop entry point (wake word → STT → LLM → TTS)
+- rex_loop.py — source voice-loop entry point; defaults to Hold-to-Talk/manual activation, with beta wake-word only via `--mode wake-word`
 - rex_speak_api.py — Flask TTS API with auth and rate limiting
 - wsgi.py — WSGI entry point for `rex-gui`
 - setup.py — legacy setuptools stub (packaging via `pyproject.toml`)
@@ -623,12 +624,15 @@ Add a short rule here that would have prevented the mistake.
 
 Rex integrates with OpenClaw over HTTP (not as a Python package). Key facts:
 
+- both OpenClaw flags default to `False`; OpenClaw is experimental/off by default. Enabling either gateway-backed path requires a valid HTTP(S) gateway URL plus `OPENCLAW_GATEWAY_TOKEN`, and incomplete enabled configuration fails closed.
+- Gateway health is explicit: `/healthz` may establish reachability only. It does not prove authentication or tool capability.
+
 - Phase 8 (HTTP integration) is complete. All `find_spec("openclaw")` / `import openclaw` stubs have been removed and replaced with HTTP client calls.
 - OpenClaw adapters live in `rex/openclaw/`: `agent.py`, `tool_bridge.py`, `event_bridge.py`, `browser_bridge.py`, `voice_bridge.py`, `http_client.py`, `tool_server.py`, and tool handlers under `rex/openclaw/tools/`.
 - HTTP client: `rex/openclaw/http_client.py` (`OpenClawClient`) handles auth, retries, timeouts for all gateway calls. Singleton via `get_openclaw_client(config)`.
 - Config fields: `openclaw_gateway_url`, `openclaw_gateway_timeout`, `openclaw_gateway_max_retries` in `AppConfig`; `OPENCLAW_GATEWAY_TOKEN` in the credential vault.
 - Feature flag `use_openclaw_voice_backend` in `AppConfig` (config path: `openclaw.use_voice_backend`): when True, voice loops swap `Assistant` for `VoiceBridge`, routing LLM calls through OpenClaw's `/v1/chat/completions`.
-- Feature flag `use_openclaw_tools` in `AppConfig` (config path: `openclaw.use_tools`): when True, `ToolBridge.execute_tool()` dispatches to OpenClaw's `/tools/invoke`; 404 falls back to local execution.
+- Feature flag `use_openclaw_tools` in `AppConfig` (config path: `openclaw.use_tools`): when True, `ToolBridge.execute_tool()` dispatches to OpenClaw's `/tools/invoke`; 404 uses the local tool, while connection/auth/429/5xx failures fall back locally with a structured warning after bounded retries. A 403 remains a hard policy denial.
 - Tool server: `rex/openclaw/tool_server.py` exposes Rex tools at `/rex/tools/{tool_name}` for OpenClaw channels. Entry point: `rex-tool-server`.
 - All `# OPENCLAW-REPLACE` modules from Phases 5-7 have been retired (deleted).
 - Migration contracts (Protocol types) live in `rex/contracts/`.
