@@ -1529,3 +1529,8 @@ Local evidence so far:
 - TDD red phase: 3/4 new documentation-contract tests failed (missing table, stale UI labels, stale OpenClaw wording).
 - Final documentation/surface set: 8/8 passed across `test_capabilities_status_docs.py` and `test_us244_ui_surfaces.py`.
 - Relevant GitHub checks remain pending the story PR.
+
+2026-08-08 - US-053 GitHub implementation gate (PR #366)
+- Rebased story-only implementation head: `4580f568db1b5784fefebeb03df5ec569621187f`.
+- All 17 reported checks passed. Python 3.11 Tests & Coverage passed in 10m13s; CodeFactor, GitGuardian, lint/format, mypy, GUI Vitest/typecheck/build/ESLint, dependency/security scans, pre-commit, wheel smoke, and commitlint were green.
+- The prior CodeFactor failure belonged to the obsolete stacked US-052 Settings implementation and disappeared after rebasing US-053 onto merged PR #365. Local documentation contract verification remained 8/8 green after rebase.

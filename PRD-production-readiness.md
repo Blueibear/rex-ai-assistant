@@ -1837,7 +1837,7 @@ cd gui && npm run typecheck && npm run build
 - [x] Every row links to the deeper doc for that surface.
 - [x] No conflicting status claims between README, `SURFACE-CLASSIFICATION.md`, `docs/UI_SURFACES.md`, and `INTEGRATIONS_STATUS.md`.
 - [x] Documentation links and references are accurate.
-- [ ] All relevant GitHub checks pass.
+- [x] All relevant GitHub checks pass. *(PR #366 implementation head `4580f568db1b5784fefebeb03df5ec569621187f`: all 17 checks passed, including Python 3.11 Tests & Coverage in 10m13s; CodeFactor, documentation-contract tests through CI, GUI/build/type/security/dependency/pre-commit/wheel/commitlint gates were green.)*
 
 **Validation commands:**
 ```bash
