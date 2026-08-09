@@ -1911,7 +1911,7 @@ grep -nE "Active root-level|Entry points|OpenClaw|Docker|wake word" CLAUDE.md
 **Acceptance Criteria:**
 - [x] `grep -rn "datetime.utcnow" rex/` returns no results.
 - [x] Tests assert the timestamps are timezone-aware (`tzinfo is not None`).
-- [ ] All relevant GitHub checks pass.
+- [x] All relevant GitHub checks pass.
 
 **Validation commands:**
 ```bash
