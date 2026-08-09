@@ -101,6 +101,7 @@ HA mutation success is `verified` only after independent state observation. Disp
 4. CLAUDE qualifies `pip install .` as the developer/operator source install rather than an unqualified install path.
 5. CLAUDE's root `rex_loop.py` description matches the Hold-to-Talk default.
 6. CLAUDE's OpenClaw section records default-off/fail-closed configuration, health-evidence scope, bounded fallback behavior, and the policy-denial exception.
+7. GitHub reports `master` is not branch-protected. Until a path-aware ruleset is designed, merge safety is procedural: CLAUDE and CONTRIBUTING require every required check to be green on the exact PR head before any merge command; agents must not rely on `gh pr merge --auto`.
 
 ## Linked Current-State Authorities
 
@@ -111,6 +112,7 @@ HA mutation success is `verified` only after independent state observation. Disp
 - [Surface classification](../SURFACE-CLASSIFICATION.md)
 - [Integration status](../INTEGRATIONS_STATUS.md)
 - [CLAUDE](../CLAUDE.md)
+- [Contributing](../CONTRIBUTING.md)
 - [OpenClaw status](openclaw-migration-status.md)
 - [Docker](docker.md)
 - [Home Assistant](home_assistant.md)

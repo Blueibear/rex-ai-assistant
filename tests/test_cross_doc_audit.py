@@ -88,3 +88,17 @@ def test_cross_doc_audit_local_links_exist() -> None:
             continue
         path = target.split("#", 1)[0]
         assert (AUDIT.parent / path).resolve().exists(), target
+
+
+def test_claude_requires_verified_checks_before_merge() -> None:
+    claude = _text("CLAUDE.md")
+    audit = AUDIT.read_text(encoding="utf-8")
+    contributing = _text("CONTRIBUTING.md")
+    assert "`master` is not branch-protected" in claude
+    assert "Do not use `gh pr merge --auto`" in claude
+    assert "all required GitHub checks are green on the exact PR head" in claude
+    assert "GitHub reports `master` is not branch-protected" in audit
+    assert (
+        "Do not merge a PR until every required GitHub check is green on the exact head"
+        in contributing
+    )

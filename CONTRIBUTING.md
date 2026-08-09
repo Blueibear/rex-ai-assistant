@@ -109,7 +109,7 @@ Pull requests must target `master`.
 
 `claude/**` branches are AI-generated and follow the same PR process as human branches.
 
-Do not merge directly to `master`. Always open a pull request so CI runs first.
+Do not merge directly to `master`. Always open a pull request so CI runs first. Do not merge a PR until every required GitHub check is green on the exact head being merged.
 
 ## Commit message format
 

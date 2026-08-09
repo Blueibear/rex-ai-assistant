@@ -39,6 +39,7 @@ The canonical primary branch is **`master`**.
 
 - All PRs must target `master`.
 - `claude/**` branches are AI-generated and follow the same PR process.
+- `master` is not branch-protected. Do not use `gh pr merge --auto`; it can merge immediately while long checks are still running. Issue a merge command only after independently verifying all required GitHub checks are green on the exact PR head.
 - See `CONTRIBUTING.md` for full branching model details.
 
 ## Tech Stack and Conventions

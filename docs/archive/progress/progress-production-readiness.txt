@@ -1544,6 +1544,7 @@ Implementation so far:
 
 Local evidence so far:
 - TDD red phase: all 5 audit tests failed before the audit existed/current-doc conflicts were fixed.
-- Final combined documentation set: 13/13 passed across cross-doc audit, capability-status, and UI-surface tests. Ruff/Black pass; skip inventory 127/127 current; `git diff --check` pass.
+- Final combined documentation set: 14/14 passed across cross-doc audit, capability-status, and UI-surface tests after adding the merge-safety contract. Ruff/Black pass; skip inventory 127/127 current; `git diff --check` pass.
 - Audit implementation snapshot was committed as `28232d886763603f0e7a66b1e01116405a02d3ec`, but this story is still stacked and will be rebased. The audit intentionally keeps `AUDIT_COMMIT_PENDING` and its "verified against the code at the audit commit" criterion open until the final post-rebase implementation SHA is stable.
 - Relevant GitHub checks remain pending the final story PR head.
+- Repository process finding: GitHub reports `master` is not branch-protected, so `gh pr merge --auto` is unsafe here. CLAUDE and CONTRIBUTING now require all required checks to be green on the exact PR head before any merge command.
