@@ -1859,7 +1859,7 @@ grep -n "Capabilities" README.md
 
 **Acceptance Criteria:**
 - [x] A `docs/AUDIT-CROSS-DOC.md` (new) lists every cross-doc claim about install methods, console scripts, root file count, voice mode default, OpenClaw status, Docker tier, and HA verification.
-- [ ] Every claim is verified against the code at the audit commit.
+- [x] Every claim is verified against the code at the audit commit. *(Verified on final post-rebase implementation snapshot `2f1e604b286404a4c50aa837c76898453058fc19`: 14/14 cross-doc/capability/UI contract tests passed, with Ruff, Black, pre-commit, and diff hygiene green.)*
 - [x] Conflicts are resolved in the same story.
 - [x] Documentation links and references are accurate.
 - [ ] All relevant GitHub checks pass.

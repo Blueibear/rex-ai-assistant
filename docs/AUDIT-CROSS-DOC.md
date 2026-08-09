@@ -2,7 +2,7 @@
 
 **Scope:** US-054 production-readiness cross-doc audit.
 
-**Verified code snapshot:** `AUDIT_COMMIT_PENDING` (replaced with the implementation commit SHA before this story is closed).
+**Verified code snapshot:** `2f1e604b286404a4c50aa837c76898453058fc19`. The executable cross-document audit was rerun against this exact post-rebase implementation tree before the evidence-only closeout commit.
 
 This audit reconciles current-state claims in [README](../README.md), [INSTALL](../INSTALL.md), [RUNNING](../RUNNING.md), [UI surfaces](UI_SURFACES.md), [surface classification](../SURFACE-CLASSIFICATION.md), [integration status](../INTEGRATIONS_STATUS.md), and [CLAUDE](../CLAUDE.md) against code and repository evidence. Historical files under `docs/archive/` are not current-state authorities.
 
