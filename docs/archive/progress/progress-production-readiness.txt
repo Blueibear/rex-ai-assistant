@@ -1548,3 +1548,16 @@ Local evidence so far:
 - Final post-rebase audit implementation snapshot: `2f1e604b286404a4c50aa837c76898453058fc19` on merged US-053 master. The executable cross-doc/capability/UI contract suite passed 14/14 on this exact tree, with Ruff, Black, pre-commit, and `git diff --check` green; the audit document and PRD now bind their verification evidence to this SHA.
 - GitHub implementation/evidence gate: PASS on PR #367 head `3fc4d9b50bf9ed2b75f018dffff6f281749ad80f`. All 17 checks passed; Python 3.11 Tests & Coverage completed in 10m13s and all quality/security/GUI/dependency/pre-commit/wheel/commitlint checks were green.
 - Repository process finding: GitHub reports `master` is not branch-protected, so `gh pr merge --auto` is unsafe here. CLAUDE and CONTRIBUTING now require all required checks to be green on the exact PR head before any merge command.
+
+=== 2026-08-08 - US-055 CLAUDE.md truth pass ===
+
+Verification:
+- Added `tests/test_claude_truth.py`, grounding CLAUDE against the live root filesystem and `pyproject.toml` instead of duplicating another prose audit.
+- Verified the exact 27 root Python files, all six console scripts, source Hold-to-Talk default/beta wake opt-in, experimental/default-off OpenClaw fail-closed/health/fallback contract, developer-only Docker healthcheck tier, packaged-vs-source install distinction, primary Electron GUI, and current referenced documentation paths.
+- The focused contract passed 5/5 on its first run because US-054 had already corrected the substantive CLAUDE drift. No additional production/document prose change was necessary in this story.
+- Relevant GitHub checks remain pending the story PR.
+
+2026-08-09 - US-055 GitHub implementation gate (PR #368)
+- Final master-based implementation head: `be3c8e0d2d3140b8d5ee981b905ad4aa07a3bb37`.
+- All 17 reported checks passed on that exact head. Python 3.11 Tests & Coverage passed in 10m04s; CodeFactor, GitGuardian, lint/format, mypy, GUI Vitest/typecheck/build/ESLint, dependency/security scans, pre-commit, wheel smoke, and commitlint were green.
+- Local CLAUDE/cross-document/status verification remained 19/19 green after the final rebase, with Ruff, Black, pre-commit, and diff hygiene passing.
