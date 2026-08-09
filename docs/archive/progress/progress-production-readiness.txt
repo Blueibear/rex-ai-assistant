@@ -1638,3 +1638,9 @@ Local evidence:
 - `git diff --check` passes.
 - Relevant GitHub checks remain pending the story PR; that final checkbox intentionally remains open.
 - First PR #372 CI pass exposed 8 stale Python source-contract assertions in `tests/test_us309_voice_enrollment_ux.py` that still inspected the pre-split `SettingsPage.tsx`. The guided enrollment behavior itself remained present in `UsersSettingsSection.tsx` plus `voice/voiceHelpers.ts`; the tests now follow those canonical extracted modules without weakening their behavioral assertions. Focused US-309 verification: 13/13 passed.
+
+2026-08-09 - US-063 GitHub implementation gate (PR #372)
+- Final master-based implementation head: `371551fe9d13079e9602be23cc798359201e278b`.
+- All 18 reported checks passed on that exact head. Python 3.11 Tests & Coverage passed in 8m24s and Installed Windows Electron artifact passed in 12m28s; CodeFactor, GitGuardian, lint/format, mypy, GUI Vitest/typecheck/build/ESLint, dependency/security scans, pre-commit, wheel smoke, raw-API guard, and commitlint were green.
+- The first CI pass exposed 8 stale US-309 source-location assertions after the Settings split; the runtime behavior was present in the extracted Users/voice modules, and the tests were corrected to follow those canonical modules. The corrected head passed the full Python suite/skip-budget/integration/clean-tree gate plus the complete installed artifact lifecycle.
+- Fresh local validation on the corrected head: 24 GUI files / 114 tests, both TypeScript configs, production Electron build, ESLint 0 errors, US-309 13/13, pre-commit/secrets, and diff hygiene passed; `SettingsPage.tsx` is 173 lines and every extracted Settings module remains below 1,000 lines.
