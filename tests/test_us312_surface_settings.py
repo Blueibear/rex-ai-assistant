@@ -2,7 +2,16 @@
 
 from pathlib import Path
 
-SETTINGS_PAGE = Path(__file__).parent.parent / "gui" / "src" / "pages" / "SettingsPage.tsx"
+INTEGRATIONS_VIEW = (
+    Path(__file__).parent.parent
+    / "gui"
+    / "src"
+    / "pages"
+    / "settings"
+    / "integrations"
+    / "IntegrationsSettingsSection.tsx"
+)
+INTEGRATIONS_CONTROLLER = INTEGRATIONS_VIEW.parent / "useIntegrationsSettingsController.ts"
 IPC_TYPES = Path(__file__).parent.parent / "gui" / "src" / "types" / "ipc.ts"
 SETTINGS_MIRROR = Path(__file__).parent.parent / "gui" / "src" / "main" / "settingsMirror.ts"
 REX_CONFIG_SCHEMA = Path(__file__).parent.parent / "config" / "rex_config.schema.json"
@@ -29,25 +38,27 @@ def test_ipc_types_has_telegram_chat_id():
 
 
 def test_settings_page_has_telegram_section_header():
-    content = read(SETTINGS_PAGE)
+    content = read(INTEGRATIONS_VIEW)
     assert "Telegram" in content, "Telegram section not found in SettingsPage"
 
 
 def test_settings_page_has_telegram_bot_token_input():
-    content = read(SETTINGS_PAGE)
+    content = read(INTEGRATIONS_VIEW)
     assert "telegramBotToken" in content
 
 
 def test_settings_page_has_telegram_chat_id_input():
-    content = read(SETTINGS_PAGE)
+    content = read(INTEGRATIONS_VIEW)
     assert "telegramChatId" in content
 
 
 def test_settings_page_telegram_inputs_wired_to_form():
-    content = read(SETTINGS_PAGE)
-    # Form state must have these fields set
-    assert "telegramBotToken: ''" in content or "telegramBotToken:" in content
-    assert "telegramChatId:" in content
+    content = read(INTEGRATIONS_CONTROLLER)
+    # Controller state must have these fields initialized and hydrated.
+    assert "telegramBotToken: ''" in content
+    assert "telegramChatId: ''" in content
+    assert "telegramBotToken: stringSetting(settings, 'telegramBotToken')" in content
+    assert "telegramChatId: stringSetting(settings, 'telegramChatId')" in content
 
 
 # --- main/settingsMirror.ts mirrors telegram.chat_id to rex_config.json ---
@@ -79,5 +90,5 @@ def test_python_config_reads_telegram_chat_id_from_json():
 
 
 def test_settings_page_telegram_bot_token_has_onblur():
-    content = read(SETTINGS_PAGE)
+    content = read(INTEGRATIONS_VIEW)
     assert "onBlur" in content and "telegramBotToken" in content

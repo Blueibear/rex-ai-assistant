@@ -47,7 +47,10 @@ describe('installed artifact smoke', () => {
     await vi.waitFor(() => expect(writeFileSync).toHaveBeenCalledOnce())
     expect(executeJavaScript).toHaveBeenCalledOnce()
     const smokeScript = executeJavaScript.mock.calls[0][0] as string
-    expect(smokeScript).toContain("#/settings?section=integrations")
+    expect(smokeScript).toContain('const waitFor = async')
+    expect(smokeScript).toContain("window.location.hash = '#/settings'")
+    expect(smokeScript).toContain("node.textContent?.trim() === 'Integrations'")
+    expect(smokeScript).toContain('await waitFor(() =>')
     expect(smokeScript).toContain("openclawGatewayUrl")
     expect(smokeScript).toContain("Enable OpenClaw tools")
     expect(smokeScript).toContain("setSettings('integrations'")
