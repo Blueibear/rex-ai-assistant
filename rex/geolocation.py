@@ -38,7 +38,7 @@ async def detect_location() -> dict[str, object] | None:
 
     try:
         result = await asyncio.wait_for(
-            asyncio.get_event_loop().run_in_executor(None, _fetch_location),
+            asyncio.get_running_loop().run_in_executor(None, _fetch_location),
             timeout=_TIMEOUT_SECONDS,
         )
         if result is not None:

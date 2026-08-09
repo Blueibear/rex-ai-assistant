@@ -195,7 +195,7 @@ async def _synthesize_xtts(voice_id: str, text: str) -> bytes:
             if os.path.exists(tmpfile):
                 os.unlink(tmpfile)
 
-    loop = asyncio.get_event_loop()
+    loop = asyncio.get_running_loop()
     return await loop.run_in_executor(None, _run)
 
 
@@ -248,7 +248,7 @@ async def _synthesize_pyttsx3(voice_id: str, text: str) -> bytes:
             if os.path.exists(tmpfile):
                 os.unlink(tmpfile)
 
-    loop = asyncio.get_event_loop()
+    loop = asyncio.get_running_loop()
     return await loop.run_in_executor(None, _run)
 
 

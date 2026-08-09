@@ -1578,3 +1578,21 @@ Local evidence so far:
 - Final master-based implementation head: `f3835b096eddc202b24b61ee0968429c04e5a190`.
 - All 18 reported checks passed on that exact head. Python 3.11 Tests & Coverage passed in 9m20s and Installed Windows Electron artifact passed in 11m57s; CodeFactor, GitGuardian, lint/format, mypy, GUI Vitest/typecheck/build/ESLint, dependency/security scans, pre-commit, wheel smoke, raw-API guard, and commitlint were green.
 - Final local verification found no `datetime.utcnow()` under `rex/`; 50/50 assistant/timestamp tests plus Ruff, Black, mypy, pre-commit, and diff hygiene passed after the final rebase.
+
+=== 2026-08-08 - US-057 asyncio event-loop modernization ===
+
+Implementation:
+- Replaced async-context `asyncio.get_event_loop()` calls in geolocation and XTTS/pyttsx3 synthesis with `asyncio.get_running_loop()`.
+- Replaced the broken weather sync/async fallback in `rex/openclaw/tool_executor.py`. If the synchronous tool is called while no loop is running, it uses `asyncio.run()` directly; if a loop is already running in the caller thread, one worker thread owns a separate `asyncio.run()` lifecycle. This avoids the previous impossible `run_until_complete()` call on an already-running loop and prevents leaked/unawaited coroutines.
+- Added `tests/test_asyncio_loop_cleanup.py` with a repo source guard and an actual weather invocation from inside a running event loop.
+
+Local evidence so far:
+- TDD red phase: both new tests failed; the weather case also emitted an unawaited-coroutine warning under the old fallback.
+- Geolocation/TTS/tool-router/time-weather/OpenClaw-weather regression set: 84 passed.
+- No `asyncio.get_event_loop()` calls remain under `rex/`. Ruff/Black pass; mypy reports 0 issues in the 3 changed source files; skip inventory 127/127 current; `git diff --check` pass.
+- Relevant GitHub checks remain pending the story PR.
+
+2026-08-09 - US-057 GitHub implementation gate (PR #370)
+- Final master-based implementation head: `627b3201a094c8e5a56d4b0df504ebf0a472cfa8`.
+- All 18 reported checks passed on that exact head. Python 3.11 Tests & Coverage passed in 9m03s and Installed Windows Electron artifact passed in 11m54s; CodeFactor, GitGuardian, lint/format, mypy, GUI Vitest/typecheck/build/ESLint, dependency/security scans, pre-commit, wheel smoke, raw-API guard, and commitlint were green.
+- Final local verification found no `asyncio.get_event_loop()` under `rex/`; 30/30 focused async/geolocation/TTS tests plus Ruff, Black, mypy, pre-commit, and diff hygiene passed after the final rebase.
