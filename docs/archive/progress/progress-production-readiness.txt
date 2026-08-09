@@ -1591,3 +1591,8 @@ Local evidence so far:
 - Geolocation/TTS/tool-router/time-weather/OpenClaw-weather regression set: 84 passed.
 - No `asyncio.get_event_loop()` calls remain under `rex/`. Ruff/Black pass; mypy reports 0 issues in the 3 changed source files; skip inventory 127/127 current; `git diff --check` pass.
 - Relevant GitHub checks remain pending the story PR.
+
+2026-08-09 - US-057 GitHub implementation gate (PR #370)
+- Final master-based implementation head: `627b3201a094c8e5a56d4b0df504ebf0a472cfa8`.
+- All 18 reported checks passed on that exact head. Python 3.11 Tests & Coverage passed in 9m03s and Installed Windows Electron artifact passed in 11m54s; CodeFactor, GitGuardian, lint/format, mypy, GUI Vitest/typecheck/build/ESLint, dependency/security scans, pre-commit, wheel smoke, raw-API guard, and commitlint were green.
+- Final local verification found no `asyncio.get_event_loop()` under `rex/`; 30/30 focused async/geolocation/TTS tests plus Ruff, Black, mypy, pre-commit, and diff hygiene passed after the final rebase.

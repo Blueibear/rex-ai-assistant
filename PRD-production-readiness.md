@@ -1935,7 +1935,7 @@ pytest -q
 **Acceptance Criteria:**
 - [x] `grep -rn "asyncio.get_event_loop" rex/` returns no results.
 - [x] Tests cover the replaced call sites.
-- [ ] All relevant GitHub checks pass.
+- [x] All relevant GitHub checks pass.
 
 **Validation commands:**
 ```bash
