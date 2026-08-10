@@ -157,7 +157,7 @@ class VoiceLoop:
 
     @staticmethod
     def _duration_ms(start_ns: int) -> float:
-        return round((time.monotonic_ns() - start_ns) / 1_000_000, 3)
+        return round((time.perf_counter_ns() - start_ns) / 1_000_000, 3)
 
     def _report_audio_device_error(
         self,
@@ -500,7 +500,7 @@ class VoiceLoop:
                     interaction_id = self._interaction_id
                     audio_device_kind = "microphone"
                     tracker = VoiceLatencyTracker()
-                    wake_detected_ns = time.monotonic_ns()
+                    wake_detected_ns = time.perf_counter_ns()
                     self._log_pipeline_event(
                         "wake_detected", interaction_id=interaction_id, start_ns=wake_detected_ns
                     )
@@ -526,7 +526,7 @@ class VoiceLoop:
                     # because no-pause commands can otherwise be clipped before
                     # phrase capture begins.
                     capture_started_at = time.perf_counter()
-                    capture_start_ns = time.monotonic_ns()
+                    capture_start_ns = time.perf_counter_ns()
                     self._log_pipeline_event(
                         "capture_started", interaction_id=interaction_id, start_ns=capture_start_ns
                     )
@@ -588,7 +588,7 @@ class VoiceLoop:
                         },
                     )
                     tracker.mark("stt_start")
-                    stt_start_ns = time.monotonic_ns()
+                    stt_start_ns = time.perf_counter_ns()
                     self._log_pipeline_event(
                         "stt_started", interaction_id=interaction_id, start_ns=stt_start_ns
                     )
@@ -783,7 +783,7 @@ class VoiceLoop:
                     # Get LLM response - voice_mode=True enables conciseness prompt
                     _emit("executing")
                     tracker.mark("llm_start")
-                    llm_start_ns = time.monotonic_ns()
+                    llm_start_ns = time.perf_counter_ns()
                     self._log_pipeline_event(
                         "llm_started", interaction_id=interaction_id, start_ns=llm_start_ns
                     )
@@ -791,7 +791,7 @@ class VoiceLoop:
                     if _speak_streaming is not None and callable(stream_reply):
                         tracker.mark("tts_synthesis_start")
                         tracker.mark("tts_first_chunk")
-                        tts_start_ns = time.monotonic_ns()
+                        tts_start_ns = time.perf_counter_ns()
                         self._log_pipeline_event(
                             "tts_started",
                             interaction_id=interaction_id,
@@ -879,7 +879,7 @@ class VoiceLoop:
                                 },
                             )
                             tracker.mark("tts_synthesis_start")
-                            tts_start_ns = time.monotonic_ns()
+                            tts_start_ns = time.perf_counter_ns()
                             self._log_pipeline_event(
                                 "tts_started", interaction_id=interaction_id, start_ns=tts_start_ns
                             )

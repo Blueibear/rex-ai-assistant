@@ -1656,3 +1656,18 @@ Planning/reconciliation only; no runtime behavior changed in this entry.
 - Architecture invariants remain unchanged: Rex is local-first and remains the brain/orchestrator/verifier/permission/memory layer; OpenClaw is optional; James/Cole isolation is fail-closed; mobile keeps desktop-owned secure pairing/strong auth; SMS backend/direct route remains while primary navigation stays hidden; no new paid service is required.
 - Design and execution documents were added under `docs/superpowers/specs/` and `docs/superpowers/plans/`.
 - A Claude Code docs-only attempt was stopped after the repository's active Ralph hook caused uncontrolled iteration; all unintended child-process edits were reverted. This preserves the established cost-efficiency rule: agents are used only while they add value.
+
+2026-08-09 - US-075 chat/voice latency instrumentation and RexBench baseline
+
+Implementation:
+- Added privacy-safe monotonic `LatencyTrace` instrumentation for chat/tool dispatch and stream-first-token timing, Electron IPC/first-token timing, and voice stage evidence.
+- Added deterministic RexBench cold/warm p50/p95 coverage for typed chat, voice, read-only tool, mutating tool, and unavailable-capability classes; typed chat now measures the first user-visible streamed token instead of inferring it from non-streaming LLM duration.
+- Added performance budgets, evidence-class rules, privacy constraints, and explicit follow-on latency owners in `docs/performance.md`; refreshed the checked-in 20-iteration baseline.
+- Preserved fail-closed identity ordering while instrumenting Assistant paths and switched latency metadata to canonical nested LLM config when available, avoiding new deprecated-config warnings.
+
+Local evidence:
+- TDD red phase proved the missing `chat_stream_latency` event and missing checked-in `first_token` baseline stage before implementation; both new contracts are green.
+- Broad stream/chat/mobile/voice regression: 208 passed. Focused identity/latency regression: 57 passed. Core assistant: 48 passed with `DeprecationWarning` promoted to errors.
+- Final acceptance sweep: 64 latency/voice/tool/RexBench tests passed; Electron chat latency: 2 passed; full GUI TypeScript typecheck passed.
+- Deprecated-API guard, compileall, Ruff, Black, mypy, and `git diff --check` all passed.
+- Relevant GitHub checks remain pending the US-075 story PR; that final checkbox intentionally remains open.

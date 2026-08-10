@@ -1,6 +1,7 @@
 import { ipcMain } from 'electron'
 import { spawn, ChildProcess } from 'child_process'
 import { bridgeSpawnOptions, resolveBridgePath, resolvePythonCommand } from '../bridgeResolver'
+import { logChatLatency } from '../chatLatency'
 import { privateSessionPayload, type ElectronSessionIdentity } from '../sessionIdentity'
 
 /**
@@ -176,7 +177,15 @@ async function transcribeAudio(audioBase64: string): Promise<string> {
 
 export function registerChatHandlers(session: ElectronSessionIdentity): void {
   ipcMain.handle('rex:sendChat', async (_event, message: string): Promise<string> => {
-    return callRexBackend(message, session)
+    const startedAt = performance.now()
+    try {
+      const reply = await callRexBackend(message, session)
+      logChatLatency('chat_ipc_complete', 'single', performance.now() - startedAt, 'ok')
+      return reply
+    } catch (error) {
+      logChatLatency('chat_ipc_complete', 'single', performance.now() - startedAt, 'error')
+      throw error
+    }
   })
 
   ipcMain.handle('rex:startChatStream', async (event, { message, streamId }: { message: string; streamId: string }): Promise<{ ok: boolean }> => {
@@ -188,25 +197,37 @@ export function registerChatHandlers(session: ElectronSessionIdentity): void {
     })
     chatStreamProcesses.set(streamId, py)
 
+    const streamStartedAt = performance.now()
+    let firstTokenLogged = false
     let sentFinal = false
 
     function sendToken(token: string): void {
+      if (!firstTokenLogged) {
+        firstTokenLogged = true
+        logChatLatency('chat_first_token', 'stream', performance.now() - streamStartedAt, 'ok')
+      }
       if (!event.sender.isDestroyed()) {
         event.sender.send('rex:chatToken', { streamId, token })
       }
     }
 
     function sendDone(): void {
-      if (!sentFinal && !event.sender.isDestroyed()) {
+      if (!sentFinal) {
         sentFinal = true
-        event.sender.send('rex:chatDone', { streamId })
+        logChatLatency('chat_ipc_complete', 'stream', performance.now() - streamStartedAt, 'ok')
+        if (!event.sender.isDestroyed()) {
+          event.sender.send('rex:chatDone', { streamId })
+        }
       }
     }
 
     function sendError(error: string): void {
-      if (!sentFinal && !event.sender.isDestroyed()) {
+      if (!sentFinal) {
         sentFinal = true
-        event.sender.send('rex:chatError', { streamId, error })
+        logChatLatency('chat_ipc_complete', 'stream', performance.now() - streamStartedAt, 'error')
+        if (!event.sender.isDestroyed()) {
+          event.sender.send('rex:chatError', { streamId, error })
+        }
       }
     }
 

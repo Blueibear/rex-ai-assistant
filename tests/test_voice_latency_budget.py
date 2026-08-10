@@ -66,6 +66,7 @@ def _run_synthetic_pipeline(caplog) -> dict[str, logging.LogRecord]:
         "capture_ended",
         "stt_completed",
         "llm_completed",
+        "tts_started",
         "playback_completed",
     }
     records = {

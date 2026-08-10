@@ -1,0 +1,321 @@
+{
+  "privacy": "timings_and_nonsecret_runtime_identifiers_only",
+  "profile": "baseline",
+  "results": {
+    "mutating_tool": {
+      "cold": {
+        "evidence_class": "deterministic_mock",
+        "sample_count": 20,
+        "stages_ms": {
+          "completion": {
+            "p50": 0.657,
+            "p95": 0.823
+          },
+          "llm": {
+            "p50": 2.458,
+            "p95": 2.703
+          },
+          "postprocess": {
+            "p50": 0.166,
+            "p95": 0.366
+          },
+          "routing": {
+            "p50": 0.157,
+            "p95": 0.195
+          },
+          "startup": {
+            "p50": 0.492,
+            "p95": 0.589
+          },
+          "tool": {
+            "p50": 2.668,
+            "p95": 2.845
+          },
+          "total": {
+            "p50": 13.531,
+            "p95": 14.58
+          }
+        }
+      },
+      "warm": {
+        "evidence_class": "deterministic_mock",
+        "sample_count": 20,
+        "stages_ms": {
+          "completion": {
+            "p50": 0.72,
+            "p95": 0.925
+          },
+          "llm": {
+            "p50": 2.489,
+            "p95": 2.701
+          },
+          "postprocess": {
+            "p50": 0.175,
+            "p95": 0.333
+          },
+          "routing": {
+            "p50": 0.135,
+            "p95": 0.189
+          },
+          "tool": {
+            "p50": 2.61,
+            "p95": 2.892
+          },
+          "total": {
+            "p50": 12.796,
+            "p95": 13.989
+          }
+        }
+      }
+    },
+    "read_only_tool": {
+      "cold": {
+        "evidence_class": "deterministic_mock",
+        "sample_count": 20,
+        "stages_ms": {
+          "completion": {
+            "p50": 0.692,
+            "p95": 0.783
+          },
+          "llm": {
+            "p50": 2.374,
+            "p95": 2.629
+          },
+          "postprocess": {
+            "p50": 0.157,
+            "p95": 0.351
+          },
+          "routing": {
+            "p50": 0.118,
+            "p95": 0.49
+          },
+          "startup": {
+            "p50": 0.456,
+            "p95": 0.598
+          },
+          "tool": {
+            "p50": 2.667,
+            "p95": 3.235
+          },
+          "total": {
+            "p50": 12.077,
+            "p95": 14.828
+          }
+        }
+      },
+      "warm": {
+        "evidence_class": "deterministic_mock",
+        "sample_count": 20,
+        "stages_ms": {
+          "completion": {
+            "p50": 0.72,
+            "p95": 0.877
+          },
+          "llm": {
+            "p50": 2.518,
+            "p95": 2.696
+          },
+          "postprocess": {
+            "p50": 0.143,
+            "p95": 0.304
+          },
+          "routing": {
+            "p50": 0.108,
+            "p95": 0.131
+          },
+          "tool": {
+            "p50": 2.671,
+            "p95": 2.875
+          },
+          "total": {
+            "p50": 11.754,
+            "p95": 12.726
+          }
+        }
+      }
+    },
+    "typed_chat": {
+      "cold": {
+        "evidence_class": "deterministic_mock",
+        "sample_count": 20,
+        "stages_ms": {
+          "completion": {
+            "p50": 1.075,
+            "p95": 1.228
+          },
+          "first_token": {
+            "p50": 5.913,
+            "p95": 7.565
+          },
+          "llm": {
+            "p50": 2.813,
+            "p95": 3.367
+          },
+          "routing": {
+            "p50": 0.021,
+            "p95": 0.03
+          },
+          "startup": {
+            "p50": 0.559,
+            "p95": 0.685
+          },
+          "total": {
+            "p50": 7.643,
+            "p95": 9.201
+          }
+        }
+      },
+      "warm": {
+        "evidence_class": "deterministic_mock",
+        "sample_count": 20,
+        "stages_ms": {
+          "completion": {
+            "p50": 0.962,
+            "p95": 1.229
+          },
+          "first_token": {
+            "p50": 5.886,
+            "p95": 6.934
+          },
+          "llm": {
+            "p50": 2.858,
+            "p95": 3.354
+          },
+          "routing": {
+            "p50": 0.025,
+            "p95": 0.035
+          },
+          "total": {
+            "p50": 6.802,
+            "p95": 8.214
+          }
+        }
+      }
+    },
+    "unavailable_capability": {
+      "cold": {
+        "evidence_class": "deterministic_mock",
+        "sample_count": 20,
+        "stages_ms": {
+          "completion": {
+            "p50": 0.883,
+            "p95": 0.961
+          },
+          "llm": {
+            "p50": 2.694,
+            "p95": 2.889
+          },
+          "postprocess": {
+            "p50": 0.283,
+            "p95": 0.407
+          },
+          "routing": {
+            "p50": 0.173,
+            "p95": 0.221
+          },
+          "startup": {
+            "p50": 0.567,
+            "p95": 0.66
+          },
+          "total": {
+            "p50": 8.364,
+            "p95": 9.05
+          }
+        }
+      },
+      "warm": {
+        "evidence_class": "deterministic_mock",
+        "sample_count": 20,
+        "stages_ms": {
+          "completion": {
+            "p50": 0.863,
+            "p95": 0.974
+          },
+          "llm": {
+            "p50": 2.736,
+            "p95": 2.904
+          },
+          "postprocess": {
+            "p50": 0.266,
+            "p95": 0.392
+          },
+          "routing": {
+            "p50": 0.186,
+            "p95": 0.232
+          },
+          "total": {
+            "p50": 7.896,
+            "p95": 8.714
+          }
+        }
+      }
+    },
+    "voice": {
+      "cold": {
+        "evidence_class": "deterministic_mock",
+        "sample_count": 20,
+        "stages_ms": {
+          "capture": {
+            "p50": 1.102,
+            "p95": 1.449
+          },
+          "completion": {
+            "p50": 28.84,
+            "p95": 29.517
+          },
+          "first_audio": {
+            "p50": 13.548,
+            "p95": 14.072
+          },
+          "llm": {
+            "p50": 0.116,
+            "p95": 0.195
+          },
+          "startup": {
+            "p50": 0.018,
+            "p95": 0.035
+          },
+          "stt": {
+            "p50": 11.861,
+            "p95": 12.597
+          },
+          "total": {
+            "p50": 28.857,
+            "p95": 29.531
+          }
+        }
+      },
+      "warm": {
+        "evidence_class": "deterministic_mock",
+        "sample_count": 20,
+        "stages_ms": {
+          "capture": {
+            "p50": 1.305,
+            "p95": 1.493
+          },
+          "completion": {
+            "p50": 28.703,
+            "p95": 29.433
+          },
+          "first_audio": {
+            "p50": 13.466,
+            "p95": 13.919
+          },
+          "llm": {
+            "p50": 0.131,
+            "p95": 0.205
+          },
+          "stt": {
+            "p50": 11.616,
+            "p95": 12.173
+          },
+          "total": {
+            "p50": 28.703,
+            "p95": 29.433
+          }
+        }
+      }
+    }
+  },
+  "schema_version": 1
+}

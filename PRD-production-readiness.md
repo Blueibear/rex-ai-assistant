@@ -2620,27 +2620,28 @@ cd gui && npm run typecheck && npm run build
 **Implementation notes:** Add structured timings before optimization. Define target budgets for typed chat, hold-to-talk, wake-word response, STT, LLM token-to-first, TTS start, and playback.
 
 **Acceptance Criteria:**
-- [ ] Chat response path records IPC, routing, LLM, tool, and total timings.
-- [ ] Voice path records wake, capture, STT, LLM, TTS, playback, and total timings.
-- [ ] Logs include provider/model/settings identifiers needed for diagnosis without leaking secrets.
-- [ ] Target budgets are documented.
-- [ ] A profiling command or harness summarizes timings.
-- [ ] Optimization stories are opened or blockers documented for any stage over budget.
-- [ ] Tests cover timing event emission with mocked stages.
+- [x] Chat response path records IPC, routing, LLM, tool, and total timings.
+- [x] Voice path records wake, capture, STT, LLM, TTS, playback, and total timings.
+- [x] Logs include provider/model/settings identifiers needed for diagnosis without leaking secrets.
+- [x] Target budgets are documented.
+- [x] A profiling command or harness summarizes timings.
+- [x] Optimization stories are opened or blockers documented for any stage over budget.
+- [x] Tests cover timing event emission with mocked stages.
 - [ ] All relevant GitHub checks pass.
 
-- [ ] A checked-in RexBench baseline reports cold and warm p50/p95 for typed chat, voice, read-only tool, mutating tool, and unavailable-capability request classes.
-- [ ] Baseline stages separately report routing, first token, tool execution, STT, first audio, completion, and total latency where applicable.
-- [ ] Deterministic fixtures/mocks are the default benchmark evidence; live-provider and physical-hardware evidence is stored/labeled separately and never conflated with mock/local measurements.
-- [ ] Benchmark output contains no prompts, transcripts, memory contents, credentials, or user IDs.
+- [x] A checked-in RexBench baseline reports cold and warm p50/p95 for typed chat, voice, read-only tool, mutating tool, and unavailable-capability request classes.
+- [x] Baseline stages separately report routing, first token, tool execution, STT, first audio, completion, and total latency where applicable.
+- [x] Deterministic fixtures/mocks are the default benchmark evidence; live-provider and physical-hardware evidence is stored/labeled separately and never conflated with mock/local measurements.
+- [x] Benchmark output contains no prompts, transcripts, memory contents, credentials, or user IDs.
 
 **Validation commands:**
 ```bash
-pytest -q tests/test_voice_latency.py tests/test_tool_pipeline.py
+pytest -q tests/test_assistant_latency.py tests/test_voice_latency_budget.py tests/test_voice_pipeline_logs.py tests/test_tool_pipeline.py tests/test_rexbench.py
+cd gui && npx vitest run tests/chatLatency.test.ts && npm run typecheck
+python scripts/rexbench.py --profile baseline --iterations 20 --output docs/performance/rexbench-baseline.json
 ```
 
 **Risk notes:** Do not add synchronous timing work that increases latency materially. Use monotonic clocks.
-
 ---
 
 ### US-076: Add incoherent model output validation and fail-safe handling
