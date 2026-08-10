@@ -1702,3 +1702,22 @@ Local evidence:
 - Ruff and Black pass on `rex/runtime` and `tests/rex2/test_turn_contracts.py`; mypy reports no issues in 4 runtime source files.
 - US-064 PR #375 full CI, including Python 3.11 Tests & Coverage, subsequently completed successfully; its final PRD CI criterion is now closed.
 - US-094 GitHub checks remain pending until this story PR is pushed; its final PRD checkbox intentionally remains open.
+
+
+2026-08-09 - US-095 generate_reply migrated onto TurnEngine
+
+Implementation:
+- Added async TurnEngine execution with the same success/failure/terminal semantics as the synchronous facade.
+- Routed every post-identity `Assistant.generate_reply()` path through one TurnEngine turn, including intent shortcuts, per-user cache hits, ModelRouter request scope, context construction, ActionDispatcher, ResponseBuilder, history, and final response.
+- Preserved fail-closed identity outside the engine boundary so missing/invalid identity still fails before turn events or private request state are touched.
+- Passed the canonical turn event stream into ActionDispatcher and added truthful capability/action/model/result-handler progress at real execution boundaries; neutral `returned` status never implies external verification.
+- Added `TurnSource.ASSISTANT` for interface-agnostic direct Assistant calls; adapters remain responsible for exact source/device attribution in US-097.
+- Updated CLAUDE.md and docs/ARCHITECTURE.md to state that non-streaming generate_reply is migrated while stream_reply remains legacy until US-096.
+
+Local evidence:
+- TDD red phase: 6 of 7 initial migration tests failed because generate_reply emitted no TurnEngine events; the existing missing-identity fail-closed case passed before migration.
+- `pytest tests/rex2/test_generate_reply_turn_engine.py -q`: 10 passed, covering direct answer, cache, read-only tool, mutation confirmation wording, model failure, unavailable capability, fail-closed identity ordering, real dispatcher event boundaries, no direct model shortcut, and no invented surface provenance from voice response mode.
+- Final runtime/identity/action/verification/documentation-truth sweep: 205 passed on Python 3.11.9.
+- Ruff and Black pass on touched runtime/assistant/dispatcher/tests; mypy reports no issues across assistant, dispatcher, and runtime modules.
+- US-094 PR #376 passed every relevant GitHub check, including full Python coverage and installed Windows Electron artifact smoke; its final PRD CI criterion is now closed.
+- US-095 GitHub checks remain pending until this story PR is pushed; its final PRD checkbox intentionally remains open.

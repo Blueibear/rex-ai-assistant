@@ -18,6 +18,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from rex.latency import LatencyTrace
+from rex.runtime.events import EventKind, TurnEventStream
 
 logger = logging.getLogger(__name__)
 
@@ -132,6 +133,7 @@ class ActionDispatcher:
         user_id: str | None = None,
         loop: asyncio.AbstractEventLoop | None = None,
         latency_trace: LatencyTrace | None = None,
+        turn_events: TurnEventStream | None = None,
     ) -> ActionResult:
         """Dispatch *transcript* through all action layers and return an :class:`ActionResult`.
 
@@ -152,6 +154,8 @@ class ActionDispatcher:
                             ``"default"``.
             loop:           Running event loop; obtained via ``asyncio.get_running_loop()`` when
                             *None*.
+            turn_events:    Optional canonical turn event stream for truthful progress
+                            observation. It never grants or widens execution authority.
 
         Returns:
             :class:`ActionResult` with ``success=True`` and the final response string.
@@ -173,6 +177,10 @@ class ActionDispatcher:
             )
         effective_user = validate_user_id(effective_user)
 
+        def emit(kind: EventKind, details: dict[str, Any]) -> None:
+            if turn_events is not None:
+                turn_events.emit(kind, details)
+
         from rex.mobile_api.action_context import (  # noqa: PLC0415
             mobile_action_context_active,
             mobile_scope_granted,
@@ -189,6 +197,14 @@ class ActionDispatcher:
                 transcript, self._skill_registry
             )
             if training_response is not None:
+                emit(
+                    EventKind.CAPABILITY_PROGRESS,
+                    {"capability": "skill_training", "status": "selected"},
+                )
+                emit(
+                    EventKind.ACTION_PROGRESS,
+                    {"capability": "skill_training", "status": "returned"},
+                )
                 return ActionResult(
                     success=True,
                     response=str(training_response),
@@ -199,7 +215,15 @@ class ActionDispatcher:
         if self._skill_router is not None and not mobile_action_context_active():
             matched_skill = self._skill_router.match(transcript)
             if matched_skill is not None:
+                emit(
+                    EventKind.CAPABILITY_PROGRESS,
+                    {"capability": "skill_invocation", "status": "selected"},
+                )
                 skill_response = str(self._skill_router.execute(matched_skill, transcript))
+                emit(
+                    EventKind.ACTION_PROGRESS,
+                    {"capability": "skill_invocation", "status": "returned"},
+                )
                 return ActionResult(
                     success=True,
                     response=skill_response,
@@ -210,6 +234,13 @@ class ActionDispatcher:
         if self._shopping_list_handler is not None and mobile_scope_granted("tasks.write"):
             _sl_response = self._shopping_list_handler.handle(transcript, user_id=effective_user)
             if _sl_response is not None:
+                emit(
+                    EventKind.CAPABILITY_PROGRESS,
+                    {"capability": "shopping_list", "status": "selected"},
+                )
+                emit(
+                    EventKind.ACTION_PROGRESS, {"capability": "shopping_list", "status": "returned"}
+                )
                 return ActionResult(
                     success=True,
                     response=str(_sl_response),
@@ -220,6 +251,8 @@ class ActionDispatcher:
         if self._music_handler is not None and mobile_scope_granted("home.control"):
             _music_response = self._music_handler.handle(transcript)
             if _music_response is not None:
+                emit(EventKind.CAPABILITY_PROGRESS, {"capability": "music", "status": "selected"})
+                emit(EventKind.ACTION_PROGRESS, {"capability": "music", "status": "returned"})
                 return ActionResult(
                     success=True,
                     response=str(_music_response),
@@ -230,6 +263,13 @@ class ActionDispatcher:
         if self._device_state_handler is not None and mobile_scope_granted("home.read"):
             _ds_response = self._device_state_handler.handle(transcript)
             if _ds_response is not None:
+                emit(
+                    EventKind.CAPABILITY_PROGRESS,
+                    {"capability": "device_state", "status": "selected"},
+                )
+                emit(
+                    EventKind.ACTION_PROGRESS, {"capability": "device_state", "status": "returned"}
+                )
                 return ActionResult(
                     success=True,
                     response=str(_ds_response),
@@ -248,6 +288,14 @@ class ActionDispatcher:
                     tool for tool in _selected_tools if getattr(tool, "operation", "read") == "read"
                 ]
             if _selected_tools:
+                capability_names = [
+                    str(getattr(tool, "name", getattr(tool, "tool_name", "unknown")))
+                    for tool in _selected_tools
+                ]
+                emit(
+                    EventKind.CAPABILITY_PROGRESS,
+                    {"stage": "tool_selection", "capabilities": capability_names},
+                )
                 if latency_trace is not None:
                     latency_trace.start("tool")
                 try:
@@ -264,6 +312,10 @@ class ActionDispatcher:
                     if latency_trace is not None:
                         latency_trace.end("tool")
                 _tool_context = self._tool_dispatcher.format_tool_context(_tool_results) or None
+                emit(
+                    EventKind.ACTION_PROGRESS,
+                    {"stage": "tool_execution", "status": "returned", "count": len(_tool_results)},
+                )
 
         completion: str | None = None
 
@@ -274,6 +326,10 @@ class ActionDispatcher:
             and not mobile_action_context_active()
             and mobile_scope_granted("home.control")
         ):
+            emit(
+                EventKind.CAPABILITY_PROGRESS,
+                {"capability": "home_assistant", "status": "entered"},
+            )
             if latency_trace is not None:
                 latency_trace.start("tool")
             if _UNDO_PATTERN.match(transcript):
@@ -321,6 +377,11 @@ class ActionDispatcher:
                             pass
             if latency_trace is not None:
                 latency_trace.end("tool")
+            if completion is not None:
+                emit(
+                    EventKind.ACTION_PROGRESS,
+                    {"capability": "home_assistant", "status": "returned"},
+                )
 
         # 8. LLM call (if no pre-LLM handler produced a completion)
         if completion is None:
@@ -339,6 +400,10 @@ class ActionDispatcher:
             prompt = ctx.prompt
             if latency_trace is not None:
                 latency_trace.start("llm")
+            emit(
+                EventKind.MODEL_PROGRESS,
+                {"stage": "generation", "status": "started"},
+            )
             try:
                 try:
                     completion = await run_in_executor_with_mobile_context(
@@ -353,6 +418,10 @@ class ActionDispatcher:
             finally:
                 if latency_trace is not None:
                     latency_trace.end("llm")
+            emit(
+                EventKind.MODEL_PROGRESS,
+                {"stage": "generation", "status": "returned"},
+            )
 
             # 9. Post-process LLM output (TOOL_REQUEST resolution, OpenClaw bridge)
             plugin_enrichments: list[str] = []
@@ -379,6 +448,10 @@ class ActionDispatcher:
                     tool_context=tool_context_dict,
                     model_call_fn=model_call_fn,
                     plugin_enrichments=plugin_enrichments,
+                )
+                emit(
+                    EventKind.ACTION_PROGRESS,
+                    {"stage": "result_handler", "status": "returned"},
                 )
             finally:
                 if latency_trace is not None:

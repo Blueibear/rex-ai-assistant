@@ -26,6 +26,15 @@ from .llm_client import LanguageModel
 from .memory import trim_history
 from .model_router import ModelRouter
 from .plugins import PluginSpec
+from .runtime.events import EventKind, EventObserver, TurnEventStream
+from .runtime.turn import (
+    AuthorizationSnapshotRef,
+    ResponseMode,
+    TurnContext,
+    TurnScope,
+    TurnSource,
+)
+from .runtime.turn_engine import TurnEngine
 from .runtime_paths import household_data_path
 
 logger = logging.getLogger(__name__)
@@ -171,6 +180,11 @@ class Assistant:
             ollama_base_url=_ollama_url,
             routing_config=_routing_cfg,
         )
+
+        # Canonical turn runtime. Surfaces remain adapters; generate_reply owns
+        # the shared non-streaming orchestration path from US-095 onward.
+        self._turn_engine = TurnEngine()
+        self._turn_event_observer: EventObserver | None = None
 
         # Route all tool calls through OpenClaw ToolBridge (US-P7-008)
         from .openclaw.tool_bridge import ToolBridge
@@ -824,6 +838,28 @@ class Assistant:
         if not stream_released:
             yield completion
 
+    def _get_or_create_turn_engine(self) -> TurnEngine:
+        """Return the canonical turn engine, creating it for legacy test shells."""
+        engine = getattr(self, "_turn_engine", None)
+        if engine is None:
+            engine = TurnEngine()
+            self._turn_engine = engine
+        return engine
+
+    def _build_turn_context(self, effective_user_id: str, *, voice_mode: bool) -> TurnContext:
+        """Create a turn context without widening existing runtime authority."""
+        return TurnContext.create(
+            user_id=effective_user_id,
+            scope=TurnScope.USER,
+            source=TurnSource.ASSISTANT,
+            device_id=None,
+            response_mode=ResponseMode.VOICE if voice_mode else ResponseMode.SCREEN,
+            authorization=AuthorizationSnapshotRef(
+                policy_ref="rex-policy:existing-runtime",
+                permission_ref=f"rex-permissions:validated-user:{effective_user_id}",
+            ),
+        )
+
     async def generate_reply(
         self,
         transcript: str,
@@ -831,93 +867,129 @@ class Assistant:
         voice_mode: bool = False,
         active_user_id: str | None = None,
     ) -> str:
-        """Orchestrate a full reply: identity → intent → cache → context → dispatch → response."""
-        loop = asyncio.get_running_loop()
-        # The user this turn belongs to: an explicit validated request
-        # identity, otherwise the explicit constructor identity.  Missing
-        # identity fails closed before intent routing, cache lookup, early
-        # returns, history, context, and tool dispatch (issue #303).
+        """Orchestrate one non-streaming reply through the canonical TurnEngine."""
+        # Identity remains outside the engine on purpose: invalid or missing identity
+        # must fail before turn events or any private request state are touched.
         effective_user_id = self._resolve_request_user_id(active_user_id)
-        self._ensure_followup_session(effective_user_id)
+        turn_context = self._build_turn_context(effective_user_id, voice_mode=voice_mode)
+        observer = getattr(self, "_turn_event_observer", None)
 
-        latency_provider, latency_model = self._latency_provider_model()
-        latency_trace = LatencyTrace(
-            channel="voice" if voice_mode else "chat",
-            provider=latency_provider,
-            model=latency_model,
-            settings_id="voice" if voice_mode else "text",
-        )
-        latency_trace.start("routing")
+        async def _run_turn(turn_events: TurnEventStream) -> str:
+            loop = asyncio.get_running_loop()
+            self._ensure_followup_session(effective_user_id)
+            latency_provider, latency_model = self._latency_provider_model()
+            latency_trace = LatencyTrace(
+                channel="voice" if voice_mode else "chat",
+                provider=latency_provider,
+                model=latency_model,
+                settings_id="voice" if voice_mode else "text",
+            )
+            latency_trace.start("routing")
 
-        # Route intent: capability queries, pending suggestions, time/date, greetings, recipes
-        _intent = self._get_or_create_intent_router().route(
-            transcript,
-            settings=self._settings,
-            suggestion_engine=getattr(self, "_suggestion_engine", None),
-            user_id=effective_user_id,
-        )
-        if _intent.handled:
-            # Greeting shortcuts are suppressed in multi-user voice sessions
-            if not (_intent.intent_type == "greeting" and active_user_id is not None):
+            _intent = self._get_or_create_intent_router().route(
+                transcript,
+                settings=self._settings,
+                suggestion_engine=getattr(self, "_suggestion_engine", None),
+                user_id=effective_user_id,
+            )
+            turn_events.emit(
+                EventKind.ROUTE_PROGRESS,
+                {
+                    "stage": "intent",
+                    "handled": bool(_intent.handled),
+                    "intent_type": _intent.intent_type or "unknown",
+                },
+            )
+            if _intent.handled and not (
+                _intent.intent_type == "greeting" and active_user_id is not None
+            ):
                 latency_trace.end("routing")
                 latency_trace.start("completion")
                 self._record_completion(transcript, _intent.response, user_id=effective_user_id)
+                turn_events.emit(
+                    EventKind.RESPONSE_PROGRESS,
+                    {"stage": "completed", "source": "intent", "history_recorded": True},
+                )
                 latency_trace.end("completion")
                 latency_trace.finish()
                 latency_trace.log_summary(logger, event="chat_latency")
-                return _intent.response  # type: ignore[no-any-return]
+                return cast(str, _intent.response)
 
-        # Fast path: return cached response without hitting the LLM.
-        # Lookup is confined to the effective user's cache partition.
-        _cached = self._get_or_create_response_builder().check_cache(
-            transcript, user_id=effective_user_id
-        )
-        if _cached is not None:
+            _cached = self._get_or_create_response_builder().check_cache(
+                transcript, user_id=effective_user_id
+            )
+            turn_events.emit(
+                EventKind.ROUTE_PROGRESS,
+                {"stage": "cache", "cache_hit": _cached is not None},
+            )
+            if _cached is not None:
+                latency_trace.end("routing")
+                latency_trace.start("completion")
+                self._record_completion(transcript, _cached, user_id=effective_user_id)
+                turn_events.emit(
+                    EventKind.RESPONSE_PROGRESS,
+                    {"stage": "completed", "source": "cache", "history_recorded": True},
+                )
+                latency_trace.end("completion")
+                latency_trace.finish()
+                latency_trace.log_summary(logger, event="chat_latency")
+                return cast(str, _cached)
+
+            prev_model = self._begin_request(transcript)
+            latency_trace.model = str(getattr(self._llm, "model_name", None) or latency_trace.model)
             latency_trace.end("routing")
-            latency_trace.start("completion")
-            self._record_completion(transcript, _cached, user_id=effective_user_id)
+            turn_events.emit(
+                EventKind.ROUTE_PROGRESS,
+                {"stage": "model_router", "model": latency_trace.model},
+            )
+            try:
+                _ctx = self._get_or_create_context_builder().build(
+                    transcript, voice_mode=voice_mode, active_user_id=active_user_id
+                )
+                turn_events.emit(
+                    EventKind.CONTEXT_PROGRESS,
+                    {"stage": "built", "scope": turn_context.scope.value},
+                )
+                result = await self._get_or_create_action_dispatcher().dispatch(
+                    _intent,
+                    _ctx,
+                    transcript,
+                    voice_mode=voice_mode,
+                    active_user_id=active_user_id,
+                    user_id=effective_user_id,
+                    loop=loop,
+                    latency_trace=latency_trace,
+                    turn_events=turn_events,
+                )
+                latency_trace.start("completion")
+                final = self._get_or_create_response_builder().build(
+                    result, _ctx, transcript=transcript, user_id=effective_user_id
+                )
+                completion = final.text
+                turn_events.emit(
+                    EventKind.RESPONSE_PROGRESS,
+                    {"stage": "response_builder", "status": "completed"},
+                )
+            except Exception:
+                latency_trace.finish()
+                latency_trace.log_summary(logger, event="chat_latency")
+                raise
+            finally:
+                self._end_request(prev_model)
+
+            self._record_completion(transcript, completion, user_id=effective_user_id)
+            turn_events.emit(
+                EventKind.RESPONSE_PROGRESS,
+                {"stage": "history", "history_recorded": True},
+            )
             latency_trace.end("completion")
             latency_trace.finish()
             latency_trace.log_summary(logger, event="chat_latency")
-            return _cached  # type: ignore[no-any-return]
+            return cast(str, completion)
 
-        # Apply per-request model routing; restore in finally.  The request
-        # identity is propagated explicitly (never via self._user_id, which
-        # would race across overlapping requests for different users).
-        prev_model = self._begin_request(transcript)
-        latency_trace.model = str(getattr(self._llm, "model_name", None) or latency_trace.model)
-        latency_trace.end("routing")
-        try:
-            _ctx = self._get_or_create_context_builder().build(
-                transcript, voice_mode=voice_mode, active_user_id=active_user_id
-            )
-            result = await self._get_or_create_action_dispatcher().dispatch(
-                _intent,
-                _ctx,
-                transcript,
-                voice_mode=voice_mode,
-                active_user_id=active_user_id,
-                user_id=effective_user_id,
-                loop=loop,
-                latency_trace=latency_trace,
-            )
-            latency_trace.start("completion")
-            final = self._get_or_create_response_builder().build(
-                result, _ctx, transcript=transcript, user_id=effective_user_id
-            )
-            completion = final.text
-        except Exception:
-            latency_trace.finish()
-            latency_trace.log_summary(logger, event="chat_latency")
-            raise
-        finally:
-            self._end_request(prev_model)
-
-        self._record_completion(transcript, completion, user_id=effective_user_id)
-        latency_trace.end("completion")
-        latency_trace.finish()
-        latency_trace.log_summary(logger, event="chat_latency")
-        return completion  # type: ignore[no-any-return]
+        return await self._get_or_create_turn_engine().execute_async(
+            turn_context, _run_turn, on_event=observer
+        )
 
     def _begin_request(self, transcript: str) -> str | None:
         """Apply per-request model routing.
