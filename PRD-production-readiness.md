@@ -2199,7 +2199,7 @@ cd gui && npm run typecheck && npm run build
 - [x] Each missing or misleading GUI surface is linked to a User Story in this PRD.
 - [x] No capability is marked production-ready unless the GUI can configure/status-check it or docs explicitly classify it as developer-only.
 - [x] README and integration docs link to the inventory or summarize its production-facing conclusions.
-- [ ] All relevant GitHub checks pass.
+- [x] All relevant GitHub checks pass.
 
 - [x] A committed migration appendix identifies every current capability/tool registry, its authority, consumers, duplicate metadata, and the target adapter into the future canonical Capability Registry.
 - [x] Every inventoried capability records source, enabled state, required permissions, health state, operation type (read/mutate), risk tier, and verification support.
@@ -3271,11 +3271,11 @@ grep -n "askrex.app\|Cloudflare\|CORS\|rate limit\|revocation" docs/deployment.m
 **Files/areas likely involved:** `rex/runtime/turn.py`, `rex/runtime/events.py`, `rex/runtime/turn_engine.py`, `rex/assistant.py`, `tests/rex2/`.
 
 **Acceptance Criteria:**
-- [ ] TurnContext has a unique turn ID, immutable validated user ID/scope, source/device/response mode, monotonic timing/deadline context, and policy/permission snapshot reference.
-- [ ] Typed ordered events cover turn start, context/route/capability/action/model/response progress and exactly one terminal `completed`, `failed`, or `cancelled` event.
-- [ ] Event timestamps/order/correlation are deterministic; terminal double-emission fails closed.
-- [ ] TurnEngine initially wraps existing components without changing public behavior or bypassing identity/security checks.
-- [ ] Tests prove identity immutability and concurrent-user event isolation.
+- [x] TurnContext has a unique turn ID, immutable validated user ID/scope, source/device/response mode, monotonic timing/deadline context, and policy/permission snapshot reference.
+- [x] Typed ordered events cover turn start, context/route/capability/action/model/response progress and exactly one terminal `completed`, `failed`, or `cancelled` event.
+- [x] Event timestamps/order/correlation are deterministic; terminal double-emission fails closed.
+- [x] TurnEngine initially wraps existing components without changing public behavior or bypassing identity/security checks.
+- [x] Tests prove identity immutability and concurrent-user event isolation.
 - [ ] All relevant GitHub checks pass.
 
 **Validation commands:** `pytest tests/rex2/test_turn_contracts.py -q`; `mypy rex/runtime --ignore-missing-imports`; `ruff check rex/runtime tests/rex2/test_turn_contracts.py`.

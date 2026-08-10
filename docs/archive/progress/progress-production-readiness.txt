@@ -1684,3 +1684,21 @@ Implementation:
 Local evidence:
 - Documentation acceptance checks passed: required capability terms, matrix evidence fields, migration appendix, SMS navigation contract, and documentation links were all present; `git diff --check` passed.
 - GitHub checks remain pending until the US-064 branch is pushed; the final PRD checkbox intentionally remains open until independent CI evidence passes.
+
+
+2026-08-09 - US-094 canonical TurnEngine contracts and event runtime
+
+Implementation:
+- Added `rex/runtime/turn.py` with immutable validated `TurnContext`, unique turn IDs, typed source/scope/response mode, monotonic start/deadline context, and immutable policy/permission snapshot references.
+- Added `rex/runtime/events.py` with ordered correlated progress events covering turn/context/route/capability/action/model/response stages plus exactly one completed/failed/cancelled terminal outcome; post-terminal emission fails closed and observer failures cannot alter wrapped operation behavior.
+- Added `rex/runtime/turn_engine.py` as an initial facade that returns the wrapped operation result unchanged, re-raises the original failure, and emits canonical lifecycle events as a side channel. Existing Assistant surfaces are intentionally not migrated until US-095 through US-097.
+- Added `tests/rex2/test_turn_contracts.py` for identity immutability, deterministic event order/timestamps/correlation, terminal enforcement, preserved success/failure behavior, and concurrent James/Cole event isolation.
+- Updated CLAUDE.md with the new runtime contract invariant and preserved the no-parity-before-migration rule.
+
+Local evidence:
+- TDD red phase first proved `rex.runtime` was absent, then proved the typed contract imports were absent before implementation.
+- `pytest tests/rex2/test_turn_contracts.py -q`: 10 passed on Python 3.11.9, including direct-construction scope validation and observer-failure isolation.
+- `pytest tests/test_identity.py tests/test_assistant.py -q`: 84 passed on Python 3.11.9.
+- Ruff and Black pass on `rex/runtime` and `tests/rex2/test_turn_contracts.py`; mypy reports no issues in 4 runtime source files.
+- US-064 PR #375 full CI, including Python 3.11 Tests & Coverage, subsequently completed successfully; its final PRD CI criterion is now closed.
+- US-094 GitHub checks remain pending until this story PR is pushed; its final PRD checkbox intentionally remains open.
