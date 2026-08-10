@@ -388,7 +388,7 @@ class TestExplicitIdentityWorks:
         a = _make_assistant(user_id=None)
         ir = MagicMock()
         ir.route.return_value = IntentResult(
-            handled=True, response="Hello. How can I help?", intent_type="greeting"
+            handled=True, response="Direct answer.", intent_type="direct_answer"
         )
         a._intent_router = ir
 
@@ -396,7 +396,7 @@ class TestExplicitIdentityWorks:
             return [chunk async for chunk in a.stream_reply("hello", active_user_id="alice")]
 
         chunks = asyncio.run(_consume())
-        assert chunks == ["Hello. How can I help?"]
+        assert chunks == ["Direct answer."]
         assert any("hello" in t.text for t in a._history_for("alice"))
         assert "default" not in a._histories
 

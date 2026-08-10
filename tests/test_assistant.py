@@ -419,13 +419,13 @@ def test_stream_reply_freeform_uses_structured_messages(monkeypatch, tmp_path):
         def __init__(self, *args, **kwargs):
             pass
 
-        def generate(self, *args, **kwargs):
-            raise AssertionError("streaming provider should not fall back to generate")
-
-        def stream(self, prompt=None, *, messages=None, config=None):
+        def generate(self, prompt=None, *, messages=None, config=None, **kwargs):
             captured["prompt"] = prompt
             captured["messages"] = messages
-            return iter(["normal ", "reply"])
+            return "normal reply"
+
+        def stream(self, *args, **kwargs):
+            raise AssertionError("verified streaming must not expose raw provider tokens")
 
     monkeypatch.setattr(assistant_module, "LanguageModel", DummyLanguageModel)
 
@@ -436,7 +436,7 @@ def test_stream_reply_freeform_uses_structured_messages(monkeypatch, tmp_path):
 
     chunks = asyncio.run(collect())
 
-    assert chunks == ["normal ", "reply"]
+    assert chunks == ["normal reply"]
     assert captured["prompt"] is None
     messages = captured["messages"]
     assert isinstance(messages, list)
@@ -487,7 +487,7 @@ def test_stream_reply_direct_conversation_bypasses_llm(monkeypatch, tmp_path):
     async def collect():
         return [chunk async for chunk in asst.stream_reply("hello")]
 
-    assert asyncio.run(collect()) == ["Hello. How can I help?"]
+    assert " ".join(asyncio.run(collect())) == "Hello. How can I help?"
 
 
 def test_generate_reply_direct_recipe_bypasses_shopping_and_llm(monkeypatch, tmp_path):
@@ -533,9 +533,9 @@ def test_stream_reply_direct_recipe_bypasses_llm(monkeypatch, tmp_path):
 
     chunks = asyncio.run(collect())
 
-    assert len(chunks) == 1
-    assert "chocolate cake recipe" in chunks[0].lower()
-    assert "shopping list" not in chunks[0].lower()
+    streamed_text = " ".join(chunks)
+    assert "chocolate cake recipe" in streamed_text.lower()
+    assert "shopping list" not in streamed_text.lower()
 
 
 def test_generate_reply_suppresses_unverified_action_claim(monkeypatch, tmp_path):
@@ -660,10 +660,10 @@ def test_stream_reply_suppresses_unverified_action_claim(monkeypatch, tmp_path):
 
     chunks = asyncio.run(collect())
 
-    assert chunks == [
+    assert " ".join(chunks) == (
         "I did not change anything. Please tell me exactly what you want me to add, "
         "send, save, or update."
-    ]
+    )
 
 
 def test_generate_reply_direct_time_query_bypasses_llm(monkeypatch, tmp_path):

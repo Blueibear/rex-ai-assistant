@@ -3298,7 +3298,7 @@ grep -n "askrex.app\|Cloudflare\|CORS\|rate limit\|revocation" docs/deployment.m
 - [x] Public callers keep the same final result shape except already-required truthful status corrections.
 - [x] Regression tests cover direct answer, read-only tool, mutation/confirmation, model failure, and unavailable capability.
 - [x] No direct model shortcut bypasses TurnEngine from `generate_reply()`.
-- [ ] All relevant GitHub checks pass.
+- [x] All relevant GitHub checks pass.
 
 **Validation commands:** `pytest tests/rex2/test_generate_reply_turn_engine.py tests/test_assistant.py -q`; `mypy rex/assistant.py rex/runtime --ignore-missing-imports`.
 
@@ -3315,11 +3315,11 @@ grep -n "askrex.app\|Cloudflare\|CORS\|rate limit\|revocation" docs/deployment.m
 **Files/areas likely involved:** `rex/assistant.py`, `rex/runtime/events.py`, `rex/runtime/turn_engine.py`, chat stream bridges, `tests/rex2/`.
 
 **Acceptance Criteria:**
-- [ ] Streaming and non-streaming use the same router, cache policy, context, capability/action pipeline, verification, memory/history, and output validation.
-- [ ] Streaming emits ordered deltas/sentences plus the same canonical terminal outcome as non-streaming.
-- [ ] Tool syntax, internal plans, raw provider tool-call payloads, and unverified action claims never leak to the user stream.
-- [ ] Parity fixtures compare final semantic/status outcomes across both delivery modes.
-- [ ] Error/fallback/escalation behavior is equivalent across both delivery modes.
+- [x] Streaming and non-streaming use the same router, cache policy, context, capability/action pipeline, verification, memory/history, and output validation.
+- [x] Streaming emits ordered deltas/sentences plus the same canonical terminal outcome as non-streaming.
+- [x] Tool syntax, internal plans, raw provider tool-call payloads, and unverified action claims never leak to the user stream.
+- [x] Parity fixtures compare final semantic/status outcomes across both delivery modes.
+- [x] Error/fallback/escalation behavior is equivalent across both delivery modes.
 - [ ] All relevant GitHub checks pass.
 
 **Validation commands:** `pytest tests/rex2/test_stream_turn_parity.py tests/test_assistant_streaming.py -q`; `mypy rex/assistant.py rex/runtime --ignore-missing-imports`.
