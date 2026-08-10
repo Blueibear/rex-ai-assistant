@@ -119,7 +119,7 @@ Home Assistant safety:
 
 - `PRD-production-readiness.md` is the single authoritative tracker for the current integrated production-readiness/Rex 2.0 work. For remaining work, follow its dated `Integrated execution order` rather than raw story file position. Planned Rex 2.0 contracts are not implemented behavior until their individual story is merged and verified.
 
-- `rex.runtime` is the canonical interface-agnostic turn contract layer. `TurnContext` owns immutable validated identity/scope, origin/response mode, monotonic timing/deadline, and authorization snapshot references; `TurnEventStream` owns ordered correlated events and exactly one terminal outcome; `TurnEngine` preserves wrapped return/exception behavior while emitting those events. Do not claim CLI/Electron/voice/mobile/API parity until US-095 through US-097 migrate those surfaces.
+- `rex.runtime` is the canonical interface-agnostic turn contract layer. `TurnContext` owns immutable validated identity/scope, origin/response mode, monotonic timing/deadline, and authorization snapshot references; `TurnEventStream` owns ordered correlated events and exactly one terminal outcome; `TurnEngine` preserves wrapped return/exception behavior while emitting those events. `Assistant.generate_reply()` now runs through this engine; `stream_reply()` remains on the legacy streaming path until US-096, and interface adapter parity remains unclaimed until US-097.
 
 - Prefer clear, testable functions over clever code.
 - Keep changes small and reviewable.
@@ -305,10 +305,10 @@ Bridge compatibility wrappers (17) — exec canonical `bridge/<name>.py` in thei
 
 ### Assistant architecture
 
-`Assistant.generate_reply()` is a thin orchestrator. The pipeline is:
+`Assistant.generate_reply()` is the canonical non-streaming TurnEngine entry point. Identity is validated before the turn begins; all subsequent intent/cache/model routing, context building, action/tool dispatch, result verification, response building, and history recording run inside one correlated turn. `stream_reply()` is not yet migrated (US-096). The non-streaming pipeline is:
 
 ```
-Assistant → ContextBuilder → IntentRouter → ActionDispatcher → ResponseBuilder
+Assistant → TurnEngine → IntentRouter/Cache → ContextBuilder → ActionDispatcher → ResponseBuilder → History
 ```
 
 | Component | Module | Responsibility |

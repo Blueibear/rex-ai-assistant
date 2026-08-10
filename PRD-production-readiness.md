@@ -3276,7 +3276,7 @@ grep -n "askrex.app\|Cloudflare\|CORS\|rate limit\|revocation" docs/deployment.m
 - [x] Event timestamps/order/correlation are deterministic; terminal double-emission fails closed.
 - [x] TurnEngine initially wraps existing components without changing public behavior or bypassing identity/security checks.
 - [x] Tests prove identity immutability and concurrent-user event isolation.
-- [ ] All relevant GitHub checks pass.
+- [x] All relevant GitHub checks pass.
 
 **Validation commands:** `pytest tests/rex2/test_turn_contracts.py -q`; `mypy rex/runtime --ignore-missing-imports`; `ruff check rex/runtime tests/rex2/test_turn_contracts.py`.
 
@@ -3293,11 +3293,11 @@ grep -n "askrex.app\|Cloudflare\|CORS\|rate limit\|revocation" docs/deployment.m
 **Files/areas likely involved:** `rex/assistant.py`, `rex/runtime/turn_engine.py`, routing/context/action/response services, `tests/rex2/`.
 
 **Acceptance Criteria:**
-- [ ] `generate_reply()` delegates routing, context, capability/action execution, output validation, history, and final response production through TurnEngine.
-- [ ] Existing cache, ModelRouter request scope, ActionDispatcher/verification, ResponseBuilder, and fail-closed identity remain covered and observable through events.
-- [ ] Public callers keep the same final result shape except already-required truthful status corrections.
-- [ ] Regression tests cover direct answer, read-only tool, mutation/confirmation, model failure, and unavailable capability.
-- [ ] No direct model shortcut bypasses TurnEngine from `generate_reply()`.
+- [x] `generate_reply()` delegates routing, context, capability/action execution, output validation, history, and final response production through TurnEngine.
+- [x] Existing cache, ModelRouter request scope, ActionDispatcher/verification, ResponseBuilder, and fail-closed identity remain covered and observable through events.
+- [x] Public callers keep the same final result shape except already-required truthful status corrections.
+- [x] Regression tests cover direct answer, read-only tool, mutation/confirmation, model failure, and unavailable capability.
+- [x] No direct model shortcut bypasses TurnEngine from `generate_reply()`.
 - [ ] All relevant GitHub checks pass.
 
 **Validation commands:** `pytest tests/rex2/test_generate_reply_turn_engine.py tests/test_assistant.py -q`; `mypy rex/assistant.py rex/runtime --ignore-missing-imports`.

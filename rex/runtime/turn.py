@@ -21,6 +21,7 @@ class TurnScope(StrEnum):
 class TurnSource(StrEnum):
     """Interface that originated a turn."""
 
+    ASSISTANT = "assistant"
     CLI = "cli"
     ELECTRON = "electron"
     VOICE = "voice"
