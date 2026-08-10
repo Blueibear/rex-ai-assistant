@@ -1721,3 +1721,24 @@ Local evidence:
 - Ruff and Black pass on touched runtime/assistant/dispatcher/tests; mypy reports no issues across assistant, dispatcher, and runtime modules.
 - US-094 PR #376 passed every relevant GitHub check, including full Python coverage and installed Windows Electron artifact smoke; its final PRD CI criterion is now closed.
 - US-095 GitHub checks remain pending until this story PR is pushed; its final PRD checkbox intentionally remains open.
+
+
+2026-08-09 - US-096 streaming parity on shared TurnEngine pipeline
+
+Implementation:
+- Replaced the reduced-intelligence provider-token streaming path with the same `_run_reply_turn` pipeline used by `generate_reply()`: identical intent routing, per-user cache, ModelRouter request scope, ContextBuilder, ActionDispatcher/tool verification, ResultHandler, ResponseBuilder, and history semantics.
+- `stream_reply()` now owns only transport: it runs the shared operation inside TurnEngine, queues verified sentence chunks, and exposes them through the existing async-iterator API.
+- Added metadata-only ordered `response_progress` delta events before the single terminal event; response text itself is not copied into canonical event metadata.
+- Raw provider tokens are no longer user-visible. Internal `TOOL_REQUEST` syntax and unverified action claims must pass the canonical result/verification path before any sentence is released.
+- Preserved fail-closed identity before TurnEngine and kept source provenance interface-agnostic until US-097.
+- Updated legacy stream tests from raw provider-token chunk expectations to verified sentence-delivery semantics while preserving final response meaning.
+- Added the previously missing `tests/test_assistant_streaming.py` so the PRD validation command is executable and guards against reintroducing the legacy provider-stream bypass.
+
+Local evidence:
+- TDD red phase: 7 of 8 new parity tests failed on the legacy stream path; only the existing fail-closed identity boundary already passed.
+- Exact PRD validation: `pytest tests/rex2/test_stream_turn_parity.py tests/test_assistant_streaming.py -q` -> 12 passed.
+- Initial streaming/identity/latency/Electron-bridge/progressive-voice/voice-loop/TTS compatibility sweep -> 174 passed; the later 305-test final sweep includes the added routing escalation/fallback parity cases.
+- Mobile chat stream, strong-auth, Electron stream verification, voice latency, and voice-loop-fix sweep -> 33 passed.
+- Final combined runtime/streaming/identity/action/verification/docs/mobile/Electron/voice sweep -> 305 passed. The only 2 warnings are pre-existing deliberate deprecation checks in `tests/test_voice_loop_fixes.py`, not introduced by this story.
+- US-095 PR #377 passed every relevant GitHub check, including Python 3.11 Tests & Coverage (9m04s) and installed Windows Electron artifact (12m31s); its final PRD CI criterion is now closed.
+- US-096 GitHub checks remain pending until this story PR is pushed; its final PRD checkbox intentionally remains open.

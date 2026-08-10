@@ -34,14 +34,16 @@ selection (`cuda` vs `cpu`) is resolved at model-load time from
 ### LLM response handling
 
 The `Assistant` class in `rex/assistant.py` is the single entry point for
-generating replies. Non-streaming `Assistant.generate_reply()` runs through
-`rex.runtime.TurnEngine`, which correlates intent/cache/model routing, context,
-action/tool dispatch, verification/post-processing, response assembly, and
-history under one immutable user-scoped turn. Raw model calls remain delegated
-to providers in `rex/llm_client.py` (local Transformers, OpenAI-compatible,
-Anthropic, or Ollama). `Assistant.stream_reply()` remains on the legacy
-streaming path until US-096. The voice loop must always call Assistant rather
-than the LLM client directly so tool routing and verification are preserved.
+generating replies. `Assistant.generate_reply()` and `Assistant.stream_reply()`
+run through the same `rex.runtime.TurnEngine` reply pipeline, which correlates
+intent/cache/model routing, context, action/tool dispatch, verification and
+post-processing, response assembly, and history under one immutable user-scoped
+turn. Streaming is a delivery mode only: raw provider tokens, internal tool
+syntax, and pre-verification action claims are never released; verified final
+text is split into ordered sentence chunks before the canonical terminal event.
+Raw model calls remain delegated to providers in `rex/llm_client.py`. The voice
+loop must always call Assistant rather than the LLM client directly so tool
+routing and verification are preserved.
 
 ### Text-to-speech (TTS)
 
