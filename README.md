@@ -118,7 +118,7 @@ This README reflects the current milestone after recent live testing and repair 
 
 ## Capabilities & Status
 
-This is the high-level release/status view. Surface classifications mirror [SURFACE-CLASSIFICATION.md](SURFACE-CLASSIFICATION.md); integration evidence states mirror [INTEGRATIONS_STATUS.md](INTEGRATIONS_STATUS.md). The complete UI inventory is [docs/UI_SURFACES.md](docs/UI_SURFACES.md). Lower-level compatibility wrappers remain enumerated only in the detailed surface inventory.
+This is the high-level release/status view. Surface classifications mirror [SURFACE-CLASSIFICATION.md](SURFACE-CLASSIFICATION.md); integration evidence states mirror [INTEGRATIONS_STATUS.md](INTEGRATIONS_STATUS.md). The complete UI inventory is [docs/UI_SURFACES.md](docs/UI_SURFACES.md), and the backend-to-Electron capability parity and migration inventory is [docs/CAPABILITY-PARITY.md](docs/CAPABILITY-PARITY.md). Lower-level compatibility wrappers remain enumerated only in the detailed surface inventory.
 
 | Capability / surface | Release status | Current contract | Details |
 |---|---|---|---|

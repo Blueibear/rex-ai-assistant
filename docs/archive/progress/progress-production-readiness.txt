@@ -1671,3 +1671,16 @@ Local evidence:
 - Final acceptance sweep: 64 latency/voice/tool/RexBench tests passed; Electron chat latency: 2 passed; full GUI TypeScript typecheck passed.
 - Deprecated-API guard, compileall, Ruff, Black, mypy, and `git diff --check` all passed.
 - Relevant GitHub checks remain pending the US-075 story PR; that final checkbox intentionally remains open.
+
+2026-08-09 - US-064 Electron capability parity inventory
+
+Implementation:
+- Added `docs/CAPABILITY-PARITY.md` as the release-truth matrix mapping backend/docs capabilities to Electron visibility/configurability/developer-only/missing status.
+- Recorded source authority, enabled-state evidence, permissions, health evidence, operation class, risk tier, verification support, and owning follow-up story for each capability.
+- Added the migration appendix mapping current Python, OpenClaw, Electron, integration-state, mobile, CLI, and documentation metadata sources into the future canonical Capability Registry owned by US-106.
+- Linked the inventory from README, the canonical integration contract, and surface classification so backend existence is not mistaken for production-ready Electron support.
+- Preserved SMS as a backend/direct-route capability while explicitly keeping it out of primary navigation.
+
+Local evidence:
+- Documentation acceptance checks passed: required capability terms, matrix evidence fields, migration appendix, SMS navigation contract, and documentation links were all present; `git diff --check` passed.
+- GitHub checks remain pending until the US-064 branch is pushed; the final PRD checkbox intentionally remains open until independent CI evidence passes.
