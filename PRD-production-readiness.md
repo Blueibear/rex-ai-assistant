@@ -2195,15 +2195,15 @@ cd gui && npm run typecheck && npm run build
 **Implementation notes:** Create a capability matrix covering OpenClaw, web search, Outlook, email, SMS, Home Assistant, shopping list, memory, profiles, voice, LLM providers, mobile/API access, and other registered tools. This is an inventory/story-routing task, not the implementation of every missing UI.
 
 **Acceptance Criteria:**
-- [ ] A committed inventory maps each backend/docs capability to GUI status: visible, configurable, disabled with explanation, developer-only, or missing.
-- [ ] Each missing or misleading GUI surface is linked to a User Story in this PRD.
-- [ ] No capability is marked production-ready unless the GUI can configure/status-check it or docs explicitly classify it as developer-only.
-- [ ] README and integration docs link to the inventory or summarize its production-facing conclusions.
+- [x] A committed inventory maps each backend/docs capability to GUI status: visible, configurable, disabled with explanation, developer-only, or missing.
+- [x] Each missing or misleading GUI surface is linked to a User Story in this PRD.
+- [x] No capability is marked production-ready unless the GUI can configure/status-check it or docs explicitly classify it as developer-only.
+- [x] README and integration docs link to the inventory or summarize its production-facing conclusions.
 - [ ] All relevant GitHub checks pass.
 
-- [ ] A committed migration appendix identifies every current capability/tool registry, its authority, consumers, duplicate metadata, and the target adapter into the future canonical Capability Registry.
-- [ ] Every inventoried capability records source, enabled state, required permissions, health state, operation type (read/mutate), risk tier, and verification support.
-- [ ] SMS remains backend/direct-route compatible but is explicitly absent from primary navigation.
+- [x] A committed migration appendix identifies every current capability/tool registry, its authority, consumers, duplicate metadata, and the target adapter into the future canonical Capability Registry.
+- [x] Every inventoried capability records source, enabled state, required permissions, health state, operation type (read/mutate), risk tier, and verification support.
+- [x] SMS remains backend/direct-route compatible but is explicitly absent from primary navigation.
 
 **Validation commands:**
 ```bash

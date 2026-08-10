@@ -6,6 +6,8 @@ This is the canonical integration release contract. Runtime status uses the same
 
 Credentials alone mean `configured`. They never mean connected, authenticated, write-capable, or verified.
 
+For the production-facing mapping from backend/docs capabilities to Electron visibility, configuration status, permissions, risk, health evidence, verification support, and future registry adapters, see [docs/CAPABILITY-PARITY.md](docs/CAPABILITY-PARITY.md). Capabilities that are backend-only remain explicitly developer-only rather than being implied production-ready.
+
 | Integration | Product tier | Current contract |
 |---|---|---|
 | Home Assistant | Supported, credential-gated | Read access requires live authentication. Mutations use the unified policy service; sensitive actions require action-bound confirmation and all writes return verified, attempted-but-unverified, denied, or failed. Live-device transitions remain externally verified. |

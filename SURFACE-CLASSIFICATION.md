@@ -45,6 +45,8 @@ The mobile API gateway is a CLI subcommand, not a `[project.scripts]` console sc
 | Surface | Classification | Notes |
 |---------|----------------|-------|
 | `gui/` (React + Electron desktop app) | `shippable` | Primary user-facing release artifact. The supported install path for end users. |
+
+Capability presence is tracked separately from surface classification. See [docs/CAPABILITY-PARITY.md](docs/CAPABILITY-PARITY.md) for whether each backend/docs capability is visible, configurable, disabled with explanation, developer-only, or missing in the Electron product, plus the owning follow-up story for each gap.
 | `rex/ui/` (Vite/React developer dashboard) | `developer-only` | Confirmed developer-only by `package.json` description: "Developer-only surface. Not included in packaged Electron app." Served by `rex-gui` at `/ui/`. Not bundled in the packaged Electron installer. |
 
 ---
