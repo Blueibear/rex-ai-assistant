@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from enum import StrEnum
 
 from rex.identity import validate_user_id
+from rex.runtime.cancellation import TurnCancellation
 
 
 class TurnScope(StrEnum):
@@ -66,6 +67,7 @@ class TurnContext:
     device_id: str | None
     response_mode: ResponseMode
     authorization: AuthorizationSnapshotRef
+    cancellation: TurnCancellation
     started_monotonic_ns: int
     deadline_monotonic_ns: int | None = None
 
@@ -85,6 +87,8 @@ class TurnContext:
             raise ValueError(f"invalid response mode: {self.response_mode!r}") from exc
         if not self.turn_id.strip():
             raise ValueError("turn_id must not be empty")
+        if self.cancellation.turn_id != self.turn_id:
+            raise ValueError("cancellation scope does not belong to turn")
         if self.started_monotonic_ns < 0:
             raise ValueError("started_monotonic_ns must be non-negative")
         if (
@@ -112,18 +116,20 @@ class TurnContext:
         validated_user = validate_user_id(user_id)
         if timeout_seconds is not None and timeout_seconds < 0:
             raise ValueError("timeout_seconds must be non-negative")
+        turn_id = uuid.uuid4().hex
         started_ns = clock()
         deadline_ns = None
         if timeout_seconds is not None:
             deadline_ns = started_ns + int(timeout_seconds * 1_000_000_000)
         return cls(
-            turn_id=uuid.uuid4().hex,
+            turn_id=turn_id,
             user_id=validated_user,
             scope=TurnScope(scope),
             source=TurnSource(source),
             device_id=device_id,
             response_mode=ResponseMode(response_mode),
             authorization=authorization,
+            cancellation=TurnCancellation(turn_id),
             started_monotonic_ns=started_ns,
             deadline_monotonic_ns=deadline_ns,
         )

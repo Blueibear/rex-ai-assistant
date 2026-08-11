@@ -17,6 +17,7 @@ from typing import Any, Literal, Protocol
 
 from rex.audit import LogEntry, get_audit_logger
 from rex.identity import validate_user_id
+from rex.runtime.cancellation import TurnCancelledError, current_turn_cancellation
 from rex.tools.protocol import ToolResult
 
 logger = logging.getLogger(__name__)
@@ -151,6 +152,9 @@ class ToolExecutionLifecycle:
         stages: list[str] = ["capability_availability"]
         operation = ToolOperation(tool.operation)
         risk = ToolRisk(tool.risk)
+        cancellation = current_turn_cancellation()
+        if cancellation is not None:
+            cancellation.raise_if_cancelled()
 
         if not available:
             return self._finish(
@@ -217,6 +221,20 @@ class ToolExecutionLifecycle:
 
         dedupe_key = (user_id, tool.name, request_id)
         args_fingerprint = _fingerprint(args)
+
+        def cancelled_mutation_result() -> ToolResult:
+            result = self._finish(
+                request,
+                ToolOutcome.ATTEMPTED_UNVERIFIED,
+                risk,
+                stages,
+                started,
+                error="Cancellation observed after a possible write; outcome is unverified",
+            )
+            with _dedupe_lock:
+                _dedupe_results[dedupe_key] = (args_fingerprint, result)
+            return result
+
         if operation == ToolOperation.MUTATION:
             with _dedupe_lock:
                 prior = _dedupe_results.get(dedupe_key)
@@ -250,10 +268,30 @@ class ToolExecutionLifecycle:
             handler_args.setdefault("confirmed", True)
         attempts = 2 if operation == ToolOperation.READ else 1
         for attempt in range(attempts):
+            if cancellation is not None:
+                cancellation.raise_if_cancelled()
             executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
             future = executor.submit(tool.handler, **handler_args)
+            deadline = time.monotonic() + timeout_seconds
             try:
-                output = future.result(timeout=timeout_seconds)
+                while True:
+                    remaining = deadline - time.monotonic()
+                    if remaining <= 0:
+                        raise concurrent.futures.TimeoutError
+                    try:
+                        output = future.result(timeout=min(0.05, remaining))
+                    except concurrent.futures.TimeoutError:
+                        if cancellation is not None and cancellation.cancelled:
+                            future.cancel()
+                            if operation == ToolOperation.MUTATION:
+                                return cancelled_mutation_result()
+                            cancellation.raise_if_cancelled()
+                        continue
+                    if cancellation is not None and cancellation.cancelled:
+                        if operation == ToolOperation.MUTATION:
+                            return cancelled_mutation_result()
+                        cancellation.raise_if_cancelled()
+                    break
                 break
             except concurrent.futures.TimeoutError:
                 future.cancel()
@@ -278,7 +316,17 @@ class ToolExecutionLifecycle:
                     with _dedupe_lock:
                         _dedupe_results[dedupe_key] = (args_fingerprint, result)
                 return result
+            except TurnCancelledError:
+                future.cancel()
+                if operation == ToolOperation.MUTATION:
+                    return cancelled_mutation_result()
+                raise
             except Exception as exc:
+                if cancellation is not None and cancellation.cancelled:
+                    future.cancel()
+                    if operation == ToolOperation.MUTATION:
+                        return cancelled_mutation_result()
+                    cancellation.raise_if_cancelled()
                 if (
                     operation == ToolOperation.READ
                     and attempt == 0

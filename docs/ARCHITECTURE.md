@@ -41,6 +41,11 @@ post-processing, response assembly, and history under one immutable user-scoped
 turn. Streaming is a delivery mode only: raw provider tokens, internal tool
 syntax, and pre-verification action claims are never released; verified final
 text is split into ordered sentence chunks before the canonical terminal event.
+Each turn also owns an idempotent `TurnCancellation`; identity-bound cancellation is
+propagated through model/retrieval/tool/OpenClaw waits, verified response delivery, and
+TTS-aware boundaries so stale output is discarded. Cancellation is not rollback: a
+mutation that may already have dispatched remains `attempted_unverified` until an
+independent verifier proves its outcome.
 Raw model calls remain delegated to providers in `rex/llm_client.py`. Trusted interface
 adapters stamp source/device provenance through `rex.runtime.invocation`; CLI, Electron,
 canonical voice, authenticated mobile, developer Flask/API, Telegram, Twilio telephony,

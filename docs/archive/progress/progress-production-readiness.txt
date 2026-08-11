@@ -1762,3 +1762,25 @@ Local evidence:
 - GUI validation under Node 22.23.2: `npm run typecheck` and `npm run build` both pass.
 - US-096 PR #378 passed every relevant GitHub check, including Python 3.11 Tests & Coverage (10m11s) and installed Windows Electron artifact (12m17s); its final PRD CI criterion is now closed.
 - US-097 GitHub checks remain pending until this story PR is pushed; its final PRD checkbox intentionally remains open.
+
+2026-08-11 - US-098 turn-scoped cancellation
+
+Implementation:
+- Added `rex/runtime/cancellation.py` with an idempotent per-turn cancellation scope, first-reason preservation, ContextVar propagation, and cancellable async waits.
+- `TurnContext` now owns its cancellation scope; `TurnEngine` registers only active turns and exposes identity-bound `cancel_turn()` without global cross-user cancellation authority.
+- TurnEngine emits exactly one `cancelled` terminal event for observed cancellation and also normalizes external asyncio task cancellation into the canonical terminal contract.
+- Assistant routing, cache, context, action, response validation, history, plugin/retrieval, and verified sentence-delivery boundaries now reject stale work after cancellation.
+- ActionDispatcher and reusable result handling abandon stale executor/model/tool/OpenClaw outputs rather than allowing cancelled work to continue into user-visible post-processing.
+- Canonical tool execution polls cancellation while blocking; read-only work stops promptly, while a mutation cancelled after dispatch may have begun is recorded as `attempted_unverified` and never fabricated as success/failure.
+- OpenClaw transport checks cancellation before/after requests, between interruptible retries, and before streamed content is yielded.
+- TTS provider and streaming boundaries observe cancellation and re-raise `TurnCancelledError` instead of converting cancellation into fallback speech.
+- Updated `CLAUDE.md` and `docs/ARCHITECTURE.md` with the cancellation/unknown-mutation invariants.
+
+Local evidence:
+- TDD red phases reproduced missing cancellation contracts, blocked model/read/mutation waits, stale OpenClaw stream/retry output, stale TTS waits, raw task-cancel terminal bypass, and stale second-sentence delivery before each implementation slice.
+- Exact US-098 validation: 16 passed across cancellation and concurrent-user isolation contracts.
+- Final combined runtime/interface/tool/OpenClaw/result/TTS/voice/documentation regression sweep: 208 passed; only 13 pre-existing deprecation warnings were emitted.
+- Black and Ruff pass on all touched Python/test files; `git diff --check` is clean.
+- `mypy rex/runtime rex/openclaw --ignore-missing-imports`: success, no issues in 38 source files.
+- US-097 PR #379 passed all 18 relevant checks and merged as `4c2ae7170f4ee9e151a30db3bb1ffdcf1f21868a`; its final PRD CI criterion is now closed.
+- US-098 GitHub checks remain pending until this story PR is pushed; its final PRD checkbox intentionally remains open.
