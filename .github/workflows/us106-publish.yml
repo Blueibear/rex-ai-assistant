@@ -1,0 +1,36 @@
+name: US106 verified branch publisher
+on:
+  pull_request:
+    branches: [master]
+permissions:
+  contents: write
+jobs:
+  publish:
+    if: github.head_ref == 'transport/us106-publish'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Reconstruct, verify, and publish exact US-106 tree
+        shell: bash
+        env:
+          BASE_SHA: 0adf4ca4fcc8865a52b0ab6ef855890482c62e6c
+          TARGET_TREE: 2e8180a18f6f0758ee441c697d38ed1346cf679b
+          GZ_SHA256: 689db549e0756d4ad9f5a9e0a87f5a1ce25d763c14484018ca3bbd75dd039a13
+          RAW_SHA256: b4d5acead96d6bccbb082e3e48524ecd9af20e8413c9d983b6fe6bf583c0eee9
+          TARGET_BRANCH: lead/us106-capability-registry
+        run: |
+          set -euo pipefail
+          cat .transport/us106/b64part-*.txt | tr -d '\r\n' | base64 -d > /tmp/us106.patch.gz
+          test "$(sha256sum /tmp/us106.patch.gz | awk '{print $1}')" = "$GZ_SHA256"
+          gzip -dc /tmp/us106.patch.gz > /tmp/us106.patch
+          test "$(sha256sum /tmp/us106.patch | awk '{print $1}')" = "$RAW_SHA256"
+          git checkout --detach "$BASE_SHA"
+          git apply --index --binary /tmp/us106.patch
+          test "$(git write-tree)" = "$TARGET_TREE"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'feat(capabilities): consolidate canonical registry'
+          git branch -f "$TARGET_BRANCH" HEAD
+          git push --force origin "$TARGET_BRANCH"
