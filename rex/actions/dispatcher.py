@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import asyncio
 import functools
+import inspect
 import logging
 import re
 import time
@@ -293,7 +294,17 @@ class ActionDispatcher:
         # 6. Auto tool dispatch: build pre-LLM tool context string
         _tool_context: str | None = None
         if self._tool_dispatcher is not None:
-            _selected_tools = self._tool_dispatcher.select_tools(transcript)
+            defined_select_for_user = inspect.getattr_static(
+                self._tool_dispatcher, "select_tools_for_user", None
+            )
+            if defined_select_for_user is not None:
+                select_for_user = self._tool_dispatcher.select_tools_for_user
+                _selected_tools = select_for_user(transcript, user_id=effective_user)
+            else:
+                # Compatibility adapters predating US-106 implement only
+                # select_tools(message). The canonical dispatcher exposes the
+                # user-aware extension above, while older adapters remain valid.
+                _selected_tools = self._tool_dispatcher.select_tools(transcript)
             if mobile_action_context_active():
                 # Pre-LLM dispatch has only free-form transcript text. Mobile
                 # mutations must wait for a canonical structured tool call so

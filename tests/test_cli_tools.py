@@ -56,7 +56,7 @@ class TestCmdTools:
 
     def teardown_method(self):
         """Clean up after each test."""
-        set_tool_registry(None)  # type: ignore
+        set_tool_registry(None)
         set_credential_manager(None)  # type: ignore
 
     def test_cmd_tools_no_tools(self, capsys):
@@ -282,7 +282,7 @@ class TestMainToolsCommand:
 
     def teardown_method(self):
         """Clean up after each test."""
-        set_tool_registry(None)  # type: ignore
+        set_tool_registry(None)
         set_credential_manager(None)  # type: ignore
 
     def test_main_tools_command(self, capsys):
@@ -374,7 +374,7 @@ class TestToolsOutputFormat:
 
     def teardown_method(self):
         """Clean up after each test."""
-        set_tool_registry(None)  # type: ignore
+        set_tool_registry(None)
         set_credential_manager(None)  # type: ignore
 
     def test_output_has_header(self, capsys):

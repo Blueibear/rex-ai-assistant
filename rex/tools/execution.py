@@ -205,6 +205,44 @@ class ToolExecutionLifecycle:
                 started,
                 error="User is not permitted to execute this tool",
             )
+
+        required_permissions = set(getattr(tool, "required_permissions", ()) or ())
+        if required_permissions:
+            raw_permissions = ambient.get("granted_permissions")
+            if raw_permissions is None:
+                try:
+                    from rex.mobile_api.action_context import (
+                        current_mobile_action_context,
+                    )  # noqa: PLC0415
+
+                    mobile_context = current_mobile_action_context()
+                except Exception:
+                    mobile_context = None
+                if mobile_context is not None:
+                    raw_permissions = mobile_context.permissions
+                elif user_id:
+                    try:
+                        from rex.permissions import get_permissions  # noqa: PLC0415
+
+                        raw_permissions = get_permissions(user_id)
+                    except Exception:
+                        logger.exception(
+                            "tool_execution: failed to resolve permissions for user %r", user_id
+                        )
+                        raw_permissions = ()
+            granted_permissions = set(raw_permissions or ())
+            if "admin" not in granted_permissions and not required_permissions.issubset(
+                granted_permissions
+            ):
+                return self._finish(
+                    request,
+                    ToolOutcome.DENIED,
+                    risk,
+                    stages,
+                    started,
+                    error="Required user permission is not granted",
+                )
+
         if risk == ToolRisk.PROHIBITED:
             return self._finish(
                 request,

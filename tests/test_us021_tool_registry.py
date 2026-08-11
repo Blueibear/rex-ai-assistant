@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import pytest
 
+from rex.capabilities.registry import CapabilityConflictError
 from rex.openclaw.tool_registry import ToolMeta, ToolNotFoundError, ToolRegistry
 
 # ---------------------------------------------------------------------------
@@ -146,32 +147,30 @@ class TestToolMetadataStored:
 
 
 class TestDuplicateToolHandling:
-    def test_registering_same_name_twice_overwrites(self):
-        """Re-registering a tool with the same name replaces the old entry."""
+    def test_registering_same_name_with_different_description_is_rejected(self):
         registry = _make_registry()
         registry.register_tool(ToolMeta(name="dup", description="version one"))
-        registry.register_tool(ToolMeta(name="dup", description="version two"))
-        # Only one entry under the name
-        matches = [t for t in registry.list_tools(include_disabled=True) if t.name == "dup"]
-        assert len(matches) == 1
+        with pytest.raises(CapabilityConflictError, match="dup"):
+            registry.register_tool(ToolMeta(name="dup", description="version two"))
+        assert registry.get_tool("dup").description == "version one"  # type: ignore[union-attr]
 
-    def test_overwrite_updates_description(self):
-        """The second registration's description replaces the first."""
+    def test_schema_drift_does_not_replace_description(self):
         registry = _make_registry()
         registry.register_tool(ToolMeta(name="dup", description="old"))
-        registry.register_tool(ToolMeta(name="dup", description="new"))
-        assert registry.get_tool("dup").description == "new"  # type: ignore[union-attr]
+        with pytest.raises(CapabilityConflictError, match="dup"):
+            registry.register_tool(ToolMeta(name="dup", description="new"))
+        assert registry.get_tool("dup").description == "old"  # type: ignore[union-attr]
 
-    def test_overwrite_updates_capabilities(self):
-        """Re-registering with new capabilities overwrites previous ones."""
+    def test_schema_drift_does_not_expand_capabilities(self):
         registry = _make_registry()
         registry.register_tool(ToolMeta(name="cap_tool", description="cap", capabilities=["read"]))
-        registry.register_tool(
-            ToolMeta(name="cap_tool", description="cap", capabilities=["read", "write"])
-        )
+        with pytest.raises(CapabilityConflictError, match="cap_tool"):
+            registry.register_tool(
+                ToolMeta(name="cap_tool", description="cap", capabilities=["read", "write"])
+            )
         stored = registry.get_tool("cap_tool")
         assert stored is not None
-        assert "write" in stored.capabilities
+        assert stored.capabilities == ["read"]
 
     def test_list_tools_contains_no_duplicates(self):
         """list_tools() never returns the same tool name more than once."""

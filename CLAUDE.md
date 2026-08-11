@@ -123,6 +123,8 @@ Home Assistant safety:
 
 - Every `TurnContext` owns exactly one idempotent `TurnCancellation`. `TurnEngine.cancel_turn()` is identity-bound to the validated owner and emits one canonical `cancelled` terminal outcome. Blocking/async model, retrieval, tool/OpenClaw, response-delivery, and TTS boundaries must observe the current turn cancellation and discard stale output. Cancellation is never rollback: once a mutation may have been dispatched, its canonical outcome remains `attempted_unverified` until independent verification proves otherwise.
 
+- `rex.capabilities.registry.Capability` is the canonical Capability/Tool Card metadata schema. The global `rex.tools.registry.ToolRegistry` binds executable handlers to that same `CapabilityRegistry`; duplicate IDs with divergent metadata fail closed unless a migration explicitly uses `replace=True`. Static source/schema/permission/operation/risk/verification metadata is local authority, while runtime enabled/health evidence may be updated explicitly. OpenClaw compatibility registries adapt remote cards through this authority and may never overwrite an existing local security classification; unknown remote tools default to identity-required sensitive mutations. Capability permissions are descriptive metadata only: current-user authorization is resolved at selection time and rechecked at execution time, with `admin` satisfying declared Rex permissions.
+
 - Prefer clear, testable functions over clever code.
 - Keep changes small and reviewable.
 - Add logging for non-trivial behavior.

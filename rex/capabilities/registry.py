@@ -18,22 +18,32 @@ from __future__ import annotations
 import builtins
 import logging
 from dataclasses import dataclass, field
+from typing import Any, ClassVar, Literal
 
 logger = logging.getLogger(__name__)
 
 
+class CapabilityConflictError(ValueError):
+    """Raised when duplicate capability metadata would silently diverge."""
+
+
+class SecurityClassificationError(CapabilityConflictError):
+    """Raised when remote metadata attempts to weaken local security metadata."""
+
+
+_ALLOWED_SOURCES = {"local", "openclaw", "integration", "system"}
+_ALLOWED_HEALTH = {"unknown", "healthy", "degraded", "unhealthy", "unavailable"}
+_ALLOWED_OPERATIONS = {"read", "mutation"}
+_ALLOWED_RISKS = {"safe", "sensitive", "prohibited"}
+
+
 @dataclass
 class Capability:
-    """Metadata describing a single Rex capability.
+    """Canonical Capability / Tool Card metadata.
 
-    Attributes:
-        name: Unique slug for the capability (e.g. ``"home_assistant"``).
-        description: Human-readable description of what the capability does.
-        inputs: List of input parameter names / types the capability accepts.
-        outputs: List of output value names / types the capability returns.
-        triggers: Words or phrases that typically invoke this capability.
-        enabled: Whether the capability is currently available for use.
-        category: Grouping label used by the UI (e.g. "Home", "Search").
+    ``name`` remains the compatibility spelling for the canonical ``id``. Static
+    metadata is sealed after construction so runtime state updates cannot silently
+    rewrite source, schemas, permissions, operation, risk, or verification policy.
     """
 
     name: str
@@ -46,12 +56,139 @@ class Capability:
     integration_state: str | None = None
     read_capable: bool | None = None
     write_capable: bool | None = None
+    source: str = "local"
+    input_schema: dict[str, str] = field(default_factory=dict)
+    output_schema: dict[str, str] = field(default_factory=dict)
+    required_permissions: tuple[str, ...] = ()
+    health: str = "unknown"
+    operation: Literal["read", "mutation"] = "read"
+    risk: Literal["safe", "sensitive", "prohibited"] = "safe"
+    verification_supported: bool = False
+    examples: tuple[str, ...] = ()
+    requires_identity: bool = False
+    required_args: tuple[str, ...] = ()
+    requires_config: tuple[str, ...] = ()
+    _sealed: bool = field(default=False, init=False, repr=False, compare=False)
+
+    _STATIC_FIELDS: ClassVar[frozenset[str]] = frozenset(
+        {
+            "name",
+            "description",
+            "inputs",
+            "outputs",
+            "triggers",
+            "category",
+            "source",
+            "input_schema",
+            "output_schema",
+            "required_permissions",
+            "operation",
+            "risk",
+            "verification_supported",
+            "examples",
+            "requires_identity",
+            "required_args",
+            "requires_config",
+        }
+    )
+
+    def __setattr__(self, name: str, value: Any) -> None:
+        if getattr(self, "_sealed", False) and name in self._STATIC_FIELDS:
+            raise AttributeError(f"Capability static metadata is sealed: {name}")
+        object.__setattr__(self, name, value)
 
     def __post_init__(self) -> None:
-        if not self.name:
+        name = self.name.strip()
+        description = self.description.strip()
+        if not name:
             raise ValueError("Capability name cannot be empty")
-        if not self.description:
+        if not description:
             raise ValueError("Capability description cannot be empty")
+        source = self.source.strip().lower()
+        if source not in _ALLOWED_SOURCES:
+            raise ValueError(f"Unsupported capability source: {self.source!r}")
+        if self.health not in _ALLOWED_HEALTH:
+            raise ValueError(f"Unsupported capability health: {self.health!r}")
+        if self.operation not in _ALLOWED_OPERATIONS:
+            raise ValueError(f"Unsupported capability operation: {self.operation!r}")
+        if self.risk not in _ALLOWED_RISKS:
+            raise ValueError(f"Unsupported capability risk: {self.risk!r}")
+
+        object.__setattr__(self, "name", name)
+        object.__setattr__(self, "description", description)
+        object.__setattr__(self, "source", source)
+        input_schema = dict(self.input_schema) or dict.fromkeys(self.inputs, "any")
+        output_schema = dict(self.output_schema) or dict.fromkeys(self.outputs, "any")
+        object.__setattr__(self, "input_schema", dict(sorted(input_schema.items())))
+        object.__setattr__(self, "output_schema", dict(sorted(output_schema.items())))
+        object.__setattr__(
+            self, "inputs", list(input_schema) if input_schema else list(self.inputs)
+        )
+        object.__setattr__(
+            self, "outputs", list(output_schema) if output_schema else list(self.outputs)
+        )
+        object.__setattr__(self, "triggers", sorted(dict.fromkeys(self.triggers)))
+        object.__setattr__(
+            self, "required_permissions", tuple(sorted(set(self.required_permissions)))
+        )
+        object.__setattr__(self, "examples", tuple(dict.fromkeys(self.examples)))
+        object.__setattr__(self, "required_args", tuple(dict.fromkeys(self.required_args)))
+        object.__setattr__(self, "requires_config", tuple(dict.fromkeys(self.requires_config)))
+        object.__setattr__(self, "_sealed", True)
+
+    @property
+    def id(self) -> str:
+        """Canonical stable identifier (legacy name alias)."""
+        return self.name
+
+    def security_signature(self) -> tuple[object, ...]:
+        return (
+            self.operation,
+            self.risk,
+            self.required_permissions,
+            self.requires_identity,
+            self.verification_supported,
+        )
+
+    def static_signature(self) -> tuple[object, ...]:
+        return (
+            self.name,
+            self.description,
+            tuple(self.inputs),
+            tuple(self.outputs),
+            tuple(self.triggers),
+            self.category,
+            self.source,
+            tuple(self.input_schema.items()),
+            tuple(self.output_schema.items()),
+            self.required_permissions,
+            self.operation,
+            self.risk,
+            self.verification_supported,
+            self.examples,
+            self.requires_identity,
+            self.required_args,
+            self.requires_config,
+        )
+
+    def to_metadata(self) -> dict[str, object]:
+        """Return deterministic, serializable metadata without user-specific authority."""
+        return {
+            "id": self.id,
+            "source": self.source,
+            "description": self.description,
+            "input_schema": dict(self.input_schema),
+            "output_schema": dict(self.output_schema),
+            "enabled": self.enabled,
+            "required_permissions": list(self.required_permissions),
+            "health": self.health,
+            "operation": self.operation,
+            "risk": self.risk,
+            "verification_supported": self.verification_supported,
+            "examples": list(self.examples),
+            "category": self.category,
+            "triggers": list(self.triggers),
+        }
 
 
 class CapabilityRegistry:
@@ -83,14 +220,47 @@ class CapabilityRegistry:
     # Mutation helpers
     # ------------------------------------------------------------------
 
-    def register(self, capability: Capability) -> None:
-        """Add or overwrite a capability in the registry.
+    def register(self, capability: Capability, *, replace: bool = False) -> Capability:
+        """Register canonical metadata without silent duplicate drift."""
+        existing = self._capabilities.get(capability.id)
+        if existing is not None:
+            if existing.static_signature() == capability.static_signature():
+                return existing
+            if not replace:
+                raise CapabilityConflictError(
+                    f"Capability {capability.id!r} is already registered with different metadata"
+                )
+        self._capabilities[capability.id] = capability
+        logger.debug("Registered capability: %s", capability.id)
+        return capability
 
-        Args:
-            capability: :class:`Capability` instance to register.
-        """
-        self._capabilities[capability.name] = capability
-        logger.debug("Registered capability: %s", capability.name)
+    def register_remote(self, capability: Capability) -> Capability:
+        """Register remote metadata without weakening an existing local card."""
+        if capability.source != "openclaw":
+            raise ValueError("register_remote() requires source='openclaw'")
+        existing = self._capabilities.get(capability.id)
+        if existing is None:
+            return self.register(capability)
+        if existing.security_signature() != capability.security_signature():
+            raise SecurityClassificationError(
+                f"Remote metadata for {capability.id!r} conflicts with local security classification"
+            )
+        if existing.source != "openclaw":
+            return existing
+        return self.register(capability)
+
+    def update_runtime_state(self, name: str, **updates: object) -> Capability:
+        """Update only mutable operational evidence for a registered card."""
+        capability = self._capabilities[name]
+        allowed = {"enabled", "health", "integration_state", "read_capable", "write_capable"}
+        invalid = set(updates) - allowed
+        if invalid:
+            raise ValueError(f"Static capability metadata cannot be updated: {sorted(invalid)}")
+        for field_name, value in updates.items():
+            setattr(capability, field_name, value)
+        if capability.health not in _ALLOWED_HEALTH:
+            raise ValueError(f"Unsupported capability health: {capability.health!r}")
+        return capability
 
     def unregister(self, name: str) -> bool:
         """Remove a capability by name.
@@ -147,6 +317,20 @@ class CapabilityRegistry:
             if q in haystack:
                 results.append(cap)
         return sorted(results, key=lambda c: c.name)
+
+    def metadata_snapshot(self) -> builtins.list[dict[str, object]]:
+        """Return a deterministic metadata snapshot sorted by stable ID."""
+        return [cap.to_metadata() for cap in self.list(include_disabled=True)]
+
+    def is_authorized(self, name: str, granted_permissions: set[str] | frozenset[str]) -> bool:
+        """Evaluate authority from the caller's current permission snapshot."""
+        capability = self.get(name)
+        if capability is None:
+            return False
+        granted = set(granted_permissions)
+        if "admin" in granted:
+            return True
+        return set(capability.required_permissions).issubset(granted)
 
     def get(self, name: str) -> Capability | None:
         """Look up a capability by exact name.
@@ -246,8 +430,10 @@ _BUILTIN_CAPABILITIES: list[Capability] = [
 def _build_default_registry() -> CapabilityRegistry:
     """Create a registry pre-loaded with built-in capabilities (all disabled by default)."""
     registry = CapabilityRegistry()
+    executable_tool_ids = {"time_now", "weather_now", "web_search", "send_email"}
     for cap in _BUILTIN_CAPABILITIES:
-        registry.register(cap)
+        if cap.name not in executable_tool_ids:
+            registry.register(cap)
     return registry
 
 
@@ -330,7 +516,10 @@ def get_capability_registry(config: object | None = None) -> CapabilityRegistry:
     global _registry
     if _registry is None:
         _registry = _build_default_registry()
-        logger.debug("CapabilityRegistry created with %d built-in capabilities", len(_registry))
+        from rex.tools.registry import ensure_default_registry  # noqa: PLC0415
+
+        ensure_default_registry(_registry)
+        logger.debug("CapabilityRegistry created with %d canonical capabilities", len(_registry))
     if config is not None:
         populate_from_config(_registry, config)
     return _registry
@@ -340,11 +529,19 @@ def reset_capability_registry() -> None:
     """Reset the global registry (useful in tests)."""
     global _registry
     _registry = None
+    try:
+        from rex.tools.registry import reset_default_registry  # noqa: PLC0415
+
+        reset_default_registry()
+    except ImportError:
+        pass
 
 
 __all__ = [
     "Capability",
+    "CapabilityConflictError",
     "CapabilityRegistry",
+    "SecurityClassificationError",
     "get_capability_registry",
     "populate_from_config",
     "reset_capability_registry",

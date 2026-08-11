@@ -14,8 +14,10 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, Literal
+
+from rex.capabilities.registry import Capability, CapabilityRegistry
 
 logger = logging.getLogger(__name__)
 
@@ -51,12 +53,43 @@ class Tool:
     requires_identity: bool = False
     required_args: tuple[str, ...] = ()
     verifier: Callable[[dict[str, Any], Any], bool] | None = None
+    input_schema: dict[str, str] = field(default_factory=dict)
+    output_schema: dict[str, str] = field(default_factory=dict)
+    required_permissions: tuple[str, ...] = ()
+    health: str = "unknown"
+    enabled: bool = True
+    examples: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         if not self.name:
             raise ValueError("Tool name cannot be empty")
         if not self.description:
             raise ValueError("Tool description cannot be empty")
+
+    def to_capability(self) -> Capability:
+        """Project executable tool metadata into the canonical Tool Card schema."""
+        input_schema = dict(self.input_schema)
+        if not input_schema:
+            input_schema = dict.fromkeys(self.required_args, "any")
+        return Capability(
+            name=self.name,
+            description=self.description,
+            triggers=list(self.capability_tags),
+            enabled=self.enabled and not self.requires_config,
+            category="Tools",
+            source=self.source,
+            input_schema=input_schema,
+            output_schema=dict(self.output_schema),
+            required_permissions=self.required_permissions,
+            health=self.health,
+            operation=self.operation,
+            risk=self.risk,
+            verification_supported=self.verifier is not None,
+            examples=self.examples,
+            requires_identity=self.requires_identity,
+            required_args=self.required_args,
+            requires_config=tuple(self.requires_config),
+        )
 
 
 class ToolRegistry:
@@ -69,19 +102,62 @@ class ToolRegistry:
         available = registry.available_tools(app_config)
     """
 
-    def __init__(self) -> None:
+    def __init__(self, *, capability_registry: CapabilityRegistry | None = None) -> None:
         self._tools: dict[str, Tool] = {}
+        self._capability_registry = (
+            capability_registry if capability_registry is not None else CapabilityRegistry()
+        )
+
+    @property
+    def capability_registry(self) -> CapabilityRegistry:
+        """Canonical metadata authority backing this executable registry."""
+        return self._capability_registry
 
     # ------------------------------------------------------------------
     # Mutation
     # ------------------------------------------------------------------
 
-    def register(self, tool: Tool) -> None:
-        """Register *tool*, replacing any existing entry with the same name."""
-        if tool.name in self._tools:
-            logger.debug("tool_registry: replacing existing tool %r", tool.name)
+    def register(self, tool: Tool, *, replace: bool = False) -> Tool:
+        """Bind a handler to canonical metadata without silent schema drift."""
+        existing = self._tools.get(tool.name)
+        if existing is not None and existing is not tool and not replace:
+            if (
+                existing.to_capability().static_signature()
+                == tool.to_capability().static_signature()
+            ):
+                return existing
+        self._capability_registry.register(tool.to_capability(), replace=replace)
         self._tools[tool.name] = tool
         logger.debug("tool_registry: registered %r", tool.name)
+        return tool
+
+    def register_remote_card(
+        self, capability: Capability, *, handler: Callable[..., Any] | None = None
+    ) -> Capability:
+        """Adapt remote metadata without allowing it to rewrite local security policy."""
+        resolved = self._capability_registry.register_remote(capability)
+        if resolved is not capability:
+            return resolved
+        if capability.name not in self._tools and handler is not None:
+            self._tools[capability.name] = Tool(
+                name=capability.name,
+                description=capability.description,
+                capability_tags=list(capability.triggers),
+                requires_config=list(capability.requires_config),
+                handler=handler,
+                source=capability.source,
+                operation=capability.operation,
+                risk=capability.risk,
+                requires_identity=capability.requires_identity,
+                required_args=capability.required_args,
+                input_schema=dict(capability.input_schema),
+                output_schema=dict(capability.output_schema),
+                required_permissions=capability.required_permissions,
+                health=capability.health,
+                enabled=capability.enabled,
+                examples=capability.examples,
+            )
+        return resolved
 
     # ------------------------------------------------------------------
     # Query
@@ -104,18 +180,28 @@ class ToolRegistry:
         """
         from rex.tools.protocol import ToolDescriptor  # local import to avoid cycles
 
-        return [
-            ToolDescriptor(
-                name=t.name,
-                description=t.description,
-                schema={},
-                source=t.source,
+        descriptors: list[Any] = []
+        for tool in sorted(self._tools.values(), key=lambda item: item.name):
+            card = self._capability_registry.get(tool.name)
+            if card is None:
+                continue
+            descriptors.append(
+                ToolDescriptor(
+                    name=tool.name,
+                    description=tool.description,
+                    schema=dict(card.input_schema),
+                    source=card.source,
+                )
             )
-            for t in self._tools.values()
-        ]
+        return descriptors
 
-    def available_tools(self, config: Any) -> list[Tool]:
-        """Return tools whose ``requires_config`` fields are satisfied.
+    def available_tools(
+        self,
+        config: Any,
+        *,
+        granted_permissions: set[str] | frozenset[str] | None = None,
+    ) -> list[Tool]:
+        """Return tools whose config and current permission requirements are satisfied.
 
         A field is *satisfied* when ``getattr(config, field_name, None)``
         is truthy.
@@ -129,8 +215,13 @@ class ToolRegistry:
         """
         result: list[Tool] = []
         for tool in self._tools.values():
-            if self._is_available(tool, config):
-                result.append(tool)
+            if not tool.enabled or not self._is_available(tool, config):
+                continue
+            if granted_permissions is not None and not self._capability_registry.is_authorized(
+                tool.name, granted_permissions
+            ):
+                continue
+            result.append(tool)
         return result
 
     # ------------------------------------------------------------------
@@ -199,7 +290,9 @@ def _verify_power_plan(args: dict[str, Any], output: Any) -> bool:
     )
 
 
-def _build_default_registry() -> ToolRegistry:
+def _build_default_registry(
+    *, capability_registry: CapabilityRegistry | None = None
+) -> ToolRegistry:
     """Build and return a ``ToolRegistry`` pre-populated with all Rex tools."""
     # Lazily import so optional dependencies don't block startup.
     from rex.openclaw.tools.calendar_tool import calendar_create
@@ -231,7 +324,7 @@ def _build_default_registry() -> ToolRegistry:
         set_volume,
     )
 
-    registry = ToolRegistry()
+    registry = ToolRegistry(capability_registry=capability_registry)
 
     registry.register(
         Tool(
@@ -272,6 +365,7 @@ def _build_default_registry() -> ToolRegistry:
             description="Send an email to one or more recipients.",
             capability_tags=["email", "messaging", "send"],
             requires_config=["email_accounts"],
+            required_permissions=("email_send",),
             handler=send_email,
             operation="mutation",
             requires_identity=True,
@@ -298,6 +392,7 @@ def _build_default_registry() -> ToolRegistry:
             description="Control smart home devices via Home Assistant.",
             capability_tags=["smart_home", "home_assistant", "iot"],
             requires_config=["ha_base_url", "ha_token"],
+            required_permissions=("ha_control",),
             handler=ha_call_service,
             operation="mutation",
             requires_identity=True,
@@ -311,6 +406,7 @@ def _build_default_registry() -> ToolRegistry:
             description="Send an SMS text message to a phone number.",
             capability_tags=["sms", "messaging", "text"],
             requires_config=[],
+            required_permissions=("sms_send",),
             handler=send_sms,
             operation="mutation",
             requires_identity=True,
@@ -327,6 +423,7 @@ def _build_default_registry() -> ToolRegistry:
             ),
             capability_tags=["file", "filesystem", "local"],
             requires_config=[],
+            required_permissions=("computer_control",),
             handler=_read_file,
         )
     )
@@ -337,6 +434,7 @@ def _build_default_registry() -> ToolRegistry:
             description="Get OS and hardware information (platform, CPU count, total RAM, boot time).",
             capability_tags=["windows", "diagnostics", "system"],
             requires_config=[],
+            required_permissions=("computer_control",),
             handler=get_system_info,
         )
     )
@@ -347,6 +445,7 @@ def _build_default_registry() -> ToolRegistry:
             description="Get current CPU usage percentage and frequency.",
             capability_tags=["windows", "diagnostics", "cpu"],
             requires_config=[],
+            required_permissions=("computer_control",),
             handler=get_cpu_usage,
         )
     )
@@ -357,6 +456,7 @@ def _build_default_registry() -> ToolRegistry:
             description="Get current RAM and swap memory usage statistics.",
             capability_tags=["windows", "diagnostics", "memory", "ram"],
             requires_config=[],
+            required_permissions=("computer_control",),
             handler=get_memory_usage,
         )
     )
@@ -367,6 +467,7 @@ def _build_default_registry() -> ToolRegistry:
             description="Get disk usage for all mounted partitions.",
             capability_tags=["windows", "diagnostics", "disk", "storage"],
             requires_config=[],
+            required_permissions=("computer_control",),
             handler=get_disk_usage,
         )
     )
@@ -377,6 +478,7 @@ def _build_default_registry() -> ToolRegistry:
             description="Get battery charge level and charging status.",
             capability_tags=["windows", "diagnostics", "battery"],
             requires_config=[],
+            required_permissions=("computer_control",),
             handler=get_battery_status,
         )
     )
@@ -387,6 +489,7 @@ def _build_default_registry() -> ToolRegistry:
             description="List running processes sorted by CPU usage.",
             capability_tags=["windows", "diagnostics", "processes"],
             requires_config=[],
+            required_permissions=("computer_control",),
             handler=list_processes,
         )
     )
@@ -397,6 +500,7 @@ def _build_default_registry() -> ToolRegistry:
             description="Get the current system master volume level (0–100).",
             capability_tags=["windows", "settings", "audio", "volume"],
             requires_config=[],
+            required_permissions=("computer_control",),
             handler=get_volume,
         )
     )
@@ -407,6 +511,7 @@ def _build_default_registry() -> ToolRegistry:
             description="Set the system master volume level (0–100).",
             capability_tags=["windows", "settings", "audio", "volume"],
             requires_config=[],
+            required_permissions=("computer_control",),
             handler=set_volume,
             operation="mutation",
             requires_identity=True,
@@ -421,6 +526,7 @@ def _build_default_registry() -> ToolRegistry:
             description="Set the display brightness level (0–100).",
             capability_tags=["windows", "settings", "display", "brightness"],
             requires_config=[],
+            required_permissions=("computer_control",),
             handler=set_brightness,
             operation="mutation",
             requires_identity=True,
@@ -435,6 +541,7 @@ def _build_default_registry() -> ToolRegistry:
             description="Get the name of the currently active Windows power plan.",
             capability_tags=["windows", "settings", "power"],
             requires_config=[],
+            required_permissions=("computer_control",),
             handler=get_power_plan,
         )
     )
@@ -445,6 +552,7 @@ def _build_default_registry() -> ToolRegistry:
             description="Switch the active Windows power plan by name (e.g. Balanced, High performance).",
             capability_tags=["windows", "settings", "power"],
             requires_config=[],
+            required_permissions=("computer_control",),
             handler=set_power_plan,
             operation="mutation",
             requires_identity=True,
@@ -459,6 +567,7 @@ def _build_default_registry() -> ToolRegistry:
             description="Check disk SMART health status and report any failure predictions.",
             capability_tags=["windows", "repair", "disk"],
             requires_config=[],
+            required_permissions=("computer_control",),
             handler=check_disk_health,
         )
     )
@@ -469,6 +578,7 @@ def _build_default_registry() -> ToolRegistry:
             description="Check for pending Windows updates and list them.",
             capability_tags=["windows", "repair", "update"],
             requires_config=[],
+            required_permissions=("computer_control",),
             handler=check_windows_update_status,
         )
     )
@@ -479,6 +589,7 @@ def _build_default_registry() -> ToolRegistry:
             description="Flush the Windows DNS resolver cache to fix name-resolution issues.",
             capability_tags=["windows", "repair", "dns", "network"],
             requires_config=[],
+            required_permissions=("computer_control",),
             handler=flush_dns_cache,
             operation="mutation",
             requires_identity=True,
@@ -494,6 +605,7 @@ def _build_default_registry() -> ToolRegistry:
             ),
             capability_tags=["windows", "repair", "sfc", "system"],
             requires_config=[],
+            required_permissions=("computer_control",),
             handler=run_sfc_scan,
             operation="mutation",
             risk="sensitive",
@@ -508,6 +620,7 @@ def _build_default_registry() -> ToolRegistry:
             description="Play music via Music Assistant. Args: query (str), room (str, optional).",
             capability_tags=["music", "play", "audio", "media"],
             requires_config=["music_assistant_url"],
+            required_permissions=("ha_control",),
             handler=_delegated_handler("music_play"),
             operation="mutation",
             requires_identity=True,
@@ -520,6 +633,7 @@ def _build_default_registry() -> ToolRegistry:
             description="Pause music playback via Music Assistant. Args: room (str, optional).",
             capability_tags=["music", "pause", "audio", "media"],
             requires_config=["music_assistant_url"],
+            required_permissions=("ha_control",),
             handler=_delegated_handler("music_pause"),
             operation="mutation",
             requires_identity=True,
@@ -532,6 +646,7 @@ def _build_default_registry() -> ToolRegistry:
             description="Resume paused music via Music Assistant. Args: room (str, optional).",
             capability_tags=["music", "resume", "audio", "media"],
             requires_config=["music_assistant_url"],
+            required_permissions=("ha_control",),
             handler=_delegated_handler("music_resume"),
             operation="mutation",
             requires_identity=True,
@@ -544,6 +659,7 @@ def _build_default_registry() -> ToolRegistry:
             description="Skip to the next track via Music Assistant. Args: room (str, optional).",
             capability_tags=["music", "skip", "next", "audio", "media"],
             requires_config=["music_assistant_url"],
+            required_permissions=("ha_control",),
             handler=_delegated_handler("music_skip"),
             operation="mutation",
             requires_identity=True,
@@ -559,6 +675,7 @@ def _build_default_registry() -> ToolRegistry:
             ),
             capability_tags=["music", "volume", "audio", "media"],
             requires_config=["music_assistant_url"],
+            required_permissions=("ha_control",),
             handler=_delegated_handler("music_volume"),
             operation="mutation",
             requires_identity=True,
@@ -572,9 +689,25 @@ def _build_default_registry() -> ToolRegistry:
 _default_registry: ToolRegistry | None = None
 
 
-def get_default_registry() -> ToolRegistry:
-    """Return the module-level default ``ToolRegistry`` (lazy init)."""
+def ensure_default_registry(capability_registry: CapabilityRegistry) -> ToolRegistry:
+    """Return the default executable registry bound to *capability_registry*."""
     global _default_registry
-    if _default_registry is None:
-        _default_registry = _build_default_registry()
+    if (
+        _default_registry is None
+        or _default_registry.capability_registry is not capability_registry
+    ):
+        _default_registry = _build_default_registry(capability_registry=capability_registry)
     return _default_registry
+
+
+def get_default_registry() -> ToolRegistry:
+    """Return the default executable registry backed by canonical metadata."""
+    from rex.capabilities.registry import get_capability_registry  # noqa: PLC0415
+
+    return ensure_default_registry(get_capability_registry())
+
+
+def reset_default_registry() -> None:
+    """Reset the executable singleton so tests cannot retain stale metadata."""
+    global _default_registry
+    _default_registry = None

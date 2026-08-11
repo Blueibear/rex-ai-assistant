@@ -118,7 +118,7 @@ def _all_service_patches() -> list:
 def reset_global_registry():
     """Ensure the global registry is reset after each test."""
     yield
-    set_tool_registry(None)  # type: ignore[arg-type]
+    set_tool_registry(None)
 
 
 @pytest.mark.parametrize("tool_name", sorted(EXECUTABLE_TOOLS))

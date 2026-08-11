@@ -49,12 +49,13 @@ Enabled state is evidence-based: `configured` means required values are stored; 
 
 ## Migration appendix: current registries to canonical Capability Registry
 
-US-106 owns the runtime consolidation. US-064 records the authorities and duplication that must be adapted rather than silently replaced.
+US-106 completed the runtime metadata consolidation. The canonical `Capability` / Tool Card authority now lives in `rex/capabilities/registry.py`; executable and OpenClaw registries are compatibility adapters over that authority. US-064 remains the release-truth inventory for UI parity.
 
 | Current registry / metadata source | Current authority and consumers | Duplicate or divergent metadata | Target adapter into canonical Capability Registry |
 |---|---|---|---|
-| `rex/capabilities/registry.py` | Python capability/profile feature registry; consumed by capability query/runtime code | capability name/description/enabled semantics overlap Electron and mobile representations | Python capability adapter preserving profile/enablement rules |
-| `rex/openclaw/tool_registry.py` | OpenClaw/Rex tool metadata, health checks, risk/tool execution consumers | tool name, description, health, availability and risk overlap capability metadata | tool adapter that contributes operations, risk, health and verification without granting authority |
+| `rex/capabilities/registry.py` | **Canonical Capability / Tool Card metadata authority** consumed by capability query/runtime code and executable adapters | legacy capability fields remain as compatibility aliases | owns stable ID/source/schema/enabled/permissions/health/operation/risk/verification/description/examples and rejects divergent duplicate metadata |
+| `rex/tools/registry.py` | executable local tool handlers and selection compatibility | previously duplicated description/config/security metadata | binds handlers to canonical Tool Cards; the default singleton shares the global Capability Registry and rechecks live user permissions |
+| `rex/openclaw/tool_registry.py` | OpenClaw metadata, health checks, planner compatibility | remote metadata previously mirrored by replacement into the executable registry | adapts remote cards through the canonical registry; local security metadata cannot be overwritten and unknown remote tools enter conservatively |
 | `gui/src/main/integrationInventory.ts` | Electron integration/capability cards and settings/status consumers | names, configure routes, enabled state and health presentation are Electron-specific duplicates | Electron presentation adapter derived from canonical capability records plus local settings routes |
 | `rex/integration_state.py` and provider status helpers | canonical evidence vocabulary for integration readiness | state is sometimes re-expressed by GUI/tool-specific booleans | health/evidence adapter; retain evidence vocabulary as authoritative state semantics |
 | mobile capability/grant modules under `rex/mobile_*` | paired-device capabilities and least-privilege grants | mobile surface has a separate capability shape and false scaffolding flags | mobile adapter filters canonical records by device grants and implemented endpoint support |

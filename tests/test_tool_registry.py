@@ -406,7 +406,7 @@ class TestGlobalToolRegistry:
 
     def setup_method(self):
         """Reset global state before each test."""
-        set_tool_registry(None)  # type: ignore
+        set_tool_registry(None)
 
     def test_get_tool_registry_returns_singleton(self):
         """Test that get_tool_registry returns singleton with builtin tools."""
@@ -495,7 +495,7 @@ class TestBuiltinTools:
 
     def setup_method(self):
         """Reset global state before each test."""
-        set_tool_registry(None)  # type: ignore
+        set_tool_registry(None)
 
     def test_time_now_tool_registered(self):
         """Test that time_now is registered correctly."""

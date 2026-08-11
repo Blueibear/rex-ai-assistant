@@ -91,7 +91,7 @@ def test_register_replaces_existing() -> None:
     t1 = Tool("t", "first", [], [], _dummy_handler)
     t2 = Tool("t", "second", [], [], _dummy_handler)
     registry.register(t1)
-    registry.register(t2)
+    registry.register(t2, replace=True)
     assert registry.get("t") is t2
 
 
@@ -259,7 +259,11 @@ def test_delegated_music_handler_fails_closed() -> None:
     result = ToolDispatcher(get_default_registry()).dispatch(
         "music_pause",
         {},
-        {"user_id": "james", "request_id": "music-delegation-test"},
+        {
+            "user_id": "james",
+            "request_id": "music-delegation-test",
+            "granted_permissions": frozenset({"ha_control"}),
+        },
     )
 
     assert result.success is False
