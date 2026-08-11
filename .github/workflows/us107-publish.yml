@@ -1,0 +1,36 @@
+name: US107 verified publisher
+on:
+  pull_request:
+    branches: [master]
+permissions:
+  contents: write
+jobs:
+  publish:
+    if: github.head_ref == 'transport/us107-publish'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Reconstruct, verify, and publish exact US-107 tree
+        shell: bash
+        env:
+          BASE_SHA: d9dc58945eae0d2d3bb27383aae33e913bdb4d20
+          TARGET_TREE: 0f2d37df43a632d979fd0498706ccfa75bd5bce1
+          GZ_SHA256: 9f335a1f9ace200cfaca296e9e83f2f5a8622066dfdec890b8946d70e078b81b
+          RAW_SHA256: e467c8b62518dffe1d06499a8505694aac03e006a83ebb5a3426940d64d3fc4e
+          TARGET_BRANCH: lead/us107-capability-retrieval
+        run: |
+          set -euo pipefail
+          tr -d '\r\n' < .transport/us107-publish/payload.b64.txt | base64 -d > /tmp/us107.patch.gz
+          test "$(sha256sum /tmp/us107.patch.gz | awk '{print $1}')" = "$GZ_SHA256"
+          gzip -dc /tmp/us107.patch.gz > /tmp/us107.patch
+          test "$(sha256sum /tmp/us107.patch | awk '{print $1}')" = "$RAW_SHA256"
+          git checkout --detach "$BASE_SHA"
+          git apply --index --binary /tmp/us107.patch
+          test "$(git write-tree)" = "$TARGET_TREE"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'feat(capabilities): add hybrid capability retrieval'
+          git branch -f "$TARGET_BRANCH" HEAD
+          git push origin "$TARGET_BRANCH"
