@@ -705,12 +705,19 @@ class Assistant:
         """Deliver only post-validation text as ordered sentence chunks."""
         if response_sink is None:
             return
+        from rex.runtime.cancellation import (  # noqa: PLC0415
+            await_with_cancellation,
+            current_turn_cancellation,
+        )
         from rex.voice.transcripts import _split_into_sentences  # noqa: PLC0415
 
+        cancellation = current_turn_cancellation()
         chunks = _split_into_sentences(text)
         if not chunks and text.strip():
             chunks = [text.strip()]
         for index, chunk in enumerate(chunks):
+            if cancellation is not None:
+                cancellation.raise_if_cancelled()
             if index == 0 and stream_started_ns is not None:
                 latency_trace.add_duration_ms(
                     "first_token",
@@ -720,7 +727,7 @@ class Assistant:
                 EventKind.RESPONSE_PROGRESS,
                 {"stage": "delta", "index": index, "kind": "sentence"},
             )
-            await response_sink(chunk)
+            await await_with_cancellation(response_sink(chunk))
 
     async def stream_reply(
         self, transcript: str, *, voice_mode: bool = False, active_user_id: str | None = None
@@ -817,6 +824,8 @@ class Assistant:
     ) -> str:
         """Run the shared verified reply pipeline for text and streaming delivery."""
         loop = asyncio.get_running_loop()
+        check_cancelled = turn_context.cancellation.raise_if_cancelled
+        check_cancelled()
         self._ensure_followup_session(effective_user_id)
         latency_trace.start("routing")
 
@@ -826,6 +835,7 @@ class Assistant:
             suggestion_engine=getattr(self, "_suggestion_engine", None),
             user_id=effective_user_id,
         )
+        check_cancelled()
         turn_events.emit(
             EventKind.ROUTE_PROGRESS,
             {
@@ -838,6 +848,7 @@ class Assistant:
             latency_trace.end("routing")
             latency_trace.start("completion")
             completion = cast(str, intent.response)
+            check_cancelled()
             self._record_completion(transcript, completion, user_id=effective_user_id)
             turn_events.emit(
                 EventKind.RESPONSE_PROGRESS,
@@ -855,9 +866,11 @@ class Assistant:
             latency_trace.log_summary(logger, event=latency_event)
             return completion
 
+        check_cancelled()
         cached = self._get_or_create_response_builder().check_cache(
             transcript, user_id=effective_user_id
         )
+        check_cancelled()
         turn_events.emit(
             EventKind.ROUTE_PROGRESS,
             {"stage": "cache", "cache_hit": cached is not None},
@@ -866,6 +879,7 @@ class Assistant:
             latency_trace.end("routing")
             latency_trace.start("completion")
             completion = cast(str, cached)
+            check_cancelled()
             self._record_completion(transcript, completion, user_id=effective_user_id)
             turn_events.emit(
                 EventKind.RESPONSE_PROGRESS,
@@ -883,6 +897,7 @@ class Assistant:
             latency_trace.log_summary(logger, event=latency_event)
             return completion
 
+        check_cancelled()
         prev_model = self._begin_request(transcript)
         latency_trace.model = str(getattr(self._llm, "model_name", None) or latency_trace.model)
         latency_trace.end("routing")
@@ -891,9 +906,11 @@ class Assistant:
             {"stage": "model_router", "model": latency_trace.model},
         )
         try:
+            check_cancelled()
             context = self._get_or_create_context_builder().build(
                 transcript, voice_mode=voice_mode, active_user_id=active_user_id
             )
+            check_cancelled()
             turn_events.emit(
                 EventKind.CONTEXT_PROGRESS,
                 {"stage": "built", "scope": turn_context.scope.value},
@@ -909,10 +926,12 @@ class Assistant:
                 latency_trace=latency_trace,
                 turn_events=turn_events,
             )
+            check_cancelled()
             latency_trace.start("completion")
             final = self._get_or_create_response_builder().build(
                 result, context, transcript=transcript, user_id=effective_user_id
             )
+            check_cancelled()
             completion = final.text
             turn_events.emit(
                 EventKind.RESPONSE_PROGRESS,
@@ -925,7 +944,9 @@ class Assistant:
         finally:
             self._end_request(prev_model)
 
+        check_cancelled()
         self._record_completion(transcript, completion, user_id=effective_user_id)
+        check_cancelled()
         turn_events.emit(
             EventKind.RESPONSE_PROGRESS,
             {"stage": "history", "history_recorded": True},
@@ -1010,11 +1031,20 @@ class Assistant:
             self._llm.model_name = prev_model
 
     async def _run_plugins(self, transcript: str) -> list[str]:
+        from rex.runtime.cancellation import (  # noqa: PLC0415
+            TurnCancelledError,
+            await_with_cancellation,
+        )
+
         loop = asyncio.get_running_loop()
         results: list[str] = []
         for spec in self._plugins:
             try:
-                result = await loop.run_in_executor(None, spec.plugin.process, transcript)
+                result = await await_with_cancellation(
+                    loop.run_in_executor(None, spec.plugin.process, transcript)
+                )
+            except TurnCancelledError:
+                raise
             except Exception as exc:  # pragma: no cover - defensive guard
                 logger.warning("Plugin %s failed: %s", spec.name, exc)
                 continue

@@ -18,6 +18,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from rex.latency import LatencyTrace
+from rex.runtime.cancellation import await_with_cancellation, current_turn_cancellation
 from rex.runtime.events import EventKind, TurnEventStream
 
 logger = logging.getLogger(__name__)
@@ -187,6 +188,19 @@ class ActionDispatcher:
             run_in_executor_with_mobile_context,
         )
 
+        def check_cancelled() -> None:
+            cancellation = current_turn_cancellation()
+            if cancellation is not None:
+                cancellation.raise_if_cancelled()
+
+        async def run_blocking(func: Callable[..., Any], *args: Any) -> Any:
+            check_cancelled()
+            return await await_with_cancellation(
+                run_in_executor_with_mobile_context(_loop, func, *args)
+            )
+
+        check_cancelled()
+
         # 1. Skill training: intercept natural-language skill creation before LLM
         if (
             self._skill_trainer is not None
@@ -299,8 +313,7 @@ class ActionDispatcher:
                 if latency_trace is not None:
                     latency_trace.start("tool")
                 try:
-                    _tool_results = await run_in_executor_with_mobile_context(
-                        _loop,
+                    _tool_results = await run_blocking(
                         functools.partial(
                             self._tool_dispatcher.execute_tools,
                             _selected_tools,
@@ -333,17 +346,10 @@ class ActionDispatcher:
             if latency_trace is not None:
                 latency_trace.start("tool")
             if _UNDO_PATTERN.match(transcript):
-                completion = await run_in_executor_with_mobile_context(
-                    _loop,
-                    self._ha_bridge.undo_last,
-                )
+                completion = await run_blocking(self._ha_bridge.undo_last)
             else:
                 _hist_len_before = len(getattr(self._ha_bridge, "_command_history", None) or [])
-                completion = await run_in_executor_with_mobile_context(
-                    _loop,
-                    self._ha_bridge.process_transcript,
-                    transcript,
-                )
+                completion = await run_blocking(self._ha_bridge.process_transcript, transcript)
                 if completion is not None:
                     _cmd_hist = getattr(self._ha_bridge, "_command_history", None)
                     if _cmd_hist is not None and len(_cmd_hist) > _hist_len_before:
@@ -406,18 +412,13 @@ class ActionDispatcher:
             )
             try:
                 try:
-                    completion = await run_in_executor_with_mobile_context(
-                        _loop,
-                        lambda: self._llm.generate(messages=messages),
-                    )
+                    completion = await run_blocking(lambda: self._llm.generate(messages=messages))
                 except TypeError:
-                    completion = await run_in_executor_with_mobile_context(
-                        _loop,
-                        lambda: self._llm.generate(prompt),
-                    )
+                    completion = await run_blocking(lambda: self._llm.generate(prompt))
             finally:
                 if latency_trace is not None:
                     latency_trace.end("llm")
+            check_cancelled()
             emit(
                 EventKind.MODEL_PROGRESS,
                 {"stage": "generation", "status": "returned"},
@@ -426,7 +427,7 @@ class ActionDispatcher:
             # 9. Post-process LLM output (TOOL_REQUEST resolution, OpenClaw bridge)
             plugin_enrichments: list[str] = []
             if self._run_plugins_fn is not None and not mobile_action_context_active():
-                plugin_enrichments = await self._run_plugins_fn(transcript)
+                plugin_enrichments = await await_with_cancellation(self._run_plugins_fn(transcript))
 
             tool_context_dict: dict = (
                 self._build_tool_context_fn() if self._build_tool_context_fn else {}
@@ -442,13 +443,16 @@ class ActionDispatcher:
             if latency_trace is not None:
                 latency_trace.start("postprocess")
             try:
-                completion = await self._result_handler.process(
-                    transcript,
-                    completion,
-                    tool_context=tool_context_dict,
-                    model_call_fn=model_call_fn,
-                    plugin_enrichments=plugin_enrichments,
+                completion = await await_with_cancellation(
+                    self._result_handler.process(
+                        transcript,
+                        completion,
+                        tool_context=tool_context_dict,
+                        model_call_fn=model_call_fn,
+                        plugin_enrichments=plugin_enrichments,
+                    )
                 )
+                check_cancelled()
                 emit(
                     EventKind.ACTION_PROGRESS,
                     {"stage": "result_handler", "status": "returned"},
@@ -457,6 +461,9 @@ class ActionDispatcher:
                 if latency_trace is not None:
                     latency_trace.end("postprocess")
 
+        check_cancelled()
+        if completion is None:
+            raise RuntimeError("action dispatch completed without a response")
         return ActionResult(
             success=True,
             response=completion,

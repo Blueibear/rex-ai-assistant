@@ -13,6 +13,8 @@ import re
 from collections.abc import Callable
 from typing import Any
 
+from rex.runtime.cancellation import await_with_cancellation
+
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
@@ -125,12 +127,14 @@ class ToolResultHandler:
             run_in_executor_with_mobile_context,
         )
 
-        completion = await run_in_executor_with_mobile_context(
-            loop,
-            self._tool_router_fn,
-            completion,
-            tool_context,
-            model_call_fn,
+        completion = await await_with_cancellation(
+            run_in_executor_with_mobile_context(
+                loop,
+                self._tool_router_fn,
+                completion,
+                tool_context,
+                model_call_fn,
+            )
         )
 
         if plugin_enrichments:
@@ -142,20 +146,24 @@ class ToolResultHandler:
             and not mobile_action_context_active()
             and mobile_scope_granted("home.control")
         ):
-            completion = await run_in_executor_with_mobile_context(
-                loop,
-                self._ha_bridge.post_process_response,
-                completion,
+            completion = await await_with_cancellation(
+                run_in_executor_with_mobile_context(
+                    loop,
+                    self._ha_bridge.post_process_response,
+                    completion,
+                )
             )
 
         if self._contains_internal_tool_syntax(completion):
-            completion = await run_in_executor_with_mobile_context(
-                loop,
-                self._sanitize_internal_tool_output,
-                transcript,
-                completion,
-                tool_context,
-                model_call_fn,
+            completion = await await_with_cancellation(
+                run_in_executor_with_mobile_context(
+                    loop,
+                    self._sanitize_internal_tool_output,
+                    transcript,
+                    completion,
+                    tool_context,
+                    model_call_fn,
+                )
             )
 
         return self._guard_unverified_action_claim(transcript, completion)

@@ -32,8 +32,25 @@ from requests.exceptions import ConnectionError as RequestsConnectionError
 from requests.exceptions import Timeout
 
 from rex.openclaw.errors import OpenClawAPIError, OpenClawAuthError, OpenClawConnectionError
+from rex.runtime.cancellation import current_turn_cancellation
 
 logger = logging.getLogger(__name__)
+
+
+def _raise_if_turn_cancelled() -> None:
+    cancellation = current_turn_cancellation()
+    if cancellation is not None:
+        cancellation.raise_if_cancelled()
+
+
+def _wait_retry(seconds: float) -> None:
+    cancellation = current_turn_cancellation()
+    if cancellation is None:
+        time.sleep(seconds)
+        return
+    if cancellation.wait(seconds):
+        cancellation.raise_if_cancelled()
+
 
 # Sentinel so get_openclaw_client() is a proper singleton per config combination.
 _CLIENT_CACHE: dict[str, OpenClawClient] = {}
@@ -88,6 +105,7 @@ class OpenClawClient:
         attempt = 0
 
         while True:
+            _raise_if_turn_cancelled()
             attempt += 1
             logger.debug("%s %s (attempt %d)", method.upper(), path, attempt)
             try:
@@ -99,6 +117,7 @@ class OpenClawClient:
                     timeout=self.timeout,
                 )
             except (RequestsConnectionError, Timeout) as exc:
+                _raise_if_turn_cancelled()
                 if attempt > self.max_retries:
                     logger.warning(
                         "OpenClaw connection error on %s %s after %d attempts: %s",
@@ -119,9 +138,10 @@ class OpenClawClient:
                     self.max_retries,
                     exc,
                 )
-                time.sleep(wait)
+                _wait_retry(wait)
                 continue
 
+            _raise_if_turn_cancelled()
             status = response.status_code
             logger.debug("%s %s -> %d", method.upper(), path, status)
 
@@ -155,7 +175,7 @@ class OpenClawClient:
                     attempt,
                     self.max_retries,
                 )
-                time.sleep(wait)
+                _wait_retry(wait)
                 continue
 
             if status >= 400:
@@ -163,8 +183,10 @@ class OpenClawClient:
                 raise OpenClawAPIError(status, body)
 
             # Success — return parsed JSON (or empty dict for 204 etc.)
+            _raise_if_turn_cancelled()
             if response.content:
                 result: dict[str, Any] = response.json()
+                _raise_if_turn_cancelled()
                 return result
             return {}
 
@@ -188,6 +210,7 @@ class OpenClawClient:
         On connection/auth errors the generator raises the same
         exceptions as :meth:`post`.
         """
+        _raise_if_turn_cancelled()
         url = self._url(path)
         logger.debug("POST (stream) %s", path)
         try:
@@ -201,12 +224,14 @@ class OpenClawClient:
             logger.warning("OpenClaw stream connection error on %s: %s", url, exc)
             raise OpenClawConnectionError(url, exc) from exc
 
+        _raise_if_turn_cancelled()
         if response.status_code == 401:
             raise OpenClawAuthError(url)
         if response.status_code >= 400:
             raise OpenClawAPIError(response.status_code, response.text or "")
 
         for line in response.iter_lines(decode_unicode=True):
+            _raise_if_turn_cancelled()
             if not line:
                 continue
             if line.startswith("data: "):
@@ -218,6 +243,7 @@ class OpenClawClient:
                     delta = data.get("choices", [{}])[0].get("delta", {})
                     content = delta.get("content", "")
                     if content:
+                        _raise_if_turn_cancelled()
                         yield content
                 except (json_lib.JSONDecodeError, IndexError, KeyError) as exc:
                     logger.debug("Skipping malformed SSE chunk: %s (%s)", data_str[:80], exc)
@@ -309,6 +335,7 @@ def stream_sentences(
     """
     buffer = ""
     for chunk in chunks:
+        _raise_if_turn_cancelled()
         buffer += chunk
         # Yield every time we see a sentence boundary.
         while True:

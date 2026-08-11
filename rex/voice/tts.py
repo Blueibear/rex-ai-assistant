@@ -20,6 +20,11 @@ from rex.assistant_errors import (
     AudioDeviceError,
     TextToSpeechError,
 )
+from rex.runtime.cancellation import (
+    TurnCancelledError,
+    await_with_cancellation,
+    current_turn_cancellation,
+)
 from rex.tts_utils import chunk_text_for_xtts
 from rex.voice._types import (
     AudioArray,
@@ -34,6 +39,12 @@ from rex.voice.transcripts import (
     _WARMUP_PHRASE,
     _split_into_sentences,
 )
+
+
+def _raise_if_turn_cancelled() -> None:
+    cancellation = current_turn_cancellation()
+    if cancellation is not None:
+        cancellation.raise_if_cancelled()
 
 
 def _vl():
@@ -145,6 +156,7 @@ class TextToSpeech:
         prefer_fast: bool = False,
     ) -> dict[str, object]:
         """Synthesize and play text as speech."""
+        _raise_if_turn_cancelled()
         if not text:
             return {}
 
@@ -221,10 +233,12 @@ class TextToSpeech:
                         ),
                     )
                     run_metrics.update(
-                        await self._speak_windows_direct(
-                            text,
-                            reason="fast_short_reply",
-                            request_started_at=started_at,
+                        await await_with_cancellation(
+                            self._speak_windows_direct(
+                                text,
+                                reason="fast_short_reply",
+                                request_started_at=started_at,
+                            )
                         )
                     )
                     run_metrics["fast_short_used"] = True
@@ -245,16 +259,28 @@ class TextToSpeech:
 
             if self._provider == "xtts":
                 run_metrics.update(
-                    await self._speak_xtts(text, speaker_wav, request_started_at=started_at)
+                    await await_with_cancellation(
+                        self._speak_xtts(text, speaker_wav, request_started_at=started_at)
+                    )
                 )
             elif self._provider == "edge":
-                run_metrics.update(await self._speak_edge(text, request_started_at=started_at))
+                run_metrics.update(
+                    await await_with_cancellation(
+                        self._speak_edge(text, request_started_at=started_at)
+                    )
+                )
             elif self._provider == "windows":
-                run_metrics.update(await self._speak_windows(text, request_started_at=started_at))
+                run_metrics.update(
+                    await await_with_cancellation(
+                        self._speak_windows(text, request_started_at=started_at)
+                    )
+                )
             else:
                 run_metrics["path_used"] = "stdout"
                 run_metrics["speech_start_delay_s"] = 0.0
                 print(f"Rex: {text}")
+        except TurnCancelledError:
+            raise
         except AudioDeviceError:
             raise
         except Exception as exc:
@@ -544,15 +570,20 @@ class TextToSpeech:
         """
         try:
             async for sentence in sentences:
+                _raise_if_turn_cancelled()
                 sentence = sentence.strip()
                 if not sentence:
                     continue
                 try:
                     await self.speak(sentence, speaker_wav=speaker_wav)
+                except TurnCancelledError:
+                    raise
                 except AudioDeviceError:
                     raise
                 except Exception as exc:
                     _vl().logger.error("[TTS streaming] chunk failed: %s", exc)
+        except TurnCancelledError:
+            raise
         except AudioDeviceError:
             raise
         except Exception as exc:

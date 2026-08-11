@@ -3342,7 +3342,7 @@ grep -n "askrex.app\|Cloudflare\|CORS\|rate limit\|revocation" docs/deployment.m
 - [x] Interface adapters are limited to authentication/identity, input normalization, transport/stream presentation, and response-mode formatting.
 - [x] Cross-interface fixtures prove equivalent route/tool/verification outcomes for the same authenticated request.
 - [x] Existing mobile pairing/scopes and Electron immutable session identity remain authoritative.
-- [ ] All relevant GitHub checks pass.
+- [x] All relevant GitHub checks pass.
 
 **Validation commands:** `pytest tests/rex2/test_turn_interface_parity.py tests/test_mobile_api.py -q`; `cd gui && npm run typecheck && npm run build`.
 
@@ -3359,11 +3359,11 @@ grep -n "askrex.app\|Cloudflare\|CORS\|rate limit\|revocation" docs/deployment.m
 **Files/areas likely involved:** `rex/runtime/cancellation.py`, TurnContext, LLM streaming, tool execution, OpenClaw client/bridge, TTS/voice loop.
 
 **Acceptance Criteria:**
-- [ ] Cancellation is idempotent and turn-scoped and emits exactly one canonical cancelled terminal event.
-- [ ] Model generation, retrieval/prefetch, cancellable tools/OpenClaw calls, and TTS stop or ignore stale output promptly.
-- [ ] If cancellation/transport loss occurs after a mutation may have dispatched, outcome is `attempted/unverified` until independently proven, never fabricated as failure/success.
-- [ ] Cancelling one user/turn cannot cancel another user's concurrent work.
-- [ ] Tests cover cancellation before dispatch, during generation, during read-only work, after mutation dispatch, and repeated cancellation calls.
+- [x] Cancellation is idempotent and turn-scoped and emits exactly one canonical cancelled terminal event.
+- [x] Model generation, retrieval/prefetch, cancellable tools/OpenClaw calls, and TTS stop or ignore stale output promptly.
+- [x] If cancellation/transport loss occurs after a mutation may have dispatched, outcome is `attempted/unverified` until independently proven, never fabricated as failure/success.
+- [x] Cancelling one user/turn cannot cancel another user's concurrent work.
+- [x] Tests cover cancellation before dispatch, during generation, during read-only work, after mutation dispatch, and repeated cancellation calls.
 - [ ] All relevant GitHub checks pass.
 
 **Validation commands:** `pytest tests/rex2/test_turn_cancellation.py tests/rex2/test_cancellation_identity_isolation.py -q`; `mypy rex/runtime rex/openclaw --ignore-missing-imports`.
