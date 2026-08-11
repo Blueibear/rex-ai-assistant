@@ -1,0 +1,36 @@
+name: US106 verified CI-fix publisher
+on:
+  pull_request:
+    branches: [master]
+permissions:
+  contents: write
+jobs:
+  publish:
+    if: github.head_ref == 'transport/us106-fix'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Reconstruct, verify, and publish exact US-106 CI fix
+        shell: bash
+        env:
+          BASE_SHA: 589a147b8ce7c68d7c4fdf706accc51222a28840
+          TARGET_TREE: c1ca3dc2ab64d00f6ea3140dfd0f982357e3c06a
+          GZ_SHA256: a034a4c096afdefd0a2425a352b35db6d88fd286888bdc1e65b0962479483fc9
+          RAW_SHA256: 3624730136a54b5f6cb4574710ec2a4119cee0e5ef4e7830c09af2eb77564dd5
+          TARGET_BRANCH: lead/us106-capability-registry
+        run: |
+          set -euo pipefail
+          tr -d '\r\n' < .transport/us106-fix/fix.b64.txt | base64 -d > /tmp/us106-fix.patch.gz
+          test "$(sha256sum /tmp/us106-fix.patch.gz | awk '{print $1}')" = "$GZ_SHA256"
+          gzip -dc /tmp/us106-fix.patch.gz > /tmp/us106-fix.patch
+          test "$(sha256sum /tmp/us106-fix.patch | awk '{print $1}')" = "$RAW_SHA256"
+          git checkout --detach "$BASE_SHA"
+          git apply --index --binary /tmp/us106-fix.patch
+          test "$(git write-tree)" = "$TARGET_TREE"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'fix(capabilities): preserve selector compatibility'
+          git branch -f "$TARGET_BRANCH" HEAD
+          git push origin "$TARGET_BRANCH"
