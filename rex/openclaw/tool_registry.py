@@ -15,9 +15,12 @@ from __future__ import annotations
 import logging
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Any
+from typing import TYPE_CHECKING, Any, Literal
 
 from rex.credentials import CredentialManager, get_credential_manager
+
+if TYPE_CHECKING:
+    from rex.tools.registry import ToolRegistry as CanonicalToolRegistry
 
 logger = logging.getLogger(__name__)
 
@@ -51,6 +54,14 @@ class ToolMeta:
     health_check: HealthCheckFn = field(default=_default_health_check)
     version: str = "1.0.0"
     enabled: bool = True
+    operation: Literal["read", "mutation"] = "mutation"
+    risk: Literal["safe", "sensitive", "prohibited"] = "sensitive"
+    requires_identity: bool = True
+    required_permissions: tuple[str, ...] = ()
+    input_schema: dict[str, str] = field(default_factory=dict)
+    output_schema: dict[str, str] = field(default_factory=dict)
+    examples: tuple[str, ...] = ()
+    verification_supported: bool = False
 
     def __post_init__(self) -> None:
         """Validate tool metadata after initialization."""
@@ -144,6 +155,7 @@ class ToolRegistry:
         self,
         *,
         credential_manager: CredentialManager | None = None,
+        canonical_registry: CanonicalToolRegistry | None = None,
     ) -> None:
         """Initialize the tool registry.
 
@@ -154,6 +166,21 @@ class ToolRegistry:
         self._tools: dict[str, ToolMeta] = {}
         self._openclaw_meta: dict[str, OpenClawToolMeta] = {}
         self._credential_manager = credential_manager
+        if canonical_registry is None:
+            from rex.tools.registry import ToolRegistry as CanonicalToolRegistryImpl
+
+            canonical_registry = CanonicalToolRegistryImpl()
+        self._canonical_registry = canonical_registry
+
+    def bind_canonical_registry(self, canonical_registry: CanonicalToolRegistry) -> None:
+        """Promote this compatibility registry onto the supplied metadata authority."""
+        if self._canonical_registry is canonical_registry:
+            return
+        tools = list(self._tools.values())
+        metadata = dict(self._openclaw_meta)
+        self._canonical_registry = canonical_registry
+        for tool in tools:
+            self.register_tool(tool, openclaw_meta=metadata.get(tool.name))
 
     @property
     def credential_manager(self) -> CredentialManager:
@@ -168,54 +195,48 @@ class ToolRegistry:
         *,
         openclaw_meta: OpenClawToolMeta | None = None,
     ) -> None:
-        """Register a tool with the registry.
+        """Register OpenClaw metadata through the canonical Capability authority."""
+        from rex.capabilities.registry import Capability
 
-        If a tool with the same name already exists, it will be overwritten.
-        Also registers a stub entry in the canonical ``rex.tools.registry``
-        with ``source="openclaw"`` so that ``list_tools()`` on the canonical
-        registry surfaces OpenClaw tools alongside local ones.
+        canonical = self._canonical_registry
+        existing_card = canonical.capability_registry.get(tool.name)
+        if existing_card is not None and existing_card.source != "openclaw":
+            operation = existing_card.operation
+            risk = existing_card.risk
+            requires_identity = existing_card.requires_identity
+            required_permissions = existing_card.required_permissions
+            verification_supported = existing_card.verification_supported
+        else:
+            operation = tool.operation
+            risk = tool.risk
+            requires_identity = tool.requires_identity
+            required_permissions = tool.required_permissions
+            verification_supported = tool.verification_supported
 
-        Args:
-            tool:          ToolMeta instance containing tool metadata.
-            openclaw_meta: Optional OpenClaw-specific metadata.  A default
-                           ``OpenClawToolMeta`` is created automatically when
-                           not provided.
-        """
+        remote_card = Capability(
+            name=tool.name,
+            description=tool.description,
+            triggers=list(tool.capabilities),
+            enabled=tool.enabled,
+            category="OpenClaw",
+            source="openclaw",
+            input_schema=dict(tool.input_schema),
+            output_schema=dict(tool.output_schema),
+            required_permissions=required_permissions,
+            health="unknown",
+            operation=operation,
+            risk=risk,
+            verification_supported=verification_supported,
+            examples=tool.examples,
+            requires_identity=requires_identity,
+        )
+        canonical.register_remote_card(
+            remote_card,
+            handler=None if existing_card is not None else _openclaw_remote_only_handler,
+        )
         self._tools[tool.name] = tool
-        # Keep OpenClaw-specific metadata separate from the canonical entry.
         self._openclaw_meta[tool.name] = openclaw_meta or OpenClawToolMeta(name=tool.name)
-
-        # Mirror into the canonical tool registry so list_tools() shows it.
-        try:
-            from rex.tools.registry import Tool, get_default_registry
-
-            _canonical = get_default_registry()
-            existing = _canonical.get(tool.name)
-            requires_config = list(existing.requires_config) if existing is not None else []
-            _canonical.register(
-                Tool(
-                    name=tool.name,
-                    description=tool.description,
-                    capability_tags=list(tool.capabilities),
-                    requires_config=requires_config,
-                    handler=(
-                        existing.handler if existing is not None else _openclaw_remote_only_handler
-                    ),
-                    source=existing.source if existing is not None else "openclaw",
-                    operation=existing.operation if existing is not None else "read",
-                    risk=existing.risk if existing is not None else "safe",
-                    requires_identity=(
-                        existing.requires_identity if existing is not None else False
-                    ),
-                    required_args=(existing.required_args if existing is not None else ()),
-                    verifier=existing.verifier if existing is not None else None,
-                )
-            )
-        except Exception:
-            # Never let canonical-registry mirroring break OpenClaw registration.
-            logger.debug("tool_registry: failed to mirror %r into canonical registry", tool.name)
-
-        logger.debug("Registered tool: %s", tool.name)
+        logger.debug("Registered OpenClaw tool: %s", tool.name)
 
     def lookup(self, name: str) -> Callable[..., Any] | None:
         """Delegate to the canonical registry to look up a tool handler.
@@ -228,13 +249,8 @@ class ToolRegistry:
         Returns:
             The tool handler callable, or ``None`` if not found.
         """
-        try:
-            from rex.tools.registry import get_default_registry
-
-            canonical_tool = get_default_registry().get(name)
-            return canonical_tool.handler if canonical_tool is not None else None
-        except Exception:
-            return None
+        canonical_tool = self._canonical_registry.get(name)
+        return canonical_tool.handler if canonical_tool is not None else None
 
     def unregister_tool(self, name: str) -> bool:
         """Unregister a tool from the registry.
@@ -341,12 +357,25 @@ class ToolRegistry:
             raise ToolNotFoundError(name)
 
         if not tool.enabled:
+            if self._canonical_registry.capability_registry.get(name) is not None:
+                self._canonical_registry.capability_registry.update_runtime_state(
+                    name, enabled=False, health="unavailable"
+                )
             return False, "Tool is disabled"
 
         try:
-            return tool.health_check()
+            ok, message = tool.health_check()
+            if self._canonical_registry.capability_registry.get(name) is not None:
+                self._canonical_registry.capability_registry.update_runtime_state(
+                    name, health="healthy" if ok else "unhealthy"
+                )
+            return ok, message
         except Exception as e:
             logger.error("Health check failed for %s: %s", name, e)
+            if self._canonical_registry.capability_registry.get(name) is not None:
+                self._canonical_registry.capability_registry.update_runtime_state(
+                    name, health="unhealthy"
+                )
             return False, f"Health check error: {e}"
 
     def check_all_health(self) -> dict[str, tuple[bool, str]]:
@@ -419,25 +448,29 @@ def get_tool_registry() -> ToolRegistry:
     """
     global _tool_registry
     if _tool_registry is None:
-        _tool_registry = ToolRegistry()
+        from rex.tools.registry import get_default_registry
+
+        _tool_registry = ToolRegistry(canonical_registry=get_default_registry())
         _register_builtin_tools(_tool_registry)
     return _tool_registry
 
 
-def set_tool_registry(registry: ToolRegistry) -> None:
-    """Set the global tool registry instance.
-
-    Args:
-        registry: The ToolRegistry instance to use globally.
-    """
+def set_tool_registry(registry: ToolRegistry | None) -> None:
+    """Set the global tool registry and bind it to canonical metadata authority."""
     global _tool_registry
+    if registry is not None:
+        from rex.tools.registry import get_default_registry
+
+        registry.bind_canonical_registry(get_default_registry())
     _tool_registry = registry
 
 
 def reset_tool_registry() -> None:
     """Reset the global tool registry instance to the default state."""
     global _tool_registry
-    _tool_registry = ToolRegistry()
+    from rex.tools.registry import get_default_registry
+
+    _tool_registry = ToolRegistry(canonical_registry=get_default_registry())
     _register_builtin_tools(_tool_registry)
 
 

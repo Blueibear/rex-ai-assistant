@@ -293,7 +293,7 @@ class ActionDispatcher:
         # 6. Auto tool dispatch: build pre-LLM tool context string
         _tool_context: str | None = None
         if self._tool_dispatcher is not None:
-            _selected_tools = self._tool_dispatcher.select_tools(transcript)
+            _selected_tools = self._tool_dispatcher.select_tools(transcript, user_id=effective_user)
             if mobile_action_context_active():
                 # Pre-LLM dispatch has only free-form transcript text. Mobile
                 # mutations must wait for a canonical structured tool call so

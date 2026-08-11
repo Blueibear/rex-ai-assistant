@@ -3364,7 +3364,7 @@ grep -n "askrex.app\|Cloudflare\|CORS\|rate limit\|revocation" docs/deployment.m
 - [x] If cancellation/transport loss occurs after a mutation may have dispatched, outcome is `attempted/unverified` until independently proven, never fabricated as failure/success.
 - [x] Cancelling one user/turn cannot cancel another user's concurrent work.
 - [x] Tests cover cancellation before dispatch, during generation, during read-only work, after mutation dispatch, and repeated cancellation calls.
-- [ ] All relevant GitHub checks pass.
+- [x] All relevant GitHub checks pass.
 
 **Validation commands:** `pytest tests/rex2/test_turn_cancellation.py tests/rex2/test_cancellation_identity_isolation.py -q`; `mypy rex/runtime rex/openclaw --ignore-missing-imports`.
 
@@ -3535,11 +3535,11 @@ grep -n "askrex.app\|Cloudflare\|CORS\|rate limit\|revocation" docs/deployment.m
 **Files/areas likely involved:** `rex/capabilities/`, existing tool registries/consumers, OpenClaw adapters, capability inventory docs.
 
 **Acceptance Criteria:**
-- [ ] One authoritative Capability/Tool Card schema records ID/source/input-output schema/enabled state/required permissions/health/operation type/risk/verification support and user-facing description/examples.
-- [ ] Existing local registries adapt into or migrate to that authority; duplicate metadata cannot silently diverge.
-- [ ] Registry metadata itself is deterministic; authorization is always evaluated for the current user at selection/execution time.
-- [ ] Compatibility adapters keep current callers functional until their migration removes obsolete paths.
-- [ ] Tests detect duplicate IDs/schema drift and prove remote metadata cannot overwrite local security classification.
+- [x] One authoritative Capability/Tool Card schema records ID/source/input-output schema/enabled state/required permissions/health/operation type/risk/verification support and user-facing description/examples.
+- [x] Existing local registries adapt into or migrate to that authority; duplicate metadata cannot silently diverge.
+- [x] Registry metadata itself is deterministic; authorization is always evaluated for the current user at selection/execution time.
+- [x] Compatibility adapters keep current callers functional until their migration removes obsolete paths.
+- [x] Tests detect duplicate IDs/schema drift and prove remote metadata cannot overwrite local security classification.
 - [ ] All relevant GitHub checks pass.
 
 **Validation commands:** `pytest tests/rex2/test_capability_registry.py tests/test_tool_registry.py -q`; `mypy rex/capabilities --ignore-missing-imports`.

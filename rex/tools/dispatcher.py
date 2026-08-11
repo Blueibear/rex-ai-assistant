@@ -117,8 +117,14 @@ class ToolDispatcher:
     # Public API
     # ------------------------------------------------------------------
 
-    def select_tools(self, message: str) -> list[Tool]:
-        """Return tools whose domain matches the user's intent in *message*.
+    def select_tools(
+        self,
+        message: str,
+        *,
+        user_id: str | None = None,
+        granted_permissions: set[str] | frozenset[str] | None = None,
+    ) -> list[Tool]:
+        """Return authorized tools whose domain matches the user's intent in *message*.
 
         Intent detection is keyword-based.  Each candidate tool is scored by
         the number of its ``capability_tags`` that appear in the set of tags
@@ -134,10 +140,32 @@ class ToolDispatcher:
         Returns:
             Confidence-sorted list of matched ``Tool`` objects (deduped).
         """
+        current_permissions = granted_permissions
+        if current_permissions is None and user_id:
+            try:
+                from rex.permissions import get_permissions  # noqa: PLC0415
+
+                current_permissions = frozenset(get_permissions(user_id))
+            except Exception:
+                logger.exception(
+                    "tool_dispatcher: failed to resolve permissions for user %r", user_id
+                )
+                current_permissions = frozenset()
+
         if self._config is not None:
-            candidates = self._registry.available_tools(self._config)
+            candidates = self._registry.available_tools(
+                self._config, granted_permissions=current_permissions
+            )
         else:
             candidates = self._registry.all_tools()
+            if current_permissions is not None:
+                candidates = [
+                    tool
+                    for tool in candidates
+                    if self._registry.capability_registry.is_authorized(
+                        tool.name, current_permissions
+                    )
+                ]
 
         # Determine which capability tags are triggered by matching intent rules.
         fired_tags: set[str] = set()

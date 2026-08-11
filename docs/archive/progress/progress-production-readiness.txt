@@ -1784,3 +1784,25 @@ Local evidence:
 - `mypy rex/runtime rex/openclaw --ignore-missing-imports`: success, no issues in 38 source files.
 - US-097 PR #379 passed all 18 relevant checks and merged as `4c2ae7170f4ee9e151a30db3bb1ffdcf1f21868a`; its final PRD CI criterion is now closed.
 - US-098 GitHub checks remain pending until this story PR is pushed; its final PRD checkbox intentionally remains open.
+
+2026-08-11 - US-106 canonical Capability Registry and Tool Cards
+
+Implementation:
+- Expanded `rex.capabilities.registry.Capability` into the canonical Tool Card schema covering stable ID/source, input/output schemas, enabled and health evidence, required permissions, operation/risk, verification support, descriptions/examples, identity/config requirements, and compatibility aliases.
+- Canonical metadata rejects divergent duplicate IDs; static security metadata is sealed after construction, while runtime enabled/health/integration evidence is updated explicitly.
+- Bound the default executable `rex.tools.registry.ToolRegistry` to the same global Capability Registry and made capability/tool singleton resets rebind together.
+- Preserved isolated compatibility registries while requiring explicit replacement for legacy executable metadata migration; duplicate schema drift otherwise fails closed.
+- Added current-user permission filtering at tool selection and a second permission check inside the execution lifecycle; `admin` satisfies declared Rex permissions.
+- Added canonical built-in permission metadata for email, SMS, Home Assistant/music, and local computer/file tools without changing the existing permission vocabulary.
+- Migrated `rex.openclaw.tool_registry` through canonical remote-card registration. Existing local security classification wins; unknown remote tools default to identity-required sensitive mutations; health-check evidence updates canonical runtime health.
+- Updated `CLAUDE.md` and `docs/CAPABILITY-PARITY.md` to make the implemented registry authority and adapter boundaries explicit.
+
+Local evidence:
+- TDD red phases proved missing Tool Card fields/conflict contracts, missing current-user permission filtering/recheck, separate global registry authorities, OpenClaw security overwrite/conservative-default gaps, and unsynchronized remote health evidence before each implementation slice.
+- Exact PRD validation: `pytest tests/rex2/test_capability_registry.py tests/test_tool_registry.py -q` -> 57 passed on Python 3.11.9.
+- Final registry/planner/tool/TurnEngine/capability-status/mobile-action compatibility matrix -> 437 passed.
+- CLI tool-registry compatibility after the supported `set_tool_registry(None)` reset API change -> 22 passed.
+- Exact `mypy rex/capabilities --ignore-missing-imports` passes; expanded mypy passes on the five additional changed runtime modules.
+- Ruff and Black pass on every touched Python/test file; `git diff --check` is clean.
+- US-098 PR #380 passed all 18 relevant GitHub checks and merged as `0adf4ca4fcc8865a52b0ab6ef855890482c62e6c`; its final PRD CI criterion is now closed.
+- US-106 GitHub checks remain pending until this story PR is pushed; its final PRD checkbox intentionally remains open.
