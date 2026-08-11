@@ -1,7 +1,7 @@
 """Auto tool selection — map user intent to tools (US-TD-002/US-TD-003).
 
-``ToolDispatcher.select_tools()`` maps a user message to zero or more
-registered tools via keyword/intent matching.  ``execute_tools()`` invokes
+``ToolDispatcher.select_tools()`` maps a user message to a small set of
+registered tools through permission-aware hybrid capability retrieval. ``execute_tools()`` invokes
 each selected tool with a configurable timeout and a single retry on
 transient network errors.
 
@@ -14,65 +14,17 @@ the current ``execute_tools()`` API is preserved for backward compatibility.
 from __future__ import annotations
 
 import logging
-import re
 import time
 from typing import Any
+
+from rex.capabilities.registry import Capability
+from rex.capabilities.retrieval import CapabilityRetriever
 
 from .execution import _is_auth_error as _is_auth_error
 from .execution import _is_transient_error as _is_transient_error
 from .registry import Tool, ToolRegistry
 
 logger = logging.getLogger(__name__)
-
-# ---------------------------------------------------------------------------
-# Intent rule table
-# Each entry: (capability_tag, compiled_pattern)
-# The tag must match at least one of a tool's capability_tags.
-# ---------------------------------------------------------------------------
-
-_INTENT_RULES: list[tuple[str, re.Pattern[str]]] = [
-    (
-        "email",
-        re.compile(
-            r"\b(email|mail|inbox|send\s+an?\s+email|read\s+my\s+email|"
-            r"check\s+my\s+(email|mail)|new\s+message[s]?|unread|compose)\b",
-            re.IGNORECASE,
-        ),
-    ),
-    (
-        "weather",
-        re.compile(
-            r"\b(weather|forecast|temperature|rain|snow|sunny|cloudy|"
-            r"humidity|wind|storm|outside|degrees?)\b",
-            re.IGNORECASE,
-        ),
-    ),
-    (
-        "search",
-        re.compile(
-            r"\b(search|look\s+up|find\s+out|google|browse|web|news|"
-            r"latest|what\s+is\s+the\s+latest|who\s+is|tell\s+me\s+about)\b",
-            re.IGNORECASE,
-        ),
-    ),
-    (
-        "calendar",
-        re.compile(
-            r"\b(calendar|schedule|appointment|meeting|event|remind\s+me|"
-            r"agenda|book\s+(a|an|the)\s+\w+|add\s+(to|an?)\s+(my\s+)?calendar)\b",
-            re.IGNORECASE,
-        ),
-    ),
-    (
-        "smart_home",
-        re.compile(
-            r"\b(turn\s+(on|off)|lights?|thermostat|lock|unlock|home\s+assistant|"
-            r"smart\s+home|dim|brighten|set\s+the\s+(lights?|temperature|thermostat)|"
-            r"open\s+(the\s+)?(garage|door)|close\s+(the\s+)?(garage|door))\b",
-            re.IGNORECASE,
-        ),
-    ),
-]
 
 # ---------------------------------------------------------------------------
 # Error classification helpers
@@ -112,10 +64,19 @@ class ToolDispatcher:
         self._timeout_seconds: float = float(
             getattr(config, "tool_timeout_seconds", _DEFAULT_TIMEOUT) or _DEFAULT_TIMEOUT
         )
+        self._capability_retriever = CapabilityRetriever(
+            registry.capability_registry,
+            config=config,
+            candidate_filter=self._tool_candidate_enabled,
+        )
 
     # ------------------------------------------------------------------
     # Public API
     # ------------------------------------------------------------------
+
+    def _tool_candidate_enabled(self, card: Capability) -> bool:
+        tool = self._registry.get(card.id)
+        return tool is not None and tool.enabled
 
     def select_tools(
         self,
@@ -124,78 +85,31 @@ class ToolDispatcher:
         user_id: str | None = None,
         granted_permissions: set[str] | frozenset[str] | None = None,
     ) -> list[Tool]:
-        """Return authorized tools whose domain matches the user's intent in *message*.
+        """Return a small, security-filtered hybrid-ranked tool set.
 
-        Intent detection is keyword-based.  Each candidate tool is scored by
-        the number of its ``capability_tags`` that appear in the set of tags
-        triggered by matching intent rules.  Tools are returned sorted by
-        confidence (score) descending so that the highest-confidence match
-        comes first.  Multiple tools are returned when the message spans
-        multiple domains (e.g. "weather and email").  Returns an empty list
-        when no intent is matched — the caller falls back to the LLM path.
-
-        Args:
-            message: The raw user transcript or chat message.
-
-        Returns:
-            Confidence-sorted list of matched ``Tool`` objects (deduped).
+        Canonical Capability retrieval filters current-user authorization, identity
+        scope, configured/enabled state, health, and risk before any lexical or
+        semantic ranking is performed. Semantic evidence is local-only and falls
+        back deterministically to lexical scoring if unavailable.
         """
-        current_permissions = granted_permissions
-        if current_permissions is None and user_id:
-            try:
-                from rex.permissions import get_permissions  # noqa: PLC0415
-
-                current_permissions = frozenset(get_permissions(user_id))
-            except Exception:
-                logger.exception(
-                    "tool_dispatcher: failed to resolve permissions for user %r", user_id
-                )
-                current_permissions = frozenset()
-
-        if self._config is not None:
-            candidates = self._registry.available_tools(
-                self._config, granted_permissions=current_permissions
+        matches = self._capability_retriever.retrieve(
+            message,
+            user_id=user_id,
+            granted_permissions=granted_permissions,
+        )
+        selected: list[Tool] = []
+        for match in matches:
+            tool = self._registry.get(match.capability.id)
+            if tool is None:
+                continue
+            selected.append(tool)
+            logger.debug(
+                "tool_dispatcher: selected tool=%r score=%.3f evidence=%s",
+                tool.name,
+                match.score,
+                ",".join(match.reasons),
             )
-        else:
-            candidates = self._registry.all_tools()
-            if current_permissions is not None:
-                candidates = [
-                    tool
-                    for tool in candidates
-                    if self._registry.capability_registry.is_authorized(
-                        tool.name, current_permissions
-                    )
-                ]
-
-        # Determine which capability tags are triggered by matching intent rules.
-        fired_tags: set[str] = set()
-        for capability_tag, pattern in _INTENT_RULES:
-            if pattern.search(message):
-                fired_tags.add(capability_tag)
-                logger.debug("tool_dispatcher: intent rule %r fired", capability_tag)
-
-        if not fired_tags:
-            logger.debug("tool_dispatcher: no intent match for message")
-            return []
-
-        # Score each candidate: count of capability_tags that appear in fired_tags.
-        seen_names: set[str] = set()
-        scored: list[tuple[int, Tool]] = []
-        for tool in candidates:
-            score = sum(1 for tag in tool.capability_tags if tag in fired_tags)
-            if score > 0 and tool.name not in seen_names:
-                seen_names.add(tool.name)
-                scored.append((score, tool))
-                logger.debug(
-                    "tool_dispatcher: tool=%r score=%d",
-                    tool.name,
-                    score,
-                )
-
-        # Sort by confidence descending; stable sort preserves registration
-        # order for tools with equal scores.
-        scored.sort(key=lambda x: x[0], reverse=True)
-        return [tool for _, tool in scored]
+        return selected
 
     def select_tools_for_user(
         self,

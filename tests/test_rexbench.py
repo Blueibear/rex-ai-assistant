@@ -101,3 +101,35 @@ def test_checked_in_baseline_covers_required_stages_and_privacy() -> None:
     encoded = baseline.read_text(encoding="utf-8").lower()
     for forbidden in ("prompt", "transcript", "memory_content", "credential", "user_id"):
         assert forbidden not in encoded
+
+
+def test_capability_retrieval_cli_emits_privacy_safe_profile(tmp_path) -> None:
+    output = tmp_path / "capability-retrieval.json"
+    completed = subprocess.run(
+        [
+            sys.executable,
+            "scripts/rexbench.py",
+            "--profile",
+            "capability-retrieval",
+            "--iterations",
+            "2",
+            "--output",
+            str(output),
+        ],
+        check=False,
+        capture_output=True,
+        text=True,
+        timeout=45,
+    )
+    assert completed.returncode == 0, completed.stderr or completed.stdout
+    report = json.loads(output.read_text(encoding="utf-8"))
+    assert report["profile"] == "capability-retrieval"
+    assert set(report["results"]) == {"hybrid", "lexical_fallback"}
+    for request_class in report["results"].values():
+        assert set(request_class) == {"warm"}
+        bucket = request_class["warm"]
+        assert bucket["evidence_class"] == "deterministic_local"
+        assert set(bucket["stages_ms"]) == {"retrieval", "total"}
+    encoded = output.read_text(encoding="utf-8").lower()
+    for forbidden in ("prompt", "transcript", "memory_content", "credential", "user_id"):
+        assert forbidden not in encoded

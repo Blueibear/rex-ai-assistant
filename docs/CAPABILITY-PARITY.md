@@ -55,6 +55,7 @@ US-106 completed the runtime metadata consolidation. The canonical `Capability` 
 |---|---|---|---|
 | `rex/capabilities/registry.py` | **Canonical Capability / Tool Card metadata authority** consumed by capability query/runtime code and executable adapters | legacy capability fields remain as compatibility aliases | owns stable ID/source/schema/enabled/permissions/health/operation/risk/verification/description/examples and rejects divergent duplicate metadata |
 | `rex/tools/registry.py` | executable local tool handlers and selection compatibility | previously duplicated description/config/security metadata | binds handlers to canonical Tool Cards; the default singleton shares the global Capability Registry and rechecks live user permissions |
+| `rex/capabilities/retrieval.py` | canonical capability candidate filtering and hybrid ranking | replaces fixed keyword-only dispatcher rules | filters permissions/identity/enabled+configured/health/risk before ranking; combines deterministic lexical evidence with local semantic evidence and falls back lexically without leaking request payloads |
 | `rex/openclaw/tool_registry.py` | OpenClaw metadata, health checks, planner compatibility | remote metadata previously mirrored by replacement into the executable registry | adapts remote cards through the canonical registry; local security metadata cannot be overwritten and unknown remote tools enter conservatively |
 | `gui/src/main/integrationInventory.ts` | Electron integration/capability cards and settings/status consumers | names, configure routes, enabled state and health presentation are Electron-specific duplicates | Electron presentation adapter derived from canonical capability records plus local settings routes |
 | `rex/integration_state.py` and provider status helpers | canonical evidence vocabulary for integration readiness | state is sometimes re-expressed by GUI/tool-specific booleans | health/evidence adapter; retain evidence vocabulary as authoritative state semantics |
@@ -64,7 +65,7 @@ US-106 completed the runtime metadata consolidation. The canonical `Capability` 
 
 ### Canonical record fields required by US-106
 
-The future registry must be able to express, at minimum: stable capability ID/name, source/provider, product tier/surface visibility, enabled/configured state, required permissions/scopes, health/evidence state, supported operations (read/mutate), risk tier, verification contract, configure/status route where applicable, and adapter/provider-specific metadata. A consumer may narrow a capability based on identity, permissions, device grants, or health; it must never widen authority from metadata alone.
+The canonical registry expresses, at minimum: stable capability ID/name, source/provider, product tier/surface visibility, enabled/configured state, required permissions/scopes, health/evidence state, supported operations (read/mutate), risk tier, verification contract, configure/status route where applicable, and adapter/provider-specific metadata. A consumer may narrow a capability based on identity, permissions, device grants, or health; it must never widen authority from metadata alone.
 
 ## Production-facing conclusions
 

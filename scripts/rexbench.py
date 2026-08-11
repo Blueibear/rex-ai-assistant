@@ -19,6 +19,8 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 import rex.assistant as assistant_module  # noqa: E402
+from rex.capabilities.registry import Capability, CapabilityRegistry  # noqa: E402
+from rex.capabilities.retrieval import CapabilityRetriever  # noqa: E402
 from rex.model_router import ModelRouter  # noqa: E402
 from rex.rexbench import BenchmarkSample, build_report  # noqa: E402
 from rex.voice_loop import VoiceLoop  # noqa: E402
@@ -369,19 +371,97 @@ def run_baseline(iterations: int) -> dict:
     return build_report(samples, profile="baseline")
 
 
+class _BrokenCapabilitySemanticScorer:
+    def score(self, query: str, capability: Capability) -> float:
+        del query, capability
+        raise RuntimeError("deterministic semantic fallback")
+
+
+def _capability_benchmark_registry() -> CapabilityRegistry:
+    registry = CapabilityRegistry()
+    for capability in (
+        Capability(
+            name="web_search",
+            description="Search the web for current information",
+            triggers=["search", "lookup", "web"],
+        ),
+        Capability(
+            name="weather_now",
+            description="Get current weather conditions",
+            triggers=["weather", "forecast", "temperature"],
+        ),
+        Capability(
+            name="calendar_create",
+            description="Create a calendar event",
+            triggers=["calendar", "schedule", "meeting"],
+            operation="mutation",
+            requires_identity=True,
+        ),
+        Capability(
+            name="send_email",
+            description="Send an email message",
+            triggers=["email", "mail", "message"],
+            operation="mutation",
+            requires_identity=True,
+            required_permissions=("email_send",),
+        ),
+    ):
+        registry.register(capability)
+    return registry
+
+
+def run_capability_retrieval(iterations: int) -> dict:
+    if iterations < 1:
+        raise ValueError("iterations must be at least 1")
+    registry = _capability_benchmark_registry()
+    hybrid = CapabilityRetriever(registry)
+    fallback = CapabilityRetriever(registry, semantic_scorer=_BrokenCapabilitySemanticScorer())
+    samples: list[BenchmarkSample] = []
+    scenarios = (
+        ("hybrid", hybrid, "research this online", "web_search"),
+        ("lexical_fallback", fallback, "weather forecast", "weather_now"),
+    )
+    for request_class, retriever, query, expected in scenarios:
+        for _ in range(iterations):
+            started = time.perf_counter_ns()
+            matches = retriever.retrieve(
+                query, user_id="benchmark", granted_permissions=frozenset()
+            )
+            elapsed_ms = (time.perf_counter_ns() - started) / 1_000_000
+            if not matches or matches[0].capability.id != expected:
+                raise RuntimeError(
+                    f"Capability retrieval benchmark failed correctness check for {request_class}"
+                )
+            samples.append(
+                BenchmarkSample(
+                    request_class=request_class,
+                    warm_state="warm",
+                    evidence_class="deterministic_local",
+                    stages_ms={"retrieval": elapsed_ms, "total": elapsed_ms},
+                )
+            )
+    return build_report(samples, profile="capability-retrieval")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--profile", choices=("baseline",), default="baseline")
+    parser.add_argument(
+        "--profile", choices=("baseline", "capability-retrieval"), default="baseline"
+    )
     parser.add_argument("--iterations", type=int, default=8)
     parser.add_argument("--output", type=Path)
     args = parser.parse_args()
 
-    report = run_baseline(args.iterations)
+    report = (
+        run_capability_retrieval(args.iterations)
+        if args.profile == "capability-retrieval"
+        else run_baseline(args.iterations)
+    )
     encoded = json.dumps(report, indent=2, sort_keys=True) + "\n"
     if args.output:
         args.output.parent.mkdir(parents=True, exist_ok=True)
         args.output.write_text(encoded, encoding="utf-8")
-        print(f"RexBench baseline written: {args.output}")
+        print(f"RexBench {args.profile} written: {args.output}")
     else:
         print(encoded, end="")
     return 0
