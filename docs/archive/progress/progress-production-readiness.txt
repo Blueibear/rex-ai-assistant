@@ -1806,3 +1806,10 @@ Local evidence:
 - Ruff and Black pass on every touched Python/test file; `git diff --check` is clean.
 - US-098 PR #380 passed all 18 relevant GitHub checks and merged as `0adf4ca4fcc8865a52b0ab6ef855890482c62e6c`; its final PRD CI criterion is now closed.
 - US-106 GitHub checks remain pending until this story PR is pushed; its final PRD checkbox intentionally remains open.
+US-106 PR #382 CI follow-up (2026-08-11):
+- Initial Python 3.11 Tests & Coverage exposed two compatibility regressions not reached by the earlier focused matrix. First, `ActionDispatcher` passed the new `user_id` keyword directly to every `select_tools` compatibility adapter, breaking older selectors that implement only `select_tools(message)`. Second, the first compatibility fallback used dynamic `getattr`, so an unspecced `MagicMock` fabricated a `select_tools_for_user` attribute and bypassed its configured legacy selector.
+- Fixed the root cause without weakening live authorization: canonical `ToolDispatcher` now exposes `select_tools_for_user(...)`, while `ActionDispatcher` uses `inspect.getattr_static` to call that extension only when it is actually defined and otherwise preserves the legacy `select_tools(message)` contract.
+- Reproduced/fixed regression tests: latency compatibility selector, real-dispatcher TurnEngine capability/action boundary emission, and canonical permission-aware selection all pass together (3 passed).
+- Complete non-mobile/non-Rex2 marker surface -> 8,195 passed, 49 skipped. Mobile + Rex2 marker surface -> 424 passed. Combined CI marker set therefore reports 8,619 passed and 49 skipped.
+- CI-equivalent pytest+coverage report -> 8,619 passed, 49 skipped; required 75% coverage reached at 83.52%. The local PowerShell wrapper itself reported a nonzero shell result after post-pytest Torch shutdown logging to a closed stream, so GitHub CI remains the authoritative process-exit gate for the republished head.
+- US-106 final GitHub-check criterion remains open until the corrected immutable PR head passes the complete repository matrix.

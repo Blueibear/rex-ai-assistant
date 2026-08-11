@@ -197,6 +197,20 @@ class ToolDispatcher:
         scored.sort(key=lambda x: x[0], reverse=True)
         return [tool for _, tool in scored]
 
+    def select_tools_for_user(
+        self,
+        message: str,
+        *,
+        user_id: str,
+        granted_permissions: set[str] | frozenset[str] | None = None,
+    ) -> list[Tool]:
+        """Select tools with the current user's live authorization context."""
+        return self.select_tools(
+            message,
+            user_id=user_id,
+            granted_permissions=granted_permissions,
+        )
+
     def execute_tools(
         self, tools: list[Tool], message: str, *, user_id: str | None = None
     ) -> dict[str, Any]:
