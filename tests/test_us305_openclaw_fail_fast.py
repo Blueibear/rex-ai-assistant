@@ -1,170 +1,120 @@
-"""Tests for US-305: OpenClaw voice backend fail-fast on startup.
+"""Regression tests for the superseding US-097 canonical voice contract.
 
-Acceptance criteria:
-  - When use_openclaw_voice_backend=False, VoiceBridge is never imported/instantiated
-  - When use_openclaw_voice_backend=True but gateway URL not configured, raises RuntimeError
-    with "no gateway URL" message
-  - When use_openclaw_voice_backend=True but gateway unreachable, raises RuntimeError
-    with "unreachable" message
-  - When use_openclaw_voice_backend=True and gateway reachable, VoiceBridge is instantiated
+US-305 originally made ``use_openclaw_voice_backend=True`` a startup dependency
+that could replace Rex's Assistant with VoiceBridge. US-097 intentionally removes
+that supported brain-swap path. The legacy flag is now compatibility-only: it logs
+a warning, never probes the gateway, never instantiates VoiceBridge, and never
+replaces the canonical TurnEngine-backed Assistant.
 """
 
 from __future__ import annotations
 
+import logging
 from unittest.mock import AsyncMock, MagicMock, patch
 
-import pytest
+from rex.voice_loop import VoiceLoop
 
 
-def _make_voice_loop(mock_settings, mock_client=None, mock_bridge=None):
-    """Construct a VoiceLoop inside appropriate patches."""
-    from rex.voice_loop import VoiceLoop
-
-    patches = [patch("rex.voice_loop.settings", mock_settings)]
-    if mock_client is not None:
-        patches.append(
-            patch("rex.openclaw.http_client.get_openclaw_client", return_value=mock_client)
-        )
-    if mock_bridge is not None:
-        patches.append(patch("rex.openclaw.voice_bridge.VoiceBridge", return_value=mock_bridge))
-
-    for p in patches:
-        p.__enter__()
-    try:
-        vl = VoiceLoop(
-            MagicMock(),
+def _make_voice_loop(mock_settings: MagicMock, base_assistant: MagicMock) -> VoiceLoop:
+    """Construct a canonical VoiceLoop with heavy voice dependencies stubbed."""
+    with patch("rex.voice_loop.settings", mock_settings):
+        return VoiceLoop(
+            base_assistant,
             wake_listener=MagicMock(),
             detection_source=AsyncMock(),
             record_phrase=AsyncMock(return_value=MagicMock()),
             transcribe=AsyncMock(return_value=""),
             speak=AsyncMock(),
         )
-    finally:
-        for p in reversed(patches):
-            p.__exit__(None, None, None)
-    return vl
 
 
-class TestUS305OpenClawFailFast:
-    def test_flag_false_does_not_instantiate_voice_bridge(self):
-        """When flag is False, VoiceBridge is never touched and base assistant is used."""
+class TestUS305SupersededVoiceBackendContract:
+    def test_flag_false_keeps_assistant_and_never_touches_voice_bridge(self):
         mock_settings = MagicMock()
         mock_settings.use_openclaw_voice_backend = False
         base_assistant = MagicMock()
 
-        with patch("rex.voice_loop.settings", mock_settings):
-            from rex.voice_loop import VoiceLoop
-
-            vl = VoiceLoop(
-                base_assistant,
-                wake_listener=MagicMock(),
-                detection_source=AsyncMock(),
-                record_phrase=AsyncMock(return_value=MagicMock()),
-                transcribe=AsyncMock(return_value=""),
-                speak=AsyncMock(),
-            )
+        with patch("rex.openclaw.voice_bridge.VoiceBridge") as mock_bridge_cls:
+            vl = _make_voice_loop(mock_settings, base_assistant)
 
         assert vl._assistant is base_assistant
+        mock_bridge_cls.assert_not_called()
 
-    def test_flag_true_no_gateway_url_raises_runtime_error(self):
-        """Missing gateway URL raises RuntimeError with descriptive message."""
+    def test_flag_true_without_gateway_keeps_assistant_and_does_not_probe_gateway(self):
+        """Legacy flag no longer makes OpenClaw availability a voice startup dependency."""
         mock_settings = MagicMock()
         mock_settings.use_openclaw_voice_backend = True
+        mock_settings.openclaw_gateway_url = ""
+        base_assistant = MagicMock()
 
-        # get_openclaw_client returns None when no URL is configured
         with (
-            patch("rex.voice_loop.settings", mock_settings),
-            patch("rex.openclaw.http_client.get_openclaw_client", return_value=None),
+            patch("rex.openclaw.http_client.get_openclaw_client") as mock_get_client,
+            patch("rex.openclaw.voice_bridge.VoiceBridge") as mock_bridge_cls,
         ):
-            from rex.voice_loop import VoiceLoop
+            vl = _make_voice_loop(mock_settings, base_assistant)
 
-            with pytest.raises(RuntimeError, match="no gateway URL"):
-                VoiceLoop(
-                    MagicMock(),
-                    wake_listener=MagicMock(),
-                    detection_source=AsyncMock(),
-                    record_phrase=AsyncMock(return_value=MagicMock()),
-                    transcribe=AsyncMock(return_value=""),
-                    speak=AsyncMock(),
-                )
+        assert vl._assistant is base_assistant
+        mock_get_client.assert_not_called()
+        mock_bridge_cls.assert_not_called()
 
-    def test_flag_true_gateway_unreachable_raises_runtime_error(self):
-        """Unreachable gateway raises RuntimeError with 'unreachable' in message."""
+    def test_flag_true_unreachable_gateway_is_not_consulted_by_voice_loop(self):
+        """An unavailable external capability provider cannot block canonical voice startup."""
         mock_settings = MagicMock()
         mock_settings.use_openclaw_voice_backend = True
         mock_settings.openclaw_gateway_url = "http://localhost:9999"
+        base_assistant = MagicMock()
 
         mock_client = MagicMock()
         mock_client.get.side_effect = ConnectionError("Connection refused")
-
         with (
-            patch("rex.voice_loop.settings", mock_settings),
-            patch("rex.openclaw.http_client.get_openclaw_client", return_value=mock_client),
+            patch(
+                "rex.openclaw.http_client.get_openclaw_client",
+                return_value=mock_client,
+            ) as mock_get_client,
+            patch("rex.openclaw.voice_bridge.VoiceBridge") as mock_bridge_cls,
         ):
-            from rex.voice_loop import VoiceLoop
+            vl = _make_voice_loop(mock_settings, base_assistant)
 
-            with pytest.raises(RuntimeError, match="unreachable"):
-                VoiceLoop(
-                    MagicMock(),
-                    wake_listener=MagicMock(),
-                    detection_source=AsyncMock(),
-                    record_phrase=AsyncMock(return_value=MagicMock()),
-                    transcribe=AsyncMock(return_value=""),
-                    speak=AsyncMock(),
-                )
+        assert vl._assistant is base_assistant
+        mock_get_client.assert_not_called()
+        mock_client.get.assert_not_called()
+        mock_bridge_cls.assert_not_called()
 
-    def test_flag_true_gateway_reachable_uses_voice_bridge(self):
-        """Reachable gateway causes VoiceLoop to swap assistant for VoiceBridge."""
+    def test_flag_true_reachable_gateway_still_does_not_replace_assistant(self):
+        """Reachability does not change the one-brain invariant."""
         mock_settings = MagicMock()
         mock_settings.use_openclaw_voice_backend = True
         mock_settings.openclaw_gateway_url = "http://localhost:8765"
+        base_assistant = MagicMock()
 
         mock_client = MagicMock()
         mock_client.get.return_value = {"status": "ok"}
-        mock_bridge_instance = MagicMock()
-
         with (
-            patch("rex.voice_loop.settings", mock_settings),
-            patch("rex.openclaw.http_client.get_openclaw_client", return_value=mock_client),
-            patch("rex.openclaw.voice_bridge.VoiceBridge", return_value=mock_bridge_instance),
+            patch(
+                "rex.openclaw.http_client.get_openclaw_client",
+                return_value=mock_client,
+            ) as mock_get_client,
+            patch("rex.openclaw.voice_bridge.VoiceBridge") as mock_bridge_cls,
         ):
-            from rex.voice_loop import VoiceLoop
+            vl = _make_voice_loop(mock_settings, base_assistant)
 
-            vl = VoiceLoop(
-                MagicMock(),
-                wake_listener=MagicMock(),
-                detection_source=AsyncMock(),
-                record_phrase=AsyncMock(return_value=MagicMock()),
-                transcribe=AsyncMock(return_value=""),
-                speak=AsyncMock(),
-            )
+        assert vl._assistant is base_assistant
+        mock_get_client.assert_not_called()
+        mock_client.get.assert_not_called()
+        mock_bridge_cls.assert_not_called()
 
-        assert vl._assistant is mock_bridge_instance
-
-    def test_runtime_error_message_includes_gateway_url(self):
-        """RuntimeError for unreachable gateway includes the configured URL."""
-        gateway_url = "http://my-openclaw-host:8765"
+    def test_flag_true_emits_truthful_legacy_warning(self, caplog):
         mock_settings = MagicMock()
         mock_settings.use_openclaw_voice_backend = True
-        mock_settings.openclaw_gateway_url = gateway_url
+        mock_settings.openclaw_gateway_url = "http://my-openclaw-host:8765"
+        base_assistant = MagicMock()
 
-        mock_client = MagicMock()
-        mock_client.get.side_effect = TimeoutError("timed out")
+        with caplog.at_level(logging.WARNING, logger="rex.voice_loop"):
+            vl = _make_voice_loop(mock_settings, base_assistant)
 
-        with (
-            patch("rex.voice_loop.settings", mock_settings),
-            patch("rex.openclaw.http_client.get_openclaw_client", return_value=mock_client),
-        ):
-            from rex.voice_loop import VoiceLoop
-
-            with pytest.raises(RuntimeError) as exc_info:
-                VoiceLoop(
-                    MagicMock(),
-                    wake_listener=MagicMock(),
-                    detection_source=AsyncMock(),
-                    record_phrase=AsyncMock(return_value=MagicMock()),
-                    transcribe=AsyncMock(return_value=""),
-                    speak=AsyncMock(),
-                )
-
-        assert gateway_url in str(exc_info.value)
+        assert vl._assistant is base_assistant
+        assert any(
+            "ignored by the canonical voice loop" in record.getMessage()
+            and "TurnEngine brain" in record.getMessage()
+            for record in caplog.records
+        )
