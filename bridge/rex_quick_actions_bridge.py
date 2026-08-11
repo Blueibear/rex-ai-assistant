@@ -122,6 +122,8 @@ def main() -> None:
                 from rex.assistant import Assistant
                 from rex.logging_utils import configure_logging
                 from rex.plugins import load_plugins, shutdown_plugins
+                from rex.runtime.invocation import turn_invocation
+                from rex.runtime.turn import TurnSource
                 from rex.services import initialize_services
 
                 configure_logging()
@@ -131,7 +133,8 @@ def main() -> None:
                 # #303): Assistant no longer invents an identity on its own.
                 assistant = Assistant(user_id=user_id)
                 try:
-                    reply = asyncio.run(assistant.generate_reply(command_text))
+                    with turn_invocation(TurnSource.ELECTRON):
+                        reply = asyncio.run(assistant.generate_reply(command_text))
                     sys.stdout.write(json.dumps({"status": "attempted", "detail": str(reply)}))
                 finally:
                     shutdown_plugins(plugin_specs)

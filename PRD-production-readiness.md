@@ -3320,7 +3320,7 @@ grep -n "askrex.app\|Cloudflare\|CORS\|rate limit\|revocation" docs/deployment.m
 - [x] Tool syntax, internal plans, raw provider tool-call payloads, and unverified action claims never leak to the user stream.
 - [x] Parity fixtures compare final semantic/status outcomes across both delivery modes.
 - [x] Error/fallback/escalation behavior is equivalent across both delivery modes.
-- [ ] All relevant GitHub checks pass.
+- [x] All relevant GitHub checks pass.
 
 **Validation commands:** `pytest tests/rex2/test_stream_turn_parity.py tests/test_assistant_streaming.py -q`; `mypy rex/assistant.py rex/runtime --ignore-missing-imports`.
 
@@ -3337,11 +3337,11 @@ grep -n "askrex.app\|Cloudflare\|CORS\|rate limit\|revocation" docs/deployment.m
 **Files/areas likely involved:** CLI chat, `bridge/rex_chat*_bridge.py`, voice loop/builder, mobile API handlers, API/service adapters, Electron main IPC.
 
 **Acceptance Criteria:**
-- [ ] CLI text, Electron text, canonical voice, and authenticated mobile chat/voice enter the same TurnEngine contract with validated identity/source metadata.
-- [ ] A source guard inventories supported interfaces and fails if one directly calls the model or legacy orchestration instead of TurnEngine.
-- [ ] Interface adapters are limited to authentication/identity, input normalization, transport/stream presentation, and response-mode formatting.
-- [ ] Cross-interface fixtures prove equivalent route/tool/verification outcomes for the same authenticated request.
-- [ ] Existing mobile pairing/scopes and Electron immutable session identity remain authoritative.
+- [x] CLI text, Electron text, canonical voice, and authenticated mobile chat/voice enter the same TurnEngine contract with validated identity/source metadata.
+- [x] A source guard inventories supported interfaces and fails if one directly calls the model or legacy orchestration instead of TurnEngine.
+- [x] Interface adapters are limited to authentication/identity, input normalization, transport/stream presentation, and response-mode formatting.
+- [x] Cross-interface fixtures prove equivalent route/tool/verification outcomes for the same authenticated request.
+- [x] Existing mobile pairing/scopes and Electron immutable session identity remain authoritative.
 - [ ] All relevant GitHub checks pass.
 
 **Validation commands:** `pytest tests/rex2/test_turn_interface_parity.py tests/test_mobile_api.py -q`; `cd gui && npm run typecheck && npm run build`.

@@ -1742,3 +1742,23 @@ Local evidence:
 - Final combined runtime/streaming/identity/action/verification/docs/mobile/Electron/voice sweep -> 305 passed. The only 2 warnings are pre-existing deliberate deprecation checks in `tests/test_voice_loop_fixes.py`, not introduced by this story.
 - US-095 PR #377 passed every relevant GitHub check, including Python 3.11 Tests & Coverage (9m04s) and installed Windows Electron artifact (12m31s); its final PRD CI criterion is now closed.
 - US-096 GitHub checks remain pending until this story PR is pushed; its final PRD checkbox intentionally remains open.
+
+2026-08-10 - US-097 TurnEngine interface provenance and parity
+
+Implementation:
+- Added `rex/runtime/invocation.py`, an immutable ContextVar-backed provenance layer that lets trusted interface adapters stamp source/device metadata without widening the public Assistant API. Direct library calls remain `TurnSource.ASSISTANT`.
+- CLI chat, Electron text/stream/quick-actions, canonical voice paths, authenticated mobile chat/voice, and the developer Flask/API surface now enter the same TurnEngine-backed Assistant pipeline with truthful source provenance.
+- Removed the canonical voice-loop `VoiceBridge` brain swap: the legacy `openclaw.use_voice_backend` flag is now ignored with a warning, so OpenClaw remains an external capability/compatibility provider instead of bypassing TurnEngine. Telegram, Twilio telephony, and MQTT Assistant callers also stamp explicit service provenance; MQTT preserves its existing node ID as device metadata.
+- Mobile device provenance is taken only from the already-authenticated `MobilePrincipal.paired_device_id`; existing pairing, scopes, permissions, revalidation, and strong-auth authority remain unchanged. Electron continues to use its immutable validated session user and does not invent a device ID. Streaming provenance is scoped to each async chunk execution so it cannot leak into the caller between yields.
+- Removed the developer Flask/API direct `LanguageModel` bypass and routed authenticated API requests through Assistant under `TurnSource.API`; the authenticated username is the Rex user identity.
+- Added a source guard covering supported interfaces and a cross-interface fixture proving identical route, capability-selection, confirmation/verification status, final text, and terminal semantics for the same authenticated request.
+
+Local evidence:
+- TDD red phase: the initial focused validation collected 12 tests and all 12 failed because `rex.runtime.invocation` and mobile device provenance did not yet exist. Later hardening tests also failed first on the canonical `VoiceBridge` brain bypass, then on mobile provenance and authorization context leaking between synchronous stream yields; all defects were fixed before final validation.
+- Exact PRD validation: `pytest tests/rex2/test_turn_interface_parity.py tests/test_mobile_api.py -q` -> 18 passed after adding route/tool/verification parity, canonical-voice one-brain enforcement, service-adapter inventory, and between-yields mobile provenance isolation.
+- Existing mobile HTTP/SSE/WebSocket/strong-auth/voice-upload compatibility sweep -> 73 passed.
+- Combined TurnEngine/Assistant/identity/CLI/Electron/voice/OpenClaw-compatibility/API/Telegram/Twilio/mobile regression -> 391 passed, 1 expected Linux-only platform skip, 2 pre-existing deliberate deprecation warnings. After the final stream-context isolation hardening, the complete mobile HTTP/SSE/WebSocket/strong-auth/voice-upload matrix was rerun -> 73 passed.
+- Ruff passes on all touched Python/test files; mypy reports no issues across 17 runtime/interface source files; compileall, Black, and `git diff --check` pass.
+- GUI validation under Node 22.23.2: `npm run typecheck` and `npm run build` both pass.
+- US-096 PR #378 passed every relevant GitHub check, including Python 3.11 Tests & Coverage (10m11s) and installed Windows Electron artifact (12m17s); its final PRD CI criterion is now closed.
+- US-097 GitHub checks remain pending until this story PR is pushed; its final PRD checkbox intentionally remains open.

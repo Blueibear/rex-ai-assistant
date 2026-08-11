@@ -14,6 +14,8 @@ from rex.assistant_errors import (
     TextToSpeechError,
 )
 from rex.audio_config import build_audio_device_diagnostic
+from rex.runtime.invocation import turn_invocation
+from rex.runtime.turn import TurnSource
 from rex.voice._types import (
     AudioArray,
     IdentifySpeakerCallable,
@@ -81,32 +83,11 @@ class VoiceLoop:
     ) -> None:
         self._assistant = assistant
         if getattr(_vl().settings, "use_openclaw_voice_backend", False):
-            from rex.openclaw.http_client import get_openclaw_client
-            from rex.openclaw.voice_bridge import VoiceBridge
-
-            # Fail-fast: verify the gateway is reachable before committing to the backend.
-            client = get_openclaw_client(_vl().settings)
-            if client is None:
-                gateway_url = (
-                    getattr(_vl().settings, "openclaw_gateway_url", "<not set>") or "<not set>"
-                )
-                raise RuntimeError(
-                    f"OpenClaw voice backend is enabled (use_openclaw_voice_backend=true) "
-                    f"but no gateway URL is configured (openclaw_gateway_url={gateway_url!r}). "
-                    "Set openclaw_gateway_url in your config or disable the voice backend."
-                )
-            try:
-                client.get("/health")
-            except Exception as exc:
-                gateway_url = getattr(_vl().settings, "openclaw_gateway_url", "<unknown>")
-                raise RuntimeError(
-                    f"OpenClaw voice backend is enabled but the gateway is unreachable "
-                    f"at {gateway_url!r}. Ensure the OpenClaw service is running. "
-                    f"Detail: {exc}"
-                ) from exc
-
-            self._assistant = VoiceBridge()
-            _vl().logger.info("Voice loop using OpenClaw VoiceBridge backend")
+            _vl().logger.warning(
+                "openclaw.use_voice_backend is ignored by the canonical voice loop; "
+                "Rex Assistant remains the TurnEngine brain and OpenClaw is an external capability provider",
+                extra={"event": "openclaw_voice_backend_legacy_flag_ignored"},
+            )
 
         self._wake_listener = wake_listener
         self._detection_source = detection_source
@@ -802,14 +783,15 @@ class VoiceLoop:
                             token = _VOICE_INTERACTION_ID.set(interaction_id)
                             try:
                                 audio_device_kind = "speaker"
-                                await asyncio.wait_for(
-                                    _speak_streaming(
-                                        _sentence_buffer_stream(
-                                            stream_reply(transcript, voice_mode=True)
-                                        )
-                                    ),
-                                    timeout=self._llm_timeout + self._tts_timeout,
-                                )
+                                with turn_invocation(TurnSource.VOICE):
+                                    await asyncio.wait_for(
+                                        _speak_streaming(
+                                            _sentence_buffer_stream(
+                                                stream_reply(transcript, voice_mode=True)
+                                            )
+                                        ),
+                                        timeout=self._llm_timeout + self._tts_timeout,
+                                    )
                             finally:
                                 _VOICE_INTERACTION_ID.reset(token)
                         except TimeoutError:
@@ -840,10 +822,11 @@ class VoiceLoop:
                         )
                     else:
                         try:
-                            llm_response = await asyncio.wait_for(
-                                self._assistant.generate_reply(transcript, voice_mode=True),
-                                timeout=self._llm_timeout,
-                            )
+                            with turn_invocation(TurnSource.VOICE):
+                                llm_response = await asyncio.wait_for(
+                                    self._assistant.generate_reply(transcript, voice_mode=True),
+                                    timeout=self._llm_timeout,
+                                )
                         except TimeoutError:
                             _vl().logger.error(
                                 "LLM stage timed out after %.0fs — resetting pipeline",
@@ -938,13 +921,14 @@ class VoiceLoop:
                                 )
                                 _emit("executing")
                                 try:
-                                    followup_response = await asyncio.wait_for(
-                                        self._assistant.generate_reply(
-                                            continued_transcript,
-                                            voice_mode=True,
-                                        ),
-                                        timeout=self._llm_timeout,
-                                    )
+                                    with turn_invocation(TurnSource.VOICE):
+                                        followup_response = await asyncio.wait_for(
+                                            self._assistant.generate_reply(
+                                                continued_transcript,
+                                                voice_mode=True,
+                                            ),
+                                            timeout=self._llm_timeout,
+                                        )
                                 except TimeoutError:
                                     _vl().logger.error(
                                         "Clarification follow-up LLM stage timed out after %.0fs",

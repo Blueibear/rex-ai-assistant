@@ -77,7 +77,10 @@ def test_current_docs_use_same_cross_doc_claims() -> None:
     assert "Developer-only source voice loop; defaults to Hold-to-Talk" in running
     assert "Experimental, off by default" in running
     assert "Developer/operator source install: `pip install .`" in claude
-    assert "both OpenClaw flags default to `False`" in claude
+    assert "`use_openclaw_tools` defaults to `False`" in claude
+    assert (
+        "legacy `use_openclaw_voice_backend` flag also defaults to `False` but is ignored" in claude
+    )
     assert "connection/auth/429/5xx failures fall back locally with a structured warning" in claude
 
 

@@ -134,6 +134,7 @@ def build_chat_blueprint(services: MobileApiServices, limiter: Any) -> Blueprint
             completion = services.chat_service.generate(
                 chat_request.message,
                 user_id=principal.user_id,
+                device_id=principal.paired_device_id,
                 capability_scopes=principal.scopes,
                 capability_permissions=principal.permissions,
                 authorization_check=authorization_check,
@@ -222,6 +223,7 @@ def build_chat_blueprint(services: MobileApiServices, limiter: Any) -> Blueprint
                         chat_service.stream(
                             message,
                             user_id=user_id,
+                            device_id=principal.paired_device_id,
                             capability_scopes=principal.scopes,
                             capability_permissions=principal.permissions,
                             authorization_check=authorization_check,

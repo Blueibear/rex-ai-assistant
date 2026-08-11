@@ -43,6 +43,8 @@ def main() -> None:
         from rex.identity import validate_user_id  # type: ignore[import]
         from rex.logging_utils import configure_logging  # type: ignore[import]
         from rex.plugins import load_plugins, shutdown_plugins  # type: ignore[import]
+        from rex.runtime.invocation import turn_invocation  # type: ignore[import]
+        from rex.runtime.turn import TurnSource  # type: ignore[import]
         from rex.services import initialize_services  # type: ignore[import]
 
         configure_logging()
@@ -56,7 +58,8 @@ def main() -> None:
             user_id=validate_user_id(user_id),
         )
         try:
-            reply = await assistant.generate_reply(message)
+            with turn_invocation(TurnSource.ELECTRON):
+                reply = await assistant.generate_reply(message)
             return str(reply)
         finally:
             shutdown_plugins(plugin_specs)

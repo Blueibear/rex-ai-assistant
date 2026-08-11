@@ -34,7 +34,10 @@ def test_claude_voice_openclaw_and_docker_truth_matches_current_contract() -> No
     text = _claude()
     assert "The source CLI defaults to Hold-to-Talk/manual activation" in text
     assert "`--mode wake-word` is explicitly selected" in text
-    assert "both OpenClaw flags default to `False`" in text
+    assert "`use_openclaw_tools` defaults to `False`" in text
+    assert (
+        "legacy `use_openclaw_voice_backend` flag also defaults to `False` but is ignored" in text
+    )
     assert "OpenClaw is experimental/off by default" in text
     assert "valid HTTP(S) gateway URL plus `OPENCLAW_GATEWAY_TOKEN`" in text
     assert "`/healthz` may establish reachability only" in text

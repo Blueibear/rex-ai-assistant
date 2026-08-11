@@ -41,9 +41,13 @@ post-processing, response assembly, and history under one immutable user-scoped
 turn. Streaming is a delivery mode only: raw provider tokens, internal tool
 syntax, and pre-verification action claims are never released; verified final
 text is split into ordered sentence chunks before the canonical terminal event.
-Raw model calls remain delegated to providers in `rex/llm_client.py`. The voice
-loop must always call Assistant rather than the LLM client directly so tool
-routing and verification are preserved.
+Raw model calls remain delegated to providers in `rex/llm_client.py`. Trusted interface
+adapters stamp source/device provenance through `rex.runtime.invocation`; CLI, Electron,
+canonical voice, authenticated mobile, developer Flask/API, Telegram, Twilio telephony,
+and MQTT service adapters remain thin transport/auth layers over Assistant. Mobile device
+provenance comes only from the authenticated paired
+principal. The voice loop and other interfaces must call Assistant rather than the LLM
+client directly so routing and verification are preserved.
 
 ### Text-to-speech (TTS)
 

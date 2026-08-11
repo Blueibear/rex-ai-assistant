@@ -37,6 +37,8 @@ from rex.wake_acknowledgment import ensure_wake_acknowledgment_sound
 
 from .assistant_errors import AudioDeviceError, SpeechToTextError, TextToSpeechError
 from .config import settings
+from .runtime.invocation import turn_invocation
+from .runtime.turn import TurnSource
 from .tts_utils import chunk_text_for_xtts
 from .wakeword.listener import build_default_detector
 
@@ -508,7 +510,8 @@ class VoiceLoop:
                     continue
 
                 # Get LLM response
-                response = await self._assistant.generate_reply(transcript)
+                with turn_invocation(TurnSource.VOICE):
+                    response = await self._assistant.generate_reply(transcript)
 
                 # Ensure response ends with period for better TTS
                 if response and not response.endswith("."):

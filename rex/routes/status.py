@@ -147,7 +147,7 @@ def create_blueprint() -> Blueprint:
         if action is None:
             return jsonify({"error": "not found"}), 404
 
-        reply = _generate_reply(action["command"])
+        reply = _generate_reply(action["command"], user_id=str(user["username"]))
         return jsonify({"reply": reply}), 200
 
     # ------------------------------------------------------------------
