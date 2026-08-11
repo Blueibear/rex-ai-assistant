@@ -106,17 +106,22 @@ def _create_flask_app(ui_enabled: bool = True) -> Any:
     return app
 
 
-def _generate_reply(user_text: str) -> str:
-    try:
-        from rex.config import load_config
-        from rex.llm_client import LanguageModel
+def _generate_reply(user_text: str, *, user_id: str) -> str:
+    """Run a developer Flask/API request through the canonical Assistant brain."""
+    import asyncio
 
-        cfg = load_config()
-        llm = LanguageModel(config=cfg)
-        messages = [{"role": "user", "content": user_text}]
-        return llm.generate(messages=messages)
-    except Exception:
-        return f"(Rex is not configured \u2014 echo) {user_text}"
+    from rex.assistant import Assistant
+    from rex.identity import validate_user_id
+    from rex.runtime.invocation import turn_invocation
+    from rex.runtime.turn import TurnSource
+
+    assistant = Assistant(user_id=validate_user_id(user_id))
+
+    async def _run() -> str:
+        with turn_invocation(TurnSource.API):
+            return str(await assistant.generate_reply(user_text))
+
+    return asyncio.run(_run())
 
 
 def _open_browser(host: str, port: int) -> None:

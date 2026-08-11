@@ -152,6 +152,7 @@ class MobileChatService:
         message: str,
         *,
         user_id: str,
+        device_id: str | None = None,
         voice_mode: bool = False,
         capability_scopes: frozenset[str] | None = None,
         capability_permissions: frozenset[str] | None = None,
@@ -166,16 +167,21 @@ class MobileChatService:
             MobileStrongAuthRequiredError,
             mobile_action_context,
         )
+        from rex.runtime.invocation import turn_invocation  # noqa: PLC0415
+        from rex.runtime.turn import TurnSource  # noqa: PLC0415
 
         assistant = self._get_assistant()
         try:
-            with mobile_action_context(
-                capability_scopes or frozenset(),
-                permissions=capability_permissions or frozenset(),
-                revalidate=authorization_check,
-                strong_auth_authority=strong_auth_authority,
-                strong_auth_principal=strong_auth_principal,
-                strong_auth_approval_id=strong_auth_approval_id,
+            with (
+                mobile_action_context(
+                    capability_scopes or frozenset(),
+                    permissions=capability_permissions or frozenset(),
+                    revalidate=authorization_check,
+                    strong_auth_authority=strong_auth_authority,
+                    strong_auth_principal=strong_auth_principal,
+                    strong_auth_approval_id=strong_auth_approval_id,
+                ),
+                turn_invocation(TurnSource.MOBILE, device_id=device_id),
             ):
                 return str(
                     asyncio.run(
@@ -205,6 +211,7 @@ class MobileChatService:
         message: str,
         *,
         user_id: str,
+        device_id: str | None = None,
         capability_scopes: frozenset[str] | None = None,
         capability_permissions: frozenset[str] | None = None,
         authorization_check: Callable[[], None] | None = None,
@@ -224,43 +231,48 @@ class MobileChatService:
             MobileStrongAuthRequiredError,
             mobile_action_context,
         )
+        from rex.runtime.invocation import turn_invocation  # noqa: PLC0415
+        from rex.runtime.turn import TurnSource  # noqa: PLC0415
 
         assistant = self._get_assistant()
         loop = asyncio.new_event_loop()
         agen = None
         try:
-            with mobile_action_context(
-                capability_scopes or frozenset(),
-                permissions=capability_permissions or frozenset(),
-                revalidate=authorization_check,
-                strong_auth_authority=strong_auth_authority,
-                strong_auth_principal=strong_auth_principal,
-                strong_auth_approval_id=strong_auth_approval_id,
-            ):
-                agen = assistant.stream_reply(message, active_user_id=user_id)
-                while True:
-                    try:
+            agen = assistant.stream_reply(message, active_user_id=user_id)
+            while True:
+                try:
+                    with (
+                        mobile_action_context(
+                            capability_scopes or frozenset(),
+                            permissions=capability_permissions or frozenset(),
+                            revalidate=authorization_check,
+                            strong_auth_authority=strong_auth_authority,
+                            strong_auth_principal=strong_auth_principal,
+                            strong_auth_approval_id=strong_auth_approval_id,
+                        ),
+                        turn_invocation(TurnSource.MOBILE, device_id=device_id),
+                    ):
                         chunk = loop.run_until_complete(agen.__anext__())
-                    except StopAsyncIteration:
-                        break
-                    except MobileApiError:
-                        raise
-                    except MobileStrongAuthRequiredError as exc:
-                        raise _strong_auth_required(exc) from exc
-                    except MobileActionDeniedError as exc:
-                        raise MobileApiError(
-                            "FORBIDDEN",
-                            "This paired device is not authorized for the requested action.",
-                            403,
-                        ) from exc
-                    except Exception as exc:
-                        logger.error(
-                            "Mobile chat stream_reply failed: %s",
-                            type(exc).__name__,
-                        )
-                        raise _backend_unavailable(exc) from exc
-                    if chunk:
-                        yield str(chunk)
+                except StopAsyncIteration:
+                    break
+                except MobileApiError:
+                    raise
+                except MobileStrongAuthRequiredError as exc:
+                    raise _strong_auth_required(exc) from exc
+                except MobileActionDeniedError as exc:
+                    raise MobileApiError(
+                        "FORBIDDEN",
+                        "This paired device is not authorized for the requested action.",
+                        403,
+                    ) from exc
+                except Exception as exc:
+                    logger.error(
+                        "Mobile chat stream_reply failed: %s",
+                        type(exc).__name__,
+                    )
+                    raise _backend_unavailable(exc) from exc
+                if chunk:
+                    yield str(chunk)
         finally:
             if agen is not None:
                 try:

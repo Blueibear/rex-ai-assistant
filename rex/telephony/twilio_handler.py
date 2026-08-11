@@ -413,6 +413,8 @@ def _generate_reply(text: str) -> str:
         from rex.assistant import Assistant
         from rex.config import load_config
         from rex.identity import resolve_entrypoint_user_id
+        from rex.runtime.invocation import turn_invocation
+        from rex.runtime.turn import TurnSource
 
         cfg = load_config()
         # Deliberate single-user profile selection (issue #303): Assistant no
@@ -420,7 +422,8 @@ def _generate_reply(text: str) -> str:
         assistant = Assistant(settings_obj=cfg, user_id=resolve_entrypoint_user_id(cfg))
         loop = asyncio.new_event_loop()
         try:
-            reply: str = loop.run_until_complete(assistant.generate_reply(text))
+            with turn_invocation(TurnSource.TELEPHONY):
+                reply: str = loop.run_until_complete(assistant.generate_reply(text))
         finally:
             loop.close()
         return reply

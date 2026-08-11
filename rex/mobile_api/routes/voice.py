@@ -162,6 +162,7 @@ def _handle_voice_upload(services: MobileApiServices) -> Any:
     response_text = services.chat_service.generate(
         transcript,
         user_id=g.mobile_principal.user_id,
+        device_id=g.mobile_principal.paired_device_id,
         voice_mode=True,
         capability_scopes=g.mobile_principal.scopes,
         capability_permissions=g.mobile_principal.permissions,

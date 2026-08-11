@@ -51,6 +51,8 @@ def main() -> None:
         from rex.identity import validate_user_id  # type: ignore[import]
         from rex.logging_utils import configure_logging  # type: ignore[import]
         from rex.plugins import load_plugins, shutdown_plugins  # type: ignore[import]
+        from rex.runtime.invocation import turn_invocation  # type: ignore[import]
+        from rex.runtime.turn import TurnSource  # type: ignore[import]
         from rex.services import initialize_services  # type: ignore[import]
 
         configure_logging()
@@ -64,17 +66,17 @@ def main() -> None:
             user_id=validate_user_id(user_id),
         )
         try:
-            # Prefer stream_reply (async generator) for true token-by-token streaming.
-            # Fall back to generate_reply_stream for forward-compat, then to full reply.
-            stream_fn = getattr(assistant, "stream_reply", None) or getattr(
-                assistant, "generate_reply_stream", None
-            )
-            if stream_fn is not None:
-                async for token in stream_fn(message):
-                    emit({"type": "token", "token": str(token)})
-            else:
-                reply = await assistant.generate_reply(message)
-                emit({"type": "token", "token": str(reply)})
+            # Electron owns transport and provenance only; Assistant owns the brain.
+            with turn_invocation(TurnSource.ELECTRON):
+                stream_fn = getattr(assistant, "stream_reply", None) or getattr(
+                    assistant, "generate_reply_stream", None
+                )
+                if stream_fn is not None:
+                    async for token in stream_fn(message):
+                        emit({"type": "token", "token": str(token)})
+                else:
+                    reply = await assistant.generate_reply(message)
+                    emit({"type": "token", "token": str(reply)})
         finally:
             shutdown_plugins(plugin_specs)
 

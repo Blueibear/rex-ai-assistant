@@ -18,6 +18,8 @@ from rex.assistant import Assistant
 from rex.assistant_errors import SpeechToTextError, TextToSpeechError
 from rex.config import settings
 from rex.mqtt_client import RexMQTTClient
+from rex.runtime.invocation import turn_invocation
+from rex.runtime.turn import TurnSource
 from rex.voice_loop import (
     SpeechToText,
     TextToSpeech,
@@ -210,7 +212,8 @@ class MqttAudioRouter:
             return
 
         try:
-            reply = await self._assistant.generate_reply(transcript)
+            with turn_invocation(TurnSource.MQTT, device_id=node_id):
+                reply = await self._assistant.generate_reply(transcript)
             logger.info("[MQTT] Node %s reply: %s", node_id, reply)
         except Exception as exc:
             logger.exception("[MQTT] LLM generation failed for node %s: %s", node_id, exc)

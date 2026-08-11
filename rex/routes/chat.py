@@ -70,7 +70,7 @@ def create_blueprint(history_store: Any) -> Blueprint:
         def _stream() -> Any:
             from datetime import UTC, datetime
 
-            reply = _generate_reply(user_text)
+            reply = _generate_reply(user_text, user_id=str(user["username"]))
             history_store.save_turn(user["id"], "assistant", reply, datetime.now(UTC))
             payload = json.dumps({"content": reply, "done": True})
             yield f"data: {payload}\n\n"

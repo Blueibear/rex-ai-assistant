@@ -61,17 +61,3 @@ def _log_nonfatal_exception(message: str) -> None:
 
     logger = current_app.logger if has_app_context() else logging.getLogger(__name__)
     logger.debug(message, exc_info=True)
-
-
-def _generate_reply(user_text: str) -> str:
-    """Generate an LLM reply, falling back to an echo stub on any failure."""
-    try:
-        from rex.config import load_config
-        from rex.llm_client import LanguageModel
-
-        cfg = load_config()
-        llm = LanguageModel(config=cfg)
-        messages = [{"role": "user", "content": user_text}]
-        return llm.generate(messages=messages)
-    except Exception:
-        return f"(Rex is not configured — echo) {user_text}"

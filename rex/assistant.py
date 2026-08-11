@@ -27,12 +27,12 @@ from .memory import trim_history
 from .model_router import ModelRouter
 from .plugins import PluginSpec
 from .runtime.events import EventKind, EventObserver, TurnEventStream
+from .runtime.invocation import current_turn_invocation
 from .runtime.turn import (
     AuthorizationSnapshotRef,
     ResponseMode,
     TurnContext,
     TurnScope,
-    TurnSource,
 )
 from .runtime.turn_engine import TurnEngine
 from .runtime_paths import household_data_path
@@ -788,11 +788,12 @@ class Assistant:
 
     def _build_turn_context(self, effective_user_id: str, *, voice_mode: bool) -> TurnContext:
         """Create a turn context without widening existing runtime authority."""
+        invocation = current_turn_invocation()
         return TurnContext.create(
             user_id=effective_user_id,
             scope=TurnScope.USER,
-            source=TurnSource.ASSISTANT,
-            device_id=None,
+            source=invocation.source,
+            device_id=invocation.device_id,
             response_mode=ResponseMode.VOICE if voice_mode else ResponseMode.SCREEN,
             authorization=AuthorizationSnapshotRef(
                 policy_ref="rex-policy:existing-runtime",

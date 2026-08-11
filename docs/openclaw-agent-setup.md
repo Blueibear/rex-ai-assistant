@@ -111,11 +111,10 @@ to the OpenClaw gateway.
 
 | Flag | Config path | Effect |
 |------|-------------|--------|
-| `use_openclaw_voice_backend` | `openclaw.use_voice_backend` | When True, voice loops swap `Assistant` for `VoiceBridge`, routing LLM calls through the OpenClaw gateway |
+| `use_openclaw_voice_backend` | `openclaw.use_voice_backend` | Legacy compatibility flag. Canonical voice ignores it with a warning and keeps the TurnEngine-backed `Assistant`; explicit `VoiceBridge` callers may still use the compatibility adapter. |
 | `use_openclaw_tools` | `openclaw.use_tools` | When True, `ToolBridge.execute_tool()` dispatches tool calls to OpenClaw's `/tools/invoke` endpoint instead of running them locally |
 
-Both flags default to `false`.  When false, Rex operates in standalone
-mode with zero HTTP calls to OpenClaw.
+`use_openclaw_tools` defaults to `false`; when disabled, normal Rex tool execution makes no OpenClaw tool calls. The legacy voice-backend flag also defaults to `false` and is ignored by the canonical voice loop.
 
 ---
 
@@ -125,7 +124,7 @@ mode with zero HTTP calls to OpenClaw.
 2. Copy `.env.example` to `.env` and set `OPENCLAW_GATEWAY_TOKEN`.
 3. Update `config/rex_config.json` with the values in section 3.1.
 4. Start Rex: `python -m rex` (text mode) or `python rex_loop.py` (voice mode).
-5. Verify: watch OpenClaw logs for incoming `/v1/chat/completions` requests.
+5. Verify gateway reachability/auth separately, then enable `openclaw.use_tools` and exercise an approved tool. `/v1/chat/completions` traffic occurs only for explicitly configured provider or `VoiceBridge` compatibility paths, not because canonical voice is enabled.
 
 ---
 
@@ -135,10 +134,7 @@ Rex uses its existing `OpenAIStrategy` in `rex/llm_client.py` to talk to
 OpenClaw.  Because OpenClaw's `/v1/chat/completions` endpoint is
 OpenAI-compatible, no special client code is needed for basic LLM routing.
 
-When `use_openclaw_voice_backend` is True and an OpenClaw gateway URL is
-configured, `RexAgent.respond()` sends prompts directly to the gateway
-via `OpenClawClient.post("/v1/chat/completions", ...)`.  On HTTP error,
-it falls back to the local LLM automatically.
+The canonical Rex voice loop does not call `RexAgent.respond()` directly; it always uses `Assistant`/TurnEngine. Explicit compatibility code that constructs `VoiceBridge` may still call `RexAgent.respond()`, and that adapter can send prompts to `/v1/chat/completions` when configured. This compatibility path is not the canonical Rex brain.
 
 ### Session persistence via the `user` field
 

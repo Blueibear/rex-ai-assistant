@@ -48,6 +48,8 @@ def cmd_chat(args: argparse.Namespace) -> int:
     from rex.assistant import Assistant
     from rex.logging_utils import configure_logging
     from rex.plugins import load_plugins, shutdown_plugins
+    from rex.runtime.invocation import turn_invocation
+    from rex.runtime.turn import TurnSource
     from rex.services import initialize_services
 
     async def _chat_loop(assistant: Assistant) -> None:
@@ -66,7 +68,8 @@ def cmd_chat(args: argparse.Namespace) -> int:
                 continue
 
             try:
-                reply = await assistant.generate_reply(user_input)
+                with turn_invocation(TurnSource.CLI):
+                    reply = await assistant.generate_reply(user_input)
             except Exception as exc:
                 print(f"[error] {exc}")
                 continue

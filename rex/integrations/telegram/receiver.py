@@ -27,6 +27,8 @@ from typing import Any, cast
 
 from rex.assistant_errors import IntegrationNotConfiguredError
 from rex.integrations.telegram.client import TelegramClient
+from rex.runtime.invocation import turn_invocation
+from rex.runtime.turn import TurnSource
 
 logger = logging.getLogger(__name__)
 
@@ -144,7 +146,8 @@ class TelegramReceiver:
         logger.info("TelegramReceiver: received message: %r", text)
 
         try:
-            reply = asyncio.run(self._assistant.generate_reply(text))
+            with turn_invocation(TurnSource.TELEGRAM):
+                reply = asyncio.run(self._assistant.generate_reply(text))
         except Exception as exc:  # noqa: BLE001
             logger.error("TelegramReceiver: assistant error: %s", exc)
             reply = "Sorry, I encountered an error processing your request."

@@ -349,7 +349,11 @@ def _run_stub_loop() -> None:
         # ── LLM reply ────────────────────────────────────────────────────────
         if has_backend and assistant is not None:
             try:
-                reply_text = str(asyncio.run(assistant.generate_reply(stub_user_text)))
+                from rex.runtime.invocation import turn_invocation
+                from rex.runtime.turn import TurnSource
+
+                with turn_invocation(TurnSource.VOICE):
+                    reply_text = str(asyncio.run(assistant.generate_reply(stub_user_text)))
             except Exception as exc:
                 reply_text = f"(Backend error: {exc})"
         else:

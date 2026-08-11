@@ -27,6 +27,9 @@ class TurnSource(StrEnum):
     VOICE = "voice"
     MOBILE = "mobile"
     API = "api"
+    TELEGRAM = "telegram"
+    TELEPHONY = "telephony"
+    MQTT = "mqtt"
 
 
 class ResponseMode(StrEnum):

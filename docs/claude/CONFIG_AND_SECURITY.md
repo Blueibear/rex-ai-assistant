@@ -487,6 +487,8 @@ Deprecated flat-field aliases that currently emit `DeprecationWarning`:
 | `openclaw_gateway_max_retries` | `openclaw.gateway_max_retries` | json-only | runtime | `3` |
 | `openclaw_gateway_token` | `OPENCLAW_GATEWAY_TOKEN` | vault | secret | `None` |
 
+`openclaw.use_voice_backend` is retained only for legacy compatibility. The canonical voice loop ignores it with a warning and keeps the TurnEngine-backed `Assistant`; OpenClaw does not replace Rex as the primary assistant brain.
+
 #### Telegram / Push Notifications
 
 | AppConfig field | JSON key / Env var | Source | Type | Default |
