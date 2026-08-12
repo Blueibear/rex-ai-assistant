@@ -106,6 +106,21 @@ def test_lexical_ranking_is_deterministic_and_exposes_safe_reasons() -> None:
     assert all("weather forecast" not in reason for reason in first[0].reasons)
 
 
+def test_lexical_ranking_ignores_non_informative_stopword_overlap() -> None:
+    from rex.capabilities.retrieval import CapabilityRetriever
+
+    registry = _registry(
+        _card("calendar_create", "Create a new calendar event", triggers=["calendar", "event"]),
+        _card("time_now", "Get the current local time for a location", triggers=["time", "clock"]),
+    )
+
+    matches = CapabilityRetriever(registry, semantic_scorer=None).retrieve(
+        "Explain a benchmark fixture"
+    )
+
+    assert matches == []
+
+
 def test_local_semantic_signal_handles_paraphrase_without_paid_service() -> None:
     from rex.capabilities.retrieval import CapabilityRetriever, LocalConceptSemanticScorer
 
@@ -287,7 +302,7 @@ def test_tool_dispatcher_does_not_reenable_explicitly_disabled_configured_tool()
 def test_semantic_fallback_log_does_not_leak_query_or_exception_payload(caplog) -> None:
     from rex.capabilities.retrieval import CapabilityRetriever
 
-    secret_query = "search private payroll for secret-project-orchid"
+    secret_query = "search private payroll for secret-project-orchid"  # pragma: allowlist secret
 
     class _LeakyScorer:
         def score(self, query: str, capability: Capability) -> float:

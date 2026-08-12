@@ -13,6 +13,35 @@ from .registry import Capability, CapabilityRegistry
 logger = logging.getLogger(__name__)
 
 _TOKEN_RE = re.compile(r"[a-z0-9]+")
+_STOPWORDS = frozenset(
+    {
+        "a",
+        "an",
+        "and",
+        "are",
+        "be",
+        "can",
+        "could",
+        "for",
+        "i",
+        "in",
+        "is",
+        "it",
+        "me",
+        "my",
+        "of",
+        "on",
+        "or",
+        "please",
+        "that",
+        "the",
+        "this",
+        "to",
+        "with",
+        "would",
+        "you",
+    }
+)
 _BLOCKED_HEALTH = frozenset({"unhealthy", "unavailable"})
 _BLOCKED_INTEGRATION_STATES = frozenset({"unavailable", "unconfigured"})
 _DEFAULT_ALLOWED_RISKS = frozenset({"safe", "sensitive"})
@@ -222,7 +251,11 @@ def _card_text(card: Capability) -> str:
 
 
 def _tokens(text: str) -> frozenset[str]:
-    return frozenset(_TOKEN_RE.findall(text.casefold().replace("_", " ")))
+    return frozenset(
+        token
+        for token in _TOKEN_RE.findall(text.casefold().replace("_", " "))
+        if token not in _STOPWORDS
+    )
 
 
 def _lexical_score(query: str, card: Capability) -> float:
