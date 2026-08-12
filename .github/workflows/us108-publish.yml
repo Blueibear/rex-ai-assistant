@@ -1,0 +1,54 @@
+name: US108 verified publisher
+on:
+  pull_request:
+    branches: [master]
+permissions:
+  contents: write
+jobs:
+  publish:
+    if: github.head_ref == 'transport/us108-publish'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Reconstruct, verify, and publish exact US-108 tree
+        shell: bash
+        env:
+          BASE_SHA: d725ef7b2b55abe3d3c57b0c3f14a20eac671c8e
+          TARGET_TREE: 528ef6824397519d68c13dbe495035a0ac1ddf5e
+          GZ_SHA256: 733bfd3416d23eca293f9c893f94ac36053a003714d35c9d2f6cce9028133afa
+          RAW_SHA256: ef4228e090134a527a92540c245bce5d9f0b712336e40fbf224fe7a0498e8ec2
+          TARGET_BRANCH: lead/us108-action-graph
+        run: |
+          set -euo pipefail
+          parts=(
+            '.transport/us108/part00.txt:a56f7b9f8c579b451577453f0687b9909a959ab33fb8b2b578e6ae98a3625c54:3200'
+            '.transport/us108/part01.txt:a44d7e1822157ae0927b87c76501c759a65e52c5950e5f62d04e54d2fdbef738:3200'
+            '.transport/us108/part02.txt:5cdef664ce439eb2f7d1f015a8695234db727c984d31f684a44467a9752d34bb:3200'
+            '.transport/us108/part03.txt:bc8c0a6b582defd94dae928fa01fa5d19bfa00e9500aa11f14fc305cad400c82:3200'
+            '.transport/us108/part04.txt:4da142e1b197033fc37cad81760a12ef189041a0289058282749cb6b747d114d:3200'
+            '.transport/us108/part05.txt:1daafa54356a0a54ccaf6bff9fcb52d2b6d6a7ecd08c27d2b0ce7ea1b4cf002a:196'
+          )
+          : > /tmp/us108.payload.b64
+          for spec in "${parts[@]}"; do
+            IFS=: read -r path expected size <<< "$spec"
+            test "$(wc -c < "$path")" -eq "$size"
+            actual="$(sha256sum "$path" | awk '{print $1}')"
+            echo "$path $actual"
+            test "$actual" = "$expected"
+            cat "$path" >> /tmp/us108.payload.b64
+          done
+          base64 -d /tmp/us108.payload.b64 > /tmp/us108.patch.gz
+          test "$(sha256sum /tmp/us108.patch.gz | awk '{print $1}')" = "$GZ_SHA256"
+          gzip -dc /tmp/us108.patch.gz > /tmp/us108.patch
+          test "$(sha256sum /tmp/us108.patch | awk '{print $1}')" = "$RAW_SHA256"
+          git checkout --detach "$BASE_SHA"
+          git apply --index --binary /tmp/us108.patch
+          actual_tree="$(git write-tree)"
+          echo "tree: $actual_tree"
+          test "$actual_tree" = "$TARGET_TREE"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'feat(actions): add safe parallel action graph'
+          git push origin HEAD:"refs/heads/$TARGET_BRANCH"
