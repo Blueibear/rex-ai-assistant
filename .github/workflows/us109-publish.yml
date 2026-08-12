@@ -22,7 +22,11 @@ jobs:
           TARGET_BRANCH: lead/us109-action-lifecycle
         run: |
           set -euo pipefail
-          tr -d '\r\n' < .transport/us109-publish/payload.b64.txt | base64 -d > /tmp/us109.patch.gz
+          tr -d '\r\n' < .transport/us109-publish/payload.b64.txt > /tmp/payload.txt
+          echo "payload bytes: $(wc -c < /tmp/payload.txt)"
+          split -b 3800 -d -a 2 /tmp/payload.txt /tmp/payload.part.
+          sha256sum /tmp/payload.part.*
+          base64 -d /tmp/payload.txt > /tmp/us109.patch.gz
           actual_gz="$(sha256sum /tmp/us109.patch.gz | awk '{print $1}')"
           echo "compressed hash: $actual_gz"
           test "$actual_gz" = "$GZ_SHA256"
