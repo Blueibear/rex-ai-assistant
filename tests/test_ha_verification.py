@@ -82,6 +82,9 @@ def test_switchable_domains_return_verified_state_evidence(
     )
 
     assert result["status"] == "verified"
+    assert result["success"] is True
+    assert result["lifecycle"]["state"] == "verified"
+    assert result["lifecycle"]["correlation"]["action_id"] == f"us048-{domain}-{service}"
     assert result["expected"] == {"state": expected_state, "attributes": {}}
     assert result["actual"] == {"state": observed_state, "attributes": {}}
     assert isinstance(result["latency_ms"], float)
@@ -104,6 +107,9 @@ def test_state_did_not_change_returns_attempted_with_evidence(tmp_path: Path) ->
     ).to_dict()
 
     assert result["status"] == "attempted_unverified"
+    assert result["success"] is False
+    assert result["lifecycle"]["state"] == "unverified"
+    assert result["lifecycle"]["correlation"]["action_id"] == "us048-stale-switch"
     assert result["expected"] == {"state": "on", "attributes": {}}
     assert result["actual"] == {"state": "off", "attributes": {}}
     assert result["latency_ms"] >= 0

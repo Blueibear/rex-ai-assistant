@@ -3562,7 +3562,7 @@ grep -n "askrex.app\|Cloudflare\|CORS\|rate limit\|revocation" docs/deployment.m
 - [x] Missing/broken embeddings fall back deterministically to lexical retrieval without disabling tool use.
 - [x] Selection exposes inspectable score/reason metadata without leaking private payloads.
 - [x] Golden tests cover paraphrases, ambiguity, denied/unhealthy tools, and no-embedding fallback.
-- [ ] All relevant GitHub checks pass.
+- [x] All relevant GitHub checks pass.
 
 **Validation commands:** `pytest tests/rex2/test_capability_retrieval.py -q`; `python scripts/rexbench.py --profile capability-retrieval`.
 
@@ -3601,14 +3601,14 @@ grep -n "askrex.app\|Cloudflare\|CORS\|rate limit\|revocation" docs/deployment.m
 **Files/areas likely involved:** action result/evidence models, verification service, Turn events, tool/OpenClaw/HA adapters, audit logging.
 
 **Acceptance Criteria:**
-- [ ] Canonical states are exactly `planned`, `authorized`, `attempted`, `completed`, `verified`, `unverified`, `failed`, and `cancelled`, with documented allowed transitions.
-- [ ] Invalid/out-of-order transitions fail closed and cannot create verified success.
-- [ ] Immutable correlation IDs link plan/action/tool attempt/verification evidence/audit record/user-facing result.
-- [ ] Existing HA/OpenClaw results adapt into the lifecycle without losing evidence detail.
-- [ ] User-facing success wording derives from lifecycle/evidence, never mere absence of an exception.
+- [x] Canonical states are exactly `planned`, `authorized`, `attempted`, `completed`, `verified`, `unverified`, `failed`, and `cancelled`, with documented allowed transitions.
+- [x] Invalid/out-of-order transitions fail closed and cannot create verified success.
+- [x] Immutable correlation IDs link plan/action/tool attempt/verification evidence/audit record/user-facing result.
+- [x] Existing HA/OpenClaw results adapt into the lifecycle without losing evidence detail.
+- [x] User-facing success wording derives from lifecycle/evidence, never mere absence of an exception.
 - [ ] All relevant GitHub checks pass.
 
-**Validation commands:** `pytest tests/rex2/test_action_lifecycle.py tests/test_home_assistant_verification.py -q`.
+**Validation commands:** `pytest tests/rex2/test_action_lifecycle.py tests/test_ha_verification.py -q`.
 
 **Risk notes:** Preserve `unverified` as a real state; do not collapse it into success or failure for UI convenience.
 

@@ -1840,3 +1840,26 @@ Local evidence:
 - `python scripts/rexbench.py --profile capability-retrieval --iterations 8`: hybrid p50/p95 0.038/0.071 ms; forced lexical fallback p50/p95 0.075/0.111 ms on deterministic local fixtures.
 - Ruff, Black, mypy for the retrieval/dispatcher modules, `git diff --check`, and full pre-commit all pass.
 - US-107 GitHub checks remain pending until this story PR is published; its final PRD checkbox intentionally remains open.
+
+2026-08-11 - US-107 final GitHub evidence and US-109 canonical action lifecycle
+
+Remote US-107 evidence:
+- Corrected PR #385 head `9fee2528fe2339ab8659f317ea6e7a838d23727a` preserved the locally verified tree and passed all 18 repository checks, including Python 3.11 Tests & Coverage, pre-commit/detect-secrets, GitGuardian, CodeFactor, security/dependency gates, GUI gates, mypy, wheel smoke, and the installed Windows Electron artifact.
+- PR #385 merged by squash as `f990530b0ea730f780f48a4e469c897ff1822a64`; US-107's final GitHub criterion is therefore closed.
+
+US-109 implementation:
+- Added `rex.actions.lifecycle` with exactly eight canonical states (`planned`, `authorized`, `attempted`, `completed`, `verified`, `unverified`, `failed`, `cancelled`), documented fail-closed transitions, immutable correlation IDs, and evidence-derived user wording.
+- Generic tool results now carry canonical lifecycle snapshots into audit evidence. Plan/task IDs are linked into `LogEntry`, and mutation handlers cannot self-promote `completed`/`verified` claims around Rex's independent verifier.
+- Home Assistant verified and attempted-unverified results adapt to the same lifecycle while retaining expected/actual postcondition evidence; idempotent replay regenerates the same action correlation.
+- OpenClaw builtin and delegated results carry lifecycle/plan correlation into audit records. Workflow execution consumes that lifecycle and refuses to promote `unverified` or other non-success canonical states merely because no exception was raised.
+- Updated `CLAUDE.md` and `docs/ARCHITECTURE.md` with the canonical action-truth invariant and corrected the PRD's stale HA validation filename.
+
+Local US-109 evidence:
+- TDD red phases proved: positive mutation self-claims bypassed a negative independent verifier; workflow steps promoted `unverified` tool results to success; and generic audit records dropped the lifecycle's plan ID. Each failed first and passed after the minimal fix.
+- Canonical lifecycle suite after these slices: 12 passed.
+- Home Assistant verification/mutation suites: 18 passed.
+- Tool/cancellation/HA/response-verification/OpenClaw-workflow/workflow compatibility matrix: 131 passed.
+- Exact PRD validation (`pytest tests/rex2/test_action_lifecycle.py tests/test_ha_verification.py -q`) -> 18 passed.
+- Expanded Assistant/tool/dispatcher/cancellation/HA/response-verification/OpenClaw/workflow consumer matrix -> 228 passed, with six pre-existing OpenClaw config deprecation warnings only.
+- Ruff and Black pass on touched runtime/test files; mypy reports no issues across the eight relevant source files; compileall, full pre-commit/detect-secrets, and `git diff --check` pass.
+- US-109 final GitHub-check criterion remains open until its own immutable PR head passes the complete repository matrix.

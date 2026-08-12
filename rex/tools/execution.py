@@ -15,6 +15,7 @@ from dataclasses import dataclass
 from enum import StrEnum
 from typing import Any, Literal, Protocol
 
+from rex.actions.lifecycle import lifecycle_from_legacy_status, render_action_outcome
 from rex.audit import LogEntry, get_audit_logger
 from rex.identity import validate_user_id
 from rex.runtime.cancellation import TurnCancelledError, current_turn_cancellation
@@ -111,24 +112,6 @@ _dedupe_results: dict[tuple[str, str, str], tuple[str, ToolResult]] = {}
 def _fingerprint(args: dict[str, Any]) -> str:
     encoded = json.dumps(args, sort_keys=True, separators=(",", ":"), default=str).encode()
     return hashlib.sha256(encoded).hexdigest()
-
-
-def _truthful_detail(name: str, status: ToolOutcome, detail: str | None = None) -> str:
-    if detail:
-        return detail
-    if status == ToolOutcome.VERIFIED:
-        return f"Verified {name}."
-    if status == ToolOutcome.COMPLETED:
-        return f"Completed read-only tool {name}."
-    if status == ToolOutcome.ATTEMPTED_UNVERIFIED:
-        return f"I attempted {name}, but could not independently verify the result."
-    if status == ToolOutcome.CONFIRMATION_REQUIRED:
-        return f"{name} requires explicit confirmation."
-    if status == ToolOutcome.DENIED:
-        return f"{name} was denied."
-    if status == ToolOutcome.UNAVAILABLE:
-        return f"{name} is unavailable."
-    return f"{name} failed."
 
 
 class ToolExecutionLifecycle:
@@ -386,7 +369,12 @@ class ToolExecutionLifecycle:
         stages.append("normalized_result")
         normalized = self._normalize_handler_result(output)
         stages.append("independent_verification")
-        if normalized is not None:
+        positive_mutation_claim = (
+            operation == ToolOperation.MUTATION
+            and normalized is not None
+            and normalized[0] in {ToolOutcome.COMPLETED, ToolOutcome.VERIFIED}
+        )
+        if normalized is not None and not positive_mutation_claim:
             outcome, detail = normalized
         elif operation == ToolOperation.READ:
             outcome, detail = ToolOutcome.COMPLETED, None
@@ -448,9 +436,19 @@ class ToolExecutionLifecycle:
         error: str | None = None,
     ) -> ToolResult:
         stages.append("audit_recording")
-        rendered = _truthful_detail(request.name, outcome, detail or error)
+        plan_id = request.context.get("plan_id") or request.context.get("task_id")
+        lifecycle = lifecycle_from_legacy_status(
+            outcome.value,
+            action_id=request.request_id,
+            plan_id=str(plan_id) if plan_id else None,
+        )
+        rendered = render_action_outcome(
+            lifecycle,
+            request.name,
+            detail=detail or error,
+        )
         result = ToolResult(
-            success=outcome in {ToolOutcome.COMPLETED, ToolOutcome.VERIFIED},
+            success=lifecycle.success,
             output=output,
             error=error,
             status=outcome.value,
@@ -458,11 +456,13 @@ class ToolExecutionLifecycle:
             request_id=request.request_id,
             risk=risk.value,
             stages=tuple(stages),
+            lifecycle=lifecycle,
         )
         try:
             get_audit_logger().log(
                 LogEntry(
                     action_id=request.request_id,
+                    task_id=str(plan_id) if plan_id else None,
                     tool=request.name,
                     tool_call_args={
                         "argument_names": sorted(request.args),
@@ -477,6 +477,7 @@ class ToolExecutionLifecycle:
                         "status": result.status,
                         "success": result.success,
                         "risk": result.risk,
+                        "lifecycle": lifecycle.to_dict(),
                     },
                     error=error,
                     requested_by=str(

@@ -54,6 +54,23 @@ provenance comes only from the authenticated paired
 principal. The voice loop and other interfaces must call Assistant rather than the LLM
 client directly so routing and verification are preserved.
 
+### Action lifecycle and verification
+
+`rex/actions/lifecycle.py` is the canonical action-truth contract used by generic
+tools, Home Assistant, OpenClaw, and workflow execution. The ordered vocabulary is
+`planned`, `authorized`, `attempted`, `completed`, `verified`, `unverified`, `failed`,
+and `cancelled`; invalid or terminal transitions fail closed. Immutable correlation
+metadata links the plan/action, execution attempt, verification evidence, audit record,
+and user-facing result.
+
+Read-only work may terminate truthfully at `completed`. Mutations do not become
+user-facing success merely because a handler returned normally or claimed a positive
+status: Rex must independently verify them before the lifecycle reaches `verified`;
+otherwise they remain `unverified`. Workflow steps consume the same lifecycle evidence
+and do not advance on `unverified`, `failed`, `cancelled`, or other non-success states.
+Home Assistant preserves expected/actual postcondition evidence, and OpenClaw results
+carry the same lifecycle into their audit/workflow paths.
+
 ### Text-to-speech (TTS)
 
 TTS is served by a small Flask service in `rex_speak_api.py`, exposed as the
