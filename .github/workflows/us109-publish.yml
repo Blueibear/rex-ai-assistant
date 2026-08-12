@@ -23,12 +23,18 @@ jobs:
         run: |
           set -euo pipefail
           tr -d '\r\n' < .transport/us109-publish/payload.b64.txt | base64 -d > /tmp/us109.patch.gz
-          test "$(sha256sum /tmp/us109.patch.gz | awk '{print $1}')" = "$GZ_SHA256"
+          actual_gz="$(sha256sum /tmp/us109.patch.gz | awk '{print $1}')"
+          echo "compressed hash: $actual_gz"
+          test "$actual_gz" = "$GZ_SHA256"
           gzip -dc /tmp/us109.patch.gz > /tmp/us109.patch
-          test "$(sha256sum /tmp/us109.patch | awk '{print $1}')" = "$RAW_SHA256"
+          actual_raw="$(sha256sum /tmp/us109.patch | awk '{print $1}')"
+          echo "raw hash: $actual_raw"
+          test "$actual_raw" = "$RAW_SHA256"
           git checkout --detach "$BASE_SHA"
           git apply --index --binary /tmp/us109.patch
-          test "$(git write-tree)" = "$TARGET_TREE"
+          actual_tree="$(git write-tree)"
+          echo "tree: $actual_tree"
+          test "$actual_tree" = "$TARGET_TREE"
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git commit -m 'feat(actions): canonicalize verified lifecycle'
