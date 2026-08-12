@@ -1,0 +1,36 @@
+name: US107 verified fix publisher
+on:
+  pull_request:
+    branches: [master]
+permissions:
+  contents: write
+jobs:
+  publish:
+    if: github.head_ref == 'transport/us107-fix-publish'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Reconstruct, verify, and publish exact US-107 fix tree
+        shell: bash
+        env:
+          BASE_SHA: d49e674753a95feffa9fbf4f896a9dcf0034d683
+          TARGET_TREE: 9e6558a6c6a2a11d5a0708a92de93cdb2059abd2
+          GZ_SHA256: e4e9ddd2e554bfdb7a3a1c6db14834eaa6d60fd4923433e6392530642b09e2c3
+          RAW_SHA256: ba4257e88c166beffd38544c31097b3f74f105055a73d5868cd606930f1813c2
+          TARGET_BRANCH: lead/us107-capability-retrieval
+        run: |
+          set -euo pipefail
+          tr -d '\r\n' < .transport/us107-fix-publish/payload.b64.txt | base64 -d > /tmp/us107-fix.patch.gz
+          test "$(sha256sum /tmp/us107-fix.patch.gz | awk '{print $1}')" = "$GZ_SHA256"
+          gzip -dc /tmp/us107-fix.patch.gz > /tmp/us107-fix.patch
+          test "$(sha256sum /tmp/us107-fix.patch | awk '{print $1}')" = "$RAW_SHA256"
+          git checkout --detach "$BASE_SHA"
+          git apply --index --binary /tmp/us107-fix.patch
+          test "$(git write-tree)" = "$TARGET_TREE"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'fix(capabilities): harden hybrid retrieval CI'
+          git branch -f "$TARGET_BRANCH" HEAD
+          git push origin "$TARGET_BRANCH"
