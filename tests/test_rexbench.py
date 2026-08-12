@@ -133,3 +133,35 @@ def test_capability_retrieval_cli_emits_privacy_safe_profile(tmp_path) -> None:
     encoded = output.read_text(encoding="utf-8").lower()
     for forbidden in ("prompt", "transcript", "memory_content", "credential", "user_id"):
         assert forbidden not in encoded
+
+
+def test_parallel_actions_cli_emits_bounded_execution_profile(tmp_path) -> None:
+    output = tmp_path / "parallel-actions.json"
+    completed = subprocess.run(
+        [
+            sys.executable,
+            "scripts/rexbench.py",
+            "--profile",
+            "parallel-actions",
+            "--iterations",
+            "2",
+            "--output",
+            str(output),
+        ],
+        check=False,
+        capture_output=True,
+        text=True,
+        timeout=45,
+    )
+    assert completed.returncode == 0, completed.stderr or completed.stdout
+    report = json.loads(output.read_text(encoding="utf-8"))
+    assert report["profile"] == "parallel-actions"
+    assert set(report["results"]) == {"parallel_reads", "serialized_mutations"}
+    for request_class in report["results"].values():
+        assert set(request_class) == {"warm"}
+        bucket = request_class["warm"]
+        assert bucket["evidence_class"] == "deterministic_local"
+        assert set(bucket["stages_ms"]) == {"execution", "total"}
+    encoded = output.read_text(encoding="utf-8").lower()
+    for forbidden in ("prompt", "transcript", "memory_content", "credential", "user_id"):
+        assert forbidden not in encoded

@@ -8,6 +8,7 @@ import asyncio
 import json
 import logging
 import sys
+import threading
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -19,10 +20,15 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 import rex.assistant as assistant_module  # noqa: E402
+from rex.actions.graph import ActionGraph, ActionNode  # noqa: E402
+from rex.actions.graph_executor import ActionGraphExecutor  # noqa: E402
+from rex.actions.lifecycle import lifecycle_from_legacy_status  # noqa: E402
 from rex.capabilities.registry import Capability, CapabilityRegistry  # noqa: E402
 from rex.capabilities.retrieval import CapabilityRetriever  # noqa: E402
 from rex.model_router import ModelRouter  # noqa: E402
 from rex.rexbench import BenchmarkSample, build_report  # noqa: E402
+from rex.tools.execution import ToolOperation  # noqa: E402
+from rex.tools.protocol import ToolResult  # noqa: E402
 from rex.voice_loop import VoiceLoop  # noqa: E402
 
 REQUEST_CLASSES = (
@@ -443,20 +449,108 @@ def run_capability_retrieval(iterations: int) -> dict:
     return build_report(samples, profile="capability-retrieval")
 
 
+class _ParallelBenchDispatcher:
+    def __init__(self, statuses: dict[str, str]) -> None:
+        self._statuses = statuses
+        self._lock = threading.Lock()
+        self._active = 0
+        self.max_active = 0
+
+    def dispatch(self, name: str, args: dict, context: dict | None = None) -> ToolResult:
+        del name, args
+        action_id = str((context or {})["request_id"])
+        plan_id = str((context or {})["plan_id"])
+        with self._lock:
+            self._active += 1
+            self.max_active = max(self.max_active, self._active)
+        try:
+            time.sleep(0.005)
+            status = self._statuses.get(action_id, "completed")
+            lifecycle = lifecycle_from_legacy_status(status, action_id=action_id, plan_id=plan_id)
+            return ToolResult(
+                success=lifecycle.success,
+                status=status,
+                request_id=action_id,
+                lifecycle=lifecycle,
+            )
+        finally:
+            with self._lock:
+                self._active -= 1
+
+
+def run_parallel_actions(iterations: int) -> dict:
+    if iterations < 1:
+        raise ValueError("iterations must be at least 1")
+    samples: list[BenchmarkSample] = []
+    for request_class in ("parallel_reads", "serialized_mutations"):
+        for _ in range(iterations):
+            if request_class == "parallel_reads":
+                operations = {"r1": ToolOperation.READ, "r2": ToolOperation.READ}
+                statuses: dict[str, str] = {}
+                nodes = (
+                    ActionNode("r1", "r1", conflict_keys=("resource:r1",)),
+                    ActionNode("r2", "r2", conflict_keys=("resource:r2",)),
+                )
+                expected_active = 2
+            else:
+                operations = {"m1": ToolOperation.MUTATION, "m2": ToolOperation.MUTATION}
+                statuses = {"m1": "verified", "m2": "verified"}
+                nodes = (
+                    ActionNode(
+                        "m1",
+                        "m1",
+                        operation=ToolOperation.MUTATION,
+                        verification_required=True,
+                        postcondition="m1 verified",
+                    ),
+                    ActionNode(
+                        "m2",
+                        "m2",
+                        operation=ToolOperation.MUTATION,
+                        verification_required=True,
+                        postcondition="m2 verified",
+                    ),
+                )
+                expected_active = 1
+            dispatcher = _ParallelBenchDispatcher(statuses)
+            executor = ActionGraphExecutor(
+                dispatcher,
+                operation_resolver=lambda name, ops=operations: ops[name],
+                max_parallel_reads=2,
+            )
+            started = time.perf_counter_ns()
+            result = executor.execute(ActionGraph(plan_id="rexbench", nodes=nodes))
+            elapsed_ms = (time.perf_counter_ns() - started) / 1_000_000
+            if not result.success or dispatcher.max_active != expected_active:
+                raise RuntimeError(f"parallel-actions correctness failed for {request_class}")
+            samples.append(
+                BenchmarkSample(
+                    request_class=request_class,
+                    warm_state="warm",
+                    evidence_class="deterministic_local",
+                    stages_ms={"execution": elapsed_ms, "total": elapsed_ms},
+                )
+            )
+    return build_report(samples, profile="parallel-actions")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
-        "--profile", choices=("baseline", "capability-retrieval"), default="baseline"
+        "--profile",
+        choices=("baseline", "capability-retrieval", "parallel-actions"),
+        default="baseline",
     )
     parser.add_argument("--iterations", type=int, default=8)
     parser.add_argument("--output", type=Path)
     args = parser.parse_args()
 
-    report = (
-        run_capability_retrieval(args.iterations)
-        if args.profile == "capability-retrieval"
-        else run_baseline(args.iterations)
-    )
+    if args.profile == "capability-retrieval":
+        report = run_capability_retrieval(args.iterations)
+    elif args.profile == "parallel-actions":
+        report = run_parallel_actions(args.iterations)
+    else:
+        report = run_baseline(args.iterations)
     encoded = json.dumps(report, indent=2, sort_keys=True) + "\n"
     if args.output:
         args.output.parent.mkdir(parents=True, exist_ok=True)
