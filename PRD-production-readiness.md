@@ -3540,7 +3540,7 @@ grep -n "askrex.app\|Cloudflare\|CORS\|rate limit\|revocation" docs/deployment.m
 - [x] Registry metadata itself is deterministic; authorization is always evaluated for the current user at selection/execution time.
 - [x] Compatibility adapters keep current callers functional until their migration removes obsolete paths.
 - [x] Tests detect duplicate IDs/schema drift and prove remote metadata cannot overwrite local security classification.
-- [ ] All relevant GitHub checks pass.
+- [x] All relevant GitHub checks pass.
 
 **Validation commands:** `pytest tests/rex2/test_capability_registry.py tests/test_tool_registry.py -q`; `mypy rex/capabilities --ignore-missing-imports`.
 
@@ -3557,11 +3557,11 @@ grep -n "askrex.app\|Cloudflare\|CORS\|rate limit\|revocation" docs/deployment.m
 **Files/areas likely involved:** capability retrieval/index, local embedding adapter if available, TurnEngine executive/routing stage.
 
 **Acceptance Criteria:**
-- [ ] Candidate set is filtered by current-user permission, identity scope, enabled/configured state, health, and risk policy before ranking.
-- [ ] Hybrid ranking uses lexical evidence plus a local embedding/semantic signal when available; no paid embedding service is added.
-- [ ] Missing/broken embeddings fall back deterministically to lexical retrieval without disabling tool use.
-- [ ] Selection exposes inspectable score/reason metadata without leaking private payloads.
-- [ ] Golden tests cover paraphrases, ambiguity, denied/unhealthy tools, and no-embedding fallback.
+- [x] Candidate set is filtered by current-user permission, identity scope, enabled/configured state, health, and risk policy before ranking.
+- [x] Hybrid ranking uses lexical evidence plus a local embedding/semantic signal when available; no paid embedding service is added.
+- [x] Missing/broken embeddings fall back deterministically to lexical retrieval without disabling tool use.
+- [x] Selection exposes inspectable score/reason metadata without leaking private payloads.
+- [x] Golden tests cover paraphrases, ambiguity, denied/unhealthy tools, and no-embedding fallback.
 - [ ] All relevant GitHub checks pass.
 
 **Validation commands:** `pytest tests/rex2/test_capability_retrieval.py -q`; `python scripts/rexbench.py --profile capability-retrieval`.

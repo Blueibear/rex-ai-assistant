@@ -88,6 +88,7 @@ def test_config_load_from_foreign_cwd_writes_only_to_runtime_root(tmp_path: Path
     env = os.environ.copy()
     env["ASKREX_RUNTIME_DIR"] = str(runtime)
     env["PYTHONPATH"] = str(repo)
+    env.pop("OPENAI_API_KEY", None)
     (runtime).mkdir(parents=True)
     (runtime / ".env").write_text("OPENAI_API_KEY=runtime-secret\n", encoding="utf-8")
     for legacy_key in ("REX_ACTIVE_USER", "REX_USER_ID"):

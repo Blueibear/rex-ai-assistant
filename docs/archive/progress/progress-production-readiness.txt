@@ -1813,3 +1813,30 @@ US-106 PR #382 CI follow-up (2026-08-11):
 - Complete non-mobile/non-Rex2 marker surface -> 8,195 passed, 49 skipped. Mobile + Rex2 marker surface -> 424 passed. Combined CI marker set therefore reports 8,619 passed and 49 skipped.
 - CI-equivalent pytest+coverage report -> 8,619 passed, 49 skipped; required 75% coverage reached at 83.52%. The local PowerShell wrapper itself reported a nonzero shell result after post-pytest Torch shutdown logging to a closed stream, so GitHub CI remains the authoritative process-exit gate for the republished head.
 - US-106 final GitHub-check criterion remains open until the corrected immutable PR head passes the complete repository matrix.
+2026-08-11 - US-106 final GitHub evidence and merge
+
+Remote evidence:
+- Corrected immutable PR #382 head `8b95da9a4637f94bed18a4f43dfa5ae24bf082c3` passed all 18 repository checks: GitGuardian, CodeFactor, Python 3.11 Tests & Coverage, installed Windows Electron artifact, Ruff/Black, mypy, GUI lint/typecheck/build/Vitest, dependency audits, security audit, hardcoded-secret scan, pre-commit, wheel contents, and raw-API guard.
+- The empty `chore(ci): retrigger verified US-106 checks` commit changed no tree content; it was required because GitHub suppresses recursive workflow execution for the prior `github-actions[bot]` publisher commit.
+- PR #382 merged by squash as `d9dc58945eae0d2d3bb27383aae33e913bdb4d20` after the complete matrix was independently verified green.
+- US-106's final GitHub-check acceptance criterion is therefore closed in the US-107 tracking commit.
+
+2026-08-11 - US-107 permission-aware hybrid capability retrieval
+
+Implementation:
+- Added `rex/capabilities/retrieval.py` as the canonical pre-ranking capability selector over US-106 Tool Cards.
+- Candidate filtering occurs before scoring/limit and enforces current-user permission, identity, explicit tool enabled state, configuration requirements, health/integration availability, and risk policy.
+- Replaced ToolDispatcher's fixed regex intent-rule table with canonical hybrid retrieval while preserving its execution/verification lifecycle and the US-106 user-aware compatibility extension.
+- Hybrid ranking combines deterministic lexical overlap with a dependency-free local semantic concept signal; the scorer remains injectable for a future local embedding adapter and introduces no paid or network embedding dependency.
+- Broken/missing semantic scoring falls back deterministically to lexical retrieval for the whole query. Fallback logging intentionally omits exception text so queries, credentials, and payload-derived errors cannot leak.
+- Retrieval exposes stable capability ID, normalized total/lexical/semantic scores, and bounded reason labels; raw queries and private payloads are never part of result metadata.
+- Added deterministic `capability-retrieval` RexBench coverage for hybrid and forced lexical-fallback paths.
+Local evidence:
+- TDD red phase proved two enabled-state gaps: a disabled configured tool could be re-admitted, and there was no pre-ranking candidate-filter hook. The two new tests failed first, then passed after the minimal filter implementation.
+- A second TDD red phase proved semantic fallback logging leaked a deliberately private query and token-like exception payload; the warning was reduced to a generic privacy-safe fallback event before final validation.
+- Exact retrieval tests: `pytest tests/rex2/test_capability_retrieval.py -q` -> 14 passed.
+- Exact retrieval + RexBench contract tests -> 18 passed.
+- Final registry/planner/dispatcher/Assistant consumer matrix -> 465 passed.
+- `python scripts/rexbench.py --profile capability-retrieval --iterations 8`: hybrid p50/p95 0.038/0.071 ms; forced lexical fallback p50/p95 0.075/0.111 ms on deterministic local fixtures.
+- Ruff, Black, mypy for the retrieval/dispatcher modules, `git diff --check`, and full pre-commit all pass.
+- US-107 GitHub checks remain pending until this story PR is published; its final PRD checkbox intentionally remains open.
