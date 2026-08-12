@@ -16,6 +16,7 @@ from enum import StrEnum
 from pathlib import Path
 from typing import Any, Protocol
 
+from rex.actions.lifecycle import lifecycle_from_legacy_status
 from rex.identity import validate_user_id
 from rex.runtime_paths import household_data_dir
 
@@ -68,6 +69,9 @@ class HAMutationResult:
         value["status"] = self.status.value
         value["risk"] = self.risk.value
         value["success"] = self.success
+        value["lifecycle"] = lifecycle_from_legacy_status(
+            self.status.value, action_id=self.request_id
+        ).to_dict()
         return value
 
 
@@ -358,6 +362,7 @@ class HAMutationService:
         payload["status"] = HAOutcome(payload["status"])
         payload["risk"] = HARisk(payload["risk"])
         payload.pop("success", None)
+        payload.pop("lifecycle", None)
         return HAMutationResult(**payload)
 
     def _record(self, result: HAMutationResult, user_id: str) -> HAMutationResult:

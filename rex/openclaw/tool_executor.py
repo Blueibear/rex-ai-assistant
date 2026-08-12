@@ -26,6 +26,7 @@ from datetime import UTC, datetime
 from typing import Any, Literal
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
+from rex.actions.lifecycle import lifecycle_from_legacy_status
 from rex.audit import LogEntry, get_audit_logger
 from rex.contracts import ToolCall
 from rex.geolocation import get_cached_city, get_cached_timezone
@@ -321,6 +322,7 @@ def execute_tool(
             dispatch_context = {
                 **default_context,
                 "request_id": action_id,
+                "plan_id": task_id,
                 "user_id": default_context.get("user_id")
                 or default_context.get("user")
                 or requested_by,
@@ -335,6 +337,9 @@ def execute_tool(
                 "request_id": _tool_result.request_id,
                 "risk": _tool_result.risk,
                 "result": _tool_result.output,
+                "lifecycle": (
+                    _tool_result.lifecycle.to_dict() if _tool_result.lifecycle is not None else None
+                ),
             }
             if _tool_result.error:
                 result["error"] = _tool_result.error
@@ -342,6 +347,14 @@ def execute_tool(
     except Exception as e:
         result = _error_result(str(e), tool=tool, args=args)
         error = str(e)
+
+    if isinstance(result, dict) and not isinstance(result.get("lifecycle"), dict):
+        legacy_status = str(
+            result.get("status") or ("failed" if result.get("error") else "completed")
+        )
+        result["lifecycle"] = lifecycle_from_legacy_status(
+            legacy_status, action_id=action_id, plan_id=task_id
+        ).to_dict()
 
     # Log to audit
     if not skip_audit_log:

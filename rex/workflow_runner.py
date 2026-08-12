@@ -581,6 +581,33 @@ class WorkflowRunner:
                 self.after_tool_call_hook(step, result)
             return result
 
+        lifecycle = tool_result.get("lifecycle") if isinstance(tool_result, dict) else None
+        lifecycle_state = lifecycle.get("state") if isinstance(lifecycle, dict) else None
+        if lifecycle_state and lifecycle_state not in {"completed", "verified"}:
+            detail = str(tool_result.get("detail") or f"Tool lifecycle ended in {lifecycle_state}.")
+            result = StepResult(
+                step_id=step.step_id,
+                success=False,
+                output=tool_result,
+                error=detail,
+            )
+            step.result = result
+            if self.after_tool_call_hook:
+                self.after_tool_call_hook(step, result)
+            return result
+        if isinstance(tool_result, dict) and tool_result.get("success") is False:
+            detail = str(tool_result.get("detail") or "Tool reported an unsuccessful result.")
+            result = StepResult(
+                step_id=step.step_id,
+                success=False,
+                output=tool_result,
+                error=detail,
+            )
+            step.result = result
+            if self.after_tool_call_hook:
+                self.after_tool_call_hook(step, result)
+            return result
+
         # Store output in workflow state
         self.workflow.state[f"step_{step.step_id}_output"] = tool_result
 

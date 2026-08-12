@@ -136,8 +136,14 @@ def test_duplicate_request_returns_prior_result_without_second_write(tmp_path: P
     client = FakeHAClient([{"state": "on", "attributes": {}}])
     svc = service(tmp_path, client)
     command = mutation()
-    assert svc.execute(command).status == HAOutcome.VERIFIED
-    assert svc.execute(command).status == HAOutcome.VERIFIED
+    first = svc.execute(command)
+    replay = svc.execute(command)
+    assert first.status == HAOutcome.VERIFIED
+    assert replay.status == HAOutcome.VERIFIED
+    assert (
+        first.to_dict()["lifecycle"]["correlation"] == replay.to_dict()["lifecycle"]["correlation"]
+    )
+    assert first.to_dict()["lifecycle"]["correlation"]["action_id"] == command.request_id
     assert len(client.calls) == 1
 
 

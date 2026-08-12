@@ -16,6 +16,8 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any, Protocol, runtime_checkable
 
+from rex.actions.lifecycle import ActionLifecycleSnapshot
+
 # ---------------------------------------------------------------------------
 # Data types
 # ---------------------------------------------------------------------------
@@ -61,6 +63,7 @@ class ToolResult:
     request_id: str | None = None
     risk: str = "safe"
     stages: tuple[str, ...] = ()
+    lifecycle: ActionLifecycleSnapshot | None = None
 
 
 # ---------------------------------------------------------------------------
