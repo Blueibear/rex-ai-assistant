@@ -1,0 +1,36 @@
+name: US109 verified publisher
+on:
+  pull_request:
+    branches: [master]
+permissions:
+  contents: write
+jobs:
+  publish:
+    if: github.head_ref == 'transport/us109-publish'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Reconstruct, verify, and publish exact US-109 tree
+        shell: bash
+        env:
+          BASE_SHA: f990530b0ea730f780f48a4e469c897ff1822a64
+          TARGET_TREE: 507a8708a150776d7a06bba17a9ab737b307ee9f
+          GZ_SHA256: e4aafcad3fdd4dd60b54d1c51b96864e03f0ebbdaf7d260908aed96d0f931a91
+          RAW_SHA256: e1eb197df7b574168ef66b0c3cc6d355f6ed5de985004a07dd98e41502d1563e
+          TARGET_BRANCH: lead/us109-action-lifecycle
+        run: |
+          set -euo pipefail
+          tr -d '\r\n' < .transport/us109-publish/payload.b64.txt | base64 -d > /tmp/us109.patch.gz
+          test "$(sha256sum /tmp/us109.patch.gz | awk '{print $1}')" = "$GZ_SHA256"
+          gzip -dc /tmp/us109.patch.gz > /tmp/us109.patch
+          test "$(sha256sum /tmp/us109.patch | awk '{print $1}')" = "$RAW_SHA256"
+          git checkout --detach "$BASE_SHA"
+          git apply --index --binary /tmp/us109.patch
+          test "$(git write-tree)" = "$TARGET_TREE"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'feat(actions): canonicalize verified lifecycle'
+          git branch -f "$TARGET_BRANCH" HEAD
+          git push origin "$TARGET_BRANCH"
