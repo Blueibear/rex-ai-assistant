@@ -1863,3 +1863,26 @@ Local US-109 evidence:
 - Expanded Assistant/tool/dispatcher/cancellation/HA/response-verification/OpenClaw/workflow consumer matrix -> 228 passed, with six pre-existing OpenClaw config deprecation warnings only.
 - Ruff and Black pass on touched runtime/test files; mypy reports no issues across the eight relevant source files; compileall, full pre-commit/detect-secrets, and `git diff --check` pass.
 - US-109 final GitHub-check criterion remains open until its own immutable PR head passes the complete repository matrix.
+
+2026-08-11 - US-109 final GitHub evidence and US-108 safe action graph
+
+Remote US-109 evidence:
+- PR #388 exact head `dbae2ef34d3729aca7e0f6953ed891182dac2ce2` passed all 18 repository checks before merge. This included Python 3.11 Tests & Coverage with skipped-test budget/integration/clean-tree verification, the installed Windows Electron artifact smoke without machine Python or Node, GitGuardian, CodeFactor, Ruff/Black, mypy, pre-commit, security/dependency scans, GUI gates, wheel smoke, and raw-API guard.
+- The verified publisher reconstructed local tested tree `507a8708a150776d7a06bba17a9ab737b307ee9f` before publishing the story branch. PR #388 was then squash-merged as signed commit `d725ef7b2b55abe3d3c57b0c3f14a20eac671c8e`, and `master` was independently verified at that commit/tree.
+- US-109's final GitHub-check acceptance criterion is therefore closed in the US-108 tracking commit.
+
+US-108 implementation:
+- Added `rex.actions.graph` with an immutable validated DAG model covering dependencies, canonical operation type, authorization state, verification/postcondition relationships, and explicit resource conflict keys. Unknown dependencies, duplicate IDs, self-dependencies, cycles, and postconditions without verification fail closed.
+- Added `rex.actions.graph_executor` as a bounded scheduler over the existing ToolDispatcher/lifecycle rather than a new policy engine. Mutations serialize; reads parallelize only when explicit conflict keys prove non-overlap; missing conflict metadata is conservative and serial.
+- Canonical tool operation metadata is re-resolved before dispatch so a planned read cannot disguise a mutation. Live ToolDispatcher execution still rechecks identity, permissions, risk, confirmation, cancellation, audit, and verification.
+- Graph metadata can require confirmation but cannot grant it. Only an injected trusted confirmation resolver can release the scheduler boundary, and dispatcher confirmation is independently rechecked. Generic ambient `confirmed` data is not authority.
+- Failed, cancelled, or unverified dependencies block unsafe descendants. Turn-scoped cancellation is copied into parallel worker contexts so already-started work records truthful cancellation and descendants do not dispatch.
+- Added deterministic `parallel-actions` RexBench coverage with internal correctness assertions for overlapping independent reads and serialized verified mutations.
+
+Local US-108 evidence:
+- TDD red phases proved the graph module/executor were absent, validated arguments remained mutable, planner-owned confirmation could have become scheduling authority, and an allowed action re-evaluated trusted confirmation evidence twice. Each contract failed first and passed after the minimal implementation/hardening; generic ambient `confirmed=true` is also explicitly proven non-authoritative.
+- Exact PRD validation: `pytest tests/rex2/test_action_graph.py tests/rex2/test_parallel_actions.py -q` -> 14 passed.
+- `python scripts/rexbench.py --profile parallel-actions --iterations 8`: independent reads p50/p95 5.772/6.289 ms; serialized verified mutations p50/p95 10.643/11.041 ms on deterministic local fixtures.
+- Final action-graph/lifecycle/turn-cancellation/tool-execution/dispatcher/RexBench compatibility matrix -> 72 passed.
+- Black and Ruff pass on all touched runtime/test/benchmark files; mypy passes for the action graph/executor; compileall, full pre-commit/detect-secrets, and `git diff --check` pass.
+- US-108 final GitHub-check criterion remains open until its own immutable PR head passes the complete repository matrix.

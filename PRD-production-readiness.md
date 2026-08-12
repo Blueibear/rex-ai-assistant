@@ -3579,11 +3579,11 @@ grep -n "askrex.app\|Cloudflare\|CORS\|rate limit\|revocation" docs/deployment.m
 **Files/areas likely involved:** plan/action graph models, executor, policy/verification adapters, Turn events.
 
 **Acceptance Criteria:**
-- [ ] Minimal DAG model expresses dependencies, operation type, authorization, and verification/postcondition relationships.
-- [ ] Independent permitted reads may run in bounded parallelism; conflicting or mutating nodes serialize when ordering matters.
-- [ ] Dependent failure/cancellation blocks unsafe descendants and preserves truthful states for already-started nodes.
-- [ ] Confirmation/commit boundaries cannot be bypassed by parallel scheduling.
-- [ ] Tests prove wall-clock concurrency for independent mock reads and deterministic mutation/conflict ordering.
+- [x] Minimal DAG model expresses dependencies, operation type, authorization, and verification/postcondition relationships.
+- [x] Independent permitted reads may run in bounded parallelism; conflicting or mutating nodes serialize when ordering matters.
+- [x] Dependent failure/cancellation blocks unsafe descendants and preserves truthful states for already-started nodes.
+- [x] Confirmation/commit boundaries cannot be bypassed by parallel scheduling.
+- [x] Tests prove wall-clock concurrency for independent mock reads and deterministic mutation/conflict ordering.
 - [ ] All relevant GitHub checks pass.
 
 **Validation commands:** `pytest tests/rex2/test_action_graph.py tests/rex2/test_parallel_actions.py -q`; `python scripts/rexbench.py --profile parallel-actions`.
@@ -3606,7 +3606,7 @@ grep -n "askrex.app\|Cloudflare\|CORS\|rate limit\|revocation" docs/deployment.m
 - [x] Immutable correlation IDs link plan/action/tool attempt/verification evidence/audit record/user-facing result.
 - [x] Existing HA/OpenClaw results adapt into the lifecycle without losing evidence detail.
 - [x] User-facing success wording derives from lifecycle/evidence, never mere absence of an exception.
-- [ ] All relevant GitHub checks pass.
+- [x] All relevant GitHub checks pass.
 
 **Validation commands:** `pytest tests/rex2/test_action_lifecycle.py tests/test_ha_verification.py -q`.
 

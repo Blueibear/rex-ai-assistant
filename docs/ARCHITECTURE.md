@@ -71,6 +71,26 @@ and do not advance on `unverified`, `failed`, `cancelled`, or other non-success 
 Home Assistant preserves expected/actual postcondition evidence, and OpenClaw results
 carry the same lifecycle into their audit/workflow paths.
 
+### Action dependency graphs and bounded parallelism
+
+`rex/actions/graph.py` defines the validated action DAG used for explicit dependencies,
+operation type, authorization state, verification/postcondition metadata, and conservative
+resource-conflict keys. Validated node arguments are immutable. Unknown dependencies,
+duplicate action IDs, self-dependencies, and cycles fail closed before execution.
+
+`rex/actions/graph_executor.py` schedules that DAG without becoming a second policy engine.
+Mutations always serialize. Read actions parallelize only with explicit non-conflicting
+resource keys and a bounded worker count; missing conflict evidence is treated as a wildcard
+and therefore serial. Canonical tool operation metadata is re-resolved before dispatch so a
+planned read cannot disguise a mutation. Live tool execution still rechecks identity,
+permissions, risk, confirmation, cancellation, audit, and verification.
+
+Graph metadata may require confirmation but may never grant it. Only an injected trusted
+confirmation resolver can release that scheduler boundary, and the dispatcher independently
+rechecks confirmation again. Failed, cancelled, or unverified dependencies prevent unsafe
+descendants from starting. Turn-scoped cancellation is copied into parallel worker contexts,
+so already-started actions preserve truthful cancellation while later descendants do not run.
+
 ### Text-to-speech (TTS)
 
 TTS is served by a small Flask service in `rex_speak_api.py`, exposed as the
