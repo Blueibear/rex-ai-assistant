@@ -19,14 +19,19 @@ jobs:
           TARGET_TREE: 507a8708a150776d7a06bba17a9ab737b307ee9f
           GZ_SHA256: e4aafcad3fdd4dd60b54d1c51b96864e03f0ebbdaf7d260908aed96d0f931a91
           RAW_SHA256: e1eb197df7b574168ef66b0c3cc6d355f6ed5de985004a07dd98e41502d1563e
+          PART02_SHA256: 9fac9ed0de51d5a76592f75fd2996fa50ed2cd52b9c0d84c36fe8a3ba17d1610
           TARGET_BRANCH: lead/us109-action-lifecycle
         run: |
           set -euo pipefail
           tr -d '\r\n' < .transport/us109-publish/payload.b64.txt > /tmp/payload.txt
-          echo "payload bytes: $(wc -c < /tmp/payload.txt)"
+          test "$(wc -c < /tmp/payload.txt)" -eq 15220
           split -b 3800 -d -a 2 /tmp/payload.txt /tmp/payload.part.
-          sha256sum /tmp/payload.part.*
-          base64 -d /tmp/payload.txt > /tmp/us109.patch.gz
+          tr -d '\r\n' < .transport/us109-publish/payload.part.02.correct.txt > /tmp/payload.correct.02
+          test "$(wc -c < /tmp/payload.correct.02)" -eq 3800
+          test "$(sha256sum /tmp/payload.correct.02 | awk '{print $1}')" = "$PART02_SHA256"
+          cp /tmp/payload.correct.02 /tmp/payload.part.02
+          cat /tmp/payload.part.00 /tmp/payload.part.01 /tmp/payload.part.02 /tmp/payload.part.03 /tmp/payload.part.04 > /tmp/payload.corrected.txt
+          base64 -d /tmp/payload.corrected.txt > /tmp/us109.patch.gz
           actual_gz="$(sha256sum /tmp/us109.patch.gz | awk '{print $1}')"
           echo "compressed hash: $actual_gz"
           test "$actual_gz" = "$GZ_SHA256"
