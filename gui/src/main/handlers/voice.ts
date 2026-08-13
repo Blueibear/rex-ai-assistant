@@ -111,10 +111,7 @@ function handleVoiceStatusEvent(
   })
 }
 
-function handleVoiceTurnStatusEvent(
-  event: VoiceBridgeEvent,
-  _context: VoiceBridgeEventContext
-): void {
+function handleVoiceTurnStatusEvent(event: VoiceBridgeEvent): void {
   if (
     !event.status ||
     typeof event.turn_id !== 'string' ||
