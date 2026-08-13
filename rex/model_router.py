@@ -18,6 +18,7 @@ import time
 import urllib.error
 import urllib.request
 from collections.abc import Callable, Sequence
+from dataclasses import dataclass
 from enum import StrEnum, auto
 
 logger = logging.getLogger(__name__)
@@ -30,6 +31,32 @@ class TaskCategory(StrEnum):
     vision = auto()
     fast = auto()
     default = auto()
+
+
+@dataclass(frozen=True, slots=True)
+class ModelRouteDecision:
+    """Privacy-safe explanation of one fast/deep model-routing decision."""
+
+    category: TaskCategory
+    complexity: str
+    confidence: float
+    evidence: tuple[str, ...]
+    tier: str
+    model: str
+    escalation_count: int = 0
+    fallback_reason: str | None = None
+
+    def to_metadata(self) -> dict[str, object]:
+        return {
+            "category": str(self.category),
+            "complexity": self.complexity,
+            "confidence": round(self.confidence, 3),
+            "evidence": list(self.evidence),
+            "route": self.tier,
+            "model": self.model,
+            "escalation_count": self.escalation_count,
+            "fallback_reason": self.fallback_reason,
+        }
 
 
 # ---------------------------------------------------------------------------
@@ -90,6 +117,15 @@ _SEARCH_PATTERNS: Sequence[str] = [
     r"\bgoogle\b",
     r"\bwikipedia\b",
 ]
+
+_AMBIGUOUS_TOOL_PATTERNS: Sequence[str] = [
+    r"\bwhichever\s+tool\b",
+    r"\bwhatever\s+tool\b",
+    r"\buse\s+(?:a|some)\s+tool\b",
+    r"\bchoose\s+(?:the\s+)?(?:right|best)\s+tool\b",
+]
+
+_CLOUD_PROVIDERS = frozenset({"openai", "openrouter", "anthropic"})
 
 _VISION_PATTERNS: Sequence[str] = [
     r"\bimage\b",
@@ -341,6 +377,147 @@ class ModelRouter:
         return default
 
     # ------------------------------------------------------------------
+    # ModelRouter 2.0 decision contract (US-110)
+    # ------------------------------------------------------------------
+
+    _LOW_CONFIDENCE_THRESHOLD = 0.60
+
+    def decide(
+        self,
+        message: str,
+        *,
+        routing_config: object = None,
+        current_model: str = "",
+        requires_tools: bool = False,
+        tool_choice_confidence: float | None = None,
+        deep_provider_available: bool = True,
+        routing_mode: str = "local_preferred",
+        provider: str = "",
+    ) -> ModelRouteDecision:
+        """Choose a fast/deep route and return bounded, privacy-safe evidence."""
+        category = self.classify(message)
+        evidence: list[str] = []
+        estimated_tokens = len(message.split()) * 1.3
+        ambiguous_tool_request = _matches_any(message, _AMBIGUOUS_TOOL_PATTERNS)
+        if ambiguous_tool_request:
+            requires_tools = True
+            evidence.append("ambiguous_tool_request")
+
+        if category is TaskCategory.fast:
+            complexity = "simple"
+            confidence = 0.98
+            evidence.append("fast_pattern")
+        elif category in {
+            TaskCategory.coding,
+            TaskCategory.reasoning,
+            TaskCategory.search,
+            TaskCategory.vision,
+        }:
+            complexity = "complex"
+            confidence = 0.90
+            evidence.append(f"category_{category}")
+        else:
+            confidence = 0.80
+            if requires_tools or estimated_tokens >= self._SIMPLE_TOKEN_THRESHOLD:
+                complexity = "complex"
+            else:
+                complexity = "moderate"
+            evidence.append("no_category_match")
+
+        if requires_tools:
+            complexity = "complex"
+            evidence.append("tools_required")
+        if ambiguous_tool_request and tool_choice_confidence is None:
+            tool_choice_confidence = 0.40
+        if tool_choice_confidence is not None:
+            confidence = max(0.0, min(1.0, float(tool_choice_confidence)))
+            if confidence < self._LOW_CONFIDENCE_THRESHOLD:
+                evidence.append("tool_choice_low_confidence")
+
+        config = routing_config
+        default_model = (getattr(config, "default", "") or "") if config is not None else ""
+        fast_model = (getattr(config, "fast", "") or "") if config is not None else ""
+        fast_model = fast_model or default_model or current_model
+
+        category_model = ""
+        if config is not None and category not in {TaskCategory.fast, TaskCategory.default}:
+            category_model = getattr(config, str(category), "") or ""
+        reasoning_model = (getattr(config, "reasoning", "") or "") if config is not None else ""
+        deep_model = category_model or reasoning_model or default_model
+
+        low_confidence = confidence < self._LOW_CONFIDENCE_THRESHOLD
+        wants_deep = complexity == "complex" or low_confidence
+        escalation_count = 1 if low_confidence and wants_deep else 0
+
+        normalized_mode = (
+            routing_mode
+            if routing_mode in {"local_preferred", "local_only", "cloud_only"}
+            else "local_preferred"
+        )
+        normalized_provider = provider.strip().lower()
+        provider_is_cloud = normalized_provider in _CLOUD_PROVIDERS
+        policy_conflict: str | None = None
+        if normalized_mode == "local_only" and provider_is_cloud:
+            policy_conflict = "local_only_provider_conflict"
+        elif normalized_mode == "cloud_only" and normalized_provider and not provider_is_cloud:
+            policy_conflict = "cloud_provider_unconfigured"
+
+        if policy_conflict is not None:
+            evidence.append(policy_conflict)
+            return ModelRouteDecision(
+                category=category,
+                complexity=complexity,
+                confidence=confidence,
+                evidence=tuple(dict.fromkeys(evidence)),
+                tier="fast",
+                model=current_model or fast_model,
+                escalation_count=0,
+                fallback_reason=policy_conflict,
+            )
+
+        if not wants_deep:
+            return ModelRouteDecision(
+                category=category,
+                complexity=complexity,
+                confidence=confidence,
+                evidence=tuple(dict.fromkeys(evidence)),
+                tier="fast",
+                model=fast_model,
+            )
+
+        fallback_reason: str | None = None
+        if not deep_provider_available:
+            fallback_reason = "deep_provider_unavailable"
+        elif not deep_model or deep_model == fast_model:
+            fallback_reason = "deep_model_unconfigured"
+        elif not self._is_available(deep_model):
+            fallback_reason = "deep_model_unavailable"
+
+        if fallback_reason is not None:
+            evidence.append(fallback_reason)
+            return ModelRouteDecision(
+                category=category,
+                complexity=complexity,
+                confidence=confidence,
+                evidence=tuple(dict.fromkeys(evidence)),
+                tier="fast",
+                model=fast_model or current_model,
+                escalation_count=min(escalation_count, 1),
+                fallback_reason=fallback_reason,
+            )
+
+        evidence.append("deep_route_selected")
+        return ModelRouteDecision(
+            category=category,
+            complexity=complexity,
+            confidence=confidence,
+            evidence=tuple(dict.fromkeys(evidence)),
+            tier="deep",
+            model=deep_model,
+            escalation_count=min(escalation_count, 1),
+        )
+
+    # ------------------------------------------------------------------
     # Smart local/cloud routing (US-044)
     # ------------------------------------------------------------------
 
@@ -410,11 +587,10 @@ class ModelRouter:
                 return local_model
             logger.warning(
                 "model_router: local_only mode but local model %r is unavailable; "
-                "falling back to cloud model %r",
+                "cloud fallback is disabled by policy",
                 local_model,
-                cloud_model,
             )
-            return cloud_model
+            return local_model
 
         # local_preferred
         complexity = self.estimate_complexity(message, requires_tools=requires_tools)

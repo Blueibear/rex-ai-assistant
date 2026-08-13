@@ -14,7 +14,7 @@ from pathlib import Path
 from typing import Any, cast
 
 from .actions.dispatcher import _UNDO_PATTERN, ActionResult
-from .assistant_errors import IdentityRequiredError
+from .assistant_errors import ConfigurationError, IdentityRequiredError
 from .calendar_service import get_calendar_service
 from .config import Settings, settings
 from .context.revisions import ContextCacheRequest
@@ -25,7 +25,7 @@ from .identity import validate_user_id
 from .latency import LatencyTrace
 from .llm_client import LanguageModel
 from .memory import trim_history
-from .model_router import ModelRouter
+from .model_router import ModelRouteDecision, ModelRouter
 from .plugins import PluginSpec
 from .runtime.events import EventKind, EventObserver, TurnEvent, TurnEventStream
 from .runtime.invocation import current_turn_invocation
@@ -984,13 +984,19 @@ class Assistant:
             return completion
 
         check_cancelled()
-        prev_model = self._begin_request(transcript)
-        latency_trace.model = str(getattr(self._llm, "model_name", None) or latency_trace.model)
+        route_cleanup, route_decision = self._begin_request(transcript)
+        if route_decision is not None and route_decision.model:
+            latency_trace.model = route_decision.model
+        else:
+            latency_trace.model = str(getattr(self._llm, "model_name", None) or latency_trace.model)
         latency_trace.end("routing")
-        turn_events.emit(
-            EventKind.ROUTE_PROGRESS,
-            {"stage": "model_router", "model": latency_trace.model},
-        )
+        route_details: dict[str, object] = {
+            "stage": "model_router",
+            "model": latency_trace.model,
+        }
+        if route_decision is not None:
+            route_details.update(route_decision.to_metadata())
+        turn_events.emit(EventKind.ROUTE_PROGRESS, route_details)
         model_failure_reason: str | None = None
         try:
             check_cancelled()
@@ -1053,7 +1059,7 @@ class Assistant:
             latency_trace.log_summary(logger, event=latency_event)
             raise
         finally:
-            self._end_request(prev_model)
+            self._end_request(route_cleanup)
 
         check_cancelled()
         self._record_completion(transcript, completion, user_id=effective_user_id)
@@ -1116,39 +1122,81 @@ class Assistant:
             on_event=observer,
         )
 
-    def _begin_request(self, transcript: str) -> str | None:
-        """Apply per-request model routing.
+    def _begin_request(
+        self, transcript: str
+    ) -> tuple[Callable[[], None] | None, ModelRouteDecision | None]:
+        """Apply one request-scoped model route and return its cleanup callback."""
+        router = getattr(self, "_router", None)
+        base_model: str | None = getattr(self._llm, "model_name", None)
+        decision: ModelRouteDecision | None = None
+        cleanup: Callable[[], None] | None = None
+        if router is None:
+            return cleanup, decision
 
-        Returns ``prev_model`` for restoration in :meth:`_end_request`.
-        Request identity is intentionally not handled here: it is resolved
-        once in :meth:`generate_reply` and passed explicitly to every
-        component, so overlapping requests for different users can never
-        observe each other's identity (issue #303).
-        """
-        # Model routing: classify the transcript and switch to the best model
-        _router = getattr(self, "_router", None)
-        prev_model: str | None = getattr(self._llm, "model_name", None)
-        if _router is not None:
-            category = _router.classify(transcript)
-            _routing_cfg = getattr(self._settings, "model_routing", None)
-            resolved = _router.resolve_model(category, _routing_cfg)
-            if resolved and resolved != prev_model:
-                logger.debug("model_router: classified as %s, using %s", category, resolved)
-                if hasattr(self._llm, "model_name"):
-                    self._llm.model_name = resolved
-            else:
-                logger.debug(
-                    "model_router: classified as %s, using %s",
-                    category,
-                    prev_model or "default",
+        routing_cfg = getattr(self._settings, "model_routing", None)
+        if isinstance(router, ModelRouter):
+            decision = router.decide(
+                transcript,
+                routing_config=routing_cfg,
+                current_model=base_model or "",
+                routing_mode=str(
+                    getattr(self._settings, "llm_routing_mode", "local_preferred")
+                    or "local_preferred"
+                ),
+                provider=str(
+                    getattr(self._settings, "llm_provider", "")
+                    or getattr(self._llm, "provider", None)
+                    or ""
+                ),
+            )
+            if decision.fallback_reason == "local_only_provider_conflict":
+                raise ConfigurationError(
+                    "llm_routing_mode='local_only' requires a local LLM provider."
                 )
+            if decision.fallback_reason == "cloud_provider_unconfigured":
+                raise ConfigurationError(
+                    "llm_routing_mode='cloud_only' requires an explicitly configured cloud provider."
+                )
+            resolved = decision.model
+            category = decision.category
+        else:
+            category = router.classify(transcript)
+            resolved = router.resolve_model(category, routing_cfg)
 
-        return prev_model
+        if resolved and resolved != base_model:
+            logger.debug("model_router: classified as %s, using %s", category, resolved)
+            supports_scoped_model = callable(
+                getattr(type(self._llm), "set_request_model", None)
+            ) and callable(getattr(type(self._llm), "reset_request_model", None))
+            if supports_scoped_model:
+                set_request_model = self._llm.set_request_model
+                reset_request_model = self._llm.reset_request_model
+                token = set_request_model(resolved)
 
-    def _end_request(self, prev_model: str | None) -> None:
-        """Restore the model name after a request completes."""
-        if prev_model is not None and hasattr(self._llm, "model_name"):
-            self._llm.model_name = prev_model
+                def _reset_scoped_model() -> None:
+                    reset_request_model(token)
+
+                cleanup = _reset_scoped_model
+            elif hasattr(self._llm, "model_name"):
+                self._llm.model_name = resolved
+
+                def _restore_legacy_model() -> None:
+                    self._llm.model_name = base_model
+
+                cleanup = _restore_legacy_model
+        else:
+            logger.debug(
+                "model_router: classified as %s, using %s",
+                category,
+                base_model or "default",
+            )
+        return cleanup, decision
+
+    @staticmethod
+    def _end_request(cleanup: Callable[[], None] | None) -> None:
+        """Restore request-local model state without mutating other turns."""
+        if cleanup is not None:
+            cleanup()
 
     async def _run_plugins(self, transcript: str) -> list[str]:
         from rex.runtime.cancellation import (  # noqa: PLC0415
