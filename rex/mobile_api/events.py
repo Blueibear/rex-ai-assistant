@@ -18,11 +18,14 @@ from __future__ import annotations
 import json
 from typing import Any
 
+from rex.runtime.status import TurnStatusUpdate
+
 # Canonical event type names (wire contract).
 EVENT_AUTH_OK = "auth_ok"
 EVENT_AUTH_ERROR = "auth_error"
 EVENT_ACK = "ack"
 EVENT_TOKEN = "token"
+EVENT_STATUS = "status"
 EVENT_TOOL_CALL = "tool_call"
 EVENT_TOOL_RESULT = "tool_result"
 EVENT_APPROVAL_REQUIRED = "approval_required"
@@ -34,6 +37,10 @@ EVENT_PONG = "pong"
 
 def token_event(message_id: str, content: str) -> dict[str, Any]:
     return {"type": EVENT_TOKEN, "message_id": message_id, "content": content}
+
+
+def status_event(message_id: str, update: TurnStatusUpdate) -> dict[str, Any]:
+    return {"type": EVENT_STATUS, "message_id": message_id, **update.to_dict()}
 
 
 def message_done_event(
@@ -109,6 +116,7 @@ __all__ = [
     "EVENT_MESSAGE_DONE",
     "EVENT_PING",
     "EVENT_PONG",
+    "EVENT_STATUS",
     "EVENT_TOKEN",
     "EVENT_TOOL_CALL",
     "EVENT_TOOL_RESULT",
@@ -120,5 +128,6 @@ __all__ = [
     "format_sse",
     "message_done_event",
     "pong_event",
+    "status_event",
     "token_event",
 ]

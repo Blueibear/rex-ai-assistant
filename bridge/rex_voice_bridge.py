@@ -180,18 +180,25 @@ class _LazyAsyncResource:
 
 
 class _DeferredAssistant:
-    def __init__(self, factory: Callable[[], Any]) -> None:
+    def __init__(
+        self, factory: Callable[[], Any], *, event_observer: Callable[[Any], None] | None = None
+    ) -> None:
         self._resource = _LazyAsyncResource("assistant", factory)
+        self._event_observer = event_observer
 
     def start_warmup(self) -> None:
         self._resource.start()
 
     async def generate_reply(self, *args: Any, **kwargs: Any) -> str:
         assistant = await self._resource.get()
+        if self._event_observer is not None:
+            kwargs.setdefault("event_observer", self._event_observer)
         return await assistant.generate_reply(*args, **kwargs)
 
     async def stream_reply(self, *args: Any, **kwargs: Any):
         assistant = await self._resource.get()
+        if self._event_observer is not None:
+            kwargs.setdefault("event_observer", self._event_observer)
         async for chunk in assistant.stream_reply(*args, **kwargs):
             yield chunk
 
@@ -405,6 +412,7 @@ async def _run_real_loop() -> None:
     from rex.config import load_config as load_runtime_config
     from rex.logging_utils import configure_logging
     from rex.plugins import load_plugins
+    from rex.runtime.status import TurnStatusProjector
     from rex.services import initialize_services
 
     emit({"type": "status", "status": "importing_voice_loop"})
@@ -535,6 +543,11 @@ async def _run_real_loop() -> None:
     emit({"type": "status", "status": "creating_assistant"})
     from rex.identity import validate_user_id  # type: ignore[import]
 
+    def emit_turn_status(update) -> None:  # noqa: ANN001
+        emit({"type": "turn_status", **update.to_dict()})
+
+    status_projector = TurnStatusProjector(emit_turn_status)
+
     # Deliberate single-user profile selection (issue #303): Assistant no
     # longer invents an identity when user_id is omitted.
     assistant = _DeferredAssistant(
@@ -542,7 +555,8 @@ async def _run_real_loop() -> None:
             history_limit=active_settings.max_memory_items,
             plugins=plugin_specs,
             user_id=validate_user_id(_SESSION_USER_ID or ""),
-        )
+        ),
+        event_observer=status_projector.observe,
     )
 
     emit({"type": "status", "status": "initializing_microphone"})
@@ -764,9 +778,6 @@ async def _run_real_loop() -> None:
                 },
             )
             emit({"type": "state", "state": "followup_listening"})
-        elif status in {"thinking", "executing"}:
-            emit({"type": "status", "status": status})
-            emit({"type": "state", "state": "processing"})
         elif status == "error":
             emit({"type": "error", "error": "Voice pipeline error; see logs for details."})
             emit({"type": "state", "state": "idle"})

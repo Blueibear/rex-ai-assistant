@@ -20,6 +20,7 @@ for real completion evidence, which this adapter never fabricates.
 from __future__ import annotations
 
 import asyncio
+import inspect
 import logging
 import threading
 from collections.abc import Callable, Iterator
@@ -29,6 +30,7 @@ from typing import Any
 
 from rex.mobile_api import errors as merr
 from rex.mobile_api.errors import MobileApiError
+from rex.runtime.status import StatusSink, TurnStatusProjector
 
 logger = logging.getLogger(__name__)
 
@@ -78,6 +80,17 @@ def _backend_unavailable(exc: Exception) -> MobileApiError:
         "Rex is temporarily unavailable.",
         503,
         retryable=True,
+    )
+
+
+def _supports_keyword(callable_obj: Any, keyword: str) -> bool:
+    """Return whether a callable accepts an explicit keyword or arbitrary kwargs."""
+    try:
+        params = inspect.signature(callable_obj).parameters.values()
+    except (TypeError, ValueError):
+        return False
+    return any(
+        param.kind is inspect.Parameter.VAR_KEYWORD or param.name == keyword for param in params
     )
 
 
@@ -160,6 +173,7 @@ class MobileChatService:
         strong_auth_authority: Any | None = None,
         strong_auth_principal: Any | None = None,
         strong_auth_approval_id: str | None = None,
+        status_observer: StatusSink | None = None,
     ) -> str:
         """Return one complete reply under the server-derived mobile grant."""
         from rex.mobile_api.action_context import (  # noqa: PLC0415
@@ -171,6 +185,7 @@ class MobileChatService:
         from rex.runtime.turn import TurnSource  # noqa: PLC0415
 
         assistant = self._get_assistant()
+        event_observer = TurnStatusProjector(status_observer).observe if status_observer else None
         try:
             with (
                 mobile_action_context(
@@ -183,15 +198,15 @@ class MobileChatService:
                 ),
                 turn_invocation(TurnSource.MOBILE, device_id=device_id),
             ):
-                return str(
-                    asyncio.run(
-                        assistant.generate_reply(
-                            message,
-                            voice_mode=voice_mode,
-                            active_user_id=user_id,
-                        )
-                    )
-                )
+                reply_kwargs: dict[str, Any] = {
+                    "voice_mode": voice_mode,
+                    "active_user_id": user_id,
+                }
+                if event_observer is not None and _supports_keyword(
+                    assistant.generate_reply, "event_observer"
+                ):
+                    reply_kwargs["event_observer"] = event_observer
+                return str(asyncio.run(assistant.generate_reply(message, **reply_kwargs)))
         except MobileApiError:
             raise
         except MobileStrongAuthRequiredError as exc:
@@ -218,6 +233,7 @@ class MobileChatService:
         strong_auth_authority: Any | None = None,
         strong_auth_principal: Any | None = None,
         strong_auth_approval_id: str | None = None,
+        status_observer: StatusSink | None = None,
     ) -> Iterator[str]:
         """Yield reply chunks for ``user_id`` via ``Assistant.stream_reply()``.
 
@@ -235,10 +251,16 @@ class MobileChatService:
         from rex.runtime.turn import TurnSource  # noqa: PLC0415
 
         assistant = self._get_assistant()
+        event_observer = TurnStatusProjector(status_observer).observe if status_observer else None
         loop = asyncio.new_event_loop()
         agen = None
         try:
-            agen = assistant.stream_reply(message, active_user_id=user_id)
+            stream_kwargs: dict[str, Any] = {"active_user_id": user_id}
+            if event_observer is not None and _supports_keyword(
+                assistant.stream_reply, "event_observer"
+            ):
+                stream_kwargs["event_observer"] = event_observer
+            agen = assistant.stream_reply(message, **stream_kwargs)
             while True:
                 try:
                     with (

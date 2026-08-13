@@ -45,6 +45,8 @@ import type {
   IntegrationConnectionStatus,
   ChatStreamCancelHandle,
   ChatStreamStatus,
+  TurnStatusUpdate,
+  TurnStatusValue,
   VoiceStartOptions,
   PairingResponse,
   ProfileOperationResponse
@@ -210,6 +212,26 @@ const rexAPI = {
     }
     ipcRenderer.on('rex:voiceState', handler)
     return () => ipcRenderer.removeListener('rex:voiceState', handler)
+  },
+  onTurnStatus: (cb: (update: TurnStatusUpdate) => void): (() => void) => {
+    const handler = (
+      _event: IpcRendererEvent,
+      payload: {
+        turn_id: string
+        sequence: number
+        status: TurnStatusValue
+        terminal: boolean
+      }
+    ): void => {
+      cb({
+        turnId: payload.turn_id,
+        sequence: payload.sequence,
+        status: payload.status,
+        terminal: payload.terminal
+      })
+    }
+    ipcRenderer.on('rex:turnStatus', handler)
+    return () => ipcRenderer.removeListener('rex:turnStatus', handler)
   },
   getSettings: (section: string): Promise<Settings> =>
     ipcRenderer.invoke('rex:getSettings', section),

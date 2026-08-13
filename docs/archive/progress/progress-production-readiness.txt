@@ -1910,3 +1910,53 @@ Local US-076 evidence:
 - US-076 GitHub checks remain pending until this story PR is published; its final PRD checkbox intentionally remains open.
 - Codex focused follow-up review found only one remaining test-strength issue: listener cleanup needed to prove removal of the exact registered callback. The assertion was tightened accordingly and the targeted GUI regression/typecheck rerun passed.
 - Full local CI-marker compatibility sweep (`pytest -m "not slow and not audio and not gpu" -q`) -> 8,675 passed, 48 skipped, 315 warnings, 0 failed; pytest exited 0. Post-pytest Torch shutdown logging attempted to write to a closed capture stream, but did not change the successful process exit.
+
+2026-08-13 - US-108 final GitHub evidence and US-104 canonical progressive status
+
+Remote US-108 evidence:
+- PR #390 passed all 18 repository checks on its exact reviewed head before merge: CodeFactor, Dependency Vulnerability Scan, GUI Build, GUI ESLint, GUI Raw API Fetch Guard, GUI TypeScript Typecheck, GUI Vitest Tests, GitGuardian Security Checks, Hardcoded Secret Scan, Installed Windows Electron artifact, Lint & Format Check, Node Dependency Audit, Pre-commit Hook Validation, Python 3.11 Tests & Coverage, Security Audit Gate, Type Check (mypy), Wheel Contents Smoke Test, and commitlint.
+- US-108's previously pending final GitHub-check criterion is therefore closed in the US-104 tracking commit.
+
+US-104 implementation:
+- Added `rex.runtime.status` as the single deterministic privacy-safe projection from canonical `TurnEvent` records to the presentation vocabulary thinking/checking/acting/verifying/speaking/done/error/cancelled.
+- Status wire payloads contain only turn correlation ID, sequence, projected status, and terminal flag. Event details and user identity are deliberately omitted, so transcript, prompt, memory, credential, and private tool-result content cannot cross the status boundary.
+- Assistant now accepts request-local event observers for both generate and stream paths while preserving the legacy observer without shared per-request state. Concurrent per-user calls remain isolated.
+- CLI, Electron chat, canonical voice, and authenticated mobile HTTP/SSE/WebSocket surfaces consume the same TurnStatusProjector rather than maintaining independent activity-state business logic.
+- Electron global status tracks active turns by turn ID; a TDD regression proved the prior boolean guard was unsafe for overlapping turns, then the implementation was changed so one terminal event cannot clear a second still-active chat/voice turn.
+- Cancellation, failure, and verified/output-validation states are projected from their canonical terminal/progress events; duplicate presentation states are suppressed without dropping terminal truth.
+- Updated `CLAUDE.md` and `docs/ARCHITECTURE.md` with the canonical status-projection and privacy invariants.
+
+Local US-104 evidence:
+- TDD overlap regression: the new GUI test failed against the boolean in-progress guard, then passed after per-turn active tracking was implemented.
+- Exact status/mobile validation: `pytest tests/rex2/test_progressive_status.py tests/mobile_api/test_chat_http.py tests/mobile_api/test_chat_stream.py tests/mobile_api/test_chat_websocket.py -q` -> 64 passed.
+- Assistant/identity/TurnEngine/model-output/voice-diagnostic/chat-bridge regression matrix -> 137 passed, with one pre-existing `tts_voice` deprecation warning only.
+- Full GUI Vitest suite -> 121 passed across 27 files.
+- Focused progressive-status/hold-to-talk suite -> 9 passed; overlap follow-up -> 2 passed.
+- Targeted Ruff and Black pass; targeted mypy reports no issues in the seven modified Python source files.
+- `npm run typecheck` passes and Electron `npm run build` passes at the implementation stage; build will be rerun after final documentation/tracking changes before publication.
+- Codex read-only review inspected the change set but its sandbox could not execute pytest because no writable temporary directory was available. Local tests were run independently with the repository's Python 3.11 venv; no Codex test failure is being treated as product evidence.
+- US-104 GitHub checks remain pending until its PR is published; the final PRD checkbox intentionally remains open.
+
+US-104 final review follow-up:
+- Codex independent review found four actionable issues: mobile SSE could drop a queued terminal status on iteration failure; Electron could retain/revive stale turn state; progressive statuses widened the legacy model-failure callback; and mobile adapters could break older injected Assistant signatures.
+- All four findings were fixed. SSE flushes queued status before structured errors; Electron status state is turn/sequence-aware and returns to idle when no turn remains; `rex:chatStatus` remains model-failure-only; mobile checks callable keyword support before attaching the optional event observer.
+- TDD reviewer follow-up reproduced the SSE bug first (`error` only) and now proves ordered `status` then `error`; overlapping/stale Electron turns and legacy Assistant signatures have behavioral regressions.
+- Final strong-auth/status/SSE focused regression: 19 passed.
+- Final Assistant/identity/TurnEngine/model-output/voice-diagnostic/chat-bridge plus complete mobile API matrix: 495 passed, with two pre-existing warnings only.
+- Final GUI Vitest suite: 122 passed across 27 files; GUI typecheck and Electron build pass.
+- Targeted Ruff and Black pass; targeted mypy reports no issues in seven modified Python source files.
+- Codex's read-only sandbox could not execute pytest because it had no writable temporary directory; the repository Python 3.11 venv supplied the executable evidence above.
+- US-104 GitHub checks remain pending until its exact PR head passes the complete repository matrix.
+
+US-104 final Codex follow-up and publication gate (2026-08-13):
+- A final diff-only Codex review found two medium correctness issues after the earlier four fixes: a higher-sequence nonterminal update could revive an Electron turn after its terminal tombstone, and a slow streaming consumer could observe `done` before the final queued sentence.
+- Both were reproduced before implementation. The Electron regression returned `thinking` after terminal sequence 2 when sequence 3 arrived. The streaming regression observed `First sentence -> done -> Second sentence` when the consumer applied backpressure.
+- Electron terminal tombstones are now sticky for the lifetime of a turn ID: every later update for that terminal turn is ignored, independent of sequence.
+- `Assistant.stream_reply()` now orders the explicit per-call event observer and verified response chunks through the same delivery queue. The legacy internal observer remains immediate, while terminal presentation status cannot overtake queued user-visible chunks.
+- Focused progressive/stream/mobile/Electron compatibility regression: 69 passed.
+- Final Python Assistant/identity/TurnEngine/model-output/voice/chat-bridge/mobile matrix: 496 passed, with two pre-existing warnings only.
+- Final GUI suite: 122 passed across 27 files; typecheck and production build pass; ESLint exits 0 with the same three pre-existing warnings.
+- Ruff, Black, targeted mypy, renderer raw-API guard, deprecated-API guard, security audit, `git diff --check`, and isolated full pre-commit/detect-secrets all pass.
+- PR #392 remote evidence was re-read directly: all 18 required checks passed on its exact head before US-076 merged as `8b4b645`; the stale US-076 PRD CI criterion is now closed.
+- US-104's own GitHub-check criterion remains open pending the exact story PR head.
+- Final updated staged-diff Codex review: no remaining actionable issues; both terminal-tombstone and slow-stream ordering fixes were independently confirmed, with no new correctness/security/privacy/compatibility blocker.

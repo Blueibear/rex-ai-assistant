@@ -2669,7 +2669,7 @@ python scripts/rexbench.py --profile baseline --iterations 20 --output docs/perf
 - [x] Text and voice paths both use the fail-safe.
 - [x] The UI distinguishes model failure from normal answer refusal.
 - [x] Tests use mocked bad output and verify no gibberish is returned to the user.
-- [ ] All relevant GitHub checks pass.
+- [x] All relevant GitHub checks pass. *(PR #392 exact head passed all 18 required checks before merge; merged as 8b4b645 on 2026-08-13.)*
 
 - [x] Output validation runs on the canonical turn-completion path so streaming and non-streaming turns enforce identical safety/coherence rules.
 - [x] Any response produced after model escalation is independently validated before it can become the terminal user response.
@@ -3492,11 +3492,11 @@ grep -n "askrex.app\|Cloudflare\|CORS\|rate limit\|revocation" docs/deployment.m
 **Files/areas likely involved:** event-to-status projector, Electron/mobile/voice adapters, typed IPC/mobile events.
 
 **Acceptance Criteria:**
-- [ ] Status is a deterministic projection of canonical events and contains no independent orchestration/business logic.
-- [ ] Status payloads contain no transcript, prompt, memory contents, credentials, or private tool results.
-- [ ] CLI/Electron/voice/mobile show equivalent state transitions for the same turn, adapted only for presentation.
-- [ ] Cancellation/failure/verification terminal states clear stale indicators reliably.
-- [ ] Tests cover privacy redaction and cross-interface status parity.
+- [x] Status is a deterministic projection of canonical events and contains no independent orchestration/business logic.
+- [x] Status payloads contain no transcript, prompt, memory contents, credentials, or private tool results.
+- [x] CLI/Electron/voice/mobile show equivalent state transitions for the same turn, adapted only for presentation.
+- [x] Cancellation/failure/verification terminal states clear stale indicators reliably.
+- [x] Tests cover privacy redaction and cross-interface status parity.
 - [ ] All relevant GitHub checks pass.
 
 **Validation commands:** `pytest tests/rex2/test_progressive_status.py -q`; `cd gui && npm run typecheck && npm run build`.
@@ -3585,7 +3585,7 @@ grep -n "askrex.app\|Cloudflare\|CORS\|rate limit\|revocation" docs/deployment.m
 - [x] Dependent failure/cancellation blocks unsafe descendants and preserves truthful states for already-started nodes.
 - [x] Confirmation/commit boundaries cannot be bypassed by parallel scheduling.
 - [x] Tests prove wall-clock concurrency for independent mock reads and deterministic mutation/conflict ordering.
-- [ ] All relevant GitHub checks pass.
+- [x] All relevant GitHub checks pass.
 
 **Validation commands:** `pytest tests/rex2/test_action_graph.py tests/rex2/test_parallel_actions.py -q`; `python scripts/rexbench.py --profile parallel-actions`.
 

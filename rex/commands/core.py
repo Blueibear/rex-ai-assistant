@@ -49,6 +49,7 @@ def cmd_chat(args: argparse.Namespace) -> int:
     from rex.logging_utils import configure_logging
     from rex.plugins import load_plugins, shutdown_plugins
     from rex.runtime.invocation import turn_invocation
+    from rex.runtime.status import TurnStatusProjector
     from rex.runtime.turn import TurnSource
     from rex.services import initialize_services
 
@@ -67,9 +68,16 @@ def cmd_chat(args: argparse.Namespace) -> int:
                 print("(please enter a prompt)")
                 continue
 
+            def show_status(update) -> None:  # noqa: ANN001
+                print(f"Rex [{update.status.value.capitalize()}]")
+
+            status_projector = TurnStatusProjector(show_status)
             try:
                 with turn_invocation(TurnSource.CLI):
-                    reply = await assistant.generate_reply(user_input)
+                    reply = await assistant.generate_reply(
+                        user_input,
+                        event_observer=status_projector.observe,
+                    )
             except Exception as exc:
                 print(f"[error] {exc}")
                 continue

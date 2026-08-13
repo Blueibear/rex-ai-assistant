@@ -1,9 +1,14 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import { useNotificationsStore } from '../store/notificationsStore'
 import { useGlobalShortcuts } from '../hooks/useGlobalShortcuts'
 import { HelpOverlay } from '../components/HelpOverlay'
 import type { UserProfile } from '../types/ipc'
+import {
+  applyTurnStatusUpdate,
+  createTurnStatusState,
+  hasActiveTurn,
+} from '../types/turnStatusState'
 import brandIcon from "../assets/icon_square.png";
 import brandWordmark from "../assets/Horizontal-UI-Wordmark.png";
 
@@ -14,12 +19,16 @@ type RexStatusValue =
   | 'listening'
   | 'followup_listening'
   | 'thinking'
+  | 'checking'
+  | 'acting'
+  | 'verifying'
   | 'executing'
   | 'processing'
   | 'speaking'
   | 'cooldown'
   | 'done'
   | 'error'
+  | 'cancelled'
 
 const STATUS_LABEL: Record<RexStatusValue, string> = {
   starting: 'Starting',
@@ -28,12 +37,16 @@ const STATUS_LABEL: Record<RexStatusValue, string> = {
   listening: 'Listening',
   followup_listening: 'Follow-Up Listening',
   thinking: 'Thinking',
+  checking: 'Checking',
+  acting: 'Acting',
+  verifying: 'Verifying',
   executing: 'Executing',
   processing: 'Processing',
   speaking: 'Speaking',
   cooldown: 'Resetting',
   done: 'Done',
-  error: 'Error'
+  error: 'Error',
+  cancelled: 'Cancelled'
 }
 
 const STATUS_COLOR: Record<RexStatusValue, string> = {
@@ -43,16 +56,21 @@ const STATUS_COLOR: Record<RexStatusValue, string> = {
   listening: 'bg-blue-500/15 text-blue-400',
   followup_listening: 'bg-red-500/15 text-red-400',
   thinking: 'bg-amber-500/15 text-amber-400',
+  checking: 'bg-blue-500/15 text-blue-400',
+  acting: 'bg-purple-500/15 text-purple-400',
+  verifying: 'bg-cyan-500/15 text-cyan-400',
   executing: 'bg-purple-500/15 text-purple-400',
   processing: 'bg-amber-500/15 text-amber-400',
   speaking: 'bg-green-500/15 text-green-400',
   cooldown: 'bg-accent/15 text-accent',
   done: 'bg-green-500/15 text-green-400',
-  error: 'bg-red-500/15 text-red-400'
+  error: 'bg-red-500/15 text-red-400',
+  cancelled: 'bg-surface-raised text-text-muted'
 }
 
 function useRexStatus(): RexStatusValue {
   const [status, setStatus] = useState<RexStatusValue>('idle')
+  const turnStatusRef = useRef(createTurnStatusState())
 
   useEffect(() => {
     let cancelled = false
@@ -61,7 +79,7 @@ function useRexStatus(): RexStatusValue {
       void window.rex
         .getStatus()
         .then((d) => {
-          if (cancelled) return
+          if (cancelled || hasActiveTurn(turnStatusRef.current)) return
           const s = d.status ?? 'idle'
           setStatus(s as RexStatusValue)
         })
@@ -80,9 +98,18 @@ function useRexStatus(): RexStatusValue {
 
   useEffect(() => {
     const cleanup = window.rex.onStatusChange?.((nextStatus) => {
-      if (nextStatus) {
+      if (nextStatus && !hasActiveTurn(turnStatusRef.current)) {
         setStatus(nextStatus.trim() as RexStatusValue)
       }
+    })
+    return () => {
+      cleanup?.()
+    }
+  }, [])
+
+  useEffect(() => {
+    const cleanup = window.rex.onTurnStatus?.((update) => {
+      setStatus(applyTurnStatusUpdate(turnStatusRef.current, update))
     })
     return () => {
       cleanup?.()

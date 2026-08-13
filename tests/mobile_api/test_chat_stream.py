@@ -44,6 +44,33 @@ class TestSseGrammar:
         reconstructed = "".join(e["content"] for e in token_events)
         assert reconstructed == f"echo[{user_id}]: stream me"
 
+    def test_progressive_status_frames_are_privacy_safe_and_precede_terminal_done(
+        self, client, fake_chat_service
+    ) -> None:
+        from rex.runtime.status import TurnStatus, TurnStatusUpdate
+
+        _, headers = _authed(client)
+        fake_chat_service.status_updates = [
+            TurnStatusUpdate("turn-mobile", 0, TurnStatus.THINKING, False),
+            TurnStatusUpdate("turn-mobile", 1, TurnStatus.ACTING, False),
+            TurnStatusUpdate("turn-mobile", 2, TurnStatus.DONE, True),
+        ]
+        payload = chat_payload("status please")
+
+        response = client.post("/mobile/chat/stream", json=payload, headers=headers)
+        events = parse_sse_events(response.data)
+        status_events = [event for event in events if event["type"] == "status"]
+
+        assert [event["status"] for event in status_events] == ["thinking", "acting", "done"]
+        assert all(
+            set(event) == {"type", "message_id", "turn_id", "sequence", "status", "terminal"}
+            for event in status_events
+        )
+        assert all(event["message_id"] == payload["message_id"] for event in status_events)
+        assert events.index(status_events[-1]) < len(events) - 1
+        assert events[-1]["type"] == "message_done"
+        assert "status please" not in repr(status_events)
+
     def test_exactly_one_terminal_message_done(self, client) -> None:
         """SSE-003."""
         _, headers = _authed(client)
@@ -72,6 +99,38 @@ class TestSseGrammar:
         assert events[-1]["code"] == "BACKEND_UNAVAILABLE"
         assert events[-1]["retryable"] is True
         assert all(e["type"] != "message_done" for e in events)
+
+    def test_terminal_status_is_flushed_before_stream_error(self, client, services) -> None:
+        """A canonical terminal status queued by Assistant is not lost when iteration raises."""
+        from rex.mobile_api import errors as merr
+        from rex.mobile_api.errors import MobileApiError
+        from rex.runtime.status import TurnStatus, TurnStatusUpdate
+
+        _, headers = _authed(client)
+
+        def failing_stream(message, *, status_observer=None, **kwargs):  # noqa: ANN001,ARG001
+            if status_observer is not None:
+                status_observer(TurnStatusUpdate("turn-failed", 1, TurnStatus.ERROR, True))
+            raise MobileApiError(
+                merr.BACKEND_UNAVAILABLE,
+                "Rex is temporarily unavailable.",
+                503,
+                retryable=True,
+            )
+            yield "unreachable"
+
+        services.chat_service.stream = failing_stream
+        response = client.post(
+            "/mobile/chat/stream",
+            json=chat_payload("fail after terminal status"),
+            headers=headers,
+        )
+        events = parse_sse_events(response.data)
+
+        assert [event["type"] for event in events[-2:]] == ["status", "error"]
+        assert events[-2]["status"] == "error"
+        assert events[-2]["terminal"] is True
+        assert events[-1]["code"] == "BACKEND_UNAVAILABLE"
 
 
 class TestSseIdempotency:

@@ -101,6 +101,7 @@ class FakeChatService:
         self.calls: list[tuple[str, str]] = []
         self.fail_with: Exception | None = None
         self.stream_fail_after_chunks: int | None = None
+        self.status_updates: list = []
 
     def availability(self) -> tuple[bool, str]:
         return (self.available, "ok" if self.available else "fake chat disabled")
@@ -121,12 +122,16 @@ class FakeChatService:
         strong_auth_authority=None,
         strong_auth_principal=None,
         strong_auth_approval_id=None,
+        status_observer=None,
     ) -> str:
         if authorization_check is not None:
             authorization_check()
         if self.fail_with is not None:
             raise self.fail_with
         self.calls.append((message, user_id))
+        if status_observer is not None:
+            for update in self.status_updates:
+                status_observer(update)
         return self._reply(message, user_id)
 
     def stream(
@@ -141,12 +146,17 @@ class FakeChatService:
         strong_auth_authority=None,
         strong_auth_principal=None,
         strong_auth_approval_id=None,
+        status_observer=None,
     ):
         if authorization_check is not None:
             authorization_check()
         if self.fail_with is not None:
             raise self.fail_with
         self.calls.append((message, user_id))
+        if status_observer is not None:
+            for update in self.status_updates:
+                if not getattr(update, "terminal", False):
+                    status_observer(update)
         text = self._reply(message, user_id)
         chunks = [text[i : i + 6] for i in range(0, len(text), 6)]
         for index, chunk in enumerate(chunks):
@@ -161,6 +171,10 @@ class FakeChatService:
                     retryable=True,
                 )
             yield chunk
+        if status_observer is not None:
+            for update in self.status_updates:
+                if getattr(update, "terminal", False):
+                    status_observer(update)
 
 
 class FakeSttAdapter:

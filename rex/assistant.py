@@ -26,7 +26,7 @@ from .llm_client import LanguageModel
 from .memory import trim_history
 from .model_router import ModelRouter
 from .plugins import PluginSpec
-from .runtime.events import EventKind, EventObserver, TurnEventStream
+from .runtime.events import EventKind, EventObserver, TurnEvent, TurnEventStream
 from .runtime.invocation import current_turn_invocation
 from .runtime.turn import (
     AuthorizationSnapshotRef,
@@ -775,13 +775,31 @@ class Assistant:
             )
             await await_with_cancellation(response_sink(chunk))
 
+    def _compose_event_observer(self, explicit: EventObserver | None) -> EventObserver | None:
+        """Combine per-call and legacy observers without shared request state."""
+        legacy = getattr(self, "_turn_event_observer", None)
+        if explicit is None:
+            return legacy
+        if legacy is None or explicit == legacy:
+            return explicit
+
+        def observe(event) -> None:  # noqa: ANN001
+            legacy(event)
+            explicit(event)
+
+        return observe
+
     async def stream_reply(
-        self, transcript: str, *, voice_mode: bool = False, active_user_id: str | None = None
+        self,
+        transcript: str,
+        *,
+        voice_mode: bool = False,
+        active_user_id: str | None = None,
+        event_observer: EventObserver | None = None,
     ) -> AsyncIterator[str]:
         """Stream verified response sentences from the canonical TurnEngine path."""
         effective_user_id = self._resolve_request_user_id(active_user_id)
         turn_context = self._build_turn_context(effective_user_id, voice_mode=voice_mode)
-        observer = getattr(self, "_turn_event_observer", None)
         latency_provider, latency_model = self._latency_provider_model()
         latency_trace = LatencyTrace(
             channel="voice" if voice_mode else "chat",
@@ -792,9 +810,25 @@ class Assistant:
         stream_started_ns = time.perf_counter_ns()
         queue: asyncio.Queue[object] = asyncio.Queue()
         sentinel = object()
+        legacy_observer = getattr(self, "_turn_event_observer", None)
+        queued_observer = (
+            event_observer
+            if event_observer is not None and event_observer != legacy_observer
+            else None
+        )
+
+        def stream_observer(event: TurnEvent) -> None:
+            if legacy_observer is not None:
+                legacy_observer(event)
+            if queued_observer is not None:
+                queue.put_nowait(("event", event))
+
+        observer = (
+            stream_observer if legacy_observer is not None or queued_observer is not None else None
+        )
 
         async def response_sink(chunk: str) -> None:
-            await queue.put(chunk)
+            await queue.put(("chunk", chunk))
 
         async def run_turn() -> None:
             try:
@@ -815,7 +849,7 @@ class Assistant:
                     on_event=observer,
                 )
             except BaseException as exc:
-                await queue.put(exc)
+                await queue.put(("error", exc))
             finally:
                 await queue.put(sentinel)
 
@@ -825,9 +859,14 @@ class Assistant:
                 item = await queue.get()
                 if item is sentinel:
                     break
-                if isinstance(item, BaseException):
-                    raise item
-                yield str(item)
+                kind, payload = cast(tuple[str, object], item)
+                if kind == "event":
+                    if queued_observer is not None:
+                        queued_observer(cast(TurnEvent, payload))
+                    continue
+                if kind == "error":
+                    raise cast(BaseException, payload)
+                yield str(payload)
         finally:
             await task
 
@@ -1032,11 +1071,12 @@ class Assistant:
         *,
         voice_mode: bool = False,
         active_user_id: str | None = None,
+        event_observer: EventObserver | None = None,
     ) -> str:
         """Generate one verified reply through the canonical TurnEngine pipeline."""
         effective_user_id = self._resolve_request_user_id(active_user_id)
         turn_context = self._build_turn_context(effective_user_id, voice_mode=voice_mode)
-        observer = getattr(self, "_turn_event_observer", None)
+        observer = self._compose_event_observer(event_observer)
         latency_provider, latency_model = self._latency_provider_model()
         latency_trace = LatencyTrace(
             channel="voice" if voice_mode else "chat",
