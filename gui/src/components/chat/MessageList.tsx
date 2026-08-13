@@ -12,6 +12,7 @@ export interface Message {
   content: string
   timestamp: Date
   streaming?: boolean
+  status?: 'model_failure'
   attachments?: MessageAttachment[]
 }
 
@@ -175,6 +176,14 @@ export const MessageList: React.FC<MessageListProps> = ({ messages }) => {
             )}
             {msg.role === 'rex' ? (
               <>
+                {msg.status === 'model_failure' && (
+                  <div
+                    role="status"
+                    className="mb-1 text-xs font-medium text-danger"
+                  >
+                    Model failure
+                  </div>
+                )}
                 {msg.streaming && msg.content.trim() === '' ? (
                   <span role="status" aria-live="polite" className="inline-flex items-center gap-1 text-text-secondary">
                     Rex is thinking

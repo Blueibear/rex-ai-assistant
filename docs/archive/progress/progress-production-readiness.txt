@@ -1886,3 +1886,27 @@ Local US-108 evidence:
 - Final action-graph/lifecycle/turn-cancellation/tool-execution/dispatcher/RexBench compatibility matrix -> 72 passed.
 - Black and Ruff pass on all touched runtime/test/benchmark files; mypy passes for the action graph/executor; compileall, full pre-commit/detect-secrets, and `git diff --check` pass.
 - US-108 final GitHub-check criterion remains open until its own immutable PR head passes the complete repository matrix.
+
+
+2026-08-13 - US-075 final GitHub evidence and US-076 incoherent-output fail-safe
+
+Remote US-075 evidence:
+- PR #374 passed all 18 relevant repository checks before merge: CodeFactor, GitGuardian, Python 3.11 Tests & Coverage, installed Windows Electron artifact, Ruff/Black, mypy, GUI lint/typecheck/build/Vitest, dependency audits, security audit, hardcoded-secret scan, pre-commit, wheel contents, raw-API guard, and commitlint.
+- US-075's previously stale final GitHub-check criterion is therefore closed in this US-076 tracking update.
+
+US-076 implementation:
+- Added conservative terminal model-output validation for empty/silence responses, known provider-error answer text, extreme length, and unmistakable repetition/symbol floods.
+- Validation is scoped by `ActionResult.model_generated`; deterministic skill/tool/HA responses are not reclassified. Model responses, including tool-result re-prompts/post-processing, remain model-backed through the terminal validation boundary.
+- The shared Assistant/TurnEngine completion path validates before ResponseBuilder/cache, history, streamed sentence delivery, and voice/TTS delivery. Invalid output is replaced with a fixed safe failure and the turn ends in the canonical `FAILED` terminal state with `failure_kind=model_failure`.
+- Failure diagnostics log provider, model, route, output length, and bounded reason only; prompt/transcript/output content and credentials are not logged.
+- Electron bridge/main/preload/ChatPage propagate a typed `model_failure` status separately from transport errors; MessageList visibly labels model failure while normal refusals remain ordinary Rex messages.
+- Codex independent review found no blocker/high-severity issue. Its two medium findings were fixed by making repetition tokenization Unicode-aware and raising repetition/symbol thresholds so bounded repeated test data, separators, and emoji are not falsely rejected. Its low test-coverage finding was addressed with real ActionDispatcher provenance/re-prompt tests plus status-channel and listener-cleanup coverage.
+
+Local US-076 evidence:
+- TDD red phase reproduced raw repetition reaching users and missing Electron model-failure status before implementation; reviewer-follow-up red tests reproduced bounded-output false positives and Unicode repetition bypass before the threshold/tokenizer fixes.
+- `pytest tests/rex2/test_model_output_validation.py tests/rex2/test_generate_reply_turn_engine.py tests/rex2/test_stream_turn_parity.py tests/test_llm_client.py tests/test_assistant.py -q` -> 105 passed, with two pre-existing root-shim deprecation warnings only.
+- Full GUI Vitest suite -> 118 passed; targeted model-failure/preload regression -> 7 passed; `npm run typecheck` and `npm run build` pass.
+- Ruff, Black, and mypy pass on all touched Python runtime/test files; `git diff --check` is clean at the reviewed implementation stage.
+- US-076 GitHub checks remain pending until this story PR is published; its final PRD checkbox intentionally remains open.
+- Codex focused follow-up review found only one remaining test-strength issue: listener cleanup needed to prove removal of the exact registered callback. The assertion was tightened accordingly and the targeted GUI regression/typecheck rerun passed.
+- Full local CI-marker compatibility sweep (`pytest -m "not slow and not audio and not gpu" -q`) -> 8,675 passed, 48 skipped, 315 warnings, 0 failed; pytest exited 0. Post-pytest Torch shutdown logging attempted to write to a closed capture stream, but did not change the successful process exit.

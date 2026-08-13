@@ -3,6 +3,7 @@
 Reads JSON from stdin:  {"message": "<text>"}
 Writes NDJSON to stdout, one JSON object per line:
   {"type": "token", "token": "<text>"}   – a chunk of the LLM response
+  {"type": "status", "status": "<kind>"} – non-terminal response status
   {"type": "done"}                        – stream complete (last line)
   {"type": "error", "error": "<text>"}   – error; process exits 1
 
@@ -51,6 +52,7 @@ def main() -> None:
         from rex.identity import validate_user_id  # type: ignore[import]
         from rex.logging_utils import configure_logging  # type: ignore[import]
         from rex.plugins import load_plugins, shutdown_plugins  # type: ignore[import]
+        from rex.runtime.events import EventKind  # type: ignore[import]
         from rex.runtime.invocation import turn_invocation  # type: ignore[import]
         from rex.runtime.turn import TurnSource  # type: ignore[import]
         from rex.services import initialize_services  # type: ignore[import]
@@ -65,6 +67,16 @@ def main() -> None:
             plugins=plugin_specs,
             user_id=validate_user_id(user_id),
         )
+
+        def observe_turn(event) -> None:  # noqa: ANN001
+            if (
+                event.kind is EventKind.RESPONSE_PROGRESS
+                and event.details.get("stage") == "output_validation"
+                and event.details.get("status") == "model_failure"
+            ):
+                emit({"type": "status", "status": "model_failure"})
+
+        assistant._turn_event_observer = observe_turn
         try:
             # Electron owns transport and provenance only; Assistant owns the brain.
             with turn_invocation(TurnSource.ELECTRON):

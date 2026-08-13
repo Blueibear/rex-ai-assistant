@@ -211,6 +211,12 @@ export function registerChatHandlers(session: ElectronSessionIdentity): void {
       }
     }
 
+    function sendStatus(status: string): void {
+      if (!event.sender.isDestroyed()) {
+        event.sender.send('rex:chatStatus', { streamId, status })
+      }
+    }
+
     function sendDone(): void {
       if (!sentFinal) {
         sentFinal = true
@@ -244,10 +250,13 @@ export function registerChatHandlers(session: ElectronSessionIdentity): void {
           const obj = JSON.parse(trimmed) as {
             type: string
             token?: string
+            status?: string
             error?: string
           }
           if (obj.type === 'token' && obj.token !== undefined) {
             sendToken(obj.token)
+          } else if (obj.type === 'status' && obj.status !== undefined) {
+            sendStatus(obj.status)
           } else if (obj.type === 'done') {
             sendDone()
           } else if (obj.type === 'error') {
@@ -267,9 +276,11 @@ export function registerChatHandlers(session: ElectronSessionIdentity): void {
           const obj = JSON.parse(lineBuffer.trim()) as {
             type: string
             token?: string
+            status?: string
             error?: string
           }
           if (obj.type === 'token' && obj.token !== undefined) sendToken(obj.token)
+          else if (obj.type === 'status' && obj.status !== undefined) sendStatus(obj.status)
           else if (obj.type === 'done') sendDone()
           else if (obj.type === 'error') sendError(obj.error ?? 'Streaming error')
         } catch {
