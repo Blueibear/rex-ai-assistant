@@ -54,6 +54,16 @@ provenance comes only from the authenticated paired
 principal. The voice loop and other interfaces must call Assistant rather than the LLM
 client directly so routing and verification are preserved.
 
+Progressive activity state is also runtime-owned. `rex/runtime/status.py` is the sole
+canonical projection from ordered `TurnEvent` records into the content-free status
+vocabulary `thinking`, `checking`, `acting`, `verifying`, `speaking`, `done`, `error`,
+and `cancelled`. CLI, Electron chat/voice, and authenticated mobile transports may change
+presentation only; they must not infer activity from elapsed time or duplicate orchestration.
+Wire/UI status includes only turn correlation, sequence, status, and terminal state—never
+transcripts, prompts, memory contents, credentials, or private tool results. Concurrent
+Electron turns are tracked by turn ID so one turn's terminal event cannot clear another
+turn that is still active.
+
 ### Action lifecycle and verification
 
 `rex/actions/lifecycle.py` is the canonical action-truth contract used by generic

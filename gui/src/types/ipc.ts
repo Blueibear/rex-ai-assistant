@@ -664,6 +664,23 @@ export interface ChatStreamCancelHandle {
   offAbort: (cb: () => void) => void
 }
 
+export type TurnStatusValue =
+  | 'thinking'
+  | 'checking'
+  | 'acting'
+  | 'verifying'
+  | 'speaking'
+  | 'done'
+  | 'error'
+  | 'cancelled'
+
+export interface TurnStatusUpdate {
+  turnId: string
+  sequence: number
+  status: TurnStatusValue
+  terminal: boolean
+}
+
 export type ChatStreamStatus = 'model_failure'
 
 export interface RexAPI {
@@ -676,6 +693,7 @@ export interface RexAPI {
   ) => Promise<void>
   getStatus: () => Promise<StatusResponse>
   onStatusChange: (cb: (status: string) => void) => (() => void)
+  onTurnStatus: (cb: (update: TurnStatusUpdate) => void) => (() => void)
   getSettings: (section: string) => Promise<Settings>
   setSettings: (section: string, values: Settings) => Promise<SetSettingsResponse>
   removeEmailAccount: (id: string, confirmed: boolean) => Promise<SetSettingsResponse>

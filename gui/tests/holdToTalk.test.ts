@@ -48,6 +48,12 @@ type CancelHandle = {
   onAbort: (cb: () => void) => void
   offAbort: (cb: () => void) => void
 }
+type TurnStatusUpdate = {
+  turnId: string
+  sequence: number
+  status: string
+  terminal: boolean
+}
 type ExposedRexAPI = {
   sendChatStream: (
     message: string,
@@ -55,6 +61,7 @@ type ExposedRexAPI = {
     cancel?: unknown,
     onStatus?: (status: string) => void
   ) => Promise<void>
+  onTurnStatus: (cb: (update: TurnStatusUpdate) => void) => () => void
 }
 
 const invoke = vi.fn()
@@ -131,6 +138,29 @@ describe('sendChatStream cancel handle (contextBridge-safe)', () => {
 
     expect(statuses).toEqual(['model_failure'])
     expect(removeListener).toHaveBeenCalledWith('rex:chatStatus', statusHandler)
+  })
+
+  it('normalizes canonical turn status and removes the exact registered listener', async () => {
+    await import('../src/preload/index')
+    const { onTurnStatus } = exposed.rex as ExposedRexAPI
+    const updates: TurnStatusUpdate[] = []
+
+    const cleanup = onTurnStatus((update) => updates.push(update))
+    const handler = listeners['rex:turnStatus']
+    expect(handler).toEqual(expect.any(Function))
+
+    handler?.(null, {
+      turn_id: 'turn-1',
+      sequence: 3,
+      status: 'verifying',
+      terminal: false,
+    })
+
+    expect(updates).toEqual([
+      { turnId: 'turn-1', sequence: 3, status: 'verifying', terminal: false },
+    ])
+    cleanup()
+    expect(removeListener).toHaveBeenCalledWith('rex:turnStatus', handler)
   })
 
   it('does not throw when the cancel argument has lost its methods crossing the bridge (regression for the original crash)', async () => {

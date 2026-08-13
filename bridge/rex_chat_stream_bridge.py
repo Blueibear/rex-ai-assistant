@@ -54,6 +54,7 @@ def main() -> None:
         from rex.plugins import load_plugins, shutdown_plugins  # type: ignore[import]
         from rex.runtime.events import EventKind  # type: ignore[import]
         from rex.runtime.invocation import turn_invocation  # type: ignore[import]
+        from rex.runtime.status import TurnStatusProjector  # type: ignore[import]
         from rex.runtime.turn import TurnSource  # type: ignore[import]
         from rex.services import initialize_services  # type: ignore[import]
 
@@ -68,7 +69,13 @@ def main() -> None:
             user_id=validate_user_id(user_id),
         )
 
+        def emit_turn_status(update) -> None:  # noqa: ANN001
+            emit({"type": "status", **update.to_dict()})
+
+        status_projector = TurnStatusProjector(emit_turn_status)
+
         def observe_turn(event) -> None:  # noqa: ANN001
+            status_projector.observe(event)
             if (
                 event.kind is EventKind.RESPONSE_PROGRESS
                 and event.details.get("stage") == "output_validation"
@@ -76,7 +83,6 @@ def main() -> None:
             ):
                 emit({"type": "status", "status": "model_failure"})
 
-        assistant._turn_event_observer = observe_turn
         try:
             # Electron owns transport and provenance only; Assistant owns the brain.
             with turn_invocation(TurnSource.ELECTRON):
@@ -84,10 +90,10 @@ def main() -> None:
                     assistant, "generate_reply_stream", None
                 )
                 if stream_fn is not None:
-                    async for token in stream_fn(message):
+                    async for token in stream_fn(message, event_observer=observe_turn):
                         emit({"type": "token", "token": str(token)})
                 else:
-                    reply = await assistant.generate_reply(message)
+                    reply = await assistant.generate_reply(message, event_observer=observe_turn)
                     emit({"type": "token", "token": str(reply)})
         finally:
             shutdown_plugins(plugin_specs)

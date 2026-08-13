@@ -18,6 +18,9 @@ type VoiceBridgeEvent = {
   timestamp?: number
   error?: string
   status?: string
+  turn_id?: string
+  sequence?: number
+  terminal?: boolean
   level?: string
   message?: string
   extra?: Record<string, unknown>
@@ -108,6 +111,26 @@ function handleVoiceStatusEvent(
   })
 }
 
+function handleVoiceTurnStatusEvent(
+  event: VoiceBridgeEvent,
+  _context: VoiceBridgeEventContext
+): void {
+  if (
+    !event.status ||
+    typeof event.turn_id !== 'string' ||
+    typeof event.sequence !== 'number' ||
+    typeof event.terminal !== 'boolean'
+  ) {
+    return
+  }
+  broadcastVoiceEvent('rex:turnStatus', {
+    turn_id: event.turn_id,
+    sequence: event.sequence,
+    status: event.status,
+    terminal: event.terminal
+  })
+}
+
 function handleVoiceLogEvent(event: VoiceBridgeEvent, context: VoiceBridgeEventContext): void {
   appendElectronLog(event.level ?? 'INFO', event.message ?? 'GUI voice bridge log', {
     ...(event.extra ?? {}),
@@ -170,6 +193,7 @@ function handleVoiceErrorEvent(event: VoiceBridgeEvent, context: VoiceBridgeEven
 const VOICE_BRIDGE_EVENT_HANDLERS: Record<string, VoiceBridgeEventHandler> = {
   ready: handleVoiceReadyEvent,
   status: handleVoiceStatusEvent,
+  turn_status: handleVoiceTurnStatusEvent,
   log: handleVoiceLogEvent,
   state: handleVoiceStateEvent,
   transcript: handleVoiceTranscriptEvent,

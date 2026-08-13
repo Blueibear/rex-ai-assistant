@@ -224,6 +224,32 @@ class TestFrames:
                 assert key == key.lower() and " " not in key
         assert fake_chat_service.calls == [("Hello Rex", user_id)]
 
+    def test_websocket_uses_same_privacy_safe_progressive_status_grammar(
+        self, client, services, fake_chat_service
+    ) -> None:
+        from rex.runtime.status import TurnStatus, TurnStatusUpdate
+
+        _, token = _login(client)
+        fake_chat_service.status_updates = [
+            TurnStatusUpdate("turn-ws", 0, TurnStatus.THINKING, False),
+            TurnStatusUpdate("turn-ws", 1, TurnStatus.VERIFYING, False),
+            TurnStatusUpdate("turn-ws", 2, TurnStatus.DONE, True),
+        ]
+        frame = _chat_frame("private websocket prompt")
+        message_id = json.loads(frame)["message_id"]
+
+        ws = _run(services, [_auth_frame(token), frame])
+        status_events = [event for event in ws.sent if event["type"] == "status"]
+
+        assert [event["status"] for event in status_events] == ["thinking", "verifying", "done"]
+        assert all(
+            set(event) == {"type", "message_id", "turn_id", "sequence", "status", "terminal"}
+            for event in status_events
+        )
+        assert all(event["message_id"] == message_id for event in status_events)
+        assert "private websocket prompt" not in repr(status_events)
+        assert ws.sent[-1]["type"] == "message_done"
+
     def test_client_identity_fields_in_chat_rejected(
         self, client, services, fake_chat_service
     ) -> None:

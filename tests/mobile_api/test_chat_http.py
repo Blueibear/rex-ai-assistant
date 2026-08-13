@@ -121,6 +121,29 @@ class TestChatExecution:
         assert body["response"] == f"echo[{user_id}]: What time is it?"
         assert fake_chat_service.calls == [("What time is it?", user_id)]
 
+    def test_nonstream_response_includes_privacy_safe_progressive_status_events(
+        self, client, fake_chat_service
+    ) -> None:
+        from rex.runtime.status import TurnStatus, TurnStatusUpdate
+
+        _, headers = _authed(client)
+        fake_chat_service.status_updates = [
+            TurnStatusUpdate("turn-http", 0, TurnStatus.THINKING, False),
+            TurnStatusUpdate("turn-http", 1, TurnStatus.DONE, True),
+        ]
+        payload = chat_payload("private http prompt")
+
+        response = client.post("/mobile/chat", json=payload, headers=headers)
+        events = response.get_json()["events"]
+
+        assert [event["status"] for event in events] == ["thinking", "done"]
+        assert all(
+            set(event) == {"type", "message_id", "turn_id", "sequence", "status", "terminal"}
+            for event in events
+        )
+        assert all(event["message_id"] == payload["message_id"] for event in events)
+        assert "private http prompt" not in repr(events)
+
     def test_normal_response_status_is_completed_not_verified(self, client) -> None:
         """CHAT-009."""
         _, headers = _authed(client)

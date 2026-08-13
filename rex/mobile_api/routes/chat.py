@@ -130,6 +130,11 @@ def build_chat_blueprint(services: MobileApiServices, limiter: Any) -> Blueprint
                 required_scope=ROUTE_SCOPES["chat.send"],
             )
 
+        status_events: list[dict[str, Any]] = []
+
+        def status_observer(update) -> None:  # noqa: ANN001
+            status_events.append(mev.status_event(chat_request.message_id, update))
+
         try:
             completion = services.chat_service.generate(
                 chat_request.message,
@@ -141,6 +146,7 @@ def build_chat_blueprint(services: MobileApiServices, limiter: Any) -> Blueprint
                 strong_auth_authority=services.strong_auth_authority,
                 strong_auth_principal=principal,
                 strong_auth_approval_id=chat_request.strong_auth_approval_id,
+                status_observer=status_observer,
             )
             revalidate_principal(
                 services,
@@ -162,7 +168,7 @@ def build_chat_blueprint(services: MobileApiServices, limiter: Any) -> Blueprint
             "conversation_id": chat_request.conversation_id,
             "response": completion,
             "status": STATUS_COMPLETED,
-            "events": [],
+            "events": status_events,
         }
         # Persist the terminal result before responding so a retry replays
         # exactly what this client received.
@@ -216,7 +222,16 @@ def build_chat_blueprint(services: MobileApiServices, limiter: Any) -> Blueprint
             # No Flask request-context access inside the generator: every
             # needed value was captured above.
             collected: list[str] = []
+            pending_status: list[dict[str, Any]] = []
             finished = False
+
+            def status_observer(update) -> None:  # noqa: ANN001
+                pending_status.append(mev.status_event(message_id, update))
+
+            def flush_status():
+                while pending_status:
+                    yield mev.format_sse(pending_status.pop(0))
+
             try:
                 try:
                     iterator = iter(
@@ -230,6 +245,7 @@ def build_chat_blueprint(services: MobileApiServices, limiter: Any) -> Blueprint
                             strong_auth_authority=services.strong_auth_authority,
                             strong_auth_principal=principal,
                             strong_auth_approval_id=chat_request.strong_auth_approval_id,
+                            status_observer=status_observer,
                         )
                     )
                     while True:
@@ -241,7 +257,9 @@ def build_chat_blueprint(services: MobileApiServices, limiter: Any) -> Blueprint
                         try:
                             chunk = next(iterator)
                         except StopIteration:
+                            yield from flush_status()
                             break
+                        yield from flush_status()
                         revalidate_principal(
                             services,
                             principal,
@@ -250,6 +268,7 @@ def build_chat_blueprint(services: MobileApiServices, limiter: Any) -> Blueprint
                         collected.append(chunk)
                         yield mev.format_sse(mev.token_event(message_id, chunk))
                 except MobileApiError as exc:
+                    yield from flush_status()
                     store.fail(user_id, message_id, exc.code)
                     finished = True
                     yield mev.format_sse(
@@ -264,6 +283,7 @@ def build_chat_blueprint(services: MobileApiServices, limiter: Any) -> Blueprint
                     )
                     return
                 except Exception:
+                    yield from flush_status()
                     logger.exception("Mobile SSE stream failed (request_id=%s)", request_id)
                     store.fail(user_id, message_id, merr.INTERNAL_ERROR)
                     finished = True

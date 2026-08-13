@@ -211,9 +211,28 @@ export function registerChatHandlers(session: ElectronSessionIdentity): void {
       }
     }
 
-    function sendStatus(status: string): void {
-      if (!event.sender.isDestroyed()) {
-        event.sender.send('rex:chatStatus', { streamId, status })
+    function sendStatus(data: {
+      status: string
+      turn_id?: string
+      sequence?: number
+      terminal?: boolean
+    }): void {
+      if (event.sender.isDestroyed()) return
+      if (data.status === 'model_failure') {
+        event.sender.send('rex:chatStatus', { streamId, status: data.status })
+      }
+      if (
+        data.status !== 'model_failure' &&
+        typeof data.turn_id === 'string' &&
+        typeof data.sequence === 'number' &&
+        typeof data.terminal === 'boolean'
+      ) {
+        event.sender.send('rex:turnStatus', {
+          turn_id: data.turn_id,
+          sequence: data.sequence,
+          status: data.status,
+          terminal: data.terminal
+        })
       }
     }
 
@@ -251,12 +270,20 @@ export function registerChatHandlers(session: ElectronSessionIdentity): void {
             type: string
             token?: string
             status?: string
+            turn_id?: string
+            sequence?: number
+            terminal?: boolean
             error?: string
           }
           if (obj.type === 'token' && obj.token !== undefined) {
             sendToken(obj.token)
           } else if (obj.type === 'status' && obj.status !== undefined) {
-            sendStatus(obj.status)
+            sendStatus({
+              status: obj.status,
+              turn_id: obj.turn_id,
+              sequence: obj.sequence,
+              terminal: obj.terminal
+            })
           } else if (obj.type === 'done') {
             sendDone()
           } else if (obj.type === 'error') {
@@ -277,10 +304,20 @@ export function registerChatHandlers(session: ElectronSessionIdentity): void {
             type: string
             token?: string
             status?: string
+            turn_id?: string
+            sequence?: number
+            terminal?: boolean
             error?: string
           }
           if (obj.type === 'token' && obj.token !== undefined) sendToken(obj.token)
-          else if (obj.type === 'status' && obj.status !== undefined) sendStatus(obj.status)
+          else if (obj.type === 'status' && obj.status !== undefined) {
+            sendStatus({
+              status: obj.status,
+              turn_id: obj.turn_id,
+              sequence: obj.sequence,
+              terminal: obj.terminal
+            })
+          }
           else if (obj.type === 'done') sendDone()
           else if (obj.type === 'error') sendError(obj.error ?? 'Streaming error')
         } catch {

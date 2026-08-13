@@ -387,6 +387,9 @@ class MobileWebSocketServer:
                     required_scope=ROUTE_SCOPES["chat.websocket"],
                 )
 
+            def status_observer(update) -> None:  # noqa: ANN001
+                self._send(ws, mev.status_event(chat_request.message_id, update))
+
             iterator = iter(
                 services.chat_service.stream(
                     chat_request.message,
@@ -397,6 +400,7 @@ class MobileWebSocketServer:
                     strong_auth_authority=services.strong_auth_authority,
                     strong_auth_principal=principal,
                     strong_auth_approval_id=chat_request.strong_auth_approval_id,
+                    status_observer=status_observer,
                 )
             )
             while True:
