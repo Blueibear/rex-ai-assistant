@@ -664,12 +664,15 @@ export interface ChatStreamCancelHandle {
   offAbort: (cb: () => void) => void
 }
 
+export type ChatStreamStatus = 'model_failure'
+
 export interface RexAPI {
   sendChat: (message: string) => Promise<string>
   sendChatStream: (
     message: string,
     onToken: (token: string) => void,
-    cancel?: ChatStreamCancelHandle
+    cancel?: ChatStreamCancelHandle,
+    onStatus?: (status: ChatStreamStatus) => void
   ) => Promise<void>
   getStatus: () => Promise<StatusResponse>
   onStatusChange: (cb: (status: string) => void) => (() => void)

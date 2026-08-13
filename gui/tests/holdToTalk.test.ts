@@ -28,6 +28,10 @@ describe('Hold-to-Talk production path', () => {
     const preload = readFileSync(join(__dirname, '../src/preload/index.ts'), 'utf8')
     expect(chatHandler).toContain("ipcMain.handle('rex:cancelChatStream'")
     expect(preload).toContain("ipcRenderer.invoke('rex:cancelChatStream'")
+    expect(chatHandler).toContain("obj.type === 'status'")
+    expect(chatHandler).toContain("'rex:chatStatus'")
+    const chatPage = readFileSync(join(__dirname, '../src/pages/ChatPage.tsx'), 'utf8')
+    expect(chatPage).toContain("status: 'model_failure'")
   })
 })
 
@@ -48,7 +52,8 @@ type ExposedRexAPI = {
   sendChatStream: (
     message: string,
     onToken: (token: string) => void,
-    cancel?: unknown
+    cancel?: unknown,
+    onStatus?: (status: string) => void
   ) => Promise<void>
 }
 
@@ -103,6 +108,29 @@ describe('sendChatStream cancel handle (contextBridge-safe)', () => {
     await expect(
       sendChatStream('hello', () => {}, buildCancelHandle(controller))
     ).resolves.toBeUndefined()
+  })
+
+  it('forwards model failure status without turning it into a transport error', async () => {
+    await import('../src/preload/index')
+    const { sendChatStream } = exposed.rex as ExposedRexAPI
+    const statuses: string[] = []
+    invoke.mockImplementation((channel: string, payload?: { streamId: string }) => {
+      if (channel === 'rex:startChatStream' && payload) {
+        queueMicrotask(() => {
+          listeners['rex:chatStatus']?.(null, { streamId: payload.streamId, status: 'model_failure' })
+          listeners['rex:chatDone']?.(null, { streamId: payload.streamId })
+        })
+      }
+      return Promise.resolve()
+    })
+
+    const promise = sendChatStream('hello', () => {}, undefined, (status) => statuses.push(status))
+    const statusHandler = listeners['rex:chatStatus']
+    expect(statusHandler).toEqual(expect.any(Function))
+    await promise
+
+    expect(statuses).toEqual(['model_failure'])
+    expect(removeListener).toHaveBeenCalledWith('rex:chatStatus', statusHandler)
   })
 
   it('does not throw when the cancel argument has lost its methods crossing the bridge (regression for the original crash)', async () => {

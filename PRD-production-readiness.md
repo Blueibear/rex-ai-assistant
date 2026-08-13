@@ -86,7 +86,8 @@ Use this order for task selection after the reconciliation above. Select the fir
 53. `US-091`
 54. `US-092`
 55. `US-093`
-56. `US-118`
+56. `US-119`
+57. `US-118`
 
 **Dependency/security notes:** TurnEngine work must preserve the already-implemented explicit, fail-closed user identity contract from its first event. US-087 later proves the broader user/household model and James/Cole concurrency invariants. OpenClaw metadata never widens local authority. Mobile remains desktop-paired and least-privilege. All benchmark evidence must label whether it is deterministic/mock, local source runtime, live provider, packaged Windows artifact, or physical hardware/device.
 
@@ -2627,7 +2628,7 @@ cd gui && npm run typecheck && npm run build
 - [x] A profiling command or harness summarizes timings.
 - [x] Optimization stories are opened or blockers documented for any stage over budget.
 - [x] Tests cover timing event emission with mocked stages.
-- [ ] All relevant GitHub checks pass.
+- [x] All relevant GitHub checks pass.
 
 - [x] A checked-in RexBench baseline reports cold and warm p50/p95 for typed chat, voice, read-only tool, mutating tool, and unavailable-capability request classes.
 - [x] Baseline stages separately report routing, first token, tool execution, STT, first audio, completion, and total latency where applicable.
@@ -2663,15 +2664,15 @@ python scripts/rexbench.py --profile baseline --iterations 20 --output docs/perf
 **Implementation notes:** Keep validation conservative and deterministic. Detect clear bad-output patterns such as extreme repetition, non-language token floods, impossible length spikes, or provider error text routed as answer text. Do not censor normal long answers.
 
 **Acceptance Criteria:**
-- [ ] Obvious incoherent output is converted into a clear provider/model failure response.
-- [ ] Logs include provider, model, route, output length, and failure reason without logging secrets.
-- [ ] Text and voice paths both use the fail-safe.
-- [ ] The UI distinguishes model failure from normal answer refusal.
-- [ ] Tests use mocked bad output and verify no gibberish is returned to the user.
+- [x] Obvious incoherent output is converted into a clear provider/model failure response.
+- [x] Logs include provider, model, route, output length, and failure reason without logging secrets.
+- [x] Text and voice paths both use the fail-safe.
+- [x] The UI distinguishes model failure from normal answer refusal.
+- [x] Tests use mocked bad output and verify no gibberish is returned to the user.
 - [ ] All relevant GitHub checks pass.
 
-- [ ] Output validation runs on the canonical turn-completion path so streaming and non-streaming turns enforce identical safety/coherence rules.
-- [ ] Any response produced after model escalation is independently validated before it can become the terminal user response.
+- [x] Output validation runs on the canonical turn-completion path so streaming and non-streaming turns enforce identical safety/coherence rules.
+- [x] Any response produced after model escalation is independently validated before it can become the terminal user response.
 
 **Validation commands:**
 ```bash
@@ -3787,6 +3788,31 @@ grep -n "askrex.app\|Cloudflare\|CORS\|rate limit\|revocation" docs/deployment.m
 **Validation commands:** `pytest tests/rex2/test_forge_promotion.py tests/rex2/test_forge_rollback.py -q`.
 
 **Risk notes:** Approval is a grant to a specific package digest, not blanket trust in Forge.
+
+### US-119: Require absolute venv Python paths for Windows service registration
+
+**Priority:** P0 | **Workstream:** Windows / Installer / Service Reliability | **Dependencies:** Must complete before US-118.
+
+**Description:** Audit every Windows installer, service-registration path, and service startup wrapper so persisted Windows services always reference a fully qualified venv Python executable instead of a current-directory-relative path.
+
+**Why it matters:** A Windows audit found a RexSpeak service configured with a relative venv Python path. The local machine was repaired manually, but repo automation must not be able to recreate the defect after reinstall, upgrade, service re-registration, or deployment from a different working directory.
+
+**Files/areas likely involved:** `Start-RexSpeak.ps1`, `install.ps1`, `node_installers/install_windows.ps1`, `rex/windows_service.py`, any additional `New-Service` / `sc.exe create` / pywin32 `HandleCommandLine` / service ImagePath writers discovered by repo-wide audit, and their tests/docs.
+
+**Acceptance Criteria:**
+- [ ] Repo-wide audit identifies every Windows service installer, registration script, and service startup wrapper that can influence the executable path persisted for Rex/AskRex/RexSpeak services.
+- [ ] Every persisted service executable/ImagePath uses a normalized absolute path to the intended venv Python executable; no service registration may persist `.\\.venv\\Scripts\\python.exe`, `venv\\Scripts\\python.exe`, or any other cwd-relative Python path.
+- [ ] `Start-RexSpeak.ps1` and equivalent Windows launch wrappers resolve paths from `$PSScriptRoot` or another canonical absolute repo/install root rather than the caller's current working directory.
+- [ ] Installers normalize user-supplied roots (including relative `$RexRoot` values) to absolute paths before constructing venv/service paths and fail closed if the resolved Python executable does not exist.
+- [ ] Service command construction correctly quotes absolute paths containing spaces and preserves arguments without changing service behavior.
+- [ ] Regression tests cover an install root containing spaces, a relative input root, and service registration invoked from a working directory different from the repo/install directory.
+- [ ] Windows service tests verify the exact executable path that would be persisted/registered is absolute and points to the expected venv interpreter.
+- [ ] Relevant installer/service documentation and `CLAUDE.md` are updated if commands, scripts, or service-registration behavior changes.
+- [ ] All relevant GitHub checks pass.
+
+**Validation commands:** `pytest tests/test_windows_service.py tests/test_install_scripts.py -q`; run the Windows installer/service dry-run tests from a non-repo working directory and assert the emitted service Python path is absolute; repo-wide search confirms no Windows service-registration path persists a relative venv interpreter.
+
+**Risk notes:** The already-repaired local Windows service is not evidence that repo automation is safe. The repository must prevent reintroduction on reinstall, upgrade, or another machine.
 
 ### US-118: Run final RexBench production-readiness gate
 

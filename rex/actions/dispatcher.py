@@ -40,6 +40,7 @@ class ActionResult:
     response: str
     actions_taken: list[str] = field(default_factory=list)
     error: str | None = None
+    model_generated: bool = False
 
 
 # ---------------------------------------------------------------------------
@@ -342,6 +343,7 @@ class ActionDispatcher:
                 )
 
         completion: str | None = None
+        model_generated = False
 
         # 7. HA command routing (including undo and proactive suggestion injection)
         if (
@@ -402,6 +404,7 @@ class ActionDispatcher:
 
         # 8. LLM call (if no pre-LLM handler produced a completion)
         if completion is None:
+            model_generated = True
             # Rebuild context with tool_context if auto-dispatch populated it.
             if _tool_context:
                 ctx = self._context_builder.build(
@@ -479,4 +482,5 @@ class ActionDispatcher:
             success=True,
             response=completion,
             actions_taken=["llm"] if not completion else ["dispatch"],
+            model_generated=model_generated,
         )

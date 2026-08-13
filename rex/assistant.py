@@ -13,7 +13,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, cast
 
-from .actions.dispatcher import _UNDO_PATTERN
+from .actions.dispatcher import _UNDO_PATTERN, ActionResult
 from .assistant_errors import IdentityRequiredError
 from .calendar_service import get_calendar_service
 from .config import Settings, settings
@@ -693,6 +693,52 @@ class Assistant:
         finally:
             latency_trace.end("tool")
 
+    def _validate_model_response(
+        self,
+        result: ActionResult,
+        *,
+        turn_events: TurnEventStream,
+        route: str,
+    ) -> str | None:
+        """Return a failure reason when a model-backed response is clearly invalid."""
+        if not result.model_generated:
+            return None
+
+        from rex.response.validation import (  # noqa: PLC0415
+            MODEL_FAILURE_MESSAGE,
+            validate_model_output,
+        )
+
+        response = result.response
+        validation = validate_model_output(response)
+        if validation.valid:
+            turn_events.emit(
+                EventKind.RESPONSE_PROGRESS,
+                {"stage": "output_validation", "status": "passed"},
+            )
+            return None
+
+        provider, model = self._latency_provider_model()
+        reason = validation.reason or "invalid_output"
+        logger.warning(
+            "model_output_validation_failed provider=%s model=%s route=%s output_length=%d reason=%s",
+            provider,
+            model,
+            route,
+            len(response),
+            reason,
+        )
+        result.response = MODEL_FAILURE_MESSAGE
+        turn_events.emit(
+            EventKind.RESPONSE_PROGRESS,
+            {
+                "stage": "output_validation",
+                "status": "model_failure",
+                "reason": reason,
+            },
+        )
+        return reason
+
     async def _deliver_safe_response(
         self,
         text: str,
@@ -905,6 +951,7 @@ class Assistant:
             EventKind.ROUTE_PROGRESS,
             {"stage": "model_router", "model": latency_trace.model},
         )
+        model_failure_reason: str | None = None
         try:
             check_cancelled()
             context = self._get_or_create_context_builder().build(
@@ -927,16 +974,24 @@ class Assistant:
                 turn_events=turn_events,
             )
             check_cancelled()
+            model_failure_reason = self._validate_model_response(
+                result,
+                turn_events=turn_events,
+                route=intent.intent_type or "action_dispatch",
+            )
             latency_trace.start("completion")
-            final = self._get_or_create_response_builder().build(
-                result, context, transcript=transcript, user_id=effective_user_id
-            )
-            check_cancelled()
-            completion = final.text
-            turn_events.emit(
-                EventKind.RESPONSE_PROGRESS,
-                {"stage": "response_builder", "status": "completed"},
-            )
+            if model_failure_reason is None:
+                final = self._get_or_create_response_builder().build(
+                    result, context, transcript=transcript, user_id=effective_user_id
+                )
+                check_cancelled()
+                completion = final.text
+                turn_events.emit(
+                    EventKind.RESPONSE_PROGRESS,
+                    {"stage": "response_builder", "status": "completed"},
+                )
+            else:
+                completion = str(result.response)
         except Exception:
             latency_trace.finish()
             latency_trace.log_summary(logger, event=latency_event)
@@ -958,10 +1013,18 @@ class Assistant:
             latency_trace=latency_trace,
             stream_started_ns=stream_started_ns,
         )
+        if model_failure_reason is not None:
+            turn_events.finish(
+                EventKind.FAILED,
+                {
+                    "failure_kind": "model_failure",
+                    "reason": model_failure_reason,
+                },
+            )
         latency_trace.end("completion")
         latency_trace.finish()
         latency_trace.log_summary(logger, event=latency_event)
-        return cast(str, completion)
+        return completion
 
     async def generate_reply(
         self,
