@@ -2008,4 +2008,4 @@ US-105 implementation evidence:
 - Added a regression test proving a deep-routed turn keys cached context by the active routed model rather than the configured base model.
 - Local evidence: 103 cross-system tests passed; ModelRouter/RexBench focused set passed; Ruff and Black passed; mypy passed for the touched runtime modules.
 - `python scripts/rexbench.py --profile model-routing --iterations 8` passed with privacy-safe deterministic-local evidence.
-- The final GitHub-check criterion remains open until the exact PR head passes the complete repository matrix.
+- Exact implementation head `51d927a70df7c05d82451f8c2a8cdd53817b8a7d` passed CI, Commitlint, Windows Electron Artifact, CodeFactor, pre-commit, hardcoded-secret scan, security audit, lint/format, mypy, GUI checks, and dependency scans on 2026-08-14; US-110 GitHub-check criterion is closed.

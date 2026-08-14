@@ -3629,7 +3629,7 @@ grep -n "askrex.app\|Cloudflare\|CORS\|rate limit\|revocation" docs/deployment.m
 - [x] Local-first remains default/configurable; no cloud or paid provider is silently enabled or selected without existing configuration/permission.
 - [x] Deterministic commands may bypass deep reasoning without bypassing permissions or verification.
 - [x] Golden tests cover simple command, ambiguous tool choice, complex reasoning, provider outage, and unavailable local model.
-- [ ] All relevant GitHub checks pass.
+- [x] All relevant GitHub checks pass.
 
 **Validation commands:** `pytest tests/rex2/test_model_router_v2.py tests/test_model_router.py -q`; `python scripts/rexbench.py --profile model-routing`.
 
