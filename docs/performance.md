@@ -103,6 +103,25 @@ class here measures lifecycle behavior only. The report contains timings and non
 runtime identifiers only and never stores request content. Live model, audio, GPU, and device
 latency remains a later release-gate measurement.
 
+## Identity-safe context cache
+
+US-105 caches only deterministic private context fragments that are expensive to rebuild
+repeatedly: personality prompt, formatted profile context, formatted remembered facts, and the
+raw fact pairs used by `ContextPackage`. Dynamic date/time, current history, current message,
+tool context, follow-up cues, response mode, action results, and final prompts remain uncached.
+
+Cache validity is fail-closed. Private entries require a validated USER-scoped identity and
+content-free revision digests for authority, selected model, capability/config state, relevant
+memory/profile content, and prompt-template schema. Any relevant revision change produces a
+miss. Household reuse requires an explicit household key; the private ContextBuilder path does
+not share user artifacts at household scope.
+
+Operational cache metrics are deliberately content-free: fixed cache category, hit/miss/build/
+eviction counts, entry count, and aggregate build time only. They must never contain user IDs,
+cache-key material, prompts, transcripts, memory/facts, credentials, filenames, or tool data.
+A cache hit is performance evidence only; it does not widen authorization or change the
+canonical TurnEngine/verification path.
+
 ## Known latency work after the baseline
 
 Manual desktop testing has observed responses taking roughly 30-60+ seconds in some

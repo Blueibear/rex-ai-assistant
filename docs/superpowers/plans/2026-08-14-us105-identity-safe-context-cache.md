@@ -58,7 +58,7 @@ Also assert explicit household keys have `user_id is None`, LRU size stays bound
 - Produces `build_context_cache_versions(request, settings, capability_registry=None) -> ContextCacheVersions`.
 - Uses `CONTEXT_PROMPT_TEMPLATE_REVISION` as an explicit schema/version boundary.
 
-- [ ] **Step 1: Add failing revision tests.**
+- [x] **Step 1: Add failing revision tests.**
 
 ```python
 @pytest.mark.parametrize("field", ["policy", "permission", "model", "capability", "config", "memory"])
@@ -69,10 +69,10 @@ def test_each_relevant_revision_change_changes_the_cache_versions(field, revisio
 
 Tests must additionally prove raw James/Cole facts, API-token-shaped settings, filenames, and profile text do not occur in the returned version tokens or their serialized representation.
 
-- [ ] **Step 2: Run the new revision tests and verify RED because revision helpers are missing.**
-- [ ] **Step 3: Implement deterministic SHA-256 revision helpers over bounded metadata/content and explicit missing-file markers.**
-- [ ] **Step 4: Fingerprint only context-relevant non-secret config, canonical capability metadata/runtime state, authorization refs, selected provider/model, and validated identity/memory files.**
-- [ ] **Step 5: Re-run `pytest tests/rex2/test_context_cache.py -q` and verify GREEN.**
+- [x] **Step 2: Run the new revision tests and verify RED because revision helpers are missing.**
+- [x] **Step 3: Implement deterministic SHA-256 revision helpers over bounded metadata/content and explicit missing-file markers.**
+- [x] **Step 4: Fingerprint only context-relevant non-secret config, canonical capability metadata/runtime state, authorization refs, selected provider/model, and validated identity/memory files.**
+- [x] **Step 5: Re-run `pytest tests/rex2/test_context_cache.py -q` and verify GREEN.**
 ### Task 3: Cross-user and household isolation under concurrency
 
 **Files:**
@@ -83,7 +83,7 @@ Tests must additionally prove raw James/Cole facts, API-token-shaped settings, f
 - Consumes the cache/key/version interfaces from Tasks 1-2.
 - Proves isolation independently of `ContextBuilder` so the security contract is directly testable.
 
-- [ ] **Step 1: Write failing identity/concurrency tests.**
+- [x] **Step 1: Write failing identity/concurrency tests.**
 
 ```python
 def test_concurrent_private_builds_never_cross_users():
@@ -95,9 +95,9 @@ def test_concurrent_private_builds_never_cross_users():
 
 Add tests that household reuse occurs only through `ContextCacheKey.household(...)`, and that a private key can never equal a household key even with identical revisions.
 
-- [ ] **Step 2: Run `pytest tests/rex2/test_context_cache_identity.py -q` and verify RED for any missing isolation behavior.**
-- [ ] **Step 3: Make only the minimal cache changes required for safe concurrent behavior; do not serialize builders under the global cache lock.**
-- [ ] **Step 4: Re-run both context-cache test files and verify GREEN.**
+- [x] **Step 2: Run the identity/concurrency suite; it passed immediately because Task 1 already enforced the required partitioning, so no additional behavior change was needed.**
+- [x] **Step 3: No production change was required; keep builders outside the global cache lock and preserve the already-green isolation contract.**
+- [x] **Step 4: Re-run both context-cache test files and verify GREEN.**
 ### Task 4: ContextBuilder artifact caching without behavior drift
 
 **Files:**
@@ -110,11 +110,11 @@ Add tests that household reuse occurs only through `ContextCacheKey.household(..
 - Extend `ContextBuilder.build(..., cache_request: ContextCacheRequest | None = None)`.
 - A complete safe request may use the cache; missing/mismatched request data bypasses it.
 
-- [ ] **Step 1: Write failing builder tests proving one artifact load serves both message and text-prompt assembly and a repeated safe request reuses it.**
-- [ ] **Step 2: Add a failing equivalence test comparing cached-hit output with uncached output while history, current message, tool context, and voice mode change normally.**
-- [ ] **Step 3: Run the focused tests and verify RED because `cache_request`/artifact caching do not exist.**
-- [ ] **Step 4: Implement `_build_private_artifacts()` once per build, immutable cached artifacts, fresh dict copies for `ContextPackage.user_facts`, and cache-failure fallback to uncached assembly.**
-- [ ] **Step 5: Re-run `pytest tests/test_us014_context_builder.py tests/rex2/test_context_cache.py -q` and verify GREEN.**
+- [x] **Step 1: Write failing builder tests proving one artifact load serves both message and text-prompt assembly and a repeated safe request reuses it.**
+- [x] **Step 2: Add a failing equivalence test comparing cached-hit output with uncached output while history, current message, tool context, and voice mode change normally.**
+- [x] **Step 3: Run the focused tests and verify RED because `cache_request`/artifact caching do not exist.**
+- [x] **Step 4: Implement `_build_private_artifacts()` once per build, immutable cached artifacts, fresh dict copies for `ContextPackage.user_facts`, and cache-failure fallback to uncached assembly.**
+- [x] **Step 5: Re-run `pytest tests/test_us014_context_builder.py tests/rex2/test_context_cache.py -q` and verify GREEN.**
 ### Task 5: Wire canonical Assistant turns into the safe cache boundary
 
 **Files:**
@@ -125,7 +125,7 @@ Add tests that household reuse occurs only through `ContextCacheKey.household(..
 - Build `ContextCacheRequest` from the current `TurnContext` plus current `self._llm.provider` and `self._llm.model_name`.
 - Pass the request only to the canonical `ContextBuilder.build()` call inside `_run_reply_turn`.
 
-- [ ] **Step 1: Add a failing turn-engine test that captures `context_builder.build.call_args.kwargs["cache_request"]`.**
+- [x] **Step 1: Add a failing turn-engine test that captures `context_builder.build.call_args.kwargs["cache_request"]`.**
 
 ```python
 request = context_builder.build.call_args.kwargs["cache_request"]
@@ -135,9 +135,9 @@ assert request.authorization == observed_turn_context.authorization
 assert request.model_name == "test-model"
 ```
 
-- [ ] **Step 2: Run that test and verify RED because no cache request is currently supplied.**
-- [ ] **Step 3: Implement the minimal canonical wiring without changing identity resolution or mutating Assistant user state.**
-- [ ] **Step 4: Run `pytest tests/rex2/test_generate_reply_turn_engine.py tests/rex2/test_context_cache*.py tests/test_us014_context_builder.py -q` and verify GREEN.**
+- [x] **Step 2: Run that test and verify RED because no cache request is currently supplied.**
+- [x] **Step 3: Implement the minimal canonical wiring without changing identity resolution or mutating Assistant user state.**
+- [x] **Step 4: Run `pytest tests/rex2/test_generate_reply_turn_engine.py tests/rex2/test_context_cache*.py tests/test_us014_context_builder.py -q` and verify GREEN.**
 ### Task 6: Documentation, tracker reconciliation, and release verification
 
 **Files:**
@@ -151,11 +151,11 @@ assert request.model_name == "test-model"
 - Document context-cache privacy/invalidation rules and content-free metrics.
 - Reconcile US-099's final GitHub checkbox with PR #395 exact-head evidence before updating US-105.
 
-- [ ] **Step 1: Update docs and tracker only after implementation tests are green. Leave US-105's GitHub-check criterion unchecked until CI passes on the PR head.**
-- [ ] **Step 2: Run `pytest tests/rex2/test_context_cache.py tests/rex2/test_context_cache_identity.py tests/rex2/test_generate_reply_turn_engine.py tests/test_us014_context_builder.py -q`.**
-- [ ] **Step 3: Run Ruff, Black, and MyPy on all modified Python files plus `git diff --check`.**
-- [ ] **Step 4: Run `python scripts/security_audit.py --release-gate` and verify no private content/secrets are exposed.**
-- [ ] **Step 5: Run the primary CI marker set `pytest -m "not slow and not audio and not gpu" -q` before publishing.**
+- [x] **Step 1: Update docs and tracker only after implementation tests are green. Leave US-105's GitHub-check criterion unchecked until CI passes on the PR head.**
+- [x] **Step 2: Run `pytest tests/rex2/test_context_cache.py tests/rex2/test_context_cache_identity.py tests/rex2/test_generate_reply_turn_engine.py tests/test_us014_context_builder.py -q`.**
+- [x] **Step 3: Run Ruff, Black, and MyPy on all modified Python files plus `git diff --check`.**
+- [x] **Step 4: Run `python scripts/security_audit.py --release-gate` and verify no private content/secrets are exposed.**
+- [x] **Step 5: Run the primary CI marker set `pytest -m "not slow and not audio and not gpu" -q` before publishing.** *(8,750 passed / 49 skipped / 0 failed on Windows, 2026-08-14.)*
 - [ ] **Step 6: Commit using Conventional Commits, rebase onto current `origin/master`, rerun conflict-sensitive tests, push, open a PR, and verify all required GitHub workflows on the exact head before squash-merge.**
 
 ## Plan self-review

@@ -3387,7 +3387,7 @@ grep -n "askrex.app\|Cloudflare\|CORS\|rate limit\|revocation" docs/deployment.m
 - [x] Startup remains graceful when optional ML/audio dependencies are absent; local-first core text remains usable.
 - [x] RexBench compares cold vs warm evidence without storing user content.
 - [x] Diagnostics report which components are warm and approximate resource cost without secrets/private data.
-- [ ] All relevant GitHub checks pass.
+- [x] All relevant GitHub checks pass. *(PR #395 exact head `66b095d9723433780b84cba7c5f79ffd08f79f2d` passed all required workflows before merge; merged as `d5e14333b22b6dad70ba67ca39852e4b9afb01eb` on 2026-08-14.)*
 
 **Validation commands:** `pytest tests/rex2/test_warm_runtime.py -q`; `python scripts/rexbench.py --profile warm-runtime`.
 
@@ -3514,11 +3514,11 @@ grep -n "askrex.app\|Cloudflare\|CORS\|rate limit\|revocation" docs/deployment.m
 **Files/areas likely involved:** prompt/context builder, memory/context revision metadata, runtime cache utility, policy/model/config versioning.
 
 **Acceptance Criteria:**
-- [ ] Private cache keys include validated user/scope plus relevant model, policy, capability/config, and prompt-template versions.
-- [ ] Household-safe data is shared only when explicitly household-scoped; private entries are never shared across users.
-- [ ] Deterministic invalidation occurs on relevant identity/scope/policy/model/config/memory revisions.
-- [ ] Cache metrics contain categories/timing but never raw private content or credentials.
-- [ ] Concurrent James/Cole tests prove no cache hit returns the other user's prompt/context/memory.
+- [x] Private cache keys include validated user/scope plus relevant model, policy, capability/config, and prompt-template versions.
+- [x] Household-safe data is shared only when explicitly household-scoped; private entries are never shared across users.
+- [x] Deterministic invalidation occurs on relevant identity/scope/policy/model/config/memory revisions.
+- [x] Cache metrics contain categories/timing but never raw private content or credentials.
+- [x] Concurrent James/Cole tests prove no cache hit returns the other user's prompt/context/memory.
 - [ ] All relevant GitHub checks pass.
 
 **Validation commands:** `pytest tests/rex2/test_context_cache.py tests/rex2/test_context_cache_identity.py -q`.
