@@ -97,6 +97,48 @@ def _entry_to_gui(entry: Any) -> dict[str, Any]:
     }
 
 
+def _procedure_to_gui(record: Any) -> dict[str, Any]:
+    """Convert a guarded procedure record to a renderer-safe metadata view."""
+    return {
+        "id": record.procedure_id,
+        "name": record.name,
+        "description": record.description,
+        "ownerId": record.owner_id,
+        "scope": record.scope.value,
+        "status": record.status.value,
+        "capabilities": list(record.capabilities),
+        "requiredPermissions": list(record.required_permissions),
+        "operation": record.operation.value,
+        "risk": record.risk.value,
+        "version": record.version,
+        "dependencyFingerprint": record.dependency_fingerprint,
+        "successCount": record.success_count,
+        "failureCount": record.failure_count,
+        "lastValidatedAt": record.last_validated_at.isoformat(),
+        "expiresAt": record.expires_at.isoformat() if record.expires_at else None,
+        "disabledReason": record.disabled_reason,
+        "approvalRequired": record.approval_required,
+        "approvedBy": record.approved_by,
+        "createdAt": record.created_at.isoformat(),
+        "provenance": {
+            "actionId": record.provenance.action_id,
+            "planId": record.provenance.plan_id,
+            "verificationId": record.provenance.verification_id,
+            "auditId": record.provenance.audit_id,
+        },
+        "auditHistory": [
+            {
+                "timestamp": event.timestamp.isoformat(),
+                "event": event.event,
+                "actorUserId": event.actor_user_id,
+                "reason": event.reason,
+                "evidenceRef": event.evidence_ref,
+            }
+            for event in record.audit_history
+        ],
+    }
+
+
 def _handle_list(user_id: str) -> dict[str, Any]:
     from rex.memory import get_long_term_memory  # type: ignore[import]
 
@@ -156,6 +198,45 @@ def _handle_delete(user_id: str, entry_id: str) -> dict[str, Any]:
     return {"ok": True}
 
 
+def _handle_procedures_list(user_id: str) -> dict[str, Any]:
+    from rex.procedural_memory import ProceduralMemory
+
+    memory = ProceduralMemory()
+    records = memory.list(requester_user_id=user_id, include_household=True)
+    return {"ok": True, "procedures": [_procedure_to_gui(record) for record in records]}
+
+
+def _handle_procedure_action(
+    user_id: str, procedure_id: str, command: str, *, confirmed: bool = False
+) -> dict[str, Any]:
+    from rex.procedural_memory import ProceduralMemory
+
+    if not procedure_id:
+        return {"ok": False, "error": "Procedure id is required"}
+    memory = ProceduralMemory()
+    if command == "procedures-approve":
+        record = memory.approve(
+            procedure_id,
+            requester_user_id=user_id,
+            approver_user_id=user_id,
+            confirmed=confirmed,
+        )
+    elif command == "procedures-disable":
+        record = memory.disable(
+            procedure_id, requester_user_id=user_id, reason="user_disabled_from_gui"
+        )
+    elif command == "procedures-revoke":
+        record = memory.revoke(
+            procedure_id, requester_user_id=user_id, reason="user_revoked_from_gui"
+        )
+    elif command == "procedures-delete":
+        memory.delete(procedure_id, requester_user_id=user_id)
+        return {"ok": True}
+    else:
+        return {"ok": False, "error": f"Unknown procedure command: {command!r}"}
+    return {"ok": True, "procedure": _procedure_to_gui(record)}
+
+
 def main() -> None:
     try:
         payload: dict[str, Any] = json.loads(sys.stdin.read())
@@ -165,7 +246,18 @@ def main() -> None:
         sys.exit(1)
 
     try:
-        if command in ("list", "add", "update", "delete"):
+        supported = (
+            "list",
+            "add",
+            "update",
+            "delete",
+            "procedures-list",
+            "procedures-approve",
+            "procedures-disable",
+            "procedures-revoke",
+            "procedures-delete",
+        )
+        if command in supported:
             user_id = _resolve_user(payload)
             if user_id is None:
                 result: dict[str, Any] = {"ok": False, "error": _NO_USER_ERROR}
@@ -177,8 +269,17 @@ def main() -> None:
                 result = _handle_update(
                     user_id, str(payload.get("id") or ""), dict(payload.get("data") or {})
                 )
-            else:
+            elif command == "delete":
                 result = _handle_delete(user_id, str(payload.get("id") or ""))
+            elif command == "procedures-list":
+                result = _handle_procedures_list(user_id)
+            else:
+                result = _handle_procedure_action(
+                    user_id,
+                    str(payload.get("id") or ""),
+                    command,
+                    confirmed=payload.get("confirmed") is True,
+                )
         else:
             result = {"ok": False, "error": f"Unknown command: {command!r}"}
     except Exception as exc:

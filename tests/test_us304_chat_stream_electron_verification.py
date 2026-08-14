@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import os
 import subprocess
+import tempfile
 from pathlib import Path
 
 import pytest
@@ -11,13 +12,67 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 GUI_DIR = REPO_ROOT / "gui"
 VERIFY_SCRIPT = GUI_DIR / "tmp_verify_chat_stream.cjs"
 ELECTRON_CMD = GUI_DIR / "node_modules" / ".bin" / "electron.cmd"
+MAIN_BUNDLE = GUI_DIR / "dist-electron" / "main" / "index.js"
 
 
-@pytest.mark.skipif(not ELECTRON_CMD.exists(), reason="electron.cmd not found")
+def _run_electron_verification(env: dict[str, str]) -> subprocess.CompletedProcess[str]:
+    """Run Electron without allowing a timed-out child tree to wedge pytest."""
+    creationflags = getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
+    with (
+        tempfile.TemporaryFile(mode="w+", encoding="utf-8") as stdout_file,
+        tempfile.TemporaryFile(mode="w+", encoding="utf-8") as stderr_file,
+    ):
+        try:
+            process = subprocess.Popen(
+                [str(ELECTRON_CMD), str(VERIFY_SCRIPT)],
+                cwd=str(GUI_DIR),
+                stdout=stdout_file,
+                stderr=stderr_file,
+                text=True,
+                env=env,
+                creationflags=creationflags,
+            )
+        except OSError as exc:
+            pytest.skip(f"Electron verification unavailable: {exc}")
+
+        timed_out = False
+        try:
+            returncode = process.wait(timeout=120)
+        except subprocess.TimeoutExpired:
+            timed_out = True
+            subprocess.run(
+                ["taskkill", "/PID", str(process.pid), "/T", "/F"],
+                capture_output=True,
+                text=True,
+                timeout=15,
+            )
+            returncode = process.wait(timeout=15)
+
+        stdout_file.seek(0)
+        stderr_file.seek(0)
+        stdout = stdout_file.read()
+        stderr = stderr_file.read()
+
+    if timed_out:
+        pytest.fail(
+            "Electron verification timed out after 120 seconds.\n"
+            f"stdout: {stdout[:1000]}\n"
+            f"stderr: {stderr[:1000]}"
+        )
+    return subprocess.CompletedProcess(
+        [str(ELECTRON_CMD), str(VERIFY_SCRIPT)], returncode, stdout, stderr
+    )
+
+
+@pytest.mark.skipif(
+    not ELECTRON_CMD.exists() or not MAIN_BUNDLE.exists(),
+    reason="Electron binary or built main bundle not available",
+)
 def test_chat_streaming_works_in_electron(tmp_path: Path) -> None:
     """Electron chat page renders a typed streamed reply incrementally."""
     assert VERIFY_SCRIPT.exists(), f"Missing Electron verification script: {VERIFY_SCRIPT}"
     assert ELECTRON_CMD.exists(), f"Missing Electron binary: {ELECTRON_CMD}"
+    assert MAIN_BUNDLE.exists(), f"Missing Electron main bundle: {MAIN_BUNDLE}"
 
     app_data = tmp_path / "appdata"
     session_dir = app_data / "rex-ai"
@@ -28,17 +83,7 @@ def test_chat_streaming_works_in_electron(tmp_path: Path) -> None:
     env = os.environ.copy()
     env["LOCALAPPDATA"] = str(app_data)
 
-    try:
-        result = subprocess.run(
-            [str(ELECTRON_CMD), str(VERIFY_SCRIPT)],
-            cwd=str(GUI_DIR),
-            capture_output=True,
-            text=True,
-            timeout=120,
-            env=env,
-        )
-    except OSError as exc:
-        pytest.skip(f"Electron verification unavailable: {exc}")
+    result = _run_electron_verification(env)
 
     stdout_lines = [line for line in result.stdout.splitlines() if line.strip()]
     assert stdout_lines, f"Electron verification produced no stdout. stderr: {result.stderr[:500]}"

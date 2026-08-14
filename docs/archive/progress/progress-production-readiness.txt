@@ -2031,3 +2031,25 @@ Remote exact-head evidence:
 - Windows Electron Artifact workflow run 31822925430 completed success, including managed runtime/installer build, signature truthfulness, packaged-resource rejection, and installed-artifact smoke without machine Python or Node.
 - CodeFactor reported no issues and GitGuardian reported no secrets detected. No failed/cancelled exact-head check conclusion and no PR review/review-thread blocker was present.
 - US-111 acceptance criteria are therefore closed. The docs-only closure head still must pass its own exact-head repository checks before PR #397 is merged.
+
+
+2026-08-14 - US-112 guarded procedural experience memory closure
+
+Implementation and local evidence:
+- Added declarative procedural experience memory promoted only from canonical verified lifecycle evidence; ordinary conversation/long-term-memory writes cannot create executable procedures.
+- Procedures preserve provenance, owner/scope, capability/permission/risk requirements, dependency/version fingerprints, validation/expiry state, success/failure counts, and immutable audit history.
+- Mutating/elevated-risk procedures require trusted human approval; remembered permissions are requirements only and current live authorization is rechecked.
+- Private James/Cole procedure stores remain isolated; users can inspect, disable, revoke, and delete within scope. Repeated verified failures or version/dependency drift disable pending revalidation rather than erasing evidence.
+- Electron Memories exposes a separate Learned Procedures management surface with no manual creation path; risky approval is enforced by a main-process confirmation boundary.
+- Focused procedural/identity/bridge suite: 24 passed. Related action/tool/memory/identity/runtime-path regression: 159 passed. GUI Vitest: 124 passed; GUI typecheck/lint passed.
+- Final Windows primary marker suite: 8,803 passed / 48 skipped / 0 failed in 491.79s, including the live Electron chat-stream verification. Repository-integrity checks passed.
+- Ruff, Black, mypy, compileall, security release gate, git diff check, and pre-commit Ruff/Black/detect-secrets all passed.
+- Existing Electron chat verification harness was hardened separately so Windows timeouts terminate the full child tree and the live test only runs when the built main bundle exists; skip inventory was reconciled without adding a skip.
+
+Remote exact-head evidence:
+- PR #398 implementation head ace76968b5fc0b21b7b02e4f9b6dd38738f875d0 passed all 18 registered checks.
+- CI workflow run 31838356774 completed success, including Python 3.11 Tests & Coverage, skipped-test budget, integration tests, tracked-tree cleanliness, security/lint/type/GUI/dependency/pre-commit/wheel checks.
+- Commitlint workflow run 31838356726 completed success.
+- Windows Electron Artifact workflow run 31838356744 completed success, including managed runtime/installer build, Authenticode truthfulness, packaged-resource rejection, and installed-artifact smoke without machine Python or Node.
+- CodeFactor reported No issues found; GitGuardian reported no secrets detected. No failed/cancelled/in-progress exact-head check remained.
+- US-112 acceptance criteria are therefore closed. The docs-only closure head must pass its own exact-head repository checks before PR #398 is merged.

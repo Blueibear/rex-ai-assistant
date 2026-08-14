@@ -1,6 +1,6 @@
-import { ipcMain } from 'electron'
+import { dialog, ipcMain } from 'electron'
 import { spawn } from 'child_process'
-import type { Memory, MemoryUpdateInput } from '../../types/ipc'
+import type { Memory, MemoryUpdateInput, Procedure } from '../../types/ipc'
 import { bridgeSpawnOptions, resolveBridgePath, resolvePythonCommand } from '../bridgeResolver'
 import { privateSessionPayload, type ElectronSessionIdentity } from '../sessionIdentity'
 
@@ -81,6 +81,61 @@ async function deleteMemory(session: ElectronSessionIdentity, id: string): Promi
   }
 }
 
+async function getProcedures(session: ElectronSessionIdentity): Promise<Procedure[]> {
+  const result = await callMemoriesBridge(
+    privateSessionPayload(session, { command: 'procedures-list' })
+  )
+  if (!result.ok) {
+    throw new Error((result.error as string | undefined) ?? 'Failed to list learned procedures')
+  }
+  return (result.procedures as Procedure[]) ?? []
+}
+
+async function mutateProcedure(
+  session: ElectronSessionIdentity,
+  id: string,
+  command: 'procedures-approve' | 'procedures-disable' | 'procedures-revoke',
+  confirmed = false
+): Promise<Procedure> {
+  const result = await callMemoriesBridge(
+    privateSessionPayload(session, { command, id, ...(confirmed ? { confirmed: true } : {}) })
+  )
+  if (!result.ok) {
+    throw new Error((result.error as string | undefined) ?? 'Failed to update learned procedure')
+  }
+  return result.procedure as Procedure
+}
+
+async function approveProcedure(
+  session: ElectronSessionIdentity,
+  id: string
+): Promise<Procedure> {
+  const response = await dialog.showMessageBox({
+    type: 'warning',
+    title: 'Approve learned procedure?',
+    message: 'Approve this learned procedure for future execution?',
+    detail:
+      'This procedure was learned from a verified outcome. If it can mutate state or carries elevated risk, approval allows it to become active, but current permissions and safety checks still apply on every execution.',
+    buttons: ['Cancel', 'Approve'],
+    defaultId: 0,
+    cancelId: 0,
+    noLink: true
+  })
+  if (response.response !== 1) {
+    throw new Error('Procedure approval cancelled')
+  }
+  return mutateProcedure(session, id, 'procedures-approve', true)
+}
+
+async function deleteProcedure(session: ElectronSessionIdentity, id: string): Promise<void> {
+  const result = await callMemoriesBridge(
+    privateSessionPayload(session, { command: 'procedures-delete', id })
+  )
+  if (!result.ok) {
+    throw new Error((result.error as string | undefined) ?? 'Failed to delete learned procedure')
+  }
+}
+
 export function registerMemoriesHandlers(session: ElectronSessionIdentity): void {
   ipcMain.handle('rex:getMemories', async (): Promise<Memory[]> => {
     return getMemories(session)
@@ -96,5 +151,25 @@ export function registerMemoriesHandlers(session: ElectronSessionIdentity): void
 
   ipcMain.handle('rex:deleteMemory', async (_event, id: string): Promise<void> => {
     return deleteMemory(session, id)
+  })
+
+  ipcMain.handle('rex:getProcedures', async (): Promise<Procedure[]> => {
+    return getProcedures(session)
+  })
+
+  ipcMain.handle('rex:approveProcedure', async (_event, id: string): Promise<Procedure> => {
+    return approveProcedure(session, id)
+  })
+
+  ipcMain.handle('rex:disableProcedure', async (_event, id: string): Promise<Procedure> => {
+    return mutateProcedure(session, id, 'procedures-disable')
+  })
+
+  ipcMain.handle('rex:revokeProcedure', async (_event, id: string): Promise<Procedure> => {
+    return mutateProcedure(session, id, 'procedures-revoke')
+  })
+
+  ipcMain.handle('rex:deleteProcedure', async (_event, id: string): Promise<void> => {
+    return deleteProcedure(session, id)
   })
 }

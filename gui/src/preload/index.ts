@@ -16,6 +16,7 @@ import type {
   ReminderInput,
   Memory,
   MemoryUpdateInput,
+  Procedure,
   VersionInfo,
   AppStatus,
   CommandHistoryEntry,
@@ -271,6 +272,15 @@ const rexAPI = {
     ipcRenderer.invoke('rex:updateMemory', id, data),
   deleteMemory: (id: string): Promise<void> =>
     ipcRenderer.invoke('rex:deleteMemory', id).then(() => undefined),
+  getProcedures: (): Promise<Procedure[]> => ipcRenderer.invoke('rex:getProcedures'),
+  approveProcedure: (id: string): Promise<Procedure> =>
+    ipcRenderer.invoke('rex:approveProcedure', id),
+  disableProcedure: (id: string): Promise<Procedure> =>
+    ipcRenderer.invoke('rex:disableProcedure', id),
+  revokeProcedure: (id: string): Promise<Procedure> =>
+    ipcRenderer.invoke('rex:revokeProcedure', id),
+  deleteProcedure: (id: string): Promise<void> =>
+    ipcRenderer.invoke('rex:deleteProcedure', id).then(() => undefined),
   getVersionInfo: (): Promise<VersionInfo> => ipcRenderer.invoke('rex:getVersionInfo'),
   getAppStatus: (): Promise<AppStatus> => ipcRenderer.invoke('rex:getAppStatus'),
   getCommandHistory: (
