@@ -3624,12 +3624,12 @@ grep -n "askrex.app\|Cloudflare\|CORS\|rate limit\|revocation" docs/deployment.m
 **Files/areas likely involved:** `rex/model_router.py`, provider strategies, Turn route events, config/UI provider settings, RexBench.
 
 **Acceptance Criteria:**
-- [ ] Routing exposes explicit complexity/confidence/evidence plus chosen fast/deep route in privacy-safe turn metadata.
-- [ ] Low-confidence executive decisions may escalate at most once unless an explicit bounded retry policy says otherwise.
-- [ ] Local-first remains default/configurable; no cloud or paid provider is silently enabled or selected without existing configuration/permission.
-- [ ] Deterministic commands may bypass deep reasoning without bypassing permissions or verification.
-- [ ] Golden tests cover simple command, ambiguous tool choice, complex reasoning, provider outage, and unavailable local model.
-- [ ] All relevant GitHub checks pass.
+- [x] Routing exposes explicit complexity/confidence/evidence plus chosen fast/deep route in privacy-safe turn metadata.
+- [x] Low-confidence executive decisions may escalate at most once unless an explicit bounded retry policy says otherwise.
+- [x] Local-first remains default/configurable; no cloud or paid provider is silently enabled or selected without existing configuration/permission.
+- [x] Deterministic commands may bypass deep reasoning without bypassing permissions or verification.
+- [x] Golden tests cover simple command, ambiguous tool choice, complex reasoning, provider outage, and unavailable local model.
+- [x] All relevant GitHub checks pass.
 
 **Validation commands:** `pytest tests/rex2/test_model_router_v2.py tests/test_model_router.py -q`; `python scripts/rexbench.py --profile model-routing`.
 

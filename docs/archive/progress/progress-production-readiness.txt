@@ -2001,3 +2001,11 @@ US-105 implementation evidence:
 - Ruff, Black, and mypy pass on the implemented context/Assistant source at the pre-documentation checkpoint.
 - Full primary marker suite: 8,750 passed / 49 skipped / 0 failed in 504.47s on Windows.
 - US-105's final GitHub-check criterion remains open until its exact story PR head passes the complete repository matrix.
+
+2026-08-14 — US-110 ModelRouter 2.0 local verification
+- Rebased the existing US-110 implementation onto master after US-099 and US-105.
+- Preserved warm-runtime, model-output validation, and identity-safe context-cache behavior while adding request-scoped fast/deep model selection.
+- Added a regression test proving a deep-routed turn keys cached context by the active routed model rather than the configured base model.
+- Local evidence: 103 cross-system tests passed; ModelRouter/RexBench focused set passed; Ruff and Black passed; mypy passed for the touched runtime modules.
+- `python scripts/rexbench.py --profile model-routing --iterations 8` passed with privacy-safe deterministic-local evidence.
+- Exact implementation head `51d927a70df7c05d82451f8c2a8cdd53817b8a7d` passed CI, Commitlint, Windows Electron Artifact, CodeFactor, pre-commit, hardcoded-secret scan, security audit, lint/format, mypy, GUI checks, and dependency scans on 2026-08-14; US-110 GitHub-check criterion is closed.

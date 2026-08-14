@@ -115,6 +115,22 @@ must never expose raw user IDs, prompts, transcripts, memory/facts, credentials,
 tool payloads. Missing or mismatched identity/scope bypasses the cache, and revision-snapshot
 failure falls back to normal uncached context construction.
 
+### ModelRouter 2.0 fast/deep routing
+
+`rex/model_router.py` produces a `ModelRouteDecision` with category, complexity, bounded
+confidence/evidence, fast/deep tier, selected model, escalation count, and fallback reason.
+Routing metadata is content-free and may not include prompts, transcripts, memory, credentials,
+or user identifiers. Local-first policy remains authoritative; `local_only` never silently
+selects a cloud provider.
+
+`LanguageModel` applies a routed model through a request-local `ContextVar` and a synchronized
+strategy cache, so concurrent household turns cannot overwrite the configured base model or one
+another's route. The Assistant emits the decision through canonical TurnEngine route events and
+passes the request-scoped active model into the identity-safe context-cache revision key. Fast
+routes still use the complete intent, permission, action, verification, and response pipeline.
+Provider reliability/cooldown feedback is intentionally layered by US-111 rather than inferred
+from private request content.
+
 ### Action lifecycle and verification
 
 `rex/actions/lifecycle.py` is the canonical action-truth contract used by generic

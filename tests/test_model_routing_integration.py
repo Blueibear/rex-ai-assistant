@@ -5,7 +5,10 @@ from __future__ import annotations
 import asyncio
 from dataclasses import dataclass, field
 
+import pytest
+
 import rex.assistant as assistant_module
+from rex.assistant_errors import ConfigurationError
 from rex.model_router import ModelRouter
 
 # ---------------------------------------------------------------------------
@@ -40,6 +43,7 @@ class _SettingsStub:
     ha_token: str | None = None
     user_id: str = "test"
     active_profile: str = "default"
+    llm_routing_mode: str = "local_preferred"
     model_routing: _ModelRoutingStub = field(
         default_factory=lambda: _ModelRoutingStub(
             default="default-model",
@@ -58,10 +62,19 @@ class _CapturingLLM:
 
     def __init__(self):
         self.model_name = "stub-model"
+        self._request_model: str | None = None
         self.calls: list[str] = []
 
+    def set_request_model(self, model_name: str):
+        previous = self._request_model
+        self._request_model = model_name
+        return previous
+
+    def reset_request_model(self, token) -> None:
+        self._request_model = token
+
     def generate(self, prompt, config=None):
-        self.calls.append(self.model_name)
+        self.calls.append(self._request_model or self.model_name)
         return "stub reply"
 
 
@@ -233,3 +246,25 @@ def test_no_network_call_for_openai_models(monkeypatch):
     )
 
     assert not fetch_called, "Ollama was probed even though all routing targets are OpenAI models"
+
+
+def test_local_only_mode_is_passed_to_model_router(monkeypatch):
+    settings = _SettingsStub(
+        llm_provider="openai",
+        llm_routing_mode="local_only",
+        model_routing=_ModelRoutingStub(
+            default="gpt-fast",
+            reasoning="gpt-deep",
+            fast="gpt-fast",
+        ),
+    )
+    llm = _CapturingLLM()
+    llm.model_name = "gpt-fast"
+    a = _make_assistant(monkeypatch, settings, llm, available_models=set())
+
+    with pytest.raises(ConfigurationError, match="local_only"):
+        asyncio.run(a.generate_reply("Analyze the tradeoffs."))
+
+    assert llm.calls == []
+    assert llm.model_name == "gpt-fast"
+    assert llm._request_model is None

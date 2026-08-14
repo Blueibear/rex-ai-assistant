@@ -593,11 +593,95 @@ def run_warm_runtime(iterations: int) -> dict:
     return build_report(samples, profile="warm-runtime")
 
 
+def run_model_routing(iterations: int) -> dict:
+    if iterations < 1:
+        raise ValueError("iterations must be at least 1")
+    routing = SimpleNamespace(
+        default="fast-local",
+        fast="fast-local",
+        coding="deep-local",
+        reasoning="deep-local",
+        search="deep-local",
+        vision="deep-local",
+    )
+    router = ModelRouter()
+    samples: list[BenchmarkSample] = []
+    scenarios = (
+        ("simple_command", "Hello", {}, {"fast-local", "deep-local"}, "fast", "fast-local"),
+        (
+            "ambiguous_tool_choice",
+            "Use whichever tool makes sense to handle that.",
+            {},
+            {"fast-local", "deep-local"},
+            "deep",
+            "deep-local",
+        ),
+        (
+            "complex_reasoning",
+            "Analyze the tradeoffs and plan a complex migration strategy.",
+            {},
+            {"fast-local", "deep-local"},
+            "deep",
+            "deep-local",
+        ),
+        (
+            "provider_outage",
+            "Analyze the tradeoffs in this architecture.",
+            {"deep_provider_available": False},
+            {"fast-local", "deep-local"},
+            "fast",
+            "fast-local",
+        ),
+        (
+            "unavailable_local_model",
+            "Analyze a complex migration plan.",
+            {},
+            {"fast-local"},
+            "fast",
+            "fast-local",
+        ),
+    )
+    for request_class, message, kwargs, available, expected_tier, expected_model in scenarios:
+        for _ in range(iterations):
+            router._available_ollama_models = set(available)
+
+            started = time.perf_counter_ns()
+            decision = router.decide(
+                message,
+                routing_config=routing,
+                current_model="fast-local",
+                **kwargs,
+            )
+            elapsed_ms = (time.perf_counter_ns() - started) / 1_000_000
+            if decision.tier != expected_tier or decision.model != expected_model:
+                raise RuntimeError(
+                    f"model-routing correctness failed for {request_class}: "
+                    f"{decision.tier}/{decision.model}"
+                )
+            if decision.escalation_count > 1:
+                raise RuntimeError(f"model-routing escalation exceeded bound for {request_class}")
+            samples.append(
+                BenchmarkSample(
+                    request_class=request_class,
+                    warm_state="warm",
+                    evidence_class="deterministic_local",
+                    stages_ms={"routing": elapsed_ms, "total": elapsed_ms},
+                )
+            )
+    return build_report(samples, profile="model-routing")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--profile",
-        choices=("baseline", "capability-retrieval", "parallel-actions", "warm-runtime"),
+        choices=(
+            "baseline",
+            "capability-retrieval",
+            "parallel-actions",
+            "warm-runtime",
+            "model-routing",
+        ),
         default="baseline",
     )
     parser.add_argument("--iterations", type=int, default=8)
@@ -610,6 +694,8 @@ def main() -> int:
         report = run_parallel_actions(args.iterations)
     elif args.profile == "warm-runtime":
         report = run_warm_runtime(args.iterations)
+    elif args.profile == "model-routing":
+        report = run_model_routing(args.iterations)
     else:
         report = run_baseline(args.iterations)
     encoded = json.dumps(report, indent=2, sort_keys=True) + "\n"

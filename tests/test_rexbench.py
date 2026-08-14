@@ -198,3 +198,42 @@ def test_warm_runtime_cli_compares_cold_and_warm_without_private_payloads(tmp_pa
     encoded = output.read_text(encoding="utf-8").lower()
     for forbidden in ("prompt", "transcript", "memory_content", "credential", "user_id"):
         assert forbidden not in encoded
+
+
+def test_model_routing_cli_emits_golden_privacy_safe_profile(tmp_path) -> None:
+    output = tmp_path / "model-routing.json"
+    completed = subprocess.run(
+        [
+            sys.executable,
+            "scripts/rexbench.py",
+            "--profile",
+            "model-routing",
+            "--iterations",
+            "2",
+            "--output",
+            str(output),
+        ],
+        check=False,
+        capture_output=True,
+        text=True,
+        timeout=45,
+    )
+
+    assert completed.returncode == 0, completed.stderr or completed.stdout
+    report = json.loads(output.read_text(encoding="utf-8"))
+    assert report["profile"] == "model-routing"
+    assert set(report["results"]) == {
+        "simple_command",
+        "ambiguous_tool_choice",
+        "complex_reasoning",
+        "provider_outage",
+        "unavailable_local_model",
+    }
+    for request_class in report["results"].values():
+        assert set(request_class) == {"warm"}
+        bucket = request_class["warm"]
+        assert bucket["evidence_class"] == "deterministic_local"
+        assert set(bucket["stages_ms"]) == {"routing", "total"}
+    encoded = output.read_text(encoding="utf-8").lower()
+    for forbidden in ("prompt", "transcript", "memory_content", "credential", "user_id"):
+        assert forbidden not in encoded

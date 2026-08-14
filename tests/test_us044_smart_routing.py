@@ -78,12 +78,12 @@ class TestLocalOnlyMode:
             )
         assert result == LOCAL
 
-    def test_local_unavailable_falls_back_to_cloud(self, router):
+    def test_local_unavailable_stays_local_by_policy(self, router):
         with patch.object(router, "_is_available", return_value=False):
             result = router.route(
                 "Hello", local_model=LOCAL, cloud_model=CLOUD, routing_mode="local_only"
             )
-        assert result == CLOUD
+        assert result == LOCAL
 
 
 # ---------------------------------------------------------------------------

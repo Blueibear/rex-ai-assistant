@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import contextvars
 import json
 import sys
+import threading
 import types as _types
 from collections.abc import Iterator, Sequence
 from dataclasses import dataclass
@@ -659,11 +661,14 @@ class LanguageModel:
         self._tool_functions: dict[str, Any] = {}  # Map of tool name -> callable
         from rex.runtime.warm import get_global_warm_runtime
 
-        # The first settings-bearing application access establishes process-wide
-        # warm-cache policy; constructing additional model wrappers must not
-        # silently rewrite that shared resource policy.
+        # Establish process-wide warm-cache policy before constructing model strategies.
         get_global_warm_runtime(self.config)
-        self.strategy = self._init_strategy()
+        self._request_model: contextvars.ContextVar[str | None] = contextvars.ContextVar(
+            f"askrex_llm_model_{id(self)}", default=None
+        )
+        self._strategy_lock = threading.Lock()
+        self.strategy = self._init_strategy(self.model_name)
+        self._strategy_cache: dict[str, LLMStrategy] = {self.model_name: self.strategy}
 
     def _ensure_anthropic_client(self) -> Any:
         if self._anthropic_client is not None:
@@ -679,20 +684,19 @@ class LanguageModel:
         self._anthropic_client = Anthropic(api_key=self.anthropic_api_key)
         return self._anthropic_client
 
-    def _init_strategy(self) -> LLMStrategy:
+    def _init_strategy(self, model_name: str | None = None) -> LLMStrategy:
+        model_name = model_name or self.model_name
         if self.provider in {"openai", "openrouter"}:
-            return cast(LLMStrategy, OpenAIStrategy(self.model_name, self._ensure_openai_client))
+            return cast(LLMStrategy, OpenAIStrategy(model_name, self._ensure_openai_client))
 
         if self.provider == "anthropic":
-            return cast(
-                LLMStrategy, AnthropicStrategy(self.model_name, self._ensure_anthropic_client)
-            )
+            return cast(LLMStrategy, AnthropicStrategy(model_name, self._ensure_anthropic_client))
 
         if self.provider == "ollama":
             return cast(
                 LLMStrategy,
                 OllamaStrategy(
-                    self.model_name,
+                    model_name,
                     api_key=self.config.ollama_api_key,
                     base_url=self.config.ollama_base_url,
                     use_cloud=self.config.ollama_use_cloud,
@@ -702,23 +706,56 @@ class LanguageModel:
         strategy_cls = _STRATEGIES.get(self.provider)
         if strategy_cls is None:
             logger.warning("Unknown LLM provider '%s'. Falling back to echo mode.", self.provider)
-            return cast(LLMStrategy, EchoStrategy(self.model_name))
+            return cast(LLMStrategy, EchoStrategy(model_name))
 
         if strategy_cls is TransformersStrategy and not (
             TORCH_AVAILABLE and TRANSFORMERS_AVAILABLE
         ):
             logger.warning(
-                "Transformers missing; using offline fallback for model '%s'.", self.model_name
+                "Transformers missing; using offline fallback for model '%s'.", model_name
             )
-            return cast(LLMStrategy, OfflineTransformersStrategy(self.model_name))
+            return cast(LLMStrategy, OfflineTransformersStrategy(model_name))
 
         try:
-            return cast(LLMStrategy, strategy_cls(self.model_name))
+            return cast(LLMStrategy, strategy_cls(model_name))
         except Exception as exc:
             logger.warning(
                 "LLM backend init failed (%s). Falling back to echo. (%s)", self.provider, exc
             )
-            return cast(LLMStrategy, EchoStrategy(self.model_name))
+            return cast(LLMStrategy, EchoStrategy(model_name))
+
+    def set_request_model(self, model_name: str) -> contextvars.Token[str | None]:
+        """Set a model override for the current request context only."""
+        return self._request_model.set(model_name)
+
+    def reset_request_model(self, token: contextvars.Token[str | None]) -> None:
+        """Restore the previous request-local model override."""
+        self._request_model.reset(token)
+
+    def active_model_name(self) -> str:
+        """Return the request-local model when set, otherwise the configured base model."""
+        request_model = getattr(self, "_request_model", None)
+        if request_model is None:
+            return self.model_name
+        return request_model.get() or self.model_name
+
+    def _strategy_for_request(self) -> LLMStrategy:
+        model_name = self.active_model_name()
+        strategy_cache = getattr(self, "_strategy_cache", None)
+        strategy_lock = getattr(self, "_strategy_lock", None)
+        if strategy_cache is None or strategy_lock is None:
+            return self.strategy
+        cached = strategy_cache.get(model_name)
+        if cached is not None:
+            return cast(LLMStrategy, cached)
+        with strategy_lock:
+            cached = strategy_cache.get(model_name)
+            if cached is None:
+                cached = self._init_strategy(model_name)
+                if hasattr(cached, "tools"):
+                    cached.tools = self._tools
+                strategy_cache[model_name] = cached
+            return cast(LLMStrategy, cached)
 
     def _ensure_openai_client(self):
         if self._openai_client is not None:
@@ -832,6 +869,8 @@ class LanguageModel:
         if not prompt_text.strip():
             raise ValueError("Prompt must not be empty.")
 
+        strategy = self._strategy_for_request()
+
         # Derive a stable user key for OpenAI/OpenClaw session persistence.
         _user_key: str | None = None
         if self.provider == "openai":
@@ -848,7 +887,7 @@ class LanguageModel:
                     _tool_extra: dict[str, Any] = {}
                     if _user_key is not None:
                         _tool_extra["user"] = _user_key
-                    result = self.strategy.generate(
+                    result = strategy.generate(
                         prompt_text,
                         config or self.generation,
                         messages=current_messages,
@@ -857,7 +896,7 @@ class LanguageModel:
                     )
                 except TypeError:
                     # Fallback for strategies that don't support tools parameter
-                    result = self.strategy.generate(
+                    result = strategy.generate(
                         prompt_text, config or self.generation, messages=current_messages
                     )
 
@@ -920,7 +959,7 @@ class LanguageModel:
                 extra: dict[str, Any] = {}
                 if _user_key is not None:
                     extra["user"] = _user_key
-                result = self.strategy.generate(
+                result = strategy.generate(
                     prompt_text,
                     config or self.generation,
                     messages=normalized_messages,
@@ -928,7 +967,7 @@ class LanguageModel:
                 )
                 return result.strip() if isinstance(result, str) else str(result).strip()
             except TypeError:
-                result = self.strategy.generate(prompt_text, config or self.generation)
+                result = strategy.generate(prompt_text, config or self.generation)
                 return result.strip() if isinstance(result, str) else str(result).strip()
         except Exception as exc:
             from rex.dep_errors import LMStudioConnectionError, is_connection_error
@@ -968,6 +1007,8 @@ class LanguageModel:
         if not prompt_text.strip():
             raise ValueError("Prompt must not be empty.")
 
+        strategy = self._strategy_for_request()
+
         def _generate_once() -> Iterator[str]:
             if messages is not None:
                 completion = self.generate(messages=normalized_messages, config=generation_config)
@@ -986,7 +1027,7 @@ class LanguageModel:
             if self._tools:
                 extra["tools"] = self._tools
 
-        stream_fn = getattr(self.strategy, "stream", None)
+        stream_fn = getattr(strategy, "stream", None)
         if not callable(stream_fn):
             return _generate_once()
 
