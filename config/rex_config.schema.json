@@ -221,6 +221,18 @@
           "default": 50,
           "minimum": 1
         },
+        "warm_runtime_max_cost_mb": {
+          "type": "number",
+          "description": "Approximate retained-cache accounting ceiling for managed warm components; not an exact RSS/VRAM limit",
+          "default": 6144.0,
+          "minimum": 0
+        },
+        "warm_runtime_idle_timeout_s": {
+          "type": "number",
+          "description": "Idle seconds before an unused managed warm component becomes evictable",
+          "default": 900.0,
+          "minimum": 0
+        },
         "command_duration": {
           "type": "number",
           "description": "Command recording duration in seconds",

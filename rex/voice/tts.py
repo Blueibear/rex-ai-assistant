@@ -86,7 +86,9 @@ class TextToSpeech:
         # Smart speaker output device name (US-SP-002); None → local audio
         self._tts_output_device: str | None = getattr(_vl().settings, "tts_output_device", None)
 
-        self._tts = None
+        self._tts_override: Any = None
+        self._warm_manager: Any = None
+        self._warm_component_name: str | None = None
         self._xtts_init_error: str | None = None
         self._speaking = threading.Event()
         if self._provider == "xtts":
@@ -102,6 +104,21 @@ class TextToSpeech:
             return voice or self._edge_voice
         except Exception:
             return self._edge_voice
+
+    @property
+    def _tts(self) -> Any:
+        override = getattr(self, "_tts_override", None)
+        if override is not None:
+            return override
+        manager = getattr(self, "_warm_manager", None)
+        component_name = getattr(self, "_warm_component_name", None)
+        if manager is not None and component_name:
+            return manager.peek(component_name)
+        return None
+
+    @_tts.setter
+    def _tts(self, value: Any) -> None:
+        self._tts_override = value
 
     def is_speaking(self) -> bool:
         """Return True while TTS audio playback is in progress."""
@@ -119,16 +136,40 @@ class TextToSpeech:
             return False
 
         try:
+            from rex.runtime.warm import (
+                WarmComponentSpec,
+                default_idle_timeout,
+                get_global_warm_runtime,
+                warm_component_key,
+            )
             from rex.tts_utils import apply_xtts_safe_globals
 
             apply_xtts_safe_globals()
             torch = _vl().import_module("torch")
-            self._tts = tts_class(
-                model_name="tts_models/multilingual/multi-dataset/xtts_v2",
-                progress_bar=False,
+            use_cuda = bool(torch.cuda.is_available())
+            manager = get_global_warm_runtime(_vl().settings)
+            component_name = warm_component_key("tts", "xtts_v2", use_cuda, id(tts_class))
+
+            def _load_xtts() -> Any:
+                engine = tts_class(
+                    model_name="tts_models/multilingual/multi-dataset/xtts_v2",
+                    progress_bar=False,
+                )
+                if use_cuda:
+                    engine.to("cuda")
+                return engine
+
+            manager.register_if_absent(
+                WarmComponentSpec(
+                    name=component_name,
+                    loader=_load_xtts,
+                    estimated_cost_mb=2048.0,
+                    idle_timeout_s=default_idle_timeout(),
+                )
             )
-            if torch.cuda.is_available() and self._tts is not None:
-                self._tts.to("cuda")
+            manager.warm(component_name)
+            self._warm_manager = manager
+            self._warm_component_name = component_name
             self._xtts_init_error = None
             return True
         except Exception as exc:
@@ -505,13 +546,17 @@ class TextToSpeech:
         with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp:
             chunk_path = tmp.name
 
+        def _remove_chunk_file() -> None:
+            try:
+                os.unlink(chunk_path)
+            except FileNotFoundError:
+                return
+            except OSError as exc:
+                _vl().logger.warning("Failed to remove temp file %s: %s", chunk_path, exc)
+
         try:
 
-            tts_engine = self._tts
-            if tts_engine is None:
-                raise TextToSpeechError("XTTS not initialized")
-
-            def _synthesize(_chunk=chunk, _chunk_path=chunk_path) -> None:
+            def _synthesize(tts_engine: Any, _chunk=chunk, _chunk_path=chunk_path) -> None:
                 tts_engine.tts_to_file(
                     text=_chunk,
                     speaker_wav=speaker_wav or self._default_speaker,
@@ -520,7 +565,37 @@ class TextToSpeech:
                     speed=self._tts_speed,
                 )
 
-            await asyncio.to_thread(_synthesize)
+            manager = getattr(self, "_warm_manager", None)
+            component_name = getattr(self, "_warm_component_name", None)
+            override = getattr(self, "_tts_override", None)
+            if override is None and manager is not None and component_name:
+
+                def _synthesize_managed() -> None:
+                    with manager.acquire(component_name) as tts_engine:
+                        _synthesize(tts_engine)
+
+                worker_task = asyncio.create_task(asyncio.to_thread(_synthesize_managed))
+                try:
+                    await asyncio.shield(worker_task)
+                except asyncio.CancelledError:
+
+                    def _cleanup_after_cancel(completed: asyncio.Task[None]) -> None:
+                        try:
+                            completed.result()
+                        except BaseException as exc:
+                            _vl().logger.warning(
+                                "Cancelled XTTS worker ended with %s", type(exc).__name__
+                            )
+                        finally:
+                            _remove_chunk_file()
+
+                    worker_task.add_done_callback(_cleanup_after_cancel)
+                    raise
+            else:
+                tts_engine = self._tts
+                if tts_engine is None:
+                    raise TextToSpeechError("XTTS not initialized")
+                await asyncio.to_thread(_synthesize, tts_engine)
 
             if Path(chunk_path).exists():
                 routed = await asyncio.to_thread(self._try_smart_speaker, chunk_path)
@@ -540,10 +615,7 @@ class TextToSpeech:
                     except Exception as exc:
                         raise AudioDeviceError(f"Speaker playback failed: {exc}") from exc
         finally:
-            try:
-                os.unlink(chunk_path)
-            except (OSError, PermissionError) as exc:
-                _vl().logger.warning("Failed to remove temp file %s: %s", chunk_path, exc)
+            _remove_chunk_file()
 
     async def warmup(self, *, speaker_wav: str | None = None) -> None:
         """Pre-warm the TTS engine by synthesizing a short phrase in the background.

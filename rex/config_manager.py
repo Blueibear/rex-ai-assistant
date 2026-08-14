@@ -66,6 +66,8 @@ DEFAULT_CONFIG: Dict[str, Any] = {
         "log_level": "INFO",
         "file_logging_enabled": False,
         "memory_max_bytes": 131072,
+        "warm_runtime_max_cost_mb": 6144.0,
+        "warm_runtime_idle_timeout_s": 900.0,
         "transcripts_enabled": True,
         "transcripts_dir": "transcripts",
         "active_user": None,

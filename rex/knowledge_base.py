@@ -735,15 +735,20 @@ _knowledge_base: KnowledgeBase | None = None
 
 
 def get_knowledge_base() -> KnowledgeBase:
-    """Get the global knowledge base instance."""
+    """Get the process-warm mutable knowledge index singleton.
+
+    The mutable index is intentionally excluded from warm-cache eviction/accounting:
+    callers retain and mutate it, so evicting the manager's reference would neither be
+    use-safe nor reclaim memory truthfully.
+    """
     global _knowledge_base
     if _knowledge_base is None:
         _knowledge_base = KnowledgeBase()
     return _knowledge_base
 
 
-def set_knowledge_base(kb: KnowledgeBase) -> None:
-    """Set the global knowledge base instance (for testing)."""
+def set_knowledge_base(kb: KnowledgeBase | None) -> None:
+    """Replace the process-warm mutable knowledge index (primarily for tests)."""
     global _knowledge_base
     _knowledge_base = kb
 

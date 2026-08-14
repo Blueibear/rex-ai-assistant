@@ -82,6 +82,27 @@ Its evidence class is `deterministic_mock`. It validates instrumentation and fra
 overhead only. It must not be used to claim that live provider or physical-device
 latency meets the target budgets.
 
+## Managed warm-runtime profile
+
+US-099 adds a deterministic local lifecycle profile:
+
+```bash
+python scripts/rexbench.py --profile warm-runtime --iterations 8
+```
+
+The profile compares cold acquisition against already-warm acquisition for four synthetic
+resource classes: executive/local model, STT, TTS, and retrieval/index. It exercises the
+managed cache with deterministic local loader cost, so it proves cache/lifecycle overhead
+and cold-vs-warm measurement behavior, not real model loading time. The runtime budget is an
+approximate **retained-cache accounting** ceiling; it is not an exact RAM/VRAM measurement or
+a guarantee that CUDA/library allocators release memory immediately after eviction. A
+component that cannot fit the retained budget runs cold for that use rather than becoming
+unavailable. The production mutable knowledge base is process-warm but intentionally outside
+the evictable cache because its live size changes and callers retain it; the synthetic index
+class here measures lifecycle behavior only. The report contains timings and non-secret
+runtime identifiers only and never stores request content. Live model, audio, GPU, and device
+latency remains a later release-gate measurement.
+
 ## Known latency work after the baseline
 
 Manual desktop testing has observed responses taking roughly 30-60+ seconds in some

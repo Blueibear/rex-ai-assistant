@@ -631,6 +631,33 @@ def check_stt_backend() -> CheckResult:
     )
 
 
+def check_warm_runtime() -> CheckResult:
+    """Report content-free state for managed heavyweight local components."""
+    from rex.runtime.warm import WarmState, get_global_warm_runtime
+
+    snapshot = get_global_warm_runtime().snapshot()
+    components = snapshot["components"]
+    warm_count = sum(1 for item in components if item["state"] == WarmState.WARM)
+    degraded_count = sum(
+        1 for item in components if item["state"] in {WarmState.DEGRADED, WarmState.ERROR}
+    )
+    status = Status.WARNING if degraded_count else (Status.OK if warm_count else Status.INFO)
+    details = "\n".join(
+        f"- {item['name']}: {item['state']}, ~{item['estimated_cost_mb']:g} MB, "
+        f"loads={item['load_count']}"
+        for item in components
+    )
+    return CheckResult(
+        name="Warm Runtime",
+        status=status,
+        message=(
+            f"{warm_count} warm component(s), ~{snapshot['estimated_cost_mb']:g} MB retained / "
+            f"{snapshot['max_cost_mb']:g} MB cache-accounting ceiling"
+        ),
+        details=details,
+    )
+
+
 def check_stt_warmup(stt: object | None = None) -> CheckResult:
     """Check the STT model warm-up status.
 
@@ -1230,6 +1257,9 @@ def run_diagnostics(
 
     # STT warm-up
     report.add(check_stt_warmup())
+
+    # Managed heavyweight runtime state
+    report.add(check_warm_runtime())
 
     # GPU check
     report.add(check_gpu_availability())

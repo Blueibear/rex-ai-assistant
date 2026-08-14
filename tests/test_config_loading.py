@@ -270,3 +270,30 @@ class TestMissingConfigHandledSafely:
         """DEFAULT_CONFIG contains all required top-level sections."""
         for section in ("models", "runtime", "wakeword", "audio", "api"):
             assert section in DEFAULT_CONFIG, f"DEFAULT_CONFIG missing section: {section}"
+
+
+def test_build_app_config_reads_warm_runtime_policy() -> None:
+    cfg = build_app_config(
+        {
+            "runtime": {
+                "warm_runtime_max_cost_mb": 4096,
+                "warm_runtime_idle_timeout_s": 300,
+            },
+            "models": {
+                "llm_provider": "transformers",
+                "llm_model": "sshleifer/tiny-gpt2",
+            },
+        }
+    )
+
+    assert cfg.warm_runtime_max_cost_mb == 4096.0
+    assert cfg.warm_runtime_idle_timeout_s == 300.0
+
+
+def test_warm_runtime_policy_rejects_negative_limits() -> None:
+    import pytest
+
+    with pytest.raises(ValueError, match="warm runtime"):
+        AppConfig(warm_runtime_max_cost_mb=-1)
+    with pytest.raises(ValueError, match="warm runtime"):
+        AppConfig(warm_runtime_idle_timeout_s=-1)

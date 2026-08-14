@@ -131,6 +131,13 @@ class OfflineTransformersStrategy:
         yield self.generate(prompt, config, messages=messages)
 
 
+@dataclass(frozen=True)
+class _TransformersRuntime:
+    torch: Any
+    pipeline: Any
+    tokenizer: Any
+
+
 class TransformersStrategy:
     name = "transformers"
 
@@ -145,20 +152,56 @@ class TransformersStrategy:
                 "Transformers backend requires `torch` and `transformers`."
             ) from exc
 
-        tokenizer = transformers.AutoTokenizer.from_pretrained(model_name)
-        model = transformers.AutoModelForCausalLM.from_pretrained(model_name)
-        device = 0 if torch.cuda.is_available() else -1
-
-        self._torch = torch
-        self.pipeline = transformers.pipeline(
-            "text-generation",
-            model=model,
-            tokenizer=tokenizer,
-            device=device,
+        from rex.runtime.warm import (
+            WarmComponentSpec,
+            default_idle_timeout,
+            get_global_warm_runtime,
+            warm_component_key,
         )
-        self.tokenizer = tokenizer
-        if tokenizer.pad_token_id is None:
-            tokenizer.pad_token_id = tokenizer.eos_token_id
+
+        device = 0 if torch.cuda.is_available() else -1
+        manager = get_global_warm_runtime()
+        component_name = warm_component_key("llm", model_name, device)
+
+        def _load() -> _TransformersRuntime:
+            tokenizer = transformers.AutoTokenizer.from_pretrained(model_name)
+            model = transformers.AutoModelForCausalLM.from_pretrained(model_name)
+            pipeline = transformers.pipeline(
+                "text-generation",
+                model=model,
+                tokenizer=tokenizer,
+                device=device,
+            )
+            if tokenizer.pad_token_id is None:
+                tokenizer.pad_token_id = tokenizer.eos_token_id
+            return _TransformersRuntime(torch=torch, pipeline=pipeline, tokenizer=tokenizer)
+
+        manager.register_if_absent(
+            WarmComponentSpec(
+                name=component_name,
+                loader=_load,
+                estimated_cost_mb=2048.0,
+                idle_timeout_s=default_idle_timeout(),
+            )
+        )
+        manager.warm(component_name)
+        self._warm_manager = manager
+        self._warm_component_name = component_name
+
+    def _runtime(self) -> _TransformersRuntime:
+        return cast(_TransformersRuntime, self._warm_manager.get(self._warm_component_name))
+
+    @property
+    def _torch(self) -> Any:
+        return self._runtime().torch
+
+    @property
+    def pipeline(self) -> Any:
+        return self._runtime().pipeline
+
+    @property
+    def tokenizer(self) -> Any:
+        return self._runtime().tokenizer
 
     def generate(
         self,
@@ -168,29 +211,31 @@ class TransformersStrategy:
         messages: list[dict[str, Any]] | None = None,
         **kwargs: Any,
     ) -> str:
-        torch = self._torch
-        torch.manual_seed(config.seed)
-        if torch.cuda.is_available():
-            torch.cuda.manual_seed_all(config.seed)
+        with self._warm_manager.acquire(self._warm_component_name) as value:
+            runtime = cast(_TransformersRuntime, value)
+            torch = runtime.torch
+            torch.manual_seed(config.seed)
+            if torch.cuda.is_available():
+                torch.cuda.manual_seed_all(config.seed)
 
-        do_sample = config.temperature > 0 or config.top_p < 1.0
-        generate_kwargs = {
-            "max_new_tokens": config.max_new_tokens,
-            "do_sample": do_sample,
-            "pad_token_id": self.tokenizer.pad_token_id,
-        }
-        if do_sample:
-            generate_kwargs.update(
-                {
-                    "temperature": max(config.temperature, 1e-4),
-                    "top_p": config.top_p,
-                    "top_k": config.top_k,
-                }
-            )
+            do_sample = config.temperature > 0 or config.top_p < 1.0
+            generate_kwargs = {
+                "max_new_tokens": config.max_new_tokens,
+                "do_sample": do_sample,
+                "pad_token_id": runtime.tokenizer.pad_token_id,
+            }
+            if do_sample:
+                generate_kwargs.update(
+                    {
+                        "temperature": max(config.temperature, 1e-4),
+                        "top_p": config.top_p,
+                        "top_k": config.top_k,
+                    }
+                )
 
-        outputs = self.pipeline(prompt, **generate_kwargs)
-        text = outputs[0]["generated_text"]
-        return text[len(prompt) :].strip() or "(silence)"
+            outputs = runtime.pipeline(prompt, **generate_kwargs)
+            text = outputs[0]["generated_text"]
+            return text[len(prompt) :].strip() or "(silence)"
 
 
 class OpenAIStrategy:
@@ -612,6 +657,12 @@ class LanguageModel:
         self._anthropic_client = None
         self._tools: list[Any] = []  # OpenAI tool definitions
         self._tool_functions: dict[str, Any] = {}  # Map of tool name -> callable
+        from rex.runtime.warm import get_global_warm_runtime
+
+        # The first settings-bearing application access establishes process-wide
+        # warm-cache policy; constructing additional model wrappers must not
+        # silently rewrite that shared resource policy.
+        get_global_warm_runtime(self.config)
         self.strategy = self._init_strategy()
 
     def _ensure_anthropic_client(self) -> Any:

@@ -47,6 +47,7 @@ def _patch_all_checks(monkeypatch) -> None:
     monkeypatch.setattr(dm, "check_wakeword_config", lambda: _ok("WakeWord"))
     monkeypatch.setattr(dm, "check_stt_backend", lambda: _ok("STT"))
     monkeypatch.setattr(dm, "check_stt_warmup", lambda stt=None: _ok("STTWarmup"))
+    monkeypatch.setattr(dm, "check_warm_runtime", lambda: _ok("WarmRuntime"))
     monkeypatch.setattr(dm, "check_gpu_availability", lambda: _ok("GPU"))
     monkeypatch.setattr(dm, "check_xtts_transformers_compat", lambda: _ok("XTTS"))
     monkeypatch.setattr(dm, "check_core_dependencies", lambda: [_ok("CoreDep")])

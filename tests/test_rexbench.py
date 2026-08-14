@@ -165,3 +165,36 @@ def test_parallel_actions_cli_emits_bounded_execution_profile(tmp_path) -> None:
     encoded = output.read_text(encoding="utf-8").lower()
     for forbidden in ("prompt", "transcript", "memory_content", "credential", "user_id"):
         assert forbidden not in encoded
+
+
+def test_warm_runtime_cli_compares_cold_and_warm_without_private_payloads(tmp_path) -> None:
+    output = tmp_path / "warm-runtime.json"
+    completed = subprocess.run(
+        [
+            sys.executable,
+            "scripts/rexbench.py",
+            "--profile",
+            "warm-runtime",
+            "--iterations",
+            "2",
+            "--output",
+            str(output),
+        ],
+        check=False,
+        capture_output=True,
+        text=True,
+        timeout=45,
+    )
+    assert completed.returncode == 0, completed.stderr or completed.stdout
+    report = json.loads(output.read_text(encoding="utf-8"))
+    assert report["profile"] == "warm-runtime"
+    assert set(report["results"]) == {"executive", "stt", "tts", "index"}
+    for component in report["results"].values():
+        assert set(component) == {"cold", "warm"}
+        assert component["cold"]["evidence_class"] == "deterministic_local"
+        assert component["warm"]["evidence_class"] == "deterministic_local"
+        assert set(component["cold"]["stages_ms"]) == {"acquire", "total"}
+        assert set(component["warm"]["stages_ms"]) == {"acquire", "total"}
+    encoded = output.read_text(encoding="utf-8").lower()
+    for forbidden in ("prompt", "transcript", "memory_content", "credential", "user_id"):
+        assert forbidden not in encoded
