@@ -228,6 +228,14 @@ Routes defined directly in the file:
 
 Auth is based on Cloudflare Access email, `Authorization: Bearer <REX_PROXY_TOKEN>`, `X-Rex-Proxy-Token`, or loopback when `REX_PROXY_ALLOW_LOCAL=1`.
 
+## External mobile API (`askrex.app`)
+
+`rex-gui` and the other local HTTP services above are **not** the public mobile API. The only eligible external/mobile origin is the dedicated `rex.mobile_api` application and its `/mobile/*` contract.
+
+The planned public hostname is `https://askrex.app`. Public ingress remains gated: current S7 LAN pairing pins Rex-owned certificate material, while an external tunnel presents a different WebPKI certificate. Do not bypass that binding or proxy local `/api/*`, `/rex/tools/*`, `/run`, `/speak`, or GUI/admin surfaces.
+
+See `docs/mobile/MOBILE_API_THREAT_MODEL.md`, `docs/mobile/EXTERNAL_SURFACE_CLASSIFICATION.md`, `docs/mobile/ASKREX_APP_GATEWAY.md`, and `docs/mobile/CLOUDFLARE_TUNNEL.md`.
+
 ## Error Envelope
 
 Shared error helpers return a structured envelope:

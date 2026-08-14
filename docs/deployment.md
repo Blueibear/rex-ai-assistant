@@ -266,6 +266,12 @@ docker run --rm --env-file .env -p 5005:5005 \
   -it askrex-assistant rex-speak-api
 ```
 
+## External mobile access (`askrex.app`)
+
+Do **not** expose `rex-gui`, `rex-agent`, `rex-speak-api`, or `rex-tool-server` as the mobile backend. The planned public hostname `https://askrex.app` may front only a loopback-bound `rex.mobile_api` origin through an explicit `/mobile/*` path allowlist.
+
+A Cloudflare Tunnel reference is documented in `docs/mobile/CLOUDFLARE_TUNNEL.md`. It uses placeholder tunnel identifiers/credential-file paths only; generated Cloudflare credentials stay outside this repository. The public deployment gate remains closed until the versioned WebPKI transport-binding, trusted-proxy/rate-limit, and public-topology tests in `docs/mobile/ASKREX_APP_GATEWAY.md` are implemented.
+
 ## Security Notes
 
 - Keep services bound to localhost unless you have a reverse proxy and auth.

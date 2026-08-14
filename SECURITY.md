@@ -20,6 +20,14 @@ atomically sanitizing plaintext sources; it creates no plaintext backup and
 emits no secret-derived preview, length, or hash. See
 [docs/credentials.md](docs/credentials.md).
 
+## Mobile and public API boundary
+
+The future `https://askrex.app` hostname is **not** permission to expose the existing local Flask/admin services. Public/mobile ingress may target only the dedicated `rex.mobile_api` `/mobile/*` contract through a path allowlist and loopback-only origin. `rex.gui_app`, the computer agent, TTS service, OpenClaw tool server, credentials, logs, and admin/configuration routes remain non-public trust zones.
+
+Current paired LAN access uses desktop-owned S7 certificate fingerprint/SPKI binding. A tunnel terminating WebPKI TLS at an external edge must not disable or fake that control; public pairing stays gated until the versioned public transport-binding design is implemented and tested. See `docs/mobile/MOBILE_API_THREAT_MODEL.md` and `docs/mobile/ASKREX_APP_GATEWAY.md`.
+
+Tunnel/API credentials must never be committed. The reference deployment in `docs/mobile/CLOUDFLARE_TUNNEL.md` uses placeholders only and keeps provider credential files outside the repository.
+
 ## Reporting a vulnerability
 
 If you discover a security issue in AskRex Assistant, please do **not** open a public GitHub issue with exploit details.
