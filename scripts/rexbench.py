@@ -27,6 +27,7 @@ from rex.capabilities.registry import Capability, CapabilityRegistry  # noqa: E4
 from rex.capabilities.retrieval import CapabilityRetriever  # noqa: E402
 from rex.model_router import ModelRouter  # noqa: E402
 from rex.rexbench import BenchmarkSample, build_report  # noqa: E402
+from rex.runtime.warm import WarmComponentSpec, WarmRuntimeManager  # noqa: E402
 from rex.tools.execution import ToolOperation  # noqa: E402
 from rex.tools.protocol import ToolResult  # noqa: E402
 from rex.voice_loop import VoiceLoop  # noqa: E402
@@ -534,11 +535,69 @@ def run_parallel_actions(iterations: int) -> dict:
     return build_report(samples, profile="parallel-actions")
 
 
+def run_warm_runtime(iterations: int) -> dict:
+    if iterations < 1:
+        raise ValueError("iterations must be at least 1")
+
+    def _synthetic_loader() -> object:
+        time.sleep(0.002)
+        return object()
+
+    samples: list[BenchmarkSample] = []
+    costs = {"executive": 256.0, "stt": 128.0, "tts": 256.0, "index": 64.0}
+
+    for component, cost in costs.items():
+        for _ in range(iterations):
+            cold = WarmRuntimeManager(max_cost_mb=1024.0)
+            cold.register(
+                WarmComponentSpec(
+                    name=component,
+                    loader=_synthetic_loader,
+                    estimated_cost_mb=cost,
+                )
+            )
+            started = time.perf_counter_ns()
+            cold.get(component)
+            elapsed_ms = (time.perf_counter_ns() - started) / 1_000_000
+            samples.append(
+                BenchmarkSample(
+                    request_class=component,
+                    warm_state="cold",
+                    evidence_class="deterministic_local",
+                    stages_ms={"acquire": elapsed_ms, "total": elapsed_ms},
+                )
+            )
+
+        warm = WarmRuntimeManager(max_cost_mb=1024.0)
+        warm.register(
+            WarmComponentSpec(
+                name=component,
+                loader=_synthetic_loader,
+                estimated_cost_mb=cost,
+            )
+        )
+        warm.get(component)
+        for _ in range(iterations):
+            started = time.perf_counter_ns()
+            warm.get(component)
+            elapsed_ms = (time.perf_counter_ns() - started) / 1_000_000
+            samples.append(
+                BenchmarkSample(
+                    request_class=component,
+                    warm_state="warm",
+                    evidence_class="deterministic_local",
+                    stages_ms={"acquire": elapsed_ms, "total": elapsed_ms},
+                )
+            )
+
+    return build_report(samples, profile="warm-runtime")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--profile",
-        choices=("baseline", "capability-retrieval", "parallel-actions"),
+        choices=("baseline", "capability-retrieval", "parallel-actions", "warm-runtime"),
         default="baseline",
     )
     parser.add_argument("--iterations", type=int, default=8)
@@ -549,6 +608,8 @@ def main() -> int:
         report = run_capability_retrieval(args.iterations)
     elif args.profile == "parallel-actions":
         report = run_parallel_actions(args.iterations)
+    elif args.profile == "warm-runtime":
+        report = run_warm_runtime(args.iterations)
     else:
         report = run_baseline(args.iterations)
     encoded = json.dumps(report, indent=2, sort_keys=True) + "\n"

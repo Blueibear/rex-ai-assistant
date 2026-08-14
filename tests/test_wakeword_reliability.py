@@ -167,12 +167,11 @@ def _render_report(metrics: dict[str, object], rows: list[dict[str, object]]) ->
     return "\n".join(lines) + "\n"
 
 
-def test_controlled_fixture_writes_tracked_reliability_report() -> None:
+def test_controlled_fixture_matches_tracked_reliability_report() -> None:
     metrics, rows = _evaluate_fixture()
     report = _render_report(metrics, rows)
-    REPORT_PATH.parent.mkdir(parents=True, exist_ok=True)
-    REPORT_PATH.write_text(report, encoding="utf-8", newline="\n")
 
+    assert REPORT_PATH.read_text(encoding="utf-8") == report
     assert metrics["tp"] == 4
     assert metrics["fn"] == 0
     assert metrics["fp"] == 1

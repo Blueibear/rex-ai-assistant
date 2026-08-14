@@ -1960,3 +1960,25 @@ US-104 final Codex follow-up and publication gate (2026-08-13):
 - PR #392 remote evidence was re-read directly: all 18 required checks passed on its exact head before US-076 merged as `8b4b645`; the stale US-076 PRD CI criterion is now closed.
 - US-104's own GitHub-check criterion remains open pending the exact story PR head.
 - Final updated staged-diff Codex review: no remaining actionable issues; both terminal-tombstone and slow-stream ordering fixes were independently confirmed, with no new correctness/security/privacy/compatibility blocker.
+
+
+2026-08-13 - US-104 final GitHub evidence and US-099 managed warm runtime
+
+Remote US-104 evidence:
+- PR #393 exact head c324d36eaeedf50d63e3248b0b5dba4b98fa487a passed all 18 required repository checks before merge.
+- Checks included Python Tests & Coverage, installed Windows Electron artifact, GUI build/lint/type/Vitest/raw-API guard, Ruff/Black, mypy, dependency/security/secret scans, pre-commit, wheel contents, CodeFactor, GitGuardian, and commitlint.
+- PR #393 merged as 39d8d3c26e4270d3d600a1bd415d6ea98f7ba718; US-104's final CI criterion is therefore closed.
+
+US-099 implementation evidence:
+- Added rex.runtime.warm as the bounded process-local retained-cache lifecycle owner for reusable heavyweight local model/STT/TTS engines, with state/health, approximate cost, serialized active leases, LRU budget eviction, automatic idle sweeping, degraded fallback, retained-only prewarm, cold-on-demand fallback, and explicit close/reset behavior.
+- Local Transformers, Whisper, and XTTS resources share the managed cache without request/user-specific content. The mutable production knowledge index remains a separate process-warm singleton because callers retain/mutate it and truthful eviction/accounting cannot be guaranteed.
+- Warm component diagnostic keys are sanitized to type-prefixed/content-free hashes; rex doctor reports state/load count/approximate retained cost without model IDs, paths, request content, secrets, or private state. The budget is an accounting ceiling, not an exact RSS/VRAM guarantee.
+- Runtime config exposes warm_runtime_max_cost_mb (default 6144 MB) and warm_runtime_idle_timeout_s (default 900 s), rejects negative values, and documents them in defaults/example/schema. The first settings-bearing application initialization establishes process policy; later model/voice wrappers cannot silently rewrite it, while explicit reconfiguration remains available.
+- Optional ML/audio dependencies remain lazy; zero/low budgets skip wasteful constructor preloads and execute cold on demand instead of disabling the component. Failed unload callbacks conservatively keep the resource resident/accounted.
+- Shared-engine use is serialized per component. Idle eviction sweeps before acquisition and revalidates idleness after locks, preventing the reviewed self-deadlock/stale-candidate race. XTTS cancellation keeps its worker lease until synthesis exits and removes deferred temp output safely.
+- Added RexBench warm-runtime profile covering synthetic executive, STT, TTS, and index lifecycle classes without user content; it measures manager lifecycle overhead rather than live model/hardware latency.
+- Exact US-099 focused suite: 38 passed, 8 pre-existing deprecation warnings. Combined warm/config/RexBench/doctor/LLM/STT/TTS/knowledge regression matrix: 211 passed, 17 pre-existing deprecation warnings, 0 failed. Isolated first-run regression suite: 8 passed.
+- RexBench 8-iteration evidence: cold p50 approximately 2.48 ms versus warm p50 approximately 0.002-0.004 ms across the four deterministic lifecycle classes; this is synthetic lifecycle evidence only.
+- Targeted Ruff and Black pass; targeted mypy reports no issues in the modified US-099 source modules, and the two initially introduced RexBench typing errors were removed (remaining RexBench mypy findings match origin/master baseline).
+- Independent final Codex review rechecked global-policy ownership, idle-eviction concurrency, cancellation/lifecycle/accounting/privacy behavior, and returned APPROVE with no actionable blocking/high/medium US-099 findings.
+- US-099 GitHub-check criterion remains open until its exact story PR head passes the complete repository matrix.

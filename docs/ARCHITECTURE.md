@@ -64,6 +64,34 @@ transcripts, prompts, memory contents, credentials, or private tool results. Con
 Electron turns are tracked by turn ID so one turn's terminal event cannot clear another
 turn that is still active.
 
+### Managed warm local runtime
+
+`rex/runtime/warm.py` owns the retained process-local cache lifetime for reusable local
+model engines such as Transformers, Whisper STT, and XTTS. Components register lazy loaders
+with an approximate cache-accounting cost and idle timeout. The manager evicts unused
+least-recently-used cache entries, serializes use of each shared engine, protects active
+leases, runs heavyweight load/unload callbacks outside the global bookkeeping lock, and
+reloads an evicted resource on demand. If a component cannot fit the configured retained
+cache budget, Rex executes it cold for that use instead of disabling the capability.
+
+The configured budget is deliberately a **retained-cache accounting ceiling**, not a claim
+about exact process RSS or GPU VRAM. Dropping Rex's cache reference cannot force external
+library references or a CUDA allocator to release memory immediately, so diagnostics never
+report exact reclaimed RAM/VRAM. The mutable persisted knowledge base remains a separate
+process-warm singleton: callers retain and mutate it, so pretending it is safely evictable
+or assigning it a fixed cache cost would be misleading.
+
+Only heavyweight reusable implementation objects may cross the managed-cache boundary.
+Prompts, transcripts, conversation/memory content, user identity, authorization state,
+credentials, tool results, and other request-specific data must never be stored there.
+Diagnostic identifiers are sanitized by the manager itself: already-safe type-prefixed
+hashes are preserved and any untrusted name is replaced with a content-free hash before it
+can reach `rex doctor`. `runtime.warm_runtime_max_cost_mb` and
+`runtime.warm_runtime_idle_timeout_s` define the non-secret authoritative policy; explicit
+application configuration updates both budget and existing idle policies, while ordinary
+component access cannot rewrite them. Optional ML/audio dependencies remain lazy and retain
+existing fallback behavior; warming does not make them base-install requirements.
+
 ### Action lifecycle and verification
 
 `rex/actions/lifecycle.py` is the canonical action-truth contract used by generic

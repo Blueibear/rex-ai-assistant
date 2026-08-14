@@ -3382,11 +3382,11 @@ grep -n "askrex.app\|Cloudflare\|CORS\|rate limit\|revocation" docs/deployment.m
 **Files/areas likely involved:** model/STT/TTS loaders, runtime service lifecycle, health/doctor status, config, RexBench.
 
 **Acceptance Criteria:**
-- [ ] Managed warm-component lifecycle exposes state/health, bounded memory cost, idle/eviction behavior, and lazy fallback.
-- [ ] Common warm-path turns do not reload the same heavy executive/STT/TTS/index dependency per turn.
-- [ ] Startup remains graceful when optional ML/audio dependencies are absent; local-first core text remains usable.
-- [ ] RexBench compares cold vs warm evidence without storing user content.
-- [ ] Diagnostics report which components are warm and approximate resource cost without secrets/private data.
+- [x] Managed warm-component lifecycle exposes state/health, bounded memory cost, idle/eviction behavior, and lazy fallback.
+- [x] Common warm-path turns do not reload the same heavy executive/STT/TTS/index dependency per turn.
+- [x] Startup remains graceful when optional ML/audio dependencies are absent; local-first core text remains usable.
+- [x] RexBench compares cold vs warm evidence without storing user content.
+- [x] Diagnostics report which components are warm and approximate resource cost without secrets/private data.
 - [ ] All relevant GitHub checks pass.
 
 **Validation commands:** `pytest tests/rex2/test_warm_runtime.py -q`; `python scripts/rexbench.py --profile warm-runtime`.
@@ -3497,7 +3497,7 @@ grep -n "askrex.app\|Cloudflare\|CORS\|rate limit\|revocation" docs/deployment.m
 - [x] CLI/Electron/voice/mobile show equivalent state transitions for the same turn, adapted only for presentation.
 - [x] Cancellation/failure/verification terminal states clear stale indicators reliably.
 - [x] Tests cover privacy redaction and cross-interface status parity.
-- [ ] All relevant GitHub checks pass.
+- [x] All relevant GitHub checks pass. *(PR #393 exact head c324d36 passed all 18 required checks before merge; merged as 39d8d3c on 2026-08-13.)*
 
 **Validation commands:** `pytest tests/rex2/test_progressive_status.py -q`; `cd gui && npm run typecheck && npm run build`.
 

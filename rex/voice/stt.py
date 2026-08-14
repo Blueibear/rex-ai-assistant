@@ -76,6 +76,8 @@ class SpeechToText:
         self._model_name = model_name
         self._whisper_module = whisper_module
         self._model: Any = None
+        self._warm_manager: Any = None
+        self._warm_component_name: str | None = None
         self._load_event = threading.Event()
         self._load_error: str | None = None
 
@@ -88,15 +90,45 @@ class SpeechToText:
                 raise SpeechToTextError(self._load_error)
 
     def _load_model(self) -> None:
-        """Load the Whisper model; called synchronously or from a background thread."""
+        """Load or attach the process-warm Whisper model."""
         try:
-            self._model = self._whisper_module.load_model(self._model_name, device=self._device)
+            from rex.runtime.warm import (
+                WarmComponentSpec,
+                default_idle_timeout,
+                get_global_warm_runtime,
+                warm_component_key,
+            )
+
+            manager = get_global_warm_runtime(_vl().settings)
+            whisper_module = self._whisper_module
+            model_name = self._model_name
+            device = self._device
+            component_name = warm_component_key("stt", model_name, device, id(whisper_module))
+            manager.register_if_absent(
+                WarmComponentSpec(
+                    name=component_name,
+                    loader=lambda: whisper_module.load_model(model_name, device=device),
+                    estimated_cost_mb=1024.0,
+                    idle_timeout_s=default_idle_timeout(),
+                )
+            )
+            manager.warm(component_name)
+            self._warm_manager = manager
+            self._warm_component_name = component_name
             _vl().logger.info("[STT] Model '%s' loaded on %s", self._model_name, self._device)
         except Exception as exc:
             self._load_error = str(exc)
             _vl().logger.error("[STT] Model load failed: %s", exc)
         finally:
             self._load_event.set()
+
+    def _resolve_model(self) -> Any:
+        """Return the active model, reloading through the bounded manager after eviction."""
+        manager = getattr(self, "_warm_manager", None)
+        component_name = getattr(self, "_warm_component_name", None)
+        if manager is not None and component_name:
+            return manager.get(component_name)
+        return self._model
 
     def is_loaded(self) -> bool:
         """Return True when the Whisper model has finished loading without error."""
@@ -139,7 +171,7 @@ class SpeechToText:
             detected_format = _detect_audio_format(audio_buffer)
             raise AudioFormatError(f"Expected WAV, got {detected_format}")
 
-        def _transcribe() -> str:
+        def _transcribe_with_model(model: Any) -> str:
             def run_transcribe(language: str | None) -> dict[str, Any]:
                 kwargs: dict[str, Any] = {
                     "language": language,
@@ -149,7 +181,7 @@ class SpeechToText:
                 if initial_prompt:
                     kwargs["initial_prompt"] = initial_prompt
                 try:
-                    return cast(dict[str, Any], self._model.transcribe(prepared_audio, **kwargs))
+                    return cast(dict[str, Any], model.transcribe(prepared_audio, **kwargs))
                 except TypeError:
                     _vl().logger.debug(
                         "[STT] Whisper version does not support all transcription options; "
@@ -157,7 +189,7 @@ class SpeechToText:
                     )
                     return cast(
                         dict[str, Any],
-                        self._model.transcribe(
+                        model.transcribe(
                             prepared_audio,
                             language=language,
                             fp16=False,
@@ -175,6 +207,14 @@ class SpeechToText:
                 else:
                     raise
             return str(result.get("text", "")).strip()
+
+        def _transcribe() -> str:
+            manager = getattr(self, "_warm_manager", None)
+            component_name = getattr(self, "_warm_component_name", None)
+            if manager is not None and component_name:
+                with manager.acquire(component_name) as model:
+                    return _transcribe_with_model(model)
+            return _transcribe_with_model(self._model)
 
         try:
             return await asyncio.to_thread(_transcribe)

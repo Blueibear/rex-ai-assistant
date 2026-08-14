@@ -45,6 +45,8 @@
     "active_user": null,
     "user_id": "default",
     "memory_max_turns": 50,
+    "warm_runtime_max_cost_mb": 6144.0,
+    "warm_runtime_idle_timeout_s": 900.0,
     "command_duration": 5.0,
     "capture_seconds": 5.0,
     "detection_frame_seconds": 1.0,

@@ -428,6 +428,8 @@ class AppConfig:
     log_path: Path = DEFAULT_RUNTIME_LOG_FILE
     error_log_path: Path = DEFAULT_ERROR_LOG_FILE
     memory_max_bytes: int = 131072
+    warm_runtime_max_cost_mb: float = 6144.0
+    warm_runtime_idle_timeout_s: float = 900.0
     conversation_export: bool = True
 
     brave_api_key: Optional[str] = None
@@ -724,6 +726,8 @@ class AppConfig:
         return raw
 
     def __post_init__(self) -> None:
+        if self.warm_runtime_max_cost_mb < 0 or self.warm_runtime_idle_timeout_s < 0:
+            raise ValueError("warm runtime limits must be non-negative")
         provider = self.llm_provider.lower()
         self.openrouter_base_url = (self.openrouter_base_url or OPENROUTER_DEFAULT_BASE_URL).rstrip(
             "/"
@@ -1318,6 +1322,12 @@ def build_app_config(json_config: dict) -> AppConfig:
             _get_nested(json_config, "runtime.error_log_path", str(DEFAULT_ERROR_LOG_FILE))
         ),
         memory_max_bytes=_coerce_int(json_config, "runtime.memory_max_bytes", 131072),
+        warm_runtime_max_cost_mb=_coerce_float(
+            json_config, "runtime.warm_runtime_max_cost_mb", 6144.0
+        ),
+        warm_runtime_idle_timeout_s=_coerce_float(
+            json_config, "runtime.warm_runtime_idle_timeout_s", 900.0
+        ),
         # Profile metadata
         active_profile=_get_nested(json_config, "active_profile", "default"),
         capabilities=capabilities,
