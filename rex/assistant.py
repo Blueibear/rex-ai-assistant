@@ -27,6 +27,7 @@ from .llm_client import LanguageModel
 from .memory import trim_history
 from .model_router import ModelRouteDecision, ModelRouter
 from .plugins import PluginSpec
+from .provider_reliability import classify_provider_failure
 from .runtime.events import EventKind, EventObserver, TurnEvent, TurnEventStream
 from .runtime.invocation import current_turn_invocation
 from .runtime.turn import (
@@ -574,17 +575,61 @@ class Assistant:
             model = getattr(settings_obj, "llm_model", "unknown")
         return str(provider or "unknown"), str(model or "unknown")
 
+    def _provider_attempt_latency_ms(self, started_ns: int) -> float:
+        return max(0.0, (time.perf_counter_ns() - started_ns) / 1_000_000)
+
+    def _record_provider_success(self, started_ns: int) -> None:
+        router = getattr(self, "_router", None)
+        if not isinstance(router, ModelRouter):
+            return
+        provider, _model = self._latency_provider_model()
+        router.record_provider_success(
+            provider, latency_ms=self._provider_attempt_latency_ms(started_ns)
+        )
+
+    def _record_provider_failure(self, exc: BaseException, started_ns: int) -> None:
+        router = getattr(self, "_router", None)
+        if not isinstance(router, ModelRouter):
+            return
+        provider, _model = self._latency_provider_model()
+        router.record_provider_failure(
+            provider,
+            classify_provider_failure(exc),
+            latency_ms=self._provider_attempt_latency_ms(started_ns),
+        )
+
     def _generate_model_reply(self, prompt: str, messages: list[dict[str, str]]) -> str:
+        started_ns = time.perf_counter_ns()
         try:
-            return self._llm.generate(messages=messages)
-        except TypeError:
-            return self._llm.generate(prompt)
+            try:
+                reply = self._llm.generate(messages=messages)
+            except TypeError:
+                reply = self._llm.generate(prompt)
+        except Exception as exc:
+            self._record_provider_failure(exc, started_ns)
+            raise
+        self._record_provider_success(started_ns)
+        return reply
+
+    def _track_provider_stream(self, stream: Iterable[str], started_ns: int) -> Iterable[str]:
+        try:
+            yield from stream
+        except Exception as exc:
+            self._record_provider_failure(exc, started_ns)
+            raise
+        self._record_provider_success(started_ns)
 
     def _stream_model_reply(self, prompt: str, messages: list[dict[str, str]]) -> Iterable[str]:
+        started_ns = time.perf_counter_ns()
         try:
-            return self._llm.stream(messages=messages)
-        except TypeError:
-            return self._llm.stream(prompt)
+            try:
+                stream = self._llm.stream(messages=messages)
+            except TypeError:
+                stream = self._llm.stream(prompt)
+        except Exception as exc:
+            self._record_provider_failure(exc, started_ns)
+            raise
+        return self._track_provider_stream(stream, started_ns)
 
     async def _post_process_completion(
         self, transcript: str, completion: str, *, user_id: str | None = None

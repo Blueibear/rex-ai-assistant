@@ -2009,3 +2009,25 @@ US-105 implementation evidence:
 - Local evidence: 103 cross-system tests passed; ModelRouter/RexBench focused set passed; Ruff and Black passed; mypy passed for the touched runtime modules.
 - `python scripts/rexbench.py --profile model-routing --iterations 8` passed with privacy-safe deterministic-local evidence.
 - Exact implementation head `51d927a70df7c05d82451f8c2a8cdd53817b8a7d` passed CI, Commitlint, Windows Electron Artifact, CodeFactor, pre-commit, hardcoded-secret scan, security audit, lint/format, mypy, GUI checks, and dependency scans on 2026-08-14; US-110 GitHub-check criterion is closed.
+
+
+2026-08-14 - US-111 provider reliability and routing evaluation closure
+
+Implementation and local evidence:
+- Added a bounded, content-free provider reliability ledger for latency, failures, rate limits, cooldowns, recovery state, and sanitized diagnostics. Prompts, responses, private user content, credentials, and exception messages are never retained by the ledger.
+- ModelRouter now respects provider-specific outage/cooldown evidence and deterministically falls back only across explicitly configured provider/model candidates; it never discovers or silently enables a cloud/paid provider.
+- Assistant generation and stream boundaries feed real success/failure timing into the ledger, including rate-limit and connection-failure classification, while preserving legacy TypeError signature compatibility as one provider attempt.
+- Added checked-in deterministic routing corpus `tests/fixtures/rexbench/routing-eval.json` and `rexbench --profile routing-eval`; four golden cases cover healthy primary, rate-limit fallback, provider-outage fallback, and all-providers-unavailable.
+- Live-provider evaluation remains explicit opt-in through `--live-provider-eval`, is labeled separately, and is not part of default/CI evaluation.
+- Focused US-111 suite: 14 passed. Broader routing/reliability/RexBench regression: 73 passed. Assistant/routing regression: 88 passed.
+- Full Windows primary marker suite: 8,778 passed / 49 skipped / 0 failed in 483.64s. Repository-integrity tests passed and the post-suite tree matched the pre-run US-111 diff.
+- Full Ruff and Black gates passed; changed runtime mypy passed with 0 errors; compileall, security release gate, `git diff --check`, and full pre-commit (Ruff/Black/detect-secrets) passed.
+- Deterministic RexBench routing-eval at 8 iterations passed 4/4 cases with selection_accuracy 1.0 and live_provider_eval=false.
+
+Remote exact-head evidence:
+- PR #397 implementation head `d98323952400796feb1767a99caa9866143913d7` passed all 18 registered checks before this documentation closure commit.
+- CI workflow run 31822925357 completed success, including Python 3.11 Tests & Coverage, skip-budget enforcement, integration tests, tracked-tree cleanliness, security audit, lint/format/type/GUI/dependency/pre-commit/wheel checks.
+- Commitlint workflow run 31822925363 completed success.
+- Windows Electron Artifact workflow run 31822925430 completed success, including managed runtime/installer build, signature truthfulness, packaged-resource rejection, and installed-artifact smoke without machine Python or Node.
+- CodeFactor reported no issues and GitGuardian reported no secrets detected. No failed/cancelled exact-head check conclusion and no PR review/review-thread blocker was present.
+- US-111 acceptance criteria are therefore closed. The docs-only closure head still must pass its own exact-head repository checks before PR #397 is merged.

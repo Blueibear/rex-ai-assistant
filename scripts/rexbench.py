@@ -25,7 +25,8 @@ from rex.actions.graph_executor import ActionGraphExecutor  # noqa: E402
 from rex.actions.lifecycle import lifecycle_from_legacy_status  # noqa: E402
 from rex.capabilities.registry import Capability, CapabilityRegistry  # noqa: E402
 from rex.capabilities.retrieval import CapabilityRetriever  # noqa: E402
-from rex.model_router import ModelRouter  # noqa: E402
+from rex.model_router import ModelRouter, ProviderRouteCandidate  # noqa: E402
+from rex.provider_reliability import ProviderFailureKind, ProviderReliability  # noqa: E402
 from rex.rexbench import BenchmarkSample, build_report  # noqa: E402
 from rex.runtime.warm import WarmComponentSpec, WarmRuntimeManager  # noqa: E402
 from rex.tools.execution import ToolOperation  # noqa: E402
@@ -671,6 +672,153 @@ def run_model_routing(iterations: int) -> dict:
     return build_report(samples, profile="model-routing")
 
 
+ROUTING_EVAL_CORPUS = REPO_ROOT / "tests" / "fixtures" / "rexbench" / "routing-eval.json"
+
+
+def _timing_percentiles(values: list[float]) -> dict[str, float]:
+    ordered = sorted(values)
+    if not ordered:
+        raise ValueError("routing eval requires timing samples")
+
+    def percentile(q: float) -> float:
+        if len(ordered) == 1:
+            return ordered[0]
+        position = (len(ordered) - 1) * q
+        lower = int(position)
+        upper = min(lower + 1, len(ordered) - 1)
+        fraction = position - lower
+        return ordered[lower] + (ordered[upper] - ordered[lower]) * fraction
+
+    return {"p50": round(percentile(0.50), 3), "p95": round(percentile(0.95), 3)}
+
+
+def _routing_eval_reliability(raw_case: dict[str, object]) -> ProviderReliability:
+    reliability = ProviderReliability(cooldown_seconds=60)
+    failures = raw_case.get("failures", [])
+    if not isinstance(failures, list):
+        raise ValueError("Routing evaluation failures must be a list")
+    for failure in failures:
+        if not isinstance(failure, dict):
+            raise ValueError("Routing evaluation failure must be an object")
+        reliability.record_failure(
+            str(failure.get("provider") or ""),
+            ProviderFailureKind(str(failure.get("kind") or "unknown")),
+        )
+    return reliability
+
+
+def _routing_eval_candidates(raw_case: dict[str, object]) -> tuple[ProviderRouteCandidate, ...]:
+    raw_candidates = raw_case.get("candidates", [])
+    if not isinstance(raw_candidates, list):
+        raise ValueError("Routing evaluation candidates must be a list")
+    return tuple(
+        ProviderRouteCandidate(str(item.get("provider") or ""), str(item.get("model") or ""))
+        for item in raw_candidates
+        if isinstance(item, dict)
+    )
+
+
+def _routing_eval_case(
+    raw_case: dict[str, object], iterations: int
+) -> tuple[bool, dict[str, object]]:
+    timings: list[float] = []
+    case_passed = True
+    for _ in range(iterations):
+        router = ModelRouter(provider_reliability=_routing_eval_reliability(raw_case))
+        started = time.perf_counter_ns()
+        selection = router.select_provider(_routing_eval_candidates(raw_case))
+        timings.append((time.perf_counter_ns() - started) / 1_000_000)
+        case_passed = case_passed and (
+            selection.provider == str(raw_case.get("expected_provider") or "")
+            and selection.model == str(raw_case.get("expected_model") or "")
+            and selection.fallback_reason == raw_case.get("expected_fallback_reason")
+        )
+    return case_passed, {
+        "passed": case_passed,
+        "evidence_class": "deterministic_local",
+        "iterations": iterations,
+        "routing_ms": _timing_percentiles(timings),
+    }
+
+
+def run_routing_eval(
+    iterations: int,
+    *,
+    corpus_path: Path = ROUTING_EVAL_CORPUS,
+    live_provider_eval: bool = False,
+) -> dict[str, object]:
+    """Evaluate deterministic provider selection/fallback against a checked-in corpus."""
+    if iterations < 1:
+        raise ValueError("iterations must be at least 1")
+    corpus = json.loads(corpus_path.read_text(encoding="utf-8"))
+    if corpus.get("schema_version") != 1 or corpus.get("evidence_class") != "deterministic_local":
+        raise ValueError("Unsupported routing evaluation corpus")
+    cases = corpus.get("cases")
+    if not isinstance(cases, list) or not cases:
+        raise ValueError("Routing evaluation corpus contains no cases")
+
+    results: dict[str, dict[str, object]] = {}
+    passed_cases = 0
+    for raw_case in cases:
+        if not isinstance(raw_case, dict):
+            raise ValueError("Routing evaluation case must be an object")
+        case_id = str(raw_case.get("id") or "")
+        if not case_id or case_id in results:
+            raise ValueError("Routing evaluation case IDs must be unique and non-empty")
+        case_passed, result = _routing_eval_case(raw_case, iterations)
+        results[case_id] = result
+        passed_cases += int(case_passed)
+
+    report: dict[str, object] = {
+        "schema_version": 1,
+        "profile": "routing-eval",
+        "privacy": "bounded_provider_health_and_timing_metadata_only",
+        "evidence_class": "deterministic_local",
+        "live_provider_eval": bool(live_provider_eval),
+        "corpus_version": int(corpus["schema_version"]),
+        "total_cases": len(cases),
+        "passed_cases": passed_cases,
+        "selection_accuracy": round(passed_cases / len(cases), 3),
+        "results": results,
+    }
+    if live_provider_eval:
+        report["live_provider"] = _live_provider_eval()
+    return report
+
+
+def _live_provider_eval() -> dict[str, object]:
+    """Run one explicitly requested live provider probe without retaining content."""
+    from rex.config import load_config  # noqa: PLC0415
+    from rex.llm_client import LanguageModel  # noqa: PLC0415
+    from rex.provider_reliability import classify_provider_failure  # noqa: PLC0415
+
+    config = load_config()
+    provider = str(getattr(config, "llm_provider", "unknown") or "unknown")
+    model = LanguageModel(config)
+    started = time.perf_counter_ns()
+    try:
+        model.generate("Reply with OK.")
+    except Exception as exc:
+        elapsed_ms = (time.perf_counter_ns() - started) / 1_000_000
+        return {
+            "evidence_class": "live_provider",
+            "provider": provider,
+            "model": model.active_model_name(),
+            "success": False,
+            "failure_kind": classify_provider_failure(exc).value,
+            "latency_ms": round(elapsed_ms, 3),
+        }
+    elapsed_ms = (time.perf_counter_ns() - started) / 1_000_000
+    return {
+        "evidence_class": "live_provider",
+        "provider": provider,
+        "model": model.active_model_name(),
+        "success": True,
+        "failure_kind": None,
+        "latency_ms": round(elapsed_ms, 3),
+    }
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -681,10 +829,16 @@ def main() -> int:
             "parallel-actions",
             "warm-runtime",
             "model-routing",
+            "routing-eval",
         ),
         default="baseline",
     )
     parser.add_argument("--iterations", type=int, default=8)
+    parser.add_argument(
+        "--live-provider-eval",
+        action="store_true",
+        help="Opt in to one labeled live provider probe; never enabled by default or CI.",
+    )
     parser.add_argument("--output", type=Path)
     args = parser.parse_args()
 
@@ -696,6 +850,8 @@ def main() -> int:
         report = run_warm_runtime(args.iterations)
     elif args.profile == "model-routing":
         report = run_model_routing(args.iterations)
+    elif args.profile == "routing-eval":
+        report = run_routing_eval(args.iterations, live_provider_eval=args.live_provider_eval)
     else:
         report = run_baseline(args.iterations)
     encoded = json.dumps(report, indent=2, sort_keys=True) + "\n"
