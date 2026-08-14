@@ -201,7 +201,7 @@ via `pywin32`); config files only ever hold the vault *key*, never a secret
 value.
 
 - Two scopes, mirroring the household/private data split above:
-  `scope="household"` (installation-wide secrets — OpenAI/HA/search keys;
+  `scope="household"` (installation-wide secrets â€” OpenAI/HA/search keys;
   default, matches pre-vault global behavior) and `scope="user"` + a
   validated `user_id` (bound to one Rex profile, e.g. a personal email
   account `credential_ref`). Each scope encrypts with different DPAPI
@@ -220,7 +220,7 @@ value.
   is the only path Electron uses to reach it (stdin/stdout JSON, like every
   other bridge); `gui/src/main/credentialVault.ts` wraps that bridge call.
 - Non-Windows dev/CI: `get_credential_vault()` raises `VaultUnavailableError`
-  (no implicit fallback). `InMemoryCredentialVault` exists only for tests —
+  (no implicit fallback). `InMemoryCredentialVault` exists only for tests â€”
   never selected by a production code path.
 - One-time migration of existing plaintext `.env` / `config/credentials.json`
   secrets: `scripts/migrate_credentials_to_vault.py` (dry-run by default; <!-- pragma: allowlist secret -->
@@ -245,37 +245,37 @@ External inputs include:
 
 Top-level directories:
 
-- rex/ — main package (CLI, services, workflows, integrations)
-- bridge/ — canonical Electron stdin/stdout JSON bridge processes (plus integration adapters)
-- archived/ — retired files kept for reference; not maintained (see `archived/ARCHIVED.md`)
+- rex/ â€” main package (CLI, services, workflows, integrations)
+- bridge/ â€” canonical Electron stdin/stdout JSON bridge processes (plus integration adapters)
+- archived/ â€” retired files kept for reference; not maintained (see `archived/ARCHIVED.md`)
   - `archived/flask_dashboard/tests/` preserves retired Flask-dashboard placeholder tests and is outside pytest's active `tests/` collection.
-- scripts/ — operational and install scripts (platform scripts in `scripts/install/`)
-- plugins/ — optional plugins
-- config/ — application configuration (not secrets)
-- Memory/ — per-user memory profiles
-- tests/ — pytest suite
-- docs/ — documentation
-- gui/ — React + Electron desktop GUI source
+- scripts/ â€” operational and install scripts (platform scripts in `scripts/install/`)
+- plugins/ â€” optional plugins
+- config/ â€” application configuration (not secrets)
+- Memory/ â€” per-user memory profiles
+- tests/ â€” pytest suite
+- docs/ â€” documentation
+- gui/ â€” React + Electron desktop GUI source
 
 ### Root-level `.py` files (27 total)
 
 Active entry points and developer utilities (6):
 
-- rex_loop.py — source voice-loop entry point; defaults to Hold-to-Talk/manual activation, with beta wake-word only via `--mode wake-word`
-- rex_speak_api.py — Flask TTS API with auth and rate limiting
-- wsgi.py — WSGI entry point for `rex-gui`
-- setup.py — legacy setuptools stub (packaging via `pyproject.toml`)
-- sitecustomize.py — Windows UTF-8 encoding fix applied at interpreter start
-- conftest.py — pytest root conftest (shared fixtures)
+- rex_loop.py â€” source voice-loop entry point; defaults to Hold-to-Talk/manual activation, with beta wake-word only via `--mode wake-word`
+- rex_speak_api.py â€” Flask TTS API with auth and rate limiting
+- wsgi.py â€” WSGI entry point for `rex-gui`
+- setup.py â€” legacy setuptools stub (packaging via `pyproject.toml`)
+- sitecustomize.py â€” Windows UTF-8 encoding fix applied at interpreter start
+- conftest.py â€” pytest root conftest (shared fixtures)
 
 Deprecated compatibility shims (4):
 
-- voice_loop.py — legacy voice loop helpers (DeprecationWarning; canonical: `rex/voice_loop.py`)
-- config.py — config shim (re-exports from `rex.config`)
-- llm_client.py — LLM client shim (re-exports from `rex.llm_client`)
-- flask_proxy.py — legacy Flask API and proxy; canonical replacement is `rex-gui`; archived copy at `archived/compat_shims/flask_proxy.py`
+- voice_loop.py â€” legacy voice loop helpers (DeprecationWarning; canonical: `rex/voice_loop.py`)
+- config.py â€” config shim (re-exports from `rex.config`)
+- llm_client.py â€” LLM client shim (re-exports from `rex.llm_client`)
+- flask_proxy.py â€” legacy Flask API and proxy; canonical replacement is `rex-gui`; archived copy at `archived/compat_shims/flask_proxy.py`
 
-Bridge compatibility wrappers (17) — exec canonical `bridge/<name>.py` in their namespace for test-import compatibility; Electron resolves bridges from `bridge/` directly and does not use these root wrappers:
+Bridge compatibility wrappers (17) â€” exec canonical `bridge/<name>.py` in their namespace for test-import compatibility; Electron resolves bridges from `bridge/` directly and does not use these root wrappers:
 
 - rex_chat_bridge.py
 - rex_chat_stream_bridge.py
@@ -297,15 +297,15 @@ Bridge compatibility wrappers (17) — exec canonical `bridge/<name>.py` in thei
 
 ### Important subpackages
 
-- rex/commands/ — CLI command modules, one per domain (US-REM-027); `rex/cli.py` keeps parser registration, `main()`, and re-exports, and `rex.cli.<name>` remains the import/monkeypatch surface for handlers and service getters
-- rex/voice/ — voice pipeline modules, one per concern (US-REM-028); `rex/voice_loop.py` is the facade and `rex.voice_loop.<name>` remains the import/monkeypatch surface (settings, lazy importers, sa/sd, pipeline classes)
-- rex/tools/execution.py — canonical typed tool lifecycle; all registered dispatch must pass availability, argument, identity, permission, risk, confirmation, execution, normalization, independent verification, truthful response, and redacted audit stages. Read-only success is `completed`; mutation success is `verified` only.
+- rex/commands/ â€” CLI command modules, one per domain (US-REM-027); `rex/cli.py` keeps parser registration, `main()`, and re-exports, and `rex.cli.<name>` remains the import/monkeypatch surface for handlers and service getters
+- rex/voice/ â€” voice pipeline modules, one per concern (US-REM-028); `rex/voice_loop.py` is the facade and `rex.voice_loop.<name>` remains the import/monkeypatch surface (settings, lazy importers, sa/sd, pipeline classes)
+- rex/tools/execution.py â€” canonical typed tool lifecycle; all registered dispatch must pass availability, argument, identity, permission, risk, confirmation, execution, normalization, independent verification, truthful response, and redacted audit stages. Read-only success is `completed`; mutation success is `verified` only.
 - `rex/latency.py` / `rex/rexbench.py` - privacy-safe request timing and p50/p95 aggregation. Timing telemetry must never include prompts, transcripts, user IDs, memory contents, credentials, or tool payloads; see `docs/performance.md`.
 - gui/src/main/ - Electron main-process modules, one per concern (US-REM-029); `index.ts` is a thin entrypoint (app lifecycle wiring only), `ipc.ts` aggregates handler registration, IPC handlers live in `gui/src/main/handlers/`, integration credential persistence/rollback lives in `integrationSettingsStorage.ts`, and settings/integration/HA logic lives in `configStore.ts`, `aiSettings.ts`, `voiceSettings.ts`, `settingsDefaults.ts`, `settingsMirror.ts`, `homeAssistant.ts`, `integrationStatus.ts`, `integrationInventory.ts`, `window.ts`
 - `gui/src/pages/settings/integrations/` owns the Settings > Integrations controller and focused UI components; keep OpenClaw token handling renderer-blind and route all secret persistence through the main-process vault helpers.
 - `gui/src/types/settingsRouting.ts` is the shared parser for Settings deep links such as `#/settings?section=integrations`; invalid or missing sections fail safely to General.
 - Installed Electron artifact smoke may override Electron `userData` only when `ASKREX_ARTIFACT_SMOKE=1` and `ASKREX_ARTIFACT_SMOKE_RUNTIME_ROOT` is set; the PowerShell harness must point Python `ASKREX_RUNTIME_DIR` and Electron userData at the same isolated temp runtime root.
-- rex/credential_vault.py — Windows DPAPI-backed credential vault (S4); see "Credential vault (S4)" above
+- rex/credential_vault.py â€” Windows DPAPI-backed credential vault (S4); see "Credential vault (S4)" above
 - rex/email_backends/
 - rex/calendar_backends/
 - rex/messaging_backends/
@@ -314,14 +314,14 @@ Bridge compatibility wrappers (17) — exec canonical `bridge/<name>.py` in thei
 - rex/identity.py
 - rex/voice_identity/
 - rex/computers/
-- rex/mobile_api/ — authenticated mobile API gateway (issue #323): injectable Flask app factory (`app.py`), typed config helpers, idempotent `users.db` migrations (`db.py`), per-device sessions + rotating hashed refresh tokens (`sessions.py`), short-lived access JWTs + request principal (`auth.py`), structured mobile errors (`errors.py`), truthful runtime-aware capabilities (`capabilities.py`), cross-transport `(user_id, message_id)` chat idempotency (`idempotency.py`, `mobile_message_requests` table), canonical Assistant adapter (`chat.py` — explicit `active_user_id`, never direct `LanguageModel` calls), canonical snake_case streaming events (`events.py`), first-frame-auth WebSocket protocol via Flask-Sock (`websocket.py`, close codes 4401/4403/4408/4429), STT/TTS adapters reusing the existing Whisper and XTTS/edge-tts/pyttsx3 stacks (`voice.py`), routes under `rex/mobile_api/routes/` (`chat.py`: POST /mobile/chat + SSE /mobile/chat/stream; `voice.py`: /mobile/voice/upload + /mobile/tts/playback). Home Assistant/notifications/approvals/tasks/workflows/audit/settings remain explicit 501 scaffolds with false capabilities; `live_voice` stays false. Cross-repo wire contract fixtures live in `tests/mobile_api/contract_vectors.json` (identical copy in the AskRex mobile repo).
+- rex/mobile_api/ â€” authenticated mobile API gateway (issue #323): injectable Flask app factory (`app.py`), typed config helpers, idempotent `users.db` migrations (`db.py`), per-device sessions + rotating hashed refresh tokens (`sessions.py`), short-lived access JWTs + request principal (`auth.py`), structured mobile errors (`errors.py`), truthful runtime-aware capabilities (`capabilities.py`), cross-transport `(user_id, message_id)` chat idempotency (`idempotency.py`, `mobile_message_requests` table), canonical Assistant adapter (`chat.py` â€” explicit `active_user_id`, never direct `LanguageModel` calls), canonical snake_case streaming events (`events.py`), first-frame-auth WebSocket protocol via Flask-Sock (`websocket.py`, close codes 4401/4403/4408/4429), STT/TTS adapters reusing the existing Whisper and XTTS/edge-tts/pyttsx3 stacks (`voice.py`), routes under `rex/mobile_api/routes/` (`chat.py`: POST /mobile/chat + SSE /mobile/chat/stream; `voice.py`: /mobile/voice/upload + /mobile/tts/playback). Home Assistant/notifications/approvals/tasks/workflows/audit/settings remain explicit 501 scaffolds with false capabilities; `live_voice` stays false. Cross-repo wire contract fixtures live in `tests/mobile_api/contract_vectors.json` (identical copy in the AskRex mobile repo).
 
 ### Assistant architecture
 
 `Assistant.generate_reply()` and `Assistant.stream_reply()` are canonical TurnEngine entry points over one shared reply pipeline. Identity is validated before the turn begins; all subsequent intent/cache/model routing, context building, action/tool dispatch, result verification, response building, and history recording run inside one correlated turn. Streaming changes only delivery: verified final text is split into ordered sentence chunks before the terminal event. The shared pipeline is:
 
 ```
-Assistant → TurnEngine → IntentRouter/Cache → ContextBuilder → ActionDispatcher → ResponseBuilder → History → [final text or verified sentence chunks]
+Assistant â†’ TurnEngine â†’ IntentRouter/Cache â†’ ContextBuilder â†’ ActionDispatcher â†’ ResponseBuilder â†’ History â†’ [final text or verified sentence chunks]
 ```
 
 | Component | Module | Responsibility |
@@ -334,7 +334,7 @@ Assistant → TurnEngine → IntentRouter/Cache → ContextBuilder → ActionDis
 
 Helper functions extracted from `Assistant`:
 
-- `rex.followup_engine.init_followup_engine(settings, user_id)` — initialises the followup engine and returns `(engine, pending_prompt)`.
+- `rex.followup_engine.init_followup_engine(settings, user_id)` â€” initialises the followup engine and returns `(engine, pending_prompt)`.
 
 ## Commands
 
@@ -543,8 +543,8 @@ Do not invent filenames or APIs that do not exist.
 
 ### Respect the config split
 
-Secrets → OS-backed credential vault (plaintext only in explicit unpackaged legacy mode)
-Runtime configuration → config/rex_config.json
+Secrets â†’ OS-backed credential vault (plaintext only in explicit unpackaged legacy mode)
+Runtime configuration â†’ config/rex_config.json
 
 ### AppConfig sub-config access pattern
 
@@ -628,7 +628,7 @@ Use Conventional Commits for every commit and PR title.
 - Never use placeholders like "..."
 - If a file changes, output the entire updated file.
 - Prefer correct, complete implementations over minimal ones.
-- Use appropriate data structures and algorithms — don't brute-force what has a known better solution.
+- Use appropriate data structures and algorithms â€” don't brute-force what has a known better solution.
 - When fixing a bug, fix the root cause, not the symptom.
 - If something I asked for requires error handling or validation to work reliably, include it without asking.
 
@@ -651,11 +651,11 @@ Add a short rule here that would have prevented the mistake.
 - Direct Ruff and Black installations in CI must use the same revisions as `.pre-commit-config.yaml`; never install unpinned formatters in a required check.
 - The repository dependency security gate must audit the local project explicitly with `pip-audit --strict .`; a bare `pip-audit` audits the runner environment and is not an acceptable project gate.
 - Python releases use `release-please-config.json` plus `.release-please-manifest.json` with the `python` release strategy. Keep the manifest and `pyproject.toml` package version synchronized.
-- Session/user state on long-lived components wired into `Assistant` (engines, caches, in-memory logs) must be keyed by `user_id` in a dict, never held as plain instance attributes — one `Assistant` serves multiple identified users, and each request's identity is resolved once (`_resolve_request_user_id`) and passed explicitly as a function argument to every component. Never propagate a request identity by mutating `self._user_id`: shared mutable identity races across overlapping requests. Mirror the `FollowupEngine`/`SuggestionEngine` pattern: every stateful public method takes an explicit `user_id`, validates it via `rex.identity.validate_user_id`, and fails closed (no-op, never a default-user fallback) on missing or invalid identity.
+- Session/user state on long-lived components wired into `Assistant` (engines, caches, in-memory logs) must be keyed by `user_id` in a dict, never held as plain instance attributes â€” one `Assistant` serves multiple identified users, and each request's identity is resolved once (`_resolve_request_user_id`) and passed explicitly as a function argument to every component. Never propagate a request identity by mutating `self._user_id`: shared mutable identity races across overlapping requests. Mirror the `FollowupEngine`/`SuggestionEngine` pattern: every stateful public method takes an explicit `user_id`, validates it via `rex.identity.validate_user_id`, and fails closed (no-op, never a default-user fallback) on missing or invalid identity.
 - User IDs are authorization keys, not display strings. Validate them with `rex.identity.validate_user_id` before any path, cache, credential, database, or event access; never sanitize an invalid user ID into a valid one.
-- `Assistant` never invents an identity. `Assistant()` is an explicitly unbound instance: it does not assign `"default"`, does not inherit `settings.user_id`, and performs no user-scoped reads or writes at construction (no history preload, no follow-up session, no per-user cache/credential access). Private operations (intent shortcuts, cache lookup, greetings and other early returns, history, context, tool/action dispatch, streaming, completion recording) require an explicit validated identity — the bound constructor `user_id` or a per-request `active_user_id` — and fail closed with `rex.assistant_errors.IdentityRequiredError` otherwise. `user_id="default"` is a valid explicit profile selection only, never an automatic fallback. First-party single-user entrypoints resolve their profile outside `Assistant` via `rex.identity.resolve_entrypoint_user_id(settings, explicit_user=...)` and pass it to `Assistant(user_id=...)`.
+- `Assistant` never invents an identity. `Assistant()` is an explicitly unbound instance: it does not assign `"default"`, does not inherit `settings.user_id`, and performs no user-scoped reads or writes at construction (no history preload, no follow-up session, no per-user cache/credential access). Private operations (intent shortcuts, cache lookup, greetings and other early returns, history, context, tool/action dispatch, streaming, completion recording) require an explicit validated identity â€” the bound constructor `user_id` or a per-request `active_user_id` â€” and fail closed with `rex.assistant_errors.IdentityRequiredError` otherwise. `user_id="default"` is a valid explicit profile selection only, never an automatic fallback. First-party single-user entrypoints resolve their profile outside `Assistant` via `rex.identity.resolve_entrypoint_user_id(settings, explicit_user=...)` and pass it to `Assistant(user_id=...)`.
 - Vault (`rex.credential_vault`) failures fail closed. Read paths return an absent credential only when the vault is unavailable; corrupt schema, metadata, scope, account, slot, owner, or reference data raises. Plaintext config/environment is consulted only when explicit legacy mode is enabled outside packaged Electron. Write paths propagate vault, readback, registry, and mirror failures so the GUI cannot report false success.
-- An Electron `ipcMain.handle` callback returning `{ ok: true, someList: buildX() }` where `buildX()` is `async` is a silent bug, not a type error: TypeScript happily infers the handler's return type around a nested `Promise`, but the renderer receives an unresolved promise instead of the array. `tsc --noEmit` will not catch this — grep every call site of a function you just made `async` and confirm each one added `await`, don't rely on the type checker alone.
+- An Electron `ipcMain.handle` callback returning `{ ok: true, someList: buildX() }` where `buildX()` is `async` is a silent bug, not a type error: TypeScript happily infers the handler's return type around a nested `Promise`, but the renderer receives an unresolved promise instead of the array. `tsc --noEmit` will not catch this â€” grep every call site of a function you just made `async` and confirm each one added `await`, don't rely on the type checker alone.
 
 ## OpenClaw Migration Status
 
@@ -726,4 +726,5 @@ The first two files are the product sources of truth. Other PRDs are supporting 
 - Pairing key possession is not strong authentication. Never stamp `strong_auth_at` during pairing/session activation.
 - S8 (`rex/mobile_api/strong_auth.py`, `routes/strong_auth.py`, `routes/home.py`): high/critical mobile actions require a short-lived P-256 device assertion bound to the exact canonical action hash, authenticated session/user, paired device, immutable grant/version, desktop ID, server-owned risk level, scope, nonce, and expiry. Verification issues a second short-lived approval ID that is consumed atomically once at the actual execution boundary. A recent biometric timestamp, client risk label, or reused approval never authorizes another action. Home Assistant mobile commands return `verified`, `attempted_unverified`, `denied`, or `failed` truthfully; approval consumption does not imply the action succeeded. Physical Face ID/passcode and iPhone integration remain mobile-repo/hardware gates.
 - S7 (`rex/mobile_api/tls.py`): any non-loopback mobile API bind always requires usable TLS; `mobile_api.require_tls` only opts a *loopback* bind into TLS for local testing and cannot weaken the non-loopback boundary. `MobileApiServices.build()` provisions or reuses one long-lived self-signed P-256 certificate under `<household_data_dir>/mobile_tls/` and fails closed with `MobileTlsConfigurationError` when material cannot be generated or loaded. The advertised HTTPS URL, SHA-256 certificate fingerprint, and SPKI pins are included in every pairing QR payload, signed by pairing proof transcript v2, returned by approved `/mobile/pairing/status`, and persisted immutably on device/grant records. `create_mobile_app()` independently refuses a TLS-required injected service container without material, and a TLS-owned app rejects plaintext requests with `TLS_REQUIRED`. `POST /mobile/auth/activate-device` fails closed (`PAIRING_INVALID`) when the current gateway-owned transport binding differs from the approved device/grant binding (rotated/reset certificate, changed endpoint, or a pre-S7 unbound legacy device). Loopback-only development remains unaffected unless explicitly opted into TLS. Actual client-side pin validation and physical LAN/phone hardware validation live in the separate mobile repo and are not implemented or exercised here.
+- US-088 public-ingress rule: `askrex.app` may front only the dedicated `rex.mobile_api` contract through an explicit path allowlist and loopback-only origin; never proxy `rex.gui_app`, `/api/*`, the computer agent, TTS service, OpenClaw tool server, secrets, or arbitrary localhost services. Current S7 self-signed LAN pinning must not be bypassed for a tunnel: public pairing stays disabled until a versioned `https://askrex.app` WebPKI transport-binding mode, trusted-proxy handling, deployment-appropriate rate limiting, and public-topology tests exist. OpenClaw remains optional and cannot widen mobile authority. See `docs/mobile/MOBILE_API_THREAT_MODEL.md`, `docs/mobile/EXTERNAL_SURFACE_CLASSIFICATION.md`, and `docs/mobile/ASKREX_APP_GATEWAY.md`.
 - See `docs/mobile/DEVICE_PAIRING.md`, `docs/mobile/STRONG_AUTH.md`, `docs/mobile/MOBILE_API_SETUP_WINDOWS.md`, `tests/mobile_api/test_pairing.py`, `tests/mobile_api/test_grant_enforcement.py`, `tests/mobile_api/test_strong_auth.py`, `tests/mobile_api/test_home_strong_auth.py`, `tests/mobile_api/test_tls.py`, and `tests/mobile_api/test_transport_binding.py`.
