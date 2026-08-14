@@ -894,6 +894,48 @@ class Assistant:
             ),
         )
 
+    def _prepare_model_route(
+        self,
+        transcript: str,
+        *,
+        latency_trace: LatencyTrace,
+        turn_events: TurnEventStream,
+    ) -> tuple[Callable[[], None] | None, ModelRouteDecision | None]:
+        """Apply and publish the request-scoped model route."""
+        route_cleanup, route_decision = self._begin_request(transcript)
+        if route_decision is not None and route_decision.model:
+            latency_trace.model = route_decision.model
+        else:
+            latency_trace.model = str(getattr(self._llm, "model_name", None) or latency_trace.model)
+        latency_trace.end("routing")
+        route_details: dict[str, object] = {
+            "stage": "model_router",
+            "model": latency_trace.model,
+        }
+        if route_decision is not None:
+            route_details.update(route_decision.to_metadata())
+        turn_events.emit(EventKind.ROUTE_PROGRESS, route_details)
+        return route_cleanup, route_decision
+
+    def _context_cache_request(self, turn_context: TurnContext) -> ContextCacheRequest:
+        """Build cache identity from the active request-scoped provider/model."""
+        provider = getattr(self._llm, "provider", None)
+        if not isinstance(provider, str) or not provider.strip():
+            provider = str(getattr(self._settings, "llm_provider", None) or "unknown")
+        active_model = getattr(self._llm, "active_model_name", None)
+        model_name = active_model() if callable(active_model) else None
+        if not isinstance(model_name, str) or not model_name.strip():
+            model_name = getattr(self._llm, "model_name", None)
+        if not isinstance(model_name, str) or not model_name.strip():
+            model_name = str(getattr(self._settings, "llm_model", None) or "unknown")
+        return ContextCacheRequest(
+            user_id=turn_context.user_id if turn_context.scope is TurnScope.USER else None,
+            scope=turn_context.scope,
+            authorization=turn_context.authorization,
+            model_provider=provider,
+            model_name=model_name,
+        )
+
     async def _run_reply_turn(
         self,
         turn_events: TurnEventStream,
@@ -984,38 +1026,15 @@ class Assistant:
             return completion
 
         check_cancelled()
-        route_cleanup, route_decision = self._begin_request(transcript)
-        if route_decision is not None and route_decision.model:
-            latency_trace.model = route_decision.model
-        else:
-            latency_trace.model = str(getattr(self._llm, "model_name", None) or latency_trace.model)
-        latency_trace.end("routing")
-        route_details: dict[str, object] = {
-            "stage": "model_router",
-            "model": latency_trace.model,
-        }
-        if route_decision is not None:
-            route_details.update(route_decision.to_metadata())
-        turn_events.emit(EventKind.ROUTE_PROGRESS, route_details)
+        route_cleanup, _route_decision = self._prepare_model_route(
+            transcript,
+            latency_trace=latency_trace,
+            turn_events=turn_events,
+        )
         model_failure_reason: str | None = None
         try:
             check_cancelled()
-            provider = getattr(self._llm, "provider", None)
-            if not isinstance(provider, str) or not provider.strip():
-                provider = str(getattr(self._settings, "llm_provider", None) or "unknown")
-            active_model = getattr(self._llm, "active_model_name", None)
-            model_name = active_model() if callable(active_model) else None
-            if not isinstance(model_name, str) or not model_name.strip():
-                model_name = getattr(self._llm, "model_name", None)
-            if not isinstance(model_name, str) or not model_name.strip():
-                model_name = str(getattr(self._settings, "llm_model", None) or "unknown")
-            cache_request = ContextCacheRequest(
-                user_id=turn_context.user_id if turn_context.scope is TurnScope.USER else None,
-                scope=turn_context.scope,
-                authorization=turn_context.authorization,
-                model_provider=provider,
-                model_name=model_name,
-            )
+            cache_request = self._context_cache_request(turn_context)
             context = self._get_or_create_context_builder().build(
                 transcript,
                 voice_mode=voice_mode,
