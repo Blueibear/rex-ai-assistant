@@ -3668,12 +3668,12 @@ grep -n "askrex.app\|Cloudflare\|CORS\|rate limit\|revocation" docs/deployment.m
 **Files/areas likely involved:** memory/experience store, action evidence, procedure models/promoter, GUI memory controls/audit.
 
 **Acceptance Criteria:**
-- [ ] Only verified action/workflow outcomes can become procedure candidates; ordinary memory/conversation writes cannot create executable procedures.
-- [ ] Procedures record provenance, owner/scope, capabilities/permissions/risk, version/dependency fingerprint, success/failure counts, last validation, and expiry/revalidation policy.
-- [ ] Procedures containing mutations/elevated risk require explicit human approval before activation.
-- [ ] Users can inspect, disable/revoke, and delete learned procedures within scope; James/Cole private procedures remain isolated.
-- [ ] Repeated failure/version drift can disable a procedure pending revalidation without erasing audit history.
-- [ ] All relevant GitHub checks pass.
+- [x] Only verified action/workflow outcomes can become procedure candidates; ordinary memory/conversation writes cannot create executable procedures.
+- [x] Procedures record provenance, owner/scope, capabilities/permissions/risk, version/dependency fingerprint, success/failure counts, last validation, and expiry/revalidation policy.
+- [x] Procedures containing mutations/elevated risk require explicit human approval before activation.
+- [x] Users can inspect, disable/revoke, and delete learned procedures within scope; James/Cole private procedures remain isolated.
+- [x] Repeated failure/version drift can disable a procedure pending revalidation without erasing audit history.
+- [x] All relevant GitHub checks pass.
 
 **Validation commands:** `pytest tests/rex2/test_procedural_memory.py tests/rex2/test_procedure_identity.py -q`.
 
