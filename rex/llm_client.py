@@ -734,21 +734,28 @@ class LanguageModel:
 
     def active_model_name(self) -> str:
         """Return the request-local model when set, otherwise the configured base model."""
-        return self._request_model.get() or self.model_name
+        request_model = getattr(self, "_request_model", None)
+        if request_model is None:
+            return self.model_name
+        return request_model.get() or self.model_name
 
     def _strategy_for_request(self) -> LLMStrategy:
         model_name = self.active_model_name()
-        cached = self._strategy_cache.get(model_name)
+        strategy_cache = getattr(self, "_strategy_cache", None)
+        strategy_lock = getattr(self, "_strategy_lock", None)
+        if strategy_cache is None or strategy_lock is None:
+            return self.strategy
+        cached = strategy_cache.get(model_name)
         if cached is not None:
-            return cached
-        with self._strategy_lock:
-            cached = self._strategy_cache.get(model_name)
+            return cast(LLMStrategy, cached)
+        with strategy_lock:
+            cached = strategy_cache.get(model_name)
             if cached is None:
                 cached = self._init_strategy(model_name)
                 if hasattr(cached, "tools"):
                     cached.tools = self._tools
-                self._strategy_cache[model_name] = cached
-            return cached
+                strategy_cache[model_name] = cached
+            return cast(LLMStrategy, cached)
 
     def _ensure_openai_client(self):
         if self._openai_client is not None:
