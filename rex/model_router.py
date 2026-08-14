@@ -21,6 +21,8 @@ from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from enum import StrEnum, auto
 
+from rex.provider_reliability import ProviderFailureKind, ProviderReliability
+
 logger = logging.getLogger(__name__)
 
 
@@ -57,6 +59,24 @@ class ModelRouteDecision:
             "escalation_count": self.escalation_count,
             "fallback_reason": self.fallback_reason,
         }
+
+
+@dataclass(frozen=True, slots=True)
+class ProviderRouteCandidate:
+    """One configured provider/model candidate in deterministic preference order."""
+
+    provider: str
+    model: str
+
+
+@dataclass(frozen=True, slots=True)
+class ProviderRouteSelection:
+    """Privacy-safe result of provider health filtering and fallback."""
+
+    provider: str
+    model: str
+    fallback_reason: str | None = None
+    evidence: tuple[str, ...] = ()
 
 
 # ---------------------------------------------------------------------------
@@ -226,6 +246,7 @@ class ModelRouter:
         refresh_interval: int = _DEFAULT_REFRESH_INTERVAL,
         cooldown_seconds: int = _DEFAULT_COOLDOWN_SECONDS,
         notify_callback: Callable[[str], None] | None = None,
+        provider_reliability: ProviderReliability | None = None,
     ) -> None:
         self._ollama_base_url = ollama_base_url.rstrip("/")
         self._refresh_interval = refresh_interval
@@ -235,8 +256,11 @@ class ModelRouter:
 
         # Cloud rate-limit cooldown state
         self._cooldown_seconds = cooldown_seconds
-        self._cloud_limited_until: float = 0.0  # epoch seconds
+        self._cloud_limited_until: float = 0.0  # monotonic seconds
         self._notify_callback = notify_callback
+        self._provider_reliability = provider_reliability or ProviderReliability(
+            cooldown_seconds=cooldown_seconds
+        )
 
         # Determine whether any routing target could be an Ollama model.
         self._needs_ollama = self._any_ollama_target(routing_config)
@@ -305,17 +329,27 @@ class ModelRouter:
     # Cloud rate-limit / quota fallback (US-045)
     # ------------------------------------------------------------------
 
-    def cloud_limit_hit(self, status_code: int) -> None:
-        """Record that the cloud API returned *status_code* 429 or 402.
+    def _reliability(self) -> ProviderReliability:
+        reliability = getattr(self, "_provider_reliability", None)
+        if reliability is None:
+            reliability = ProviderReliability(
+                cooldown_seconds=int(
+                    getattr(self, "_cooldown_seconds", self._DEFAULT_COOLDOWN_SECONDS)
+                )
+            )
+            self._provider_reliability = reliability
+        return reliability
 
-        Activates a cooldown period during which :py:meth:`route` will route
-        to the local model instead of cloud.  Calls *notify_callback* (if
-        supplied) with a human-readable message so callers can surface the
-        notification to the user.
-        """
+    def cloud_limit_hit(self, status_code: int, *, provider: str = "cloud") -> None:
+        """Record legacy cloud quota/rate-limit evidence and provider cooldown."""
         if status_code not in (429, 402):
             return
         self._cloud_limited_until = time.monotonic() + self._cooldown_seconds
+        self._reliability().record_failure(
+            provider,
+            ProviderFailureKind.RATE_LIMIT,
+            cooldown_seconds=self._cooldown_seconds,
+        )
         msg = (
             f"Cloud limit reached (HTTP {status_code}), switching to local model. "
             f"Cloud will be retried in {self._cooldown_seconds // 60} min."
@@ -325,8 +359,62 @@ class ModelRouter:
             self._notify_callback(msg)
 
     def _cloud_in_cooldown(self) -> bool:
-        """Return True if cloud is currently under a rate-limit cooldown."""
+        """Return True if cloud is currently under the legacy global cooldown."""
         return time.monotonic() < self._cloud_limited_until
+
+    @property
+    def provider_reliability(self) -> ProviderReliability:
+        return self._reliability()
+
+    def record_provider_success(
+        self, provider: str, *, latency_ms: float | int | None = None
+    ) -> None:
+        self._reliability().record_success(provider, latency_ms=latency_ms)
+
+    def record_provider_failure(
+        self,
+        provider: str,
+        kind: ProviderFailureKind | str,
+        *,
+        latency_ms: float | int | None = None,
+    ) -> None:
+        self._reliability().record_failure(provider, kind, latency_ms=latency_ms)
+
+    def provider_diagnostics(self) -> list[dict[str, object]]:
+        return self._reliability().diagnostics()
+
+    def select_provider(
+        self, candidates: Sequence[ProviderRouteCandidate]
+    ) -> ProviderRouteSelection:
+        """Choose the first healthy configured provider in stable preference order."""
+        evidence: list[str] = []
+        fallback_reason: str | None = None
+        for index, candidate in enumerate(candidates):
+            if not candidate.provider or not candidate.model:
+                continue
+            status = self._reliability().status(candidate.provider)
+            if status.available:
+                if index == 0 and not evidence:
+                    evidence.append("provider_primary_selected")
+                else:
+                    evidence.append("provider_fallback_selected")
+                return ProviderRouteSelection(
+                    provider=candidate.provider,
+                    model=candidate.model,
+                    fallback_reason=fallback_reason,
+                    evidence=tuple(evidence),
+                )
+            evidence.append(f"provider_{status.provider}_{status.state}")
+            fallback_reason = (
+                "provider_cooldown" if status.state == "cooldown" else "provider_unavailable"
+            )
+        evidence.append("all_providers_unavailable")
+        return ProviderRouteSelection(
+            provider="",
+            model="",
+            fallback_reason="all_providers_unavailable",
+            evidence=tuple(evidence),
+        )
 
     # ------------------------------------------------------------------
     # Public API
@@ -568,7 +656,16 @@ class ModelRouter:
                 model=fast_model,
             )
 
-        fallback_reason = self._deep_fallback_reason(
+        provider_fallback_reason: str | None = None
+        normalized_provider = provider.strip().lower()
+        if deep_provider_available and normalized_provider:
+            provider_status = self._reliability().status(normalized_provider)
+            if not provider_status.available:
+                deep_provider_available = False
+                evidence.append(f"provider_{provider_status.provider}_{provider_status.state}")
+                provider_fallback_reason = f"deep_provider_{provider_status.state}"
+
+        fallback_reason = provider_fallback_reason or self._deep_fallback_reason(
             deep_provider_available=deep_provider_available,
             deep_model=deep_model,
             fast_model=fast_model,

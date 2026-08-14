@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "evidence_class": "deterministic_local",
+  "cases": [
+    {
+      "id": "healthy_primary",
+      "candidates": [
+        {"provider": "ollama", "model": "fast-local"},
+        {"provider": "openai", "model": "gpt-5.5"}
+      ],
+      "failures": [],
+      "expected_provider": "ollama",
+      "expected_model": "fast-local",
+      "expected_fallback_reason": null
+    },
+    {
+      "id": "rate_limit_fallback",
+      "candidates": [
+        {"provider": "openai", "model": "gpt-5.5"},
+        {"provider": "ollama", "model": "qwen3:8b"}
+      ],
+      "failures": [{"provider": "openai", "kind": "rate_limit"}],
+      "expected_provider": "ollama",
+      "expected_model": "qwen3:8b",
+      "expected_fallback_reason": "provider_cooldown"
+    },
+    {
+      "id": "provider_outage_fallback",
+      "candidates": [
+        {"provider": "anthropic", "model": "claude-sonnet"},
+        {"provider": "openai", "model": "gpt-5.5"}
+      ],
+      "failures": [{"provider": "anthropic", "kind": "unavailable"}],
+      "expected_provider": "openai",
+      "expected_model": "gpt-5.5",
+      "expected_fallback_reason": "provider_cooldown"
+    },
+    {
+      "id": "all_providers_unavailable",
+      "candidates": [
+        {"provider": "openai", "model": "gpt-5.5"},
+        {"provider": "anthropic", "model": "claude-sonnet"}
+      ],
+      "failures": [
+        {"provider": "openai", "kind": "auth"},
+        {"provider": "anthropic", "kind": "rate_limit"}
+      ],
+      "expected_provider": "",
+      "expected_model": "",
+      "expected_fallback_reason": "all_providers_unavailable"
+    }
+  ]
+}

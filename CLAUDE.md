@@ -401,7 +401,10 @@ ModelRouter 2.0 deterministic routing evidence:
 
 ```powershell
 python scripts/rexbench.py --profile model-routing --iterations 8 --output docs/performance/rexbench-model-routing.json
+python scripts/rexbench.py --profile routing-eval --iterations 8
 ```
+
+`routing-eval` is deterministic/local by default and reads the checked-in provider-fallback corpus. It must not contact live providers. A live provider probe is allowed only through the explicit `--live-provider-eval` opt-in and must remain labeled `live_provider`; CI must never require that flag or a paid provider. Provider reliability diagnostics may expose bounded provider IDs, health state, counters, latency, and cooldown only, never prompts, responses, user identity, exception text, or credentials. Provider candidates must be supplied explicitly in preference order; health tracking never discovers or silently enables a cloud/paid provider.
 
 `deterministic_mock` RexBench results never prove live provider, model, network, audio, or hardware latency is within budget. Use `docs/performance.md` and the final live RexBench release gate for production claims.
 
