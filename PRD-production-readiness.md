@@ -3646,12 +3646,12 @@ grep -n "askrex.app\|Cloudflare\|CORS\|rate limit\|revocation" docs/deployment.m
 **Files/areas likely involved:** provider health metrics, ModelRouter, RexBench eval fixtures/reports, diagnostics.
 
 **Acceptance Criteria:**
-- [ ] Provider reliability records bounded latency/failure/rate-limit/cooldown signals without prompt/response/private contents.
-- [ ] Routing respects outages/cooldowns and has deterministic fallback across configured providers.
-- [ ] A checked-in deterministic routing corpus measures selection correctness, fallback, and regression without live-provider dependence.
-- [ ] Live-provider evaluation is opt-in/labeled separately and cannot become a required paid CI dependency.
-- [ ] Diagnostics explain provider unavailability/fallback without exposing credentials.
-- [ ] All relevant GitHub checks pass.
+- [x] Provider reliability records bounded latency/failure/rate-limit/cooldown signals without prompt/response/private contents.
+- [x] Routing respects outages/cooldowns and has deterministic fallback across configured providers.
+- [x] A checked-in deterministic routing corpus measures selection correctness, fallback, and regression without live-provider dependence.
+- [x] Live-provider evaluation is opt-in/labeled separately and cannot become a required paid CI dependency.
+- [x] Diagnostics explain provider unavailability/fallback without exposing credentials.
+- [x] All relevant GitHub checks pass.
 
 **Validation commands:** `pytest tests/rex2/test_provider_reliability.py tests/rex2/test_routing_eval.py -q`; `python scripts/rexbench.py --profile routing-eval`.
 
