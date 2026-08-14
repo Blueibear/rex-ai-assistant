@@ -240,3 +240,149 @@ def test_assistant_build_prompt_delegates():
     prompt = asst._build_prompt("hello")
     assert "hello" in prompt
     assert "assistant:" in prompt
+
+
+# ---------------------------------------------------------------------------
+# US-105 identity-safe deterministic artifact caching
+# ---------------------------------------------------------------------------
+
+
+def _context_cache_request(user_id: str = "alice"):
+    from rex.context.revisions import ContextCacheRequest
+    from rex.runtime.turn import AuthorizationSnapshotRef, TurnScope
+
+    return ContextCacheRequest(
+        user_id=user_id,
+        scope=TurnScope.USER,
+        authorization=AuthorizationSnapshotRef(
+            policy_ref="test-policy",
+            permission_ref=f"test-permission:{user_id}",
+        ),
+        model_provider="local",
+        model_name="test-model",
+    )
+
+
+def _context_cache_versions():
+    from rex.context.cache import ContextCacheVersions
+
+    return ContextCacheVersions(
+        identity="identity",
+        policy="policy",
+        permission="permission",
+        model="model",
+        capability="capability",
+        config="config",
+        memory="memory",
+        prompt_template="prompt",
+    )
+
+
+def test_repeated_safe_build_reuses_one_private_artifact_load() -> None:
+    builder = _make_builder(user_id="default")
+    request = _context_cache_request("alice")
+
+    with (
+        patch(
+            "rex.context.builder.build_context_cache_versions",
+            return_value=_context_cache_versions(),
+        ),
+        patch.object(
+            builder, "_get_active_personality_prompt", return_value="[persona]"
+        ) as personality,
+        patch.object(builder, "_load_user_profile_context", return_value="[profile]") as profile,
+        patch.object(builder, "_get_user_facts", return_value={"city": "Dallas"}) as facts,
+        patch.object(type(builder), "build_system_context", return_value="[sys]"),
+    ):
+        first = builder.build("first", active_user_id="alice", cache_request=request)
+        second = builder.build("second", active_user_id="alice", cache_request=request)
+
+    assert personality.call_count == 1
+    assert profile.call_count == 1
+    assert facts.call_count == 1
+    assert first.user_facts == {"city": "Dallas"}
+    assert second.user_facts == {"city": "Dallas"}
+    assert first.user_facts is not second.user_facts
+    assert "[Remembered facts about alice: city=Dallas]" in first.prompt
+    assert first.messages[-1]["content"] == "first"
+    assert second.messages[-1]["content"] == "second"
+
+
+def test_cached_hit_matches_uncached_output_with_dynamic_context() -> None:
+    from rex.assistant import ConversationTurn
+
+    history = [ConversationTurn("user", "old question")]
+    cached_builder = _make_builder(history=history, user_id="default")
+    uncached_builder = _make_builder(history=history, user_id="default")
+    request = _context_cache_request("alice")
+
+    def configure(builder):
+        return (
+            patch.object(builder, "_get_active_personality_prompt", return_value="[persona]"),
+            patch.object(builder, "_load_user_profile_context", return_value="[profile]"),
+            patch.object(builder, "_get_user_facts", return_value={"city": "Dallas"}),
+        )
+
+    with patch(
+        "rex.context.builder.build_context_cache_versions", return_value=_context_cache_versions()
+    ):
+        with (
+            configure(cached_builder)[0],
+            configure(cached_builder)[1],
+            configure(cached_builder)[2],
+            patch.object(type(cached_builder), "build_system_context", return_value="[sys]"),
+        ):
+            cached_builder.build("prime", active_user_id="alice", cache_request=request)
+
+        history.append(ConversationTurn("assistant", "old answer"))
+        with (
+            configure(cached_builder)[0],
+            configure(cached_builder)[1],
+            configure(cached_builder)[2],
+            patch.object(type(cached_builder), "build_system_context", return_value="[sys]"),
+        ):
+            cached = cached_builder.build(
+                "fresh question",
+                voice_mode=True,
+                active_user_id="alice",
+                tool_context="[tool]",
+                cache_request=request,
+            )
+        with (
+            configure(uncached_builder)[0],
+            configure(uncached_builder)[1],
+            configure(uncached_builder)[2],
+            patch.object(type(uncached_builder), "build_system_context", return_value="[sys]"),
+        ):
+            uncached = uncached_builder.build(
+                "fresh question",
+                voice_mode=True,
+                active_user_id="alice",
+                tool_context="[tool]",
+            )
+
+    assert cached.messages == uncached.messages
+    assert cached.system_prompt == uncached.system_prompt
+    assert cached.session_id == uncached.session_id
+    assert cached.user_facts == uncached.user_facts
+    assert cached.prompt == uncached.prompt
+
+
+def test_mismatched_cache_request_identity_bypasses_cache() -> None:
+    builder = _make_builder(user_id="default")
+    request = _context_cache_request("alice")
+
+    with (
+        patch(
+            "rex.context.builder.build_context_cache_versions",
+            return_value=_context_cache_versions(),
+        ),
+        patch.object(
+            builder, "_get_active_personality_prompt", return_value="[persona]"
+        ) as personality,
+        patch.object(type(builder), "build_system_context", return_value="[sys]"),
+    ):
+        builder.build("one", active_user_id="cole", cache_request=request)
+        builder.build("two", active_user_id="cole", cache_request=request)
+
+    assert personality.call_count == 2
