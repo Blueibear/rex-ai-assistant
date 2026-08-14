@@ -92,6 +92,29 @@ application configuration updates both budget and existing idle policies, while 
 component access cannot rewrite them. Optional ML/audio dependencies remain lazy and retain
 existing fallback behavior; warming does not make them base-install requirements.
 
+### Identity-safe context artifact cache
+
+`rex/context/cache.py` and `rex/context/revisions.py` own the bounded cross-turn cache for
+deterministic context artifacts. `ContextBuilder` caches only immutable USER-scoped
+personality/profile/facts fragments after the canonical Assistant supplies a validated
+`TurnContext` authority snapshot and the post-routing provider/model selection. Current
+date/time, history, current user input, tool context, follow-up cues, response mode, action
+results, and final prompts/messages are assembled fresh every turn.
+
+Private keys are partitioned by validated user plus explicit scope and content-free revisions
+for identity, policy, permission, model, capability registry state, context-relevant non-secret
+configuration, relevant memory/profile files, and the prompt-template schema. Revision changes
+make stale entries unreachable immediately; physical entries remain only until bounded LRU
+eviction. Household reuse is available only through an explicit `TurnScope.HOUSEHOLD` key with
+no private owner. The private ContextBuilder artifact path deliberately bypasses household
+caching rather than risk sharing user personality/profile/facts.
+
+Cache metrics expose only the fixed categories `private_context` / `household_context`, hit/miss/
+build/eviction counts, entry counts, and build timing. Keys, metrics, and operational logging
+must never expose raw user IDs, prompts, transcripts, memory/facts, credentials, filenames, or
+tool payloads. Missing or mismatched identity/scope bypasses the cache, and revision-snapshot
+failure falls back to normal uncached context construction.
+
 ### Action lifecycle and verification
 
 `rex/actions/lifecycle.py` is the canonical action-truth contract used by generic

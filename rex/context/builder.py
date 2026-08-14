@@ -13,6 +13,10 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
 
+from rex.context.cache import ContextArtifactCache, ContextCacheKey, ContextCacheMetrics
+from rex.context.revisions import ContextCacheRequest, build_context_cache_versions
+from rex.runtime.turn import TurnScope
+
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
@@ -63,6 +67,19 @@ class ContextPackage:
     prompt: str = ""  # text-format prompt for non-chat LLMs
 
 
+@dataclass(frozen=True, slots=True)
+class PrivateContextArtifacts:
+    """Immutable user-scoped fragments safe under a validated cache key."""
+
+    personality_prompt: str | None
+    profile_context: str | None
+    facts_context: str | None
+    user_facts: tuple[tuple[str, str], ...] = ()
+
+    def facts_dict(self) -> dict[str, str]:
+        return dict(self.user_facts)
+
+
 # ---------------------------------------------------------------------------
 # ContextBuilder
 # ---------------------------------------------------------------------------
@@ -95,12 +112,16 @@ class ContextBuilder:
         *,
         followup_engine: Any = None,
         history_provider: Callable[..., list] | None = None,
+        context_cache: ContextArtifactCache[PrivateContextArtifacts] | None = None,
+        capability_registry: Any = None,
     ) -> None:
         self._settings = settings
         self._history = history
         self._user_id = user_id
         self._followup_engine = followup_engine
         self._history_provider = history_provider
+        self._context_cache = context_cache or ContextArtifactCache(max_entries=128)
+        self._capability_registry = capability_registry
 
     def _current_history(self, user_id: str | None = None) -> list:
         """Return the live history list (provider-backed when configured).
@@ -127,21 +148,12 @@ class ContextBuilder:
         voice_mode: bool = False,
         active_user_id: str | None = None,
         tool_context: str | None = None,
+        cache_request: ContextCacheRequest | None = None,
     ) -> ContextPackage:
-        """Build and return a :class:`ContextPackage` for LLM input.
-
-        Args:
-            user_message:   The user's transcript/message.
-            voice_mode:     When ``True`` appends the concise-voice instruction.
-            active_user_id: Per-request user override for multi-user scenarios.
-            tool_context:   Optional pre-formatted tool context string.
-
-        Returns:
-            A populated :class:`ContextPackage`.
-        """
+        """Build and return a :class:`ContextPackage` for LLM input."""
         system_prompt = self.build_system_context()
         session_id = active_user_id or self._user_id or ""
-        user_facts = self._get_user_facts(active_user_id)
+        private_artifacts = self._resolve_private_artifacts(active_user_id, cache_request)
 
         messages = self._build_messages(
             user_message,
@@ -149,6 +161,7 @@ class ContextBuilder:
             voice_mode=voice_mode,
             active_user_id=active_user_id,
             tool_context=tool_context,
+            private_artifacts=private_artifacts,
         )
         prompt = self._build_prompt(
             user_message,
@@ -156,13 +169,13 @@ class ContextBuilder:
             voice_mode=voice_mode,
             active_user_id=active_user_id,
             tool_context=tool_context,
+            private_artifacts=private_artifacts,
         )
-
         return ContextPackage(
             messages=messages,
             system_prompt=system_prompt,
             session_id=session_id,
-            user_facts=user_facts,
+            user_facts=private_artifacts.facts_dict(),
             prompt=prompt,
         )
 
@@ -225,6 +238,58 @@ class ContextBuilder:
             return recall_all(uid)
         except Exception:
             return {}
+
+    @staticmethod
+    def _format_user_facts_context(user_id: str, facts: dict[str, str]) -> str | None:
+        if not facts:
+            return None
+        pairs = "; ".join(f"{key}={value}" for key, value in facts.items())
+        return f"[Remembered facts about {user_id}: {pairs}]"
+
+    def _build_private_artifacts(self, active_user_id: str | None) -> PrivateContextArtifacts:
+        user_facts = self._get_user_facts(active_user_id)
+        profile_context: str | None = None
+        facts_context: str | None = None
+        if active_user_id is not None:
+            profile_context = self._load_user_profile_context(active_user_id)
+            facts_context = self._format_user_facts_context(active_user_id, user_facts)
+        return PrivateContextArtifacts(
+            personality_prompt=self._get_active_personality_prompt(active_user_id),
+            profile_context=profile_context,
+            facts_context=facts_context,
+            user_facts=tuple((str(key), str(value)) for key, value in user_facts.items()),
+        )
+
+    def _resolve_private_artifacts(
+        self,
+        active_user_id: str | None,
+        cache_request: ContextCacheRequest | None,
+    ) -> PrivateContextArtifacts:
+        def build() -> PrivateContextArtifacts:
+            return self._build_private_artifacts(active_user_id)
+
+        effective_user = active_user_id or self._user_id
+        if (
+            cache_request is None
+            or effective_user is None
+            or cache_request.scope is not TurnScope.USER
+            or cache_request.user_id != effective_user
+        ):
+            return build()
+        try:
+            versions = build_context_cache_versions(
+                cache_request,
+                self._settings,
+                self._capability_registry,
+            )
+            key = ContextCacheKey.private(effective_user, versions)
+        except Exception as exc:
+            logger.debug("Context artifact cache bypassed: %s", type(exc).__name__)
+            return build()
+        return self._context_cache.get_or_build(key, build)
+
+    def context_cache_metrics(self) -> dict[str, ContextCacheMetrics]:
+        return self._context_cache.metrics_snapshot()
 
     def _load_user_profile_context(self, user_id: str) -> str | None:
         """Load a user's memory profile and format it as a context string."""
@@ -289,35 +354,27 @@ class ContextBuilder:
         voice_mode: bool = False,
         active_user_id: str | None = None,
         tool_context: str | None = None,
+        private_artifacts: PrivateContextArtifacts | None = None,
     ) -> list[dict]:
         messages: list[dict] = [{"role": "system", "content": system_prompt}]
+        artifacts = private_artifacts or self._build_private_artifacts(active_user_id)
 
-        personality_prompt = self._get_active_personality_prompt(active_user_id)
-        if personality_prompt:
-            messages.append({"role": "system", "content": personality_prompt})
+        if artifacts.personality_prompt:
+            messages.append({"role": "system", "content": artifacts.personality_prompt})
 
         if active_user_id is not None:
-            user_ctx = self._load_user_profile_context(active_user_id)
             messages.append(
                 {
                     "role": "system",
-                    "content": user_ctx if user_ctx else f"[Active user: {active_user_id}]",
+                    "content": artifacts.profile_context or f"[Active user: {active_user_id}]",
                 }
             )
-            try:
-                from rex.user_facts import format_facts_for_prompt
-
-                facts_ctx = format_facts_for_prompt(active_user_id)
-                if facts_ctx:
-                    messages.append({"role": "system", "content": facts_ctx})
-            except Exception as exc:
-                logger.debug("Failed to load user facts: %s", exc)
+            if artifacts.facts_context:
+                messages.append({"role": "system", "content": artifacts.facts_context})
 
         if tool_context:
             messages.append({"role": "system", "content": tool_context})
 
-        # Follow-up cues are user-private: only surface the effective user's
-        # cues, and none at all without an identity (fail closed, #303).
         engine = self._followup_engine
         effective_user = active_user_id or self._user_id
         if engine and effective_user and hasattr(engine, "format_followups"):
@@ -331,8 +388,6 @@ class ContextBuilder:
         if voice_mode:
             messages.append({"role": "system", "content": _VOICE_CONCISE_INSTRUCTION})
 
-        # Pass only the per-request override: identity-aware providers resolve
-        # the fallback against the owner's live bound identity themselves.
         for turn in self._current_history(active_user_id)[-4:]:
             speaker = str(turn.speaker).strip().lower()
             role = "assistant" if speaker in {"assistant", "rex"} else "user"
@@ -349,34 +404,23 @@ class ContextBuilder:
         voice_mode: bool = False,
         active_user_id: str | None = None,
         tool_context: str | None = None,
+        private_artifacts: PrivateContextArtifacts | None = None,
     ) -> str:
         history_lines = [system_prompt]
+        artifacts = private_artifacts or self._build_private_artifacts(active_user_id)
 
-        personality_prompt = self._get_active_personality_prompt(active_user_id)
-        if personality_prompt:
-            history_lines.append(personality_prompt)
+        if artifacts.personality_prompt:
+            history_lines.append(artifacts.personality_prompt)
 
         if active_user_id is not None:
-            user_ctx = self._load_user_profile_context(active_user_id)
-            if user_ctx:
-                history_lines.append(user_ctx)
-            else:
-                history_lines.append(f"[Active user: {active_user_id}]")
-            try:
-                from rex.user_facts import format_facts_for_prompt
-
-                facts_ctx = format_facts_for_prompt(active_user_id)
-                if facts_ctx:
-                    history_lines.append(facts_ctx)
-            except Exception as exc:
-                logger.debug("Failed to load user facts: %s", exc)
+            history_lines.append(artifacts.profile_context or f"[Active user: {active_user_id}]")
+            if artifacts.facts_context:
+                history_lines.append(artifacts.facts_context)
 
         if tool_context:
             history_lines.append(tool_context)
 
         effective_user = active_user_id or self._user_id
-        # Pass only the per-request override: identity-aware providers resolve
-        # the fallback against the owner's live bound identity themselves.
         history_lines += [
             f"{turn.speaker}: {turn.text}" for turn in self._current_history(active_user_id)[-4:]
         ]
@@ -385,8 +429,6 @@ class ContextBuilder:
         if voice_mode:
             history_lines.append(_VOICE_CONCISE_INSTRUCTION)
 
-        # Follow-up cues are user-private: only surface the effective user's
-        # cues, and none at all without an identity (fail closed, #303).
         engine = self._followup_engine
         if engine and effective_user and hasattr(engine, "format_followups"):
             try:

@@ -17,6 +17,7 @@ from .actions.dispatcher import _UNDO_PATTERN, ActionResult
 from .assistant_errors import IdentityRequiredError
 from .calendar_service import get_calendar_service
 from .config import Settings, settings
+from .context.revisions import ContextCacheRequest
 from .followup_engine import FollowupEngine
 from .ha_bridge import HABridge
 from .history_store import HistoryStore
@@ -993,8 +994,24 @@ class Assistant:
         model_failure_reason: str | None = None
         try:
             check_cancelled()
+            provider = getattr(self._llm, "provider", None)
+            if not isinstance(provider, str) or not provider.strip():
+                provider = str(getattr(self._settings, "llm_provider", None) or "unknown")
+            model_name = getattr(self._llm, "model_name", None)
+            if not isinstance(model_name, str) or not model_name.strip():
+                model_name = str(getattr(self._settings, "llm_model", None) or "unknown")
+            cache_request = ContextCacheRequest(
+                user_id=turn_context.user_id if turn_context.scope is TurnScope.USER else None,
+                scope=turn_context.scope,
+                authorization=turn_context.authorization,
+                model_provider=provider,
+                model_name=model_name,
+            )
             context = self._get_or_create_context_builder().build(
-                transcript, voice_mode=voice_mode, active_user_id=active_user_id
+                transcript,
+                voice_mode=voice_mode,
+                active_user_id=active_user_id,
+                cache_request=cache_request,
             )
             check_cancelled()
             turn_events.emit(

@@ -311,3 +311,30 @@ def test_voice_mode_does_not_invent_surface_provenance() -> None:
 
     assert context.source is TurnSource.ASSISTANT
     assert context.response_mode is ResponseMode.VOICE
+
+
+def test_canonical_turn_passes_authority_and_selected_model_to_context_cache() -> None:
+    from rex.runtime.turn import TurnScope
+
+    assistant = _assistant()
+    assistant._llm.provider = "test-provider"
+    assistant._llm.model_name = "selected-model"
+    _unhandled_intent(assistant)
+
+    async def dispatch(*_args, **_kwargs):
+        return ActionResult(success=True, response="model-answer")
+
+    assistant._action_dispatcher = MagicMock()
+    assistant._action_dispatcher.dispatch = dispatch
+    assistant._response_builder.build.return_value = _final_response("model-answer")
+
+    reply = asyncio.run(assistant.generate_reply("explain this"))
+
+    assert reply == "model-answer"
+    cache_request = assistant._context_builder.build.call_args.kwargs["cache_request"]
+    assert cache_request.user_id == "james"
+    assert cache_request.scope is TurnScope.USER
+    assert cache_request.authorization.policy_ref == "rex-policy:existing-runtime"
+    assert cache_request.authorization.permission_ref == "rex-permissions:validated-user:james"
+    assert cache_request.model_provider == "test-provider"
+    assert cache_request.model_name == "selected-model"

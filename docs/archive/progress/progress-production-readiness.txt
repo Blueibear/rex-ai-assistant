@@ -1982,3 +1982,22 @@ US-099 implementation evidence:
 - Targeted Ruff and Black pass; targeted mypy reports no issues in the modified US-099 source modules, and the two initially introduced RexBench typing errors were removed (remaining RexBench mypy findings match origin/master baseline).
 - Independent final Codex review rechecked global-policy ownership, idle-eviction concurrency, cancellation/lifecycle/accounting/privacy behavior, and returned APPROVE with no actionable blocking/high/medium US-099 findings.
 - US-099 GitHub-check criterion remains open until its exact story PR head passes the complete repository matrix.
+
+2026-08-14 - US-099 final GitHub evidence and US-105 identity-safe context caching
+
+Remote US-099 evidence:
+- PR #395 exact head 66b095d9723433780b84cba7c5f79ffd08f79f2d passed all required repository workflows before merge, including the 14-job Linux CI matrix, commitlint, and the installed Windows Electron artifact smoke.
+- The pre-commit rerun verified the corrected detect-secrets baseline line metadata; no secret values changed.
+- PR #395 merged to master as d5e14333b22b6dad70ba67ca39852e4b9afb01eb on 2026-08-14, so US-099's final GitHub-check criterion is closed.
+
+US-105 implementation evidence:
+- Added a bounded thread-safe `ContextArtifactCache` with validated USER/HOUSEHOLD partitions, LRU eviction, builders outside the global lock, and content-free category metrics.
+- Added deterministic SHA-256 revision snapshots for identity, policy, permission, selected model, canonical capability state, context-relevant non-secret config, relevant profile/facts content, and prompt-template schema. Revisions hash source content without exposing it in cache keys or metrics.
+- `ContextBuilder` now builds one immutable private artifact bundle per turn and reuses it on a matching safe cache hit. Dynamic date/time, history, current message, tool context, follow-up cues, voice mode, action results, and final prompts/messages remain freshly assembled.
+- Private ContextBuilder caching requires a matching validated USER-scoped request. Missing, ambiguous, mismatched, or household scope bypasses the private artifact cache. Explicit household keys exist only for household-safe artifacts and carry no private owner.
+- Canonical Assistant turns create the cache request only after model routing, using the existing immutable `TurnContext` authorization snapshot plus the selected provider/model. Request identity is passed explicitly and `self._user_id` is never mutated.
+- Cross-user concurrency tests run James and Cole simultaneously on one cache and prove each receives only its own artifact. Household reuse is tested as an explicit, separate key category.
+- Cache/revision/concurrency suite -> 14 passed. ContextBuilder suite -> 20 passed. Builder/personality/user-isolation/voice compatibility matrix -> 83 passed. Combined Assistant turn/cache/builder/isolation matrix -> 94 passed.
+- Ruff, Black, and mypy pass on the implemented context/Assistant source at the pre-documentation checkpoint.
+- Full primary marker suite: 8,750 passed / 49 skipped / 0 failed in 504.47s on Windows.
+- US-105's final GitHub-check criterion remains open until its exact story PR head passes the complete repository matrix.
