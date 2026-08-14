@@ -397,6 +397,12 @@ Deterministic latency baseline (instrumentation/framework evidence only):
 python scripts/rexbench.py --profile baseline --iterations 20 --output docs/performance/rexbench-baseline.json
 ```
 
+ModelRouter 2.0 deterministic routing evidence:
+
+```powershell
+python scripts/rexbench.py --profile model-routing --iterations 8 --output docs/performance/rexbench-model-routing.json
+```
+
 `deterministic_mock` RexBench results never prove live provider, model, network, audio, or hardware latency is within budget. Use `docs/performance.md` and the final live RexBench release gate for production claims.
 
 Electron identity (required before launch):

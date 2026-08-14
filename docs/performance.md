@@ -103,6 +103,19 @@ class here measures lifecycle behavior only. The report contains timings and non
 runtime identifiers only and never stores request content. Live model, audio, GPU, and device
 latency remains a later release-gate measurement.
 
+## Model-routing profile
+
+US-110 adds a deterministic fast/deep routing profile:
+
+```bash
+python scripts/rexbench.py --profile model-routing --iterations 8
+```
+
+The profile covers simple commands, ambiguous tool choice, complex reasoning, provider outage,
+and an unavailable local model. It validates bounded escalation, route/model selection, and
+privacy-safe timing evidence only. It does not prove live provider quality, availability, cost,
+or latency; US-111 owns provider reliability feedback and routing evaluation evidence.
+
 ## Identity-safe context cache
 
 US-105 caches only deterministic private context fragments that are expensive to rebuild

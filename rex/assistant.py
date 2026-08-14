@@ -1003,7 +1003,10 @@ class Assistant:
             provider = getattr(self._llm, "provider", None)
             if not isinstance(provider, str) or not provider.strip():
                 provider = str(getattr(self._settings, "llm_provider", None) or "unknown")
-            model_name = getattr(self._llm, "model_name", None)
+            active_model = getattr(self._llm, "active_model_name", None)
+            model_name = active_model() if callable(active_model) else None
+            if not isinstance(model_name, str) or not model_name.strip():
+                model_name = getattr(self._llm, "model_name", None)
             if not isinstance(model_name, str) or not model_name.strip():
                 model_name = str(getattr(self._settings, "llm_model", None) or "unknown")
             cache_request = ContextCacheRequest(

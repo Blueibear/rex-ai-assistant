@@ -593,7 +593,6 @@ def run_warm_runtime(iterations: int) -> dict:
     return build_report(samples, profile="warm-runtime")
 
 
-
 def run_model_routing(iterations: int) -> dict:
     if iterations < 1:
         raise ValueError("iterations must be at least 1")
@@ -608,7 +607,6 @@ def run_model_routing(iterations: int) -> dict:
     router = ModelRouter()
     samples: list[BenchmarkSample] = []
     scenarios = (
-
         ("simple_command", "Hello", {}, {"fast-local", "deep-local"}, "fast", "fast-local"),
         (
             "ambiguous_tool_choice",
@@ -626,7 +624,6 @@ def run_model_routing(iterations: int) -> dict:
             "deep",
             "deep-local",
         ),
-
         (
             "provider_outage",
             "Analyze the tradeoffs in this architecture.",
@@ -668,17 +665,23 @@ def run_model_routing(iterations: int) -> dict:
                     request_class=request_class,
                     warm_state="warm",
                     evidence_class="deterministic_local",
-
                     stages_ms={"routing": elapsed_ms, "total": elapsed_ms},
                 )
             )
     return build_report(samples, profile="model-routing")
 
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--profile",
-        choices=("baseline", "capability-retrieval", "parallel-actions", "warm-runtime", "model-routing"),
+        choices=(
+            "baseline",
+            "capability-retrieval",
+            "parallel-actions",
+            "warm-runtime",
+            "model-routing",
+        ),
         default="baseline",
     )
     parser.add_argument("--iterations", type=int, default=8)

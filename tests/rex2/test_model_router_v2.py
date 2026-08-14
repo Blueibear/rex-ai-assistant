@@ -284,3 +284,76 @@ def test_local_only_policy_refuses_override_when_active_provider_is_cloud():
     assert decision.model == "gpt-fast"
     assert decision.tier == "fast"
     assert decision.fallback_reason == "local_only_provider_conflict"
+
+
+def test_context_cache_uses_request_scoped_routed_model() -> None:
+    import asyncio
+    from unittest.mock import MagicMock
+
+    from rex.actions.dispatcher import ActionResult
+    from rex.assistant import Assistant
+    from rex.config import AppConfig
+    from rex.intent.router import IntentResult
+    from rex.response.builder import FinalResponse
+
+    config = _routing()
+    assistant = Assistant.__new__(Assistant)
+    assistant._settings = SimpleNamespace(
+        max_memory_items=50,
+        persist_history=False,
+        followups_enabled=False,
+        model_routing=config,
+        transcripts_enabled=False,
+        llm_provider="echo",
+        llm_model="fast-local",
+        llm_routing_mode="local_preferred",
+        llm=None,
+    )
+    assistant._user_id = "james"
+    assistant._histories = {}
+    assistant._history_limit = 50
+    assistant._plugins = []
+    assistant._history_store = None
+    assistant._followup_engine = None
+    assistant._followup_sessions = set()
+    assistant._followup_bootstrap_pending = False
+    assistant._pending_followups = {}
+    assistant._response_cache = None
+    assistant._ha_bridge = None
+    assistant._suggestion_engine = None
+    assistant._pattern_entries = {}
+    assistant._llm = LanguageModel(AppConfig(llm_provider="echo", llm_model="fast-local"))
+    assistant._router = _router(config, {"fast-local", "deep-local"})
+
+    intent_router = MagicMock()
+    intent_router.route.return_value = IntentResult(handled=False, response=None, intent_type=None)
+    assistant._intent_router = intent_router
+    assistant._context_builder = MagicMock()
+    assistant._context_builder.build.return_value = SimpleNamespace(
+        messages=[], prompt="prompt", system_prompt="system"
+    )
+    assistant._response_builder = MagicMock()
+    assistant._response_builder.check_cache.return_value = None
+    assistant._response_builder.build.return_value = FinalResponse(
+        text="deep reply", tts_text="deep reply"
+    )
+    assistant._turn_events = []
+    assistant._turn_event_observer = assistant._turn_events.append
+    assistant._log_turn = MagicMock()
+
+    async def dispatch(*_args, **_kwargs):
+        return ActionResult(success=True, response="deep reply")
+
+    assistant._action_dispatcher = MagicMock()
+    assistant._action_dispatcher.dispatch = dispatch
+
+    asyncio.run(
+        assistant.generate_reply(
+            "Analyze the tradeoffs in this complex migration.", active_user_id="james"
+        )
+    )
+
+    cache_request = assistant._context_builder.build.call_args.kwargs["cache_request"]
+    assert cache_request.model_provider == "echo"
+    assert cache_request.model_name == "deep-local"
+    assert assistant._llm.model_name == "fast-local"
