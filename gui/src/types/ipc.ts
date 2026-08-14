@@ -151,6 +151,48 @@ export interface MemoryUpdateInput {
   category: string
 }
 
+export type ProcedureStatus = 'pending_approval' | 'active' | 'disabled' | 'revoked'
+
+export interface ProcedureAuditEvent {
+  timestamp: string
+  event: string
+  actorUserId: string
+  reason: string | null
+  evidenceRef: string | null
+}
+
+export interface ProcedureProvenance {
+  actionId: string
+  planId: string | null
+  verificationId: string
+  auditId: string
+}
+
+export interface Procedure {
+  id: string
+  name: string
+  description: string
+  ownerId: string
+  scope: 'user' | 'household'
+  status: ProcedureStatus
+  capabilities: string[]
+  requiredPermissions: string[]
+  operation: 'read' | 'mutation'
+  risk: 'safe' | 'sensitive' | 'prohibited'
+  version: string
+  dependencyFingerprint: string
+  successCount: number
+  failureCount: number
+  lastValidatedAt: string
+  expiresAt: string | null
+  disabledReason: string | null
+  approvalRequired: boolean
+  approvedBy: string | null
+  createdAt: string
+  provenance: ProcedureProvenance
+  auditHistory: ProcedureAuditEvent[]
+}
+
 export interface SystemSettings {
   autonomyMode: 'manual' | 'supervised' | 'full-auto'
   toolTimeoutSeconds: number
@@ -728,6 +770,11 @@ export interface RexAPI {
   addMemory: (data: MemoryUpdateInput) => Promise<Memory>
   updateMemory: (id: string, data: MemoryUpdateInput) => Promise<Memory>
   deleteMemory: (id: string) => Promise<void>
+  getProcedures: () => Promise<Procedure[]>
+  approveProcedure: (id: string) => Promise<Procedure>
+  disableProcedure: (id: string) => Promise<Procedure>
+  revokeProcedure: (id: string) => Promise<Procedure>
+  deleteProcedure: (id: string) => Promise<void>
   getVersionInfo: () => Promise<VersionInfo>
   getAppStatus: () => Promise<AppStatus>
   getCommandHistory: (

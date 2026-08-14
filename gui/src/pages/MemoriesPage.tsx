@@ -5,6 +5,7 @@ import { Badge } from '../components/ui/Badge'
 import { EmptyState } from '../components/ui/EmptyState'
 import { Modal } from '../components/ui/Modal'
 import { useToast } from '../components/ui/Toast'
+import { ProceduresModal } from '../components/memory/ProceduresModal'
 
 const PAGE_SIZE = 20
 
@@ -37,6 +38,7 @@ export function MemoriesPage(): React.ReactElement {
   const [saving, setSaving] = useState(false)
   // Add modal
   const [showAddModal, setShowAddModal] = useState(false)
+  const [showProceduresModal, setShowProceduresModal] = useState(false)
   const addToast = useToast()
 
   useEffect(() => {
@@ -166,6 +168,12 @@ export function MemoriesPage(): React.ReactElement {
             ))}
           </select>
           <button
+            onClick={() => setShowProceduresModal(true)}
+            className="px-3 py-2 text-sm rounded-lg bg-surface border border-border text-text-primary hover:bg-surface-raised transition-colors whitespace-nowrap"
+          >
+            Learned Procedures
+          </button>
+          <button
             onClick={() => setShowAddModal(true)}
             className="px-3 py-2 text-sm rounded-lg bg-accent text-white hover:bg-accent/90 transition-colors whitespace-nowrap"
           >
@@ -233,6 +241,10 @@ export function MemoriesPage(): React.ReactElement {
             Next →
           </button>
         </div>
+      )}
+
+      {showProceduresModal && (
+        <ProceduresModal onClose={() => setShowProceduresModal(false)} />
       )}
 
       {/* Add Memory Modal */}

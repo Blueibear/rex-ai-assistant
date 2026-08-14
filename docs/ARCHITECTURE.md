@@ -148,6 +148,32 @@ and do not advance on `unverified`, `failed`, `cancelled`, or other non-success 
 Home Assistant preserves expected/actual postcondition evidence, and OpenClaw results
 carry the same lifecycle into their audit/workflow paths.
 
+### Guarded procedural experience memory
+
+`rex/procedural_memory.py` is deliberately separate from normal semantic/episodic/preference
+memory. A learned procedure is a declarative sequence of existing capability identifiers plus
+provenance, owner/scope, required permissions, operation/risk, version/dependency fingerprint,
+success/failure counters, validation timestamps, expiry/revalidation policy, and immutable audit
+events. It never stores generated Python, serialized callables, prompts, secrets, or replayable
+tool arguments.
+
+The only promotion and revalidation inputs are canonical `ActionLifecycleSnapshot` records that
+reached `verified`; a normal memory write or conversation has no creation path. Safe reads may
+activate after verified promotion. Mutations and sensitive procedures remain `pending_approval`
+until the owner explicitly approves them through a trusted boundary; prohibited procedures are
+revoked immediately. Stored permission names are requirements, not authority: every execution
+check must still supply current permissions, current capability availability, version, and
+dependency evidence.
+
+Private procedures persist beneath `data/users/<validated-user>/procedures.json`; household
+procedures use explicit `data/household/procedures.json`. Household sharing permits inspection
+but does not transfer write/execution authority from the owner. Dependency/version drift, expiry,
+revalidation deadlines, and repeated non-verified execution outcomes disable a procedure pending
+new verified evidence without erasing its provenance or audit trail. The Electron Memories page
+shows these records in a separate **Learned Procedures** view with inspect/disable/revoke/delete
+controls; risky approval is confirmed in the Electron main process before the Python bridge is
+allowed to activate the record.
+
 ### Action dependency graphs and bounded parallelism
 
 `rex/actions/graph.py` defines the validated action DAG used for explicit dependencies,
@@ -223,7 +249,7 @@ profile overrides live in `profiles/<name>.json`.
 | Core assistant | `rex/assistant.py`, `rex/llm_client.py` | LLM selection, tool-aware replies, system context |
 | Voice loop | `rex_loop.py`, `rex/voice_loop.py`, `rex/voice_loop_optimized.py` | Wake word, STT, LLM, and TTS path |
 | Config | `rex/config.py`, `rex/config_manager.py`, `config/rex_config.json` | Runtime JSON config plus `.env` secrets |
-| Memory and history | `rex/memory.py`, `rex/memory_utils.py`, `rex/history_store.py`, `Memory/`, `data/` | Per-user memory plus command/chat history |
+| Memory and history | `rex/memory.py`, `rex/procedural_memory.py`, `rex/memory_utils.py`, `rex/history_store.py`, `Memory/`, `data/` | Per-user memory/history plus verified, guarded procedural experience |
 | Tools | `rex/openclaw/tool_registry.py`, `rex/openclaw/tool_executor.py`, `rex/openclaw/tools/` | Local tool registry and executor |
 | Tool server | `rex/openclaw/tool_server.py` | `rex-tool-server` on `127.0.0.1:18790` — **developer-only** |
 | Electron UI | `gui/` | Current primary React/Electron GUI, built to `gui/dist-electron/` — **shippable** |
