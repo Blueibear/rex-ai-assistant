@@ -122,6 +122,13 @@ export function ChatPage(): React.ReactElement {
                 )
               )
             }
+          },
+          (recovery) => {
+            setMessages((prev) =>
+              prev.map((m) =>
+                m.id === rexMsgId ? { ...m, recoveryActions: recovery.actions } : m
+              )
+            )
           }
         )
         // Finalize: remove streaming cursor

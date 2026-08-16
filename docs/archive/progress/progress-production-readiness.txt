@@ -2251,3 +2251,39 @@ Remote exact-head evidence for corrected implementation head `c897fb8d745f1352d6
 - Earlier PR heads exposed synthetic provider-key fixtures to detect-secrets; the fixtures were corrected with scanner-compatible inline allowlist annotations. The corrected exact head passed GitHub's Pre-commit Hook Validation.
 - PR #406 has no submitted reviews and no inline review threads.
 - US-077's final GitHub-check acceptance criterion is therefore closed. This documentation-only closure commit must still pass the repository's final merge checks before PR #406 is merged.
+
+
+2026-08-16 - US-078 local implementation complete
+
+Implemented capability-limit recovery UX on branch `lead/us078-recovery-ux`, based directly on merged `master` `c03de4f95fa3efcec55775b17fa96ca33e419e66` (US-077 merged).
+
+Behavior and architecture:
+- Added `rex.capabilities.recovery.CapabilityGapResolver` as a non-executing recovery planner invoked only after normal selected-tool and Home Assistant paths do not produce a result.
+- Recovery search order is enabled local capabilities, disabled local capabilities, canonical OpenClaw/ClawHub capabilities, configured MCP candidates, configured OpenAPI candidates, safe declarative composition, then confirmation-gated Forge/build suggestion. The current repository has no configured direct MCP/OpenAPI subsystem, so those configured-provider sets are truthfully empty in the production Assistant today rather than invented; the resolver/dispatcher accepts typed configured candidates when such adapters exist.
+- Candidate recovery options fail closed on prohibited risk, unhealthy/unavailable state, identity scope, missing configuration, and current-user permissions before being offered. `admin` satisfies declared Rex permissions.
+- Missing integration/config/key recovery names the requirement/config key but never a secret value. Missing permission recovery names only the permission(s) actually absent and directs the user to the administrator/owner action required.
+- Disabled capabilities with missing config offer configuration; disabled capabilities whose config is already satisfied offer enablement rather than falsely claiming credentials are missing.
+- Informational, creative, conversational, and UI-navigation wording is prevented from spuriously entering capability recovery. Explicit action requests still recover; Forge is offered only for explicit requests to create/build a capability/tool/integration/plugin/skill/provider.
+- Recovery actions never enable, install, compose, grant permission, or claim success. Composition proposals are safe/read-only/authorized/configured and still require confirmation.
+- Added structured recovery metadata to canonical turn events, the Electron chat bridge, main/preload IPC, ChatPage state, and MessageList recovery cards. Only an existing safe settings route receives an `Open settings` button; permission/build actions remain non-executing proposals.
+- Updated `CLAUDE.md` with the canonical recovery authority/order/fail-closed rule so later work does not bypass it.
+
+Independent review findings fixed before freeze:
+- P1: enabled cards with missing `requires_config` could be mistaken for usable; fixed with explicit config-state evaluation.
+- P1: argument-bearing requests could dilute an obvious capability match; matching was made candidate-aware without allowing generic action verbs to dominate.
+- P2: `admin` was not consistently treated as satisfying declared permissions; fixed.
+- Additional stress findings fixed: identity-scoped candidates, unavailable external candidates, unconfigured/unavailable integration states, conversational/creative false positives, exact missing permission/config reporting, and disabled-but-already-configured capabilities now correctly offer enablement rather than reconfiguration.
+- Final clean Codex rereview after all fixes: ?The recovery planner, dispatcher integration, Electron transport, and renderer presentation are consistent and preserve existing execution authority. No discrete correctness issue was identified in the current changes.?
+
+Local validation on the final merged-master baseline:
+- `pytest -q tests/test_capabilities.py tests/test_tools_registry.py tests/test_assistant.py tests/rex2/test_capability_recovery.py tests/test_us078_recovery_tool_dispatcher.py tests/test_us078_recovery_action_dispatcher.py tests/test_us078_tool_error_recovery.py tests/test_tool_dispatcher.py tests/test_tool_execution_lifecycle.py tests/rex2/test_generate_reply_turn_engine.py` -> 152 passed, 0 failed (18 existing `AppConfig.llm_provider` deprecation warnings).
+- Full Electron/Vitest suite -> 183 passed, 0 failed.
+- Electron TypeScript typecheck -> passed.
+- Electron production build -> passed.
+- Electron ESLint -> 0 errors; 3 pre-existing warnings.
+- Touched-file mypy (`rex/capabilities/recovery.py`, `rex/tools/dispatcher.py`, `rex/tools/execution.py`, `rex/actions/dispatcher.py`, `bridge/rex_chat_stream_bridge.py`) -> 0 issues.
+- `python scripts/security_audit.py --release-gate` -> passed; 0 actionable source/config findings; no exposed secrets.
+- `pre-commit run --all-files --show-diff-on-failure` -> Ruff passed, Black passed, detect-secrets passed.
+- `git diff --check` -> passed.
+
+US-078's local acceptance criteria are complete. The final `All relevant GitHub checks pass` criterion remains intentionally unchecked until the exact implementation head is published and all required GitHub/external checks complete successfully.

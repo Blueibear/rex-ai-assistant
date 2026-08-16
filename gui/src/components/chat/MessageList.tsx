@@ -1,3 +1,4 @@
+import type { ChatRecoveryAction } from '../../types/ipc'
 import React, { useEffect, useRef } from 'react'
 
 export interface MessageAttachment {
@@ -14,6 +15,7 @@ export interface Message {
   streaming?: boolean
   status?: 'model_failure'
   attachments?: MessageAttachment[]
+  recoveryActions?: ChatRecoveryAction[]
 }
 
 export interface MessageListProps {
@@ -191,6 +193,35 @@ export const MessageList: React.FC<MessageListProps> = ({ messages }) => {
                   </span>
                 ) : (
                   renderMarkdown(msg.content, msg.id)
+                )}
+                {msg.recoveryActions && msg.recoveryActions.length > 0 && (
+                  <div className="mt-3 space-y-2" aria-label="Recovery actions">
+                    {msg.recoveryActions.map((action, index) => (
+                      <div
+                        key={`${msg.id}-recovery-${index}`}
+                        className="rounded-lg border border-border bg-surface px-3 py-2"
+                      >
+                        <div className="text-xs font-semibold text-text-primary">
+                          {action.label}
+                        </div>
+                        <div className="mt-1 text-xs text-text-secondary">{action.detail}</div>
+                        {action.requires_confirmation && (
+                          <div className="mt-1 text-[11px] text-text-secondary">
+                            Requires your confirmation before Rex takes this action.
+                          </div>
+                        )}
+                        {action.settings_route && (
+                          <button
+                            type="button"
+                            className="mt-2 rounded border border-border px-2 py-1 text-xs hover:border-accent"
+                            onClick={() => { window.location.hash = `#${action.settings_route}` }}
+                          >
+                            Open settings
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
                 )}
                 {msg.streaming && (
                   <span

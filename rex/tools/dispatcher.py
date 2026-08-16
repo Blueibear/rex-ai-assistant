@@ -17,6 +17,14 @@ import logging
 import time
 from typing import Any
 
+from rex.capabilities.recovery import (
+    CapabilityGapResolver,
+    ExternalCapabilityCandidate,
+    RecoveryActionKind,
+    RecoveryPlan,
+    looks_like_action_request,
+    looks_like_capability_request,
+)
 from rex.capabilities.registry import Capability
 from rex.capabilities.retrieval import CapabilityRetriever
 
@@ -58,6 +66,9 @@ class ToolDispatcher:
         self,
         registry: ToolRegistry,
         config: Any = None,
+        *,
+        mcp_candidates: tuple[ExternalCapabilityCandidate, ...] = (),
+        openapi_candidates: tuple[ExternalCapabilityCandidate, ...] = (),
     ) -> None:
         self._registry = registry
         self._config = config
@@ -68,6 +79,12 @@ class ToolDispatcher:
             registry.capability_registry,
             config=config,
             candidate_filter=self._tool_candidate_enabled,
+        )
+        self._gap_resolver = CapabilityGapResolver(
+            registry.capability_registry,
+            mcp_candidates=mcp_candidates,
+            openapi_candidates=openapi_candidates,
+            config=config,
         )
 
     # ------------------------------------------------------------------
@@ -124,6 +141,48 @@ class ToolDispatcher:
             user_id=user_id,
             granted_permissions=granted_permissions,
         )
+
+    def recovery_plan(
+        self,
+        message: str,
+        *,
+        user_id: str | None = None,
+        granted_permissions: set[str] | frozenset[str] | None = None,
+    ) -> RecoveryPlan | None:
+        """Return a non-executing recovery plan after ordinary tool selection fails."""
+        if not looks_like_action_request(message):
+            return None
+        permissions = self._resolve_permissions_for_recovery(user_id, granted_permissions)
+        plan = self._gap_resolver.resolve(
+            message,
+            user_id=user_id,
+            granted_permissions=permissions,
+            allow_build=looks_like_capability_request(message),
+        )
+        if not plan.actions and not plan.blocked:
+            return None
+        # An enabled/authorized local tool should have been returned by select_tools.
+        # Do not hide a dispatcher mismatch behind a misleading "use it" recovery card.
+        if plan.actions and plan.actions[0].kind is RecoveryActionKind.USE_CAPABILITY:
+            return None
+        return plan
+
+    @staticmethod
+    def _resolve_permissions_for_recovery(
+        user_id: str | None,
+        granted_permissions: set[str] | frozenset[str] | None,
+    ) -> frozenset[str]:
+        if granted_permissions is not None:
+            return frozenset(granted_permissions)
+        if not user_id:
+            return frozenset()
+        try:
+            from rex.permissions import get_permissions  # noqa: PLC0415
+
+            return frozenset(get_permissions(user_id))
+        except Exception:
+            logger.exception("tool_dispatcher: failed to resolve permissions for recovery")
+            return frozenset()
 
     def execute_tools(
         self, tools: list[Tool], message: str, *, user_id: str | None = None

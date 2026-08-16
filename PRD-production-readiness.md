@@ -2738,17 +2738,17 @@ pytest -q tests/test_assistant.py tests/test_capabilities.py tests/test_tools_re
 **Implementation notes:** Standardize missing-requirement responses. Where appropriate, ask permission to configure or guide the user to the exact settings section. Do not pretend setup or action succeeded.
 
 **Acceptance Criteria:**
-- [ ] Missing integration responses name the missing requirement.
-- [ ] Missing permission responses name the permission and owner/action required.
-- [ ] Missing API key responses name the config key location without revealing secret values.
-- [ ] Missing tool responses offer a concrete enable/configure/build path when one exists.
-- [ ] The GUI can render structured recovery actions where available.
-- [ ] Tests cover missing integration, missing key, missing permission, and missing tool responses.
+- [x] Missing integration responses name the missing requirement.
+- [x] Missing permission responses name the permission and owner/action required.
+- [x] Missing API key responses name the config key location without revealing secret values.
+- [x] Missing tool responses offer a concrete enable/configure/build path when one exists.
+- [x] The GUI can render structured recovery actions where available.
+- [x] Tests cover missing integration, missing key, missing permission, and missing tool responses.
 - [ ] All relevant GitHub checks pass.
 
-- [ ] Before offering to build a missing capability, the recovery path searches in order: enabled local capabilities, disabled local capabilities, OpenClaw/ClawHub, configured MCP providers, configured OpenAPI descriptions, and safely composable capabilities.
-- [ ] Candidate gap-recovery options are filtered by current-user permission, health, risk, identity scope, and configuration before they are offered or ranked.
-- [ ] Rex never enables, installs, composes, or grants capability authority without the required risk-policy decision/confirmation.
+- [x] Before offering to build a missing capability, the recovery path searches in order: enabled local capabilities, disabled local capabilities, OpenClaw/ClawHub, configured MCP providers, configured OpenAPI descriptions, and safely composable capabilities.
+- [x] Candidate gap-recovery options are filtered by current-user permission, health, risk, identity scope, and configuration before they are offered or ranked.
+- [x] Rex never enables, installs, composes, or grants capability authority without the required risk-policy decision/confirmation.
 
 **Validation commands:**
 ```bash
