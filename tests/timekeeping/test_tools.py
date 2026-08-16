@@ -131,3 +131,67 @@ def test_structured_alarm_create_is_verified(service) -> None:
     alarm = service.get_alarm(result.output["record_id"], "james")
     assert alarm is not None
     assert alarm.next_fire_at == datetime(2026, 8, 17, 12, 0, tzinfo=UTC)
+
+
+def test_mobile_timekeeping_uses_explicit_task_scopes(service) -> None:
+    from rex.mobile_api.action_context import MobileActionDeniedError, mobile_action_context
+
+    registry = _build_default_registry(capability_registry=CapabilityRegistry())
+    dispatcher = ToolDispatcher(registry)
+
+    with mobile_action_context(frozenset({"tasks.write"})):
+        created = dispatcher.dispatch(
+            "timekeeping_manage",
+            {"action": "create_timer", "duration_seconds": 60, "reference": "mobile"},
+            {"user_id": "james", "request_id": "mobile-timer"},
+        )
+    assert created.success is True
+
+    with mobile_action_context(frozenset({"chat.send"})):
+        with pytest.raises(MobileActionDeniedError):
+            dispatcher.dispatch(
+                "timekeeping_manage",
+                {"action": "create_timer", "duration_seconds": 60},
+                {"user_id": "james", "request_id": "mobile-timer-denied"},
+            )
+
+    with mobile_action_context(frozenset({"tasks.read"})):
+        listed = dispatcher.dispatch(
+            "timekeeping_read",
+            {"action": "list_timers"},
+            {"user_id": "james"},
+        )
+    assert listed.success is True
+
+
+def test_structured_alarm_edit_can_change_recurrence_and_timezone(service) -> None:
+    alarm = service.create_alarm(
+        "james",
+        local_time=datetime.strptime("07:00", "%H:%M").time(),
+        timezone_name="America/Chicago",
+        local_date=datetime(2026, 8, 17, tzinfo=UTC).date(),
+        name="work",
+    )
+    registry = _build_default_registry(capability_registry=CapabilityRegistry())
+    dispatcher = ToolDispatcher(registry)
+
+    result = dispatcher.dispatch(
+        "timekeeping_manage",
+        {
+            "action": "edit_alarm",
+            "reference": alarm.alarm_id,
+            "alarm_time": "08:30",
+            "weekdays": [0, 2, 4],
+            "timezone_name": "America/New_York",
+        },
+        {"user_id": "james", "request_id": "edit-work-alarm"},
+    )
+
+    assert result.success is True
+    assert result.status == "verified"
+    edited = service.get_alarm(alarm.alarm_id, "james")
+    assert edited is not None
+    assert edited.local_time == "08:30:00"
+    assert edited.weekdays == (0, 2, 4)
+    assert edited.local_date is None
+    assert edited.timezone_name == "America/New_York"

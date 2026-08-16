@@ -298,57 +298,127 @@ class ActionDispatcher:
         _tool_results: dict[str, Any] = {}
         _selected_tools: list[Any] = []
         _tool_candidates_found = False
+        _timekeeping_handled = False
         _recovery_actions: list[dict[str, object]] = []
         current_info_requested = getattr(intent, "intent_type", None) == "current_info"
         selection_text = f"web search {transcript}" if current_info_requested else transcript
         if self._tool_dispatcher is not None:
-            defined_select_for_user = inspect.getattr_static(
-                self._tool_dispatcher, "select_tools_for_user", None
+            # Timers and alarms have deterministic grammar and stateful mutation
+            # semantics. Route them to exactly one canonical tool before fuzzy
+            # capability retrieval so a single command cannot fan out to both
+            # read and mutation tools. Mobile free-form mutations intentionally
+            # remain post-LLM so S8 can bind strong auth to the exact action.
+            from rex.timekeeping.parser import parse_timekeeping_command  # noqa: PLC0415
+
+            timekeeping_command = parse_timekeeping_command(
+                transcript,
+                user_timezone="UTC",
             )
-            if defined_select_for_user is not None:
-                select_for_user = self._tool_dispatcher.select_tools_for_user
-                _selected_tools = select_for_user(selection_text, user_id=effective_user)
-            else:
-                # Compatibility adapters predating US-106 implement only
-                # select_tools(message). The canonical dispatcher exposes the
-                # user-aware extension above, while older adapters remain valid.
-                _selected_tools = self._tool_dispatcher.select_tools(selection_text)
-            _tool_candidates_found = bool(_selected_tools)
-            if mobile_action_context_active():
-                # Pre-LLM dispatch has only free-form transcript text. Mobile
-                # mutations must wait for a canonical structured tool call so
-                # S8 can bind the exact action hash before execution.
-                _selected_tools = [
-                    tool for tool in _selected_tools if getattr(tool, "operation", "read") == "read"
-                ]
-            if _selected_tools:
-                capability_names = [
-                    str(getattr(tool, "name", getattr(tool, "tool_name", "unknown")))
-                    for tool in _selected_tools
-                ]
-                emit(
-                    EventKind.CAPABILITY_PROGRESS,
-                    {"stage": "tool_selection", "capabilities": capability_names},
+            timekeeping_read_actions = {"list_timers", "query_timer", "list_alarms"}
+            if timekeeping_command is not None:
+                timekeeping_tool = (
+                    "timekeeping_read"
+                    if timekeeping_command.action in timekeeping_read_actions
+                    else "timekeeping_manage"
                 )
-                if latency_trace is not None:
-                    latency_trace.start("tool")
-                try:
-                    _tool_results = await run_blocking(
-                        functools.partial(
-                            self._tool_dispatcher.execute_tools,
-                            _selected_tools,
-                            transcript,
-                            user_id=effective_user,
-                        ),
+                can_pre_dispatch = not (
+                    mobile_action_context_active() and timekeeping_tool == "timekeeping_manage"
+                )
+                dispatch_fn = getattr(self._tool_dispatcher, "dispatch", None)
+                if can_pre_dispatch and callable(dispatch_fn):
+                    _tool_candidates_found = True
+                    _timekeeping_handled = True
+                    emit(
+                        EventKind.CAPABILITY_PROGRESS,
+                        {"stage": "tool_selection", "capabilities": [timekeeping_tool]},
                     )
-                finally:
                     if latency_trace is not None:
-                        latency_trace.end("tool")
-                _tool_context = self._tool_dispatcher.format_tool_context(_tool_results) or None
-                emit(
-                    EventKind.ACTION_PROGRESS,
-                    {"stage": "tool_execution", "status": "returned", "count": len(_tool_results)},
+                        latency_trace.start("tool")
+                    try:
+                        exact_result = await run_blocking(
+                            functools.partial(
+                                dispatch_fn,
+                                timekeeping_tool,
+                                {"transcript": transcript},
+                                {"user_id": effective_user},
+                            )
+                        )
+                    finally:
+                        if latency_trace is not None:
+                            latency_trace.end("tool")
+                    if getattr(exact_result, "success", False):
+                        _tool_results[timekeeping_tool] = getattr(exact_result, "output", None)
+                    elif getattr(exact_result, "error", None) == "Execution timed out":
+                        _tool_results[timekeeping_tool] = (
+                            f"I couldn't reach {timekeeping_tool} in time"
+                        )
+                    else:
+                        detail = (
+                            getattr(exact_result, "detail", None)
+                            or getattr(exact_result, "error", None)
+                            or "unknown error"
+                        )
+                        _tool_results[timekeeping_tool] = f"[tool error: {detail}]"
+                    _tool_context = self._tool_dispatcher.format_tool_context(_tool_results) or None
+                    emit(
+                        EventKind.ACTION_PROGRESS,
+                        {"stage": "tool_execution", "status": "returned", "count": 1},
+                    )
+
+            if not _timekeeping_handled:
+                defined_select_for_user = inspect.getattr_static(
+                    self._tool_dispatcher, "select_tools_for_user", None
                 )
+                if defined_select_for_user is not None:
+                    select_for_user = self._tool_dispatcher.select_tools_for_user
+                    _selected_tools = select_for_user(selection_text, user_id=effective_user)
+                else:
+                    # Compatibility adapters predating US-106 implement only
+                    # select_tools(message). The canonical dispatcher exposes the
+                    # user-aware extension above, while older adapters remain valid.
+                    _selected_tools = self._tool_dispatcher.select_tools(selection_text)
+                _tool_candidates_found = bool(_selected_tools)
+                if mobile_action_context_active():
+                    # Pre-LLM dispatch has only free-form transcript text. Mobile
+                    # mutations must wait for a canonical structured tool call so
+                    # S8 can bind the exact action hash before execution.
+                    _selected_tools = [
+                        tool
+                        for tool in _selected_tools
+                        if getattr(tool, "operation", "read") == "read"
+                    ]
+                if _selected_tools:
+                    capability_names = [
+                        str(getattr(tool, "name", getattr(tool, "tool_name", "unknown")))
+                        for tool in _selected_tools
+                    ]
+                    emit(
+                        EventKind.CAPABILITY_PROGRESS,
+                        {"stage": "tool_selection", "capabilities": capability_names},
+                    )
+                    if latency_trace is not None:
+                        latency_trace.start("tool")
+                    try:
+                        _tool_results = await run_blocking(
+                            functools.partial(
+                                self._tool_dispatcher.execute_tools,
+                                _selected_tools,
+                                transcript,
+                                user_id=effective_user,
+                            ),
+                        )
+                    finally:
+                        if latency_trace is not None:
+                            latency_trace.end("tool")
+                    _tool_context = self._tool_dispatcher.format_tool_context(_tool_results) or None
+                    emit(
+                        EventKind.ACTION_PROGRESS,
+                        {
+                            "stage": "tool_execution",
+                            "status": "returned",
+                            "count": len(_tool_results),
+                        },
+                    )
 
         completion: str | None = None
         if current_info_requested:
@@ -380,6 +450,7 @@ class ActionDispatcher:
             self._ha_bridge is not None
             and self._ha_bridge.enabled
             and not current_info_requested
+            and not _timekeeping_handled
             and not mobile_action_context_active()
             and mobile_scope_granted("home.control")
         ):

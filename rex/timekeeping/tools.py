@@ -368,6 +368,9 @@ def timekeeping_manage(
             alarm_record.alarm_id,
             owner,
             local_time=command.alarm_time,
+            timezone_name=timezone_name,
+            local_date=command.alarm_date,
+            weekdays=tuple(weekdays) if weekdays is not None else None,
             name=command.new_name,
         )
     elif command.action == "snooze_alarm":
