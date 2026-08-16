@@ -7,12 +7,15 @@ import threading
 from collections.abc import Callable
 from datetime import UTC, date, datetime, time, timedelta
 from pathlib import Path
+from typing import TypeVar
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from rex.identity import validate_user_id
 from rex.runtime_paths import household_data_path
 
 from .models import AlarmRecord, DueEvent, TimerRecord, ensure_utc, utc_now
+
+_RecordT = TypeVar("_RecordT", TimerRecord, AlarmRecord)
 
 
 class TimekeepingService:
@@ -84,7 +87,7 @@ class TimekeepingService:
             return min(deadlines) if deadlines else None
 
     @staticmethod
-    def _owned(record: TimerRecord | AlarmRecord | None, user_id: str):
+    def _owned(record: _RecordT | None, user_id: str) -> _RecordT | None:
         owner = validate_user_id(user_id)
         if record is None or record.user_id != owner:
             return None
