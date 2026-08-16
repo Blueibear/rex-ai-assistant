@@ -34,6 +34,14 @@ export interface SetSettingsResponse {
   error?: string
 }
 
+export type ModelDiscoveryProvider = 'ollama' | 'lmstudio'
+
+export interface ModelDiscoveryResponse {
+  ok: boolean
+  models: string[]
+  error?: string
+}
+
 export interface VoiceInfo {
   id: string
   name: string
@@ -258,6 +266,7 @@ export interface AiSettings {
   model: string
   provider: 'openai' | 'openrouter' | 'ollama' | 'local'
   customModelId: string
+  openaiBaseUrl: string
   ollamaBaseUrl: string
   openrouterModel: string
   openrouterBaseUrl: string
@@ -737,6 +746,7 @@ export interface RexAPI {
   onStatusChange: (cb: (status: string) => void) => (() => void)
   onTurnStatus: (cb: (update: TurnStatusUpdate) => void) => (() => void)
   getSettings: (section: string) => Promise<Settings>
+  discoverAiModels: (provider: ModelDiscoveryProvider) => Promise<ModelDiscoveryResponse>
   setSettings: (section: string, values: Settings) => Promise<SetSettingsResponse>
   removeEmailAccount: (id: string, confirmed: boolean) => Promise<SetSettingsResponse>
   startVoice: (

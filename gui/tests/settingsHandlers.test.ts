@@ -36,6 +36,11 @@ const { mockIntegrationStatus } = vi.hoisted(() => ({
 }))
 vi.mock('../src/main/integrationStatus', () => mockIntegrationStatus)
 
+const { mockModelDiscovery } = vi.hoisted(() => ({
+  mockModelDiscovery: { discoverAiModelsAtEndpoint: vi.fn() }
+}))
+vi.mock('../src/main/modelDiscovery', () => mockModelDiscovery)
+
 const { mockVault } = vi.hoisted(() => ({
   mockVault: {
     vaultSetSecret: vi.fn(),
@@ -76,6 +81,10 @@ describe('settings vault routing (S4)', () => {
     mockConfigStore.writeRexConfig.mockReset().mockImplementation((value) => { rexConfig = value })
     mockMirror.mirrorToRexConfig.mockReset().mockReturnValue({ ok: true })
     mockIntegrationStatus.reconcileIntegrationStatuses.mockReset().mockResolvedValue(undefined)
+    mockModelDiscovery.discoverAiModelsAtEndpoint.mockReset().mockResolvedValue({
+      ok: true,
+      models: []
+    })
     mockVault.vaultSetSecret.mockReset().mockResolvedValue(ref)
     mockVault.vaultHasSecret.mockReset().mockResolvedValue(false)
     mockVault.vaultDeleteSecret.mockReset().mockResolvedValue(true)
@@ -395,6 +404,67 @@ describe('settings vault routing (S4)', () => {
     expect(loaded.credentialStatus).toMatchObject({
       openclawToken: { ref, hasCredential: true }
     })
+  })
+
+  it('discovers Ollama models only from the configured runtime endpoint', async () => {
+    rexConfig = { ollama: { base_url: 'http://ollama.local:11434' } }
+    mockModelDiscovery.discoverAiModelsAtEndpoint.mockResolvedValue({
+      ok: true,
+      models: ['llama3.2:3b']
+    })
+
+    await expect(invoke('rex:discoverAiModels', 'ollama')).resolves.toEqual({
+      ok: true,
+      models: ['llama3.2:3b']
+    })
+    expect(mockModelDiscovery.discoverAiModelsAtEndpoint).toHaveBeenCalledWith(
+      'ollama',
+      'http://ollama.local:11434'
+    )
+  })
+
+  it('discovers LM Studio models only from the configured OpenAI-compatible endpoint', async () => {
+    rexConfig = { openai: { base_url: 'http://lmstudio.local:1234/v1' } }
+    mockModelDiscovery.discoverAiModelsAtEndpoint.mockResolvedValue({
+      ok: true,
+      models: ['qwen/qwen3-8b']
+    })
+
+    await expect(invoke('rex:discoverAiModels', 'lmstudio')).resolves.toEqual({
+      ok: true,
+      models: ['qwen/qwen3-8b']
+    })
+    expect(mockModelDiscovery.discoverAiModelsAtEndpoint).toHaveBeenCalledWith(
+      'lmstudio',
+      'http://lmstudio.local:1234/v1'
+    )
+  })
+
+  it('rejects unsupported model discovery kinds without accepting a renderer URL', async () => {
+    await expect(invoke(
+      'rex:discoverAiModels',
+      'https://attacker.example/models'
+    )).resolves.toEqual({
+      ok: false,
+      models: [],
+      error: 'Unsupported model discovery provider'
+    })
+    expect(mockModelDiscovery.discoverAiModelsAtEndpoint).not.toHaveBeenCalled()
+  })
+
+  it('returns a generic configuration error without leaking config read failures', async () => {
+    mockConfigStore.readRexConfigStrict.mockImplementationOnce(() => {
+      throw new Error('C:\\Users\\alice\\secret-config.json marker-should-not-leak')
+    })
+
+    const result = await invoke('rex:discoverAiModels', 'ollama') as Record<string, unknown>
+    expect(result).toEqual({
+      ok: false,
+      models: [],
+      error: 'Model discovery configuration could not be read'
+    })
+    expect(JSON.stringify(result)).not.toContain('marker-should-not-leak')
+    expect(mockModelDiscovery.discoverAiModelsAtEndpoint).not.toHaveBeenCalled()
   })
 
 })

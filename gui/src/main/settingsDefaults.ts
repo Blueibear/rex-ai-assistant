@@ -42,6 +42,7 @@ export const defaultSettingsMap: Record<string, Settings> = {
     model: 'gpt-4o',
     provider: 'openai',
     customModelId: '',
+    openaiBaseUrl: '',
     ollamaBaseUrl: 'http://localhost:11434',
     openrouterModel: 'openai/gpt-4o',
     openrouterBaseUrl: 'https://openrouter.ai/api/v1',

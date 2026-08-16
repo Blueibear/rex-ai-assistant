@@ -75,3 +75,24 @@ describe('AI provider reload behavior (US-071)', () => {
     expect(buildAiSettings({ provider: 'ollama' }).provider).toBe('openai')
   })
 })
+
+
+describe('OpenAI-compatible endpoint settings (US-072)', () => {
+  beforeEach(() => mockReadRexConfig.mockReset().mockReturnValue({}))
+
+  it('loads the configured OpenAI-compatible base URL for LM Studio discovery', () => {
+    mockReadRexConfig.mockReturnValue({
+      openai: { base_url: 'http://127.0.0.1:1234/v1' }
+    })
+
+    expect(buildAiSettings({}).openaiBaseUrl).toBe('http://127.0.0.1:1234/v1')
+  })
+
+  it('preserves an explicit blank GUI base URL so a configured compatible endpoint can be cleared', () => {
+    mockReadRexConfig.mockReturnValue({
+      openai: { base_url: 'http://127.0.0.1:1234/v1' }
+    })
+
+    expect(buildAiSettings({ openaiBaseUrl: '' }).openaiBaseUrl).toBe('')
+  })
+})

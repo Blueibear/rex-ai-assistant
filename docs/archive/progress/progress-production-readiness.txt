@@ -2118,3 +2118,33 @@ Remote exact-head evidence for implementation commit `b8d8ed3aa9be688ec2a02cfe6a
 - CodeFactor and GitGuardian exact-head checks completed successfully with no blocking findings.
 - PR #401 has no submitted reviews and no inline review threads.
 - US-071's final GitHub-check acceptance criterion is therefore closed. The subsequent documentation-only closure commit must still pass the repository's final merge checks before PR #401 is merged.
+
+2026-08-15 - US-072 local implementation complete; remote CI pending
+
+Implementation:
+- Added bounded, dependency-free local model discovery in `gui/src/main/modelDiscovery.ts`.
+- Ollama discovery reads the configured `ollama.base_url` and requests `/api/tags`; LM Studio remains Rex's existing OpenAI-compatible runtime path and discovery reads configured `openai.base_url` and requests `/models`.
+- Discovery validates HTTP/HTTPS endpoints, applies a five-second AbortController timeout, deduplicates nonblank model IDs, distinguishes successful empty lists from malformed responses, and returns content-free errors without provider bodies or exception payloads.
+- Added typed `rex:discoverAiModels` IPC. The renderer can request only `ollama` or `lmstudio`; the main process reads the endpoint from canonical runtime config and does not accept a renderer-supplied fetch URL.
+- Added `openaiBaseUrl` to Electron AI settings and mirrored it to `openai.base_url`. Blank explicitly clears the compatible endpoint back to official OpenAI behavior; no new LM Studio provider identity or duplicate provider authority was introduced.
+- Added explicit user-triggered discovery controls for Ollama and LM Studio. Current settings are persisted before discovery so the main process always reads canonical configured endpoints.
+- Added truthful UI states for idle, loading, safe error, successful empty list, and populated discovered models. The discovered-model selector renders only endpoint-returned model IDs while manual model-entry fields remain available.
+- Selecting a discovered Ollama or LM Studio model uses the existing settings persistence path and reloads correctly from canonical runtime config.
+- Documented the durable discovery/security boundary in `CLAUDE.md`, plus the design spec and implementation plan under `docs/superpowers/`.
+
+TDD / validation evidence:
+- Discovery contract began red because `modelDiscovery.ts` did not exist; after implementation `gui/tests/modelDiscovery.test.ts` passes 13/13 covering Ollama/LM Studio success, deduplication, empty, HTTP failure, network failure, malformed payloads, URL composition, query/fragment rejection, and invalid configuration without a fetch.
+- OpenAI-compatible endpoint persistence began with 4 intended red failures; after implementation `aiSettings.test.ts` + `settingsMirror.test.ts` pass 18/18.
+- IPC boundary began with 4 intended red failures because `rex:discoverAiModels` was unregistered; after implementation the targeted discovery/settings matrix passes.
+- Model discovery results component passes 6/6 for idle, loading, error, successful-empty, returned-model-only, and selected-model rendering.
+- Complete focused US-072 GUI matrix: 67 passed across discovery, UI wiring, persistence/reload, settings mapping, and settings handler tests.
+- Full GUI Vitest suite: 164 passed across 32 files.
+- `npm.cmd run typecheck`: passed.
+- `npm.cmd run build`: passed.
+- `npm.cmd run lint`: 0 errors, 3 pre-existing unrelated warnings.
+- `npm.cmd audit --audit-level=high`: passed; only 2 pre-existing moderate React Router advisories remain and require a breaking v7 upgrade.
+- `pytest -q tests/test_llm_client.py tests/test_model_router.py`: 49 passed, with 2 pre-existing root-shim deprecation warnings.
+- Independent Codex review found two pre-commit issues: stale out-of-order discovery completions and malformed query/fragment URL composition. Both were fixed with request invalidation and URL-API construction/rejection tests; the follow-up Codex review returned `NO ACTIONABLE FINDINGS`.
+- `python scripts/security_audit.py --release-gate`: passed with 0 actionable findings and no exposed secrets.
+- `git diff --check`: passed.
+- US-072 local acceptance criteria are complete. The final GitHub-check criterion remains intentionally unchecked until the exact PR implementation head passes the remote matrix.
