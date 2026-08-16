@@ -29,6 +29,7 @@ class TimekeepingService:
         self._lock = threading.RLock()
         self._timers: dict[str, TimerRecord] = {}
         self._alarms: dict[str, AlarmRecord] = {}
+        self._change_callback: Callable[[], None] | None = None
         self._load()
 
     def _now_utc(self) -> datetime:
@@ -57,6 +58,30 @@ class TimekeepingService:
         temp_path = self.storage_path.with_suffix(self.storage_path.suffix + ".tmp")
         temp_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
         temp_path.replace(self.storage_path)
+
+    def set_change_callback(self, callback: Callable[[], None] | None) -> None:
+        with self._lock:
+            self._change_callback = callback
+
+    def _save_and_notify(self) -> None:
+        self._save()
+        callback = self._change_callback
+        if callback is not None:
+            callback()
+
+    def next_deadline(self) -> datetime | None:
+        with self._lock:
+            deadlines = [
+                record.deadline_at
+                for record in self._timers.values()
+                if record.status == "active" and record.deadline_at is not None
+            ]
+            deadlines.extend(
+                record.next_fire_at
+                for record in self._alarms.values()
+                if record.enabled and record.status == "active" and record.next_fire_at is not None
+            )
+            return min(deadlines) if deadlines else None
 
     @staticmethod
     def _owned(record: TimerRecord | AlarmRecord | None, user_id: str):
@@ -88,7 +113,7 @@ class TimekeepingService:
         )
         with self._lock:
             self._timers[timer.timer_id] = timer
-            self._save()
+            self._save_and_notify()
         return timer.model_copy(deep=True)
 
     def get_timer(self, timer_id: str, user_id: str) -> TimerRecord | None:
@@ -118,7 +143,7 @@ class TimekeepingService:
             record.paused_remaining_seconds = record.remaining_seconds(self._now_utc())
             record.deadline_at = None
             record.status = "paused"
-            self._save()
+            self._save_and_notify()
             return record.model_copy(deep=True)
 
     def resume_timer(self, timer_id: str, user_id: str) -> TimerRecord | None:
@@ -130,7 +155,7 @@ class TimekeepingService:
             record.deadline_at = self._now_utc() + timedelta(seconds=remaining)
             record.paused_remaining_seconds = None
             record.status = "active"
-            self._save()
+            self._save_and_notify()
             return record.model_copy(deep=True)
 
     def adjust_timer(self, timer_id: str, user_id: str, delta_seconds: float) -> TimerRecord | None:
@@ -146,7 +171,7 @@ class TimekeepingService:
                 record.deadline_at = max(
                     self._now_utc(), record.deadline_at + timedelta(seconds=float(delta_seconds))
                 )
-            self._save()
+            self._save_and_notify()
             return record.model_copy(deep=True)
 
     def rename_timer(self, timer_id: str, user_id: str, name: str) -> TimerRecord | None:
@@ -158,7 +183,7 @@ class TimekeepingService:
             if record is None:
                 return None
             record.name = normalized
-            self._save()
+            self._save_and_notify()
             return record.model_copy(deep=True)
 
     def cancel_timer(self, timer_id: str, user_id: str) -> bool:
@@ -170,7 +195,7 @@ class TimekeepingService:
             record.canceled_at = self._now_utc()
             record.deadline_at = None
             record.paused_remaining_seconds = None
-            self._save()
+            self._save_and_notify()
             return True
 
     @staticmethod
@@ -260,7 +285,7 @@ class TimekeepingService:
         )
         with self._lock:
             self._alarms[alarm.alarm_id] = alarm
-            self._save()
+            self._save_and_notify()
         return alarm.model_copy(deep=True)
 
     def get_alarm(self, alarm_id: str, user_id: str) -> AlarmRecord | None:
@@ -300,7 +325,7 @@ class TimekeepingService:
                 record.status = "dismissed"
                 record.enabled = False
                 record.next_fire_at = None
-            self._save()
+            self._save_and_notify()
             return record.model_copy(deep=True)
 
     def snooze_alarm(
@@ -317,7 +342,7 @@ class TimekeepingService:
             record.enabled = True
             record.snooze_count += 1
             record.next_fire_at = self._now_utc() + timedelta(seconds=duration)
-            self._save()
+            self._save_and_notify()
             return record.model_copy(deep=True)
 
     def disable_alarm(self, alarm_id: str, user_id: str) -> AlarmRecord | None:
@@ -326,7 +351,7 @@ class TimekeepingService:
             if record is None or record.status in {"dismissed", "canceled"}:
                 return None
             record.enabled = False
-            self._save()
+            self._save_and_notify()
             return record.model_copy(deep=True)
 
     def enable_alarm(self, alarm_id: str, user_id: str) -> AlarmRecord | None:
@@ -354,7 +379,7 @@ class TimekeepingService:
                     record.next_fire_at = candidate
             record.status = "active"
             record.enabled = True
-            self._save()
+            self._save_and_notify()
             return record.model_copy(deep=True)
 
     def edit_alarm(
@@ -414,7 +439,7 @@ class TimekeepingService:
                 if not normalized_name:
                     raise ValueError("alarm name cannot be blank")
                 record.name = normalized_name
-            self._save()
+            self._save_and_notify()
             return record.model_copy(deep=True)
 
     def cancel_alarm(self, alarm_id: str, user_id: str) -> bool:
@@ -426,7 +451,7 @@ class TimekeepingService:
             record.enabled = False
             record.canceled_at = self._now_utc()
             record.next_fire_at = None
-            self._save()
+            self._save_and_notify()
             return True
 
     def claim_due_events(self, now: datetime | None = None) -> list[DueEvent]:
@@ -473,7 +498,7 @@ class TimekeepingService:
                         )
                     )
             if events:
-                self._save()
+                self._save_and_notify()
         events.sort(key=lambda event: (event.fired_at, event.kind, event.record_id))
         return events
 
