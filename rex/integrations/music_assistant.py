@@ -28,6 +28,8 @@ class MusicAssistantClient:
     playback methods raise :class:`IntegrationNotConfiguredError`.
     """
 
+    supported_adapter_actions = frozenset({"play", "pause", "resume", "next", "set_volume"})
+
     def __init__(self, base_url: str | None = None, token: str | None = None) -> None:
         self._base_url = (base_url or "").rstrip("/")
         self._token = token

@@ -1,5 +1,7 @@
 """Canonical media orchestration contracts."""
 
+from .adapters import HomeAssistantMediaAdapter, MusicAssistantAdapter, SmartSpeakerAdapter
+from .groups import SpeakerGroup, SpeakerGroupStore
 from .models import (
     AudioTarget,
     MediaAction,
@@ -18,6 +20,7 @@ from .registry import AudioTargetRegistry
 __all__ = [
     "AudioTarget",
     "AudioTargetRegistry",
+    "HomeAssistantMediaAdapter",
     "MediaAction",
     "MediaActionAcknowledgement",
     "MediaCapability",
@@ -25,6 +28,10 @@ __all__ = [
     "MediaMutationResult",
     "MediaState",
     "MediaStateSnapshot",
+    "MusicAssistantAdapter",
+    "SmartSpeakerAdapter",
+    "SpeakerGroup",
+    "SpeakerGroupStore",
     "TargetKind",
     "TargetProviderAdapter",
     "TargetResolution",
