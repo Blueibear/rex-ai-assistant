@@ -20,8 +20,9 @@ def test_disabled_provider_list_is_unconfigured() -> None:
 
 def test_brave_runtime_config_key_counts_as_configured() -> None:
     config = SimpleNamespace(
-        search_providers="brave", brave_api_key="vault-brave-key"
-    )  # pragma: allowlist secret
+        search_providers="brave",
+        brave_api_key="vault-brave-key",  # pragma: allowlist secret
+    )
 
     assert configured_search_providers(config, environ={}) == ["brave"]
 
