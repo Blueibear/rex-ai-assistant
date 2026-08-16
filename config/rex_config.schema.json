@@ -129,6 +129,12 @@
           "minimum": 0,
           "maximum": 5
         },
+        "autonomy_mode": {
+          "type": "string",
+          "description": "Assistant autonomy level used by Settings > AI and runtime planning",
+          "enum": ["manual", "supervised", "full-auto"],
+          "default": "manual"
+        },
         "llm_top_p": {
           "type": "number",
           "description": "Top-p (nucleus) sampling parameter",

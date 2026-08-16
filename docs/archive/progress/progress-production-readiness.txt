@@ -2160,3 +2160,34 @@ Remote exact-head evidence for implementation commit `ebc1d6616949eef99bd6a223aa
 - GitGuardian completed successfully with no secrets detected.
 - PR #404 has no submitted reviews and no inline review threads.
 - US-072's final GitHub-check acceptance criterion is therefore closed. This documentation-only closure commit must still pass the repository's final merge checks before PR #404 is merged.
+
+
+2026-08-15 - US-073 local implementation complete; remote CI pending
+
+Implementation:
+- Consolidated the user-facing Autonomy Mode control under Settings > AI and removed the duplicate System control, type field, default, and System runtime mirror path.
+- Established `models.autonomy_mode` as the single persisted authority. Electron AI reads the canonical runtime value, writes valid submitted changes there, and no longer persists duplicate AI/System `autonomyMode` copies in `gui_settings.json`.
+- Added conservative legacy migration: a valid runtime value wins; otherwise conflicting legacy GUI values resolve to the more restrictive mode (`manual` < `supervised` < `full-auto`) so migration cannot increase autonomy unexpectedly.
+- Malformed runtime JSON is never silently overwritten by migration. AI Settings remains readable using a conservative in-memory legacy value and defers on-disk migration until the runtime config is repaired.
+- Added `AppConfig.autonomy_mode`, JSON loading from `models.autonomy_mode`, schema/example/default config coverage, and validation for the three supported string values. Non-string values fail with `ConfigurationError`, not `TypeError`.
+- Added a durable `CLAUDE.md` rule and config reference documentation so future work does not reintroduce duplicate autonomy authority.
+- Updated `.secrets.baseline` only for the one shifted line in `config/rex_config.example.json`; the final detect-secrets hook passed.
+
+Independent review / fixes:
+- First Codex review found a P1 save-path bug where canonical load precedence could overwrite a newly submitted autonomy change before persistence. Fixed by separating load normalization (`buildAiSettings`) from save intent (`buildAiSettingsForSave`) and added an IPC-level regression test.
+- Second Codex review found a P2 regression where strict migration reads could block AI Settings on malformed runtime JSON. Fixed with non-destructive deferred migration and regression coverage.
+- Third Codex review found a P2 malformed-input case where array/object autonomy values could raise `TypeError`. Fixed with explicit string validation and parametrized regression coverage.
+- Final Codex rereview found no discrete correctness issue in the reviewed changes.
+
+Validation evidence:
+- `pytest -q tests/test_us073_autonomy_config.py tests/test_config_loading.py tests/test_config_migration.py tests/test_config_string_coercion.py tests/test_us075_config_validation.py`: 74 passed on Python 3.11.9; 4 pre-existing `llm_provider` deprecation warnings.
+- Full GUI Vitest suite: 181 passed across 34 files.
+- Focused post-migration GUI matrix: 57 passed across autonomy/settings tests before final Python-only validation tightening; the full suite subsequently passed 181/181.
+- `npm.cmd run typecheck`: passed.
+- `npm.cmd run build`: passed.
+- `npm.cmd run lint`: 0 errors, 3 pre-existing unrelated warnings.
+- `python -m mypy rex/config.py --ignore-missing-imports`: passed.
+- `python scripts/security_audit.py --release-gate`: passed with 0 actionable findings and no exposed secrets.
+- `pre-commit run --all-files`: passed after Black reformatted `rex/config.py` and the baseline line-number refresh was staged.
+- `git diff --check`: passed.
+- US-073 local acceptance criteria are complete. The final GitHub-check criterion remains intentionally unchecked until the exact PR implementation head passes the remote matrix.

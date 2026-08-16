@@ -2,6 +2,7 @@ import type { Settings } from '../types/ipc'
 import { readGuiSettings, readRexConfigStrict, writeGuiSettings, writeRexConfig } from './configStore'
 import { defaultSettingsMap } from './settingsDefaults'
 import { mirrorToRexConfig } from './settingsMirror'
+import { stripLegacyAutonomyMode } from './autonomySettings'
 import { reconcileIntegrationStatuses } from './integrationStatus'
 import {
   vaultDeleteSecret,
@@ -328,7 +329,7 @@ export async function persistSettingsSection(
           session, values, originalStored, originalConfig, nextConfig, staged, replaced
         )
       : values
-    stored[section] = normalized
+    stored[section] = section === 'ai' ? stripLegacyAutonomyMode(normalized) : normalized
     writeGuiSettings(stored)
     guiWritten = true
     writeRexConfig(nextConfig)

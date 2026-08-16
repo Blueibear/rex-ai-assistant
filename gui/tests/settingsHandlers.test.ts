@@ -21,6 +21,7 @@ vi.mock('electron', () => ({ app: mockApp, ipcMain: { handle: mockHandle } }))
 const { mockConfigStore } = vi.hoisted(() => ({
   mockConfigStore: {
     readGuiSettings: vi.fn(),
+    readRexConfig: vi.fn(),
     readRexConfigStrict: vi.fn(),
     writeGuiSettings: vi.fn(),
     writeRexConfig: vi.fn()
@@ -76,6 +77,7 @@ describe('settings vault routing (S4)', () => {
     guiSettings = {}
     rexConfig = {}
     mockConfigStore.readGuiSettings.mockReset().mockImplementation(() => guiSettings)
+    mockConfigStore.readRexConfig.mockReset().mockImplementation(() => rexConfig)
     mockConfigStore.readRexConfigStrict.mockReset().mockImplementation(() => rexConfig)
     mockConfigStore.writeGuiSettings.mockReset().mockImplementation((value) => { guiSettings = value })
     mockConfigStore.writeRexConfig.mockReset().mockImplementation((value) => { rexConfig = value })
@@ -89,6 +91,18 @@ describe('settings vault routing (S4)', () => {
     mockVault.vaultHasSecret.mockReset().mockResolvedValue(false)
     mockVault.vaultDeleteSecret.mockReset().mockResolvedValue(true)
     registerSettingsHandlers(session)
+  })
+
+  it('preserves an explicit AI autonomy change through save normalization', async () => {
+    rexConfig = { models: { autonomy_mode: 'manual' } }
+
+    const result = await invoke('rex:setSettings', 'ai', { autonomyMode: 'full-auto' })
+
+    expect(result).toEqual({ ok: true })
+    expect(mockMirror.mirrorToRexConfig).toHaveBeenCalledWith(
+      'ai', expect.objectContaining({ autonomyMode: 'full-auto' })
+    )
+    expect(guiSettings).toMatchObject({ ai: expect.not.objectContaining({ autonomyMode: expect.anything() }) })
   })
 
   it('writes an API key to the vault and persists only a contextual reference', async () => {

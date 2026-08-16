@@ -158,6 +158,8 @@ config/rex_config.json
 
 Electron AI-provider selection uses `models.llm_provider` in this file as the canonical runtime source of truth. The GUI value `local` maps only to runtime `transformers`; do not add a second provider key such as `llm.provider`. Persist provider selection independently from provider-specific model editing so changing providers is not blocked while a model identifier is still blank.
 
+Electron autonomy mode uses `models.autonomy_mode` as its only persisted authority. The single user-facing control belongs under Settings > AI; do not reintroduce `autonomyMode` in System settings or persist duplicate AI/System GUI copies. Legacy duplicate values migrate conservatively, with the more restrictive mode winning when no valid runtime value exists.
+
 Electron local-model discovery is user-initiated main-process IPC over the provider endpoint already stored in canonical runtime config. The renderer may request only the supported discovery kind (`ollama` or `lmstudio`), not an arbitrary fetch URL. Ollama discovery uses configured `ollama.base_url`; LM Studio remains Rex's existing OpenAI-compatible runtime path and discovery uses configured `openai.base_url`. Keep loading, error, successful-empty, and discovered-model states distinct, and never present placeholder/example model names as discovered availability.
 
 Core config, `.env`, profiles, and persistent data paths must resolve

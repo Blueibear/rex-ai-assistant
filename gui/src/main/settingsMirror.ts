@@ -1,6 +1,7 @@
 import type { Settings } from '../types/ipc'
 import { readRexConfig, writeRexConfig } from './configStore'
 import { normalizeAiModelRouting, normalizeGuiAiProvider, toRuntimeAiProvider } from './aiSettings'
+import { normalizeAutonomyMode } from './autonomySettings'
 import { buildVoiceSettings, defaultCustomWakeWordAssetPath, wakeWordIdToPhrase } from './voiceSettings'
 
 export interface MirrorResult {
@@ -23,6 +24,11 @@ export function mirrorToRexConfig(section: string, values: Settings): MirrorResu
       const models = ((rexConfig.models ?? {}) as Record<string, unknown>)
       if (typeof values.temperature === 'number') models.llm_temperature = String(values.temperature)
       if (typeof values.maxTokens === 'number') models.llm_max_tokens = values.maxTokens
+      if (typeof values.autonomyMode === 'string') {
+        const autonomyMode = normalizeAutonomyMode(values.autonomyMode)
+        if (!autonomyMode) return { ok: false, error: 'Invalid autonomy mode' }
+        models.autonomy_mode = autonomyMode
+      }
       const providerWasSupplied = typeof values.provider === 'string'
       const provider = normalizeGuiAiProvider(
         providerWasSupplied ? values.provider : models.llm_provider
@@ -183,11 +189,6 @@ export function mirrorToRexConfig(section: string, values: Settings): MirrorResu
         const runtime = ((rexConfig.runtime ?? {}) as Record<string, unknown>)
         runtime.log_level = values.debugLogging ? 'DEBUG' : 'INFO'
         rexConfig.runtime = runtime
-      }
-      if (typeof values.autonomyMode === 'string') {
-        const models = ((rexConfig.models ?? {}) as Record<string, unknown>)
-        models.autonomy_mode = values.autonomyMode
-        rexConfig.models = models
       }
       writeRexConfig(rexConfig)
     }
