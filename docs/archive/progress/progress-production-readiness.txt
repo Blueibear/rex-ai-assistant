@@ -2344,3 +2344,17 @@ Remote implementation-head follow-up:
 - Replaced the empty exception handler with explicit `contextlib.suppress(Exception)` so cleanup failure still cannot mask the RPC outcome without silently using an empty catch block.
 - Added a regression proving a socket close failure does not mask a successful inventory fetch.
 - Post-fix authoritative US-113 matrix -> 52 passed, 0 failed; gateway-client test file -> 26 passed; Ruff/Black/mypy/security release gate -> passed.
+
+
+2026-08-16 - US-113 exact-head GitHub evidence complete
+
+PR #408 implementation head `891b9464f18c4cb4c5e048992246646520dc1070` completed all required remote gates successfully:
+- Exact-head check-runs: 18/18 completed successfully; no failed or in-progress checks.
+- CI workflow run 1206: success, including full Python coverage/integration and all lint/type/security/GUI/dependency/pre-commit jobs.
+- Commitlint run 822: success.
+- Windows Electron Artifact run 171: success, including managed runtime/installer build, Authenticode truth check, packaged-resource validation, and installed execution without machine Python or Node.
+- CodeFactor: success, `No issues found.` The earlier B110 cleanup notice on implementation head `817c5d5` was corrected by `891b946` and re-evaluated cleanly.
+- Pull request reviews: none.
+- Pull request review threads: none.
+
+The final US-113 GitHub acceptance criterion is therefore satisfied. This documentation-only closure commit changes tracker/evidence only; implementation behavior remains frozen at `891b946` and will be revalidated by the full remote gate before merge.
