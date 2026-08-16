@@ -32,11 +32,6 @@ class DiscoveredSpeaker:
     ip: str
     model: str
 
-    @property
-    def target_id(self) -> str:
-        """Return the canonical provider-native identifier used by media routing."""
-        return f"{self.provider}:{self.ip}"
-
 
 def _extract_xml_tag(text: str, tag: str) -> str | None:
     start_token = f"<{tag}>"

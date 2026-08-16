@@ -7,7 +7,6 @@ from datetime import UTC, datetime
 from typing import Any, Protocol
 
 from rex.audio.speaker_discovery import DiscoveredSpeaker
-from rex.ha_bridge import IntentMatch
 
 from .models import (
     AudioTarget,
@@ -33,6 +32,15 @@ _HA_SERVICES = {
     MediaAction.NEXT: "media_next_track",
     MediaAction.SET_VOLUME: "volume_set",
 }
+_MUSIC_ASSISTANT_ACTIONS = frozenset(
+    {
+        MediaAction.PLAY,
+        MediaAction.PAUSE,
+        MediaAction.RESUME,
+        MediaAction.NEXT,
+        MediaAction.SET_VOLUME,
+    }
+)
 _PLAYBACK_STATES = {
     "buffering": MediaState.BUFFERING,
     "idle": MediaState.IDLE,
@@ -45,7 +53,7 @@ _PLAYBACK_STATES = {
 
 
 class _SpeakerDiscovery(Protocol):
-    def get_cached_speakers(self) -> list[DiscoveredSpeaker]: ...
+    def discover_now(self) -> list[DiscoveredSpeaker]: ...
 
 
 class _HomeAssistantBridge(Protocol):
@@ -53,12 +61,16 @@ class _HomeAssistantBridge(Protocol):
 
     def get_entity_state(self, entity_id: str) -> dict[str, Any] | None: ...
 
-    def _execute_intent(self, intent: IntentMatch) -> tuple[bool, str]: ...
+    def execute_media_service(
+        self,
+        entity_id: str,
+        service: str,
+        *,
+        volume_level: float | None = None,
+    ) -> tuple[bool, str]: ...
 
 
 class _MusicAssistantClient(Protocol):
-    supported_adapter_actions: frozenset[str]
-
     def play(self, query: str, room: str | None = None) -> dict: ...
 
     def pause(self, room: str | None = None) -> dict: ...
@@ -81,7 +93,7 @@ def _as_optional_string(value: object) -> str | None:
 
 
 class SmartSpeakerAdapter:
-    """Expose cached Sonos/Bose discovery without claiming media controls."""
+    """Expose current Sonos/Bose discovery without claiming media controls."""
 
     provider = "smart_speaker"
 
@@ -91,7 +103,7 @@ class SmartSpeakerAdapter:
     def discover_targets(self) -> tuple[AudioTarget, ...]:
         targets = (
             AudioTarget(
-                id=speaker.target_id,
+                id=f"{speaker.provider}:{speaker.ip}",
                 native_id=speaker.ip,
                 provider=speaker.provider,
                 kind=TargetKind.SPEAKER,
@@ -102,7 +114,7 @@ class SmartSpeakerAdapter:
                 online=True,
                 health="discovered",
             )
-            for speaker in self._discovery.get_cached_speakers()
+            for speaker in self._discovery.discover_now()
         )
         return tuple(sorted(targets, key=lambda target: target.id))
 
@@ -156,7 +168,7 @@ class HomeAssistantMediaAdapter:
                     aliases=(),
                     room=None,
                     capabilities=_HA_CAPABILITIES,
-                    online=state not in {"unavailable", "unknown"},
+                    online=state != "unavailable",
                     health=state,
                 )
             )
@@ -191,16 +203,12 @@ class HomeAssistantMediaAdapter:
                 detail=f"Home Assistant action {action.value} does not accept a value",
             )
 
-        intent = IntentMatch(
-            domain="media_player",
-            service=service,
-            entity_id=target.native_id,
-            data=data,
-            description=f"{service} {target.native_id}",
-            source="canonical_media",
-        )
         try:
-            accepted, detail = self._bridge._execute_intent(intent)
+            accepted, detail = self._bridge.execute_media_service(
+                target.native_id,
+                service,
+                volume_level=data.get("volume_level"),
+            )
         except Exception as exc:
             return MediaActionAcknowledgement(accepted=False, detail=str(exc))
         return MediaActionAcknowledgement(accepted=accepted, detail=detail)
@@ -210,7 +218,7 @@ class HomeAssistantMediaAdapter:
         if state is None:
             return MediaStateSnapshot(
                 target_id=target.id,
-                playback=MediaState.UNAVAILABLE,
+                playback=MediaState.UNKNOWN,
                 observed_at=datetime.now(tz=UTC),
             )
         attributes = state.get("attributes")
@@ -252,7 +260,7 @@ class MusicAssistantAdapter:
         *,
         value: str | int | float | None = None,
     ) -> MediaActionAcknowledgement:
-        if action.value not in self._client.supported_adapter_actions:
+        if action not in _MUSIC_ASSISTANT_ACTIONS:
             return MediaActionAcknowledgement(
                 accepted=False,
                 detail=f"Music Assistant action {action.value} is unsupported",

@@ -125,6 +125,77 @@ def test_any_group_mutation_rejects_members_that_became_unresolved(tmp_path) -> 
     assert path.read_text(encoding="utf-8") == original_payload
 
 
+@pytest.mark.parametrize("read_method", ["get", "list"])
+def test_group_reads_reject_members_that_became_unresolved(tmp_path, read_method: str) -> None:
+    known_targets = {"sonos:office"}
+    store = SpeakerGroupStore(
+        tmp_path / "groups.json",
+        target_exists=known_targets.__contains__,
+    )
+    group = store.create("Downstairs", ["sonos:office"])
+    known_targets.clear()
+
+    with pytest.raises(ValueError, match="Unknown audio target: sonos:office"):
+        if read_method == "get":
+            store.get(group.id)
+        else:
+            store.list()
+
+
+@pytest.mark.parametrize(
+    ("groups", "message"),
+    [
+        (
+            [{"id": "group:one", "name": "Downstairs", "member_ids": []}],
+            "at least one audio target",
+        ),
+        (
+            [
+                {
+                    "id": "group:one",
+                    "name": "Downstairs",
+                    "member_ids": ["sonos:office", "sonos:office"],
+                }
+            ],
+            "members must be unique",
+        ),
+        (
+            [{"id": "", "name": "Downstairs", "member_ids": ["sonos:office"]}],
+            "ID must be a stable group ID",
+        ),
+        (
+            [
+                {"id": "group:one", "name": "Downstairs", "member_ids": ["sonos:office"]},
+                {"id": "group:one", "name": "Upstairs", "member_ids": ["bose:bedroom"]},
+            ],
+            "IDs must be unique",
+        ),
+        (
+            [{"id": "group:one", "name": "  ", "member_ids": ["sonos:office"]}],
+            "name is required",
+        ),
+        (
+            [
+                {"id": "group:one", "name": "Downstairs", "member_ids": ["sonos:office"]},
+                {"id": "group:two", "name": "downstairs", "member_ids": ["bose:bedroom"]},
+            ],
+            "names must be unique",
+        ),
+    ],
+)
+def test_group_reads_reject_malformed_persisted_records(
+    tmp_path,
+    groups: list[dict[str, object]],
+    message: str,
+) -> None:
+    path = tmp_path / "groups.json"
+    path.write_text(json.dumps({"version": 1, "groups": groups}), encoding="utf-8")
+    store = SpeakerGroupStore(path, target_exists=lambda target_id: True)
+
+    with pytest.raises(ValueError, match=message):
+        store.list()
+
+
 def test_group_mutations_persist_and_delete(tmp_path) -> None:
     known_targets = {"sonos:office", "bose:kitchen"}
     path = tmp_path / "groups.json"

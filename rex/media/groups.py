@@ -176,6 +176,8 @@ class SpeakerGroupStore:
         if not isinstance(raw_groups, list):
             raise ValueError("Speaker group store groups must be a list")
         records = []
+        group_ids: set[str] = set()
+        group_names: set[str] = set()
         for raw_group in raw_groups:
             if not isinstance(raw_group, dict):
                 raise ValueError("Speaker group entry must be an object")
@@ -189,7 +191,24 @@ class SpeakerGroupStore:
                 or not all(isinstance(member_id, str) for member_id in member_ids)
             ):
                 raise ValueError("Speaker group entry is malformed")
-            records.append({"id": group_id, "name": name, "member_ids": list(member_ids)})
+            if not group_id.startswith("group:") or not group_id.removeprefix("group:"):
+                raise ValueError("Speaker group ID must be a stable group ID")
+            if group_id in group_ids:
+                raise ValueError("Speaker group IDs must be unique")
+            group_ids.add(group_id)
+
+            normalized_name = self._normalized_name(name)
+            if name != normalized_name:
+                raise ValueError("Speaker group names must use normalized whitespace")
+            casefolded_name = normalized_name.casefold()
+            if casefolded_name in group_names:
+                raise ValueError("Speaker group names must be unique")
+            group_names.add(casefolded_name)
+
+            records.append(
+                {"id": group_id, "name": normalized_name, "member_ids": list(member_ids)}
+            )
+        self._validate_all_members(records)
         return records
 
     def _write_records(self, records: GroupRecords) -> None:

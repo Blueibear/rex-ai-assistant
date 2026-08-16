@@ -3,8 +3,11 @@ from __future__ import annotations
 from copy import deepcopy
 from typing import Any
 
+import pytest
+
 from rex.audio.speaker_discovery import DiscoveredSpeaker
 from rex.ha_bridge import HABridge
+from rex.integrations.music_assistant import MusicAssistantClient
 from rex.media.adapters import (
     HomeAssistantMediaAdapter,
     MusicAssistantAdapter,
@@ -22,8 +25,10 @@ from rex.media.models import (
 class _FakeSpeakerDiscovery:
     def __init__(self, speakers: list[DiscoveredSpeaker]) -> None:
         self._speakers = speakers
+        self.discovery_calls = 0
 
-    def get_cached_speakers(self) -> list[DiscoveredSpeaker]:
+    def discover_now(self) -> list[DiscoveredSpeaker]:
+        self.discovery_calls += 1
         return list(self._speakers)
 
 
@@ -41,14 +46,18 @@ class _FakeHABridge:
                 return deepcopy(state)
         return None
 
-    def _execute_intent(self, intent: Any) -> tuple[bool, str]:
-        self.intents.append(intent)
+    def execute_media_service(
+        self,
+        entity_id: str,
+        service: str,
+        *,
+        volume_level: float | None = None,
+    ) -> tuple[bool, str]:
+        self.intents.append((entity_id, service, volume_level))
         return True, "accepted"
 
 
 class _FakeMusicAssistantClient:
-    supported_adapter_actions = frozenset({"play", "pause", "resume", "next", "set_volume"})
-
     def __init__(self) -> None:
         self.calls: list[tuple[str, object, str | None]] = []
 
@@ -189,6 +198,58 @@ def test_ha_bridge_preserves_entity_state_and_reuses_existing_state_reader(
     assert state_reads == ["media_player.den"]
 
 
+def test_ha_bridge_lists_entity_without_friendly_name(monkeypatch) -> None:
+    bridge = HABridge(base_url="http://ha.local:8123", token="token")
+    response = {
+        "entity_id": "media_player.den",
+        "state": "unknown",
+        "attributes": {"volume_level": 0.25},
+    }
+    monkeypatch.setattr(bridge, "_request", lambda method, path: [deepcopy(response)])
+
+    entities = bridge.list_entities()
+
+    assert entities == [
+        {
+            **response,
+            "friendly_name": "media_player.den",
+            "attributes": {"volume_level": 0.25},
+        }
+    ]
+
+
+def test_ha_bridge_public_media_wrapper_is_narrow(monkeypatch) -> None:
+    bridge = HABridge.__new__(HABridge)
+    intents: list[Any] = []
+
+    def execute_intent(intent: Any) -> tuple[bool, str]:
+        intents.append(intent)
+        return True, "accepted"
+
+    monkeypatch.setattr(bridge, "_execute_intent", execute_intent)
+
+    result = bridge.execute_media_service(
+        "media_player.den",
+        "volume_set",
+        volume_level=0.35,
+    )
+
+    assert result == (True, "accepted")
+    assert len(intents) == 1
+    assert intents[0].domain == "media_player"
+    assert intents[0].service == "volume_set"
+    assert intents[0].entity_id == "media_player.den"
+    assert intents[0].data == {
+        "entity_id": "media_player.den",
+        "volume_level": 0.35,
+    }
+
+    with pytest.raises(ValueError, match="Unsupported Home Assistant media service"):
+        bridge.execute_media_service("media_player.den", "media_stop")
+
+    assert len(intents) == 1
+
+
 def test_ha_adapter_uses_existing_mutation_and_independent_state_paths() -> None:
     bridge = _FakeHABridge(
         [
@@ -211,12 +272,7 @@ def test_ha_adapter_uses_existing_mutation_and_independent_state_paths() -> None
 
     assert acknowledgement.accepted is True
     assert len(bridge.intents) == 1
-    assert bridge.intents[0].domain == "media_player"
-    assert bridge.intents[0].service == "volume_set"
-    assert bridge.intents[0].data == {
-        "entity_id": "media_player.den",
-        "volume_level": 0.35,
-    }
+    assert bridge.intents[0] == ("media_player.den", "volume_set", 0.35)
     assert snapshot.target_id == "ha:media_player.den"
     assert snapshot.playback is MediaState.PAUSED
     assert snapshot.volume_percent == 42.0
@@ -237,25 +293,46 @@ def test_ha_adapter_rejects_operations_outside_existing_rex_media_paths() -> Non
     assert bridge.intents == []
 
 
-def test_smart_speaker_adapter_is_discovery_only() -> None:
-    adapter = SmartSpeakerAdapter(
-        _FakeSpeakerDiscovery(
-            [
-                DiscoveredSpeaker(
-                    provider="sonos",
-                    name="Office Sonos",
-                    ip="192.168.1.40",
-                    model="Era 100",
-                ),
-                DiscoveredSpeaker(
-                    provider="bose",
-                    name="Kitchen Bose",
-                    ip="192.168.1.20",
-                    model="SoundTouch 10",
-                ),
-            ]
-        )
+def test_ha_adapter_observed_unknown_entity_remains_online() -> None:
+    adapter = HomeAssistantMediaAdapter(
+        _FakeHABridge([_ha_state("media_player.den", state="unknown")])
     )
+
+    target = adapter.discover_targets()[0]
+
+    assert target.online is True
+    assert target.health == "unknown"
+
+
+def test_ha_adapter_failed_state_read_is_unknown_not_unavailable() -> None:
+    bridge = _FakeHABridge([_ha_state("media_player.den")])
+    adapter = HomeAssistantMediaAdapter(bridge)
+    target = adapter.discover_targets()[0]
+    bridge.states.clear()
+
+    snapshot = adapter.get_state(target)
+
+    assert snapshot.playback is MediaState.UNKNOWN
+
+
+def test_smart_speaker_adapter_is_discovery_only() -> None:
+    discovery = _FakeSpeakerDiscovery(
+        [
+            DiscoveredSpeaker(
+                provider="sonos",
+                name="Office Sonos",
+                ip="192.168.1.40",
+                model="Era 100",
+            ),
+            DiscoveredSpeaker(
+                provider="bose",
+                name="Kitchen Bose",
+                ip="192.168.1.20",
+                model="SoundTouch 10",
+            ),
+        ]
+    )
+    adapter = SmartSpeakerAdapter(discovery)
 
     targets = adapter.discover_targets()
     acknowledgement = adapter.execute_action(targets[0], MediaAction.PLAY, value="track:7")
@@ -266,12 +343,14 @@ def test_smart_speaker_adapter_is_discovery_only() -> None:
         "sonos:192.168.1.40",
     ]
     assert all(target.capabilities == frozenset() for target in targets)
+    assert all(target.online is True for target in targets)
+    assert discovery.discovery_calls == 1
     assert acknowledgement.accepted is False
     assert acknowledgement.detail == "Smart-speaker media mutations are unsupported"
     assert snapshot.playback is MediaState.UNKNOWN
 
 
-def test_smart_speaker_target_id_is_owned_by_discovery_contract() -> None:
+def test_discovered_speaker_does_not_expose_canonical_target_id() -> None:
     speaker = DiscoveredSpeaker(
         provider="sonos",
         name="Office Sonos",
@@ -279,7 +358,7 @@ def test_smart_speaker_target_id_is_owned_by_discovery_contract() -> None:
         model="Era 100",
     )
 
-    assert speaker.target_id == "sonos:192.168.1.40"
+    assert not hasattr(speaker, "target_id")
 
 
 def test_music_assistant_adapter_does_not_invent_discovery_or_state() -> None:
@@ -301,15 +380,24 @@ def test_music_assistant_adapter_wraps_only_existing_client_mutations() -> None:
     target = _music_assistant_target()
 
     play_ack = adapter.execute_action(target, MediaAction.PLAY, value="Kind of Blue")
+    pause_ack = adapter.execute_action(target, MediaAction.PAUSE)
+    resume_ack = adapter.execute_action(target, MediaAction.RESUME)
+    next_ack = adapter.execute_action(target, MediaAction.NEXT)
     volume_ack = adapter.execute_action(target, MediaAction.SET_VOLUME, value=55)
     unsupported_ack = adapter.execute_action(target, MediaAction.PREVIOUS)
 
     assert play_ack.accepted is True
+    assert pause_ack.accepted is True
+    assert resume_ack.accepted is True
+    assert next_ack.accepted is True
     assert volume_ack.accepted is True
     assert unsupported_ack.accepted is False
     assert unsupported_ack.detail == "Music Assistant action previous is unsupported"
     assert client.calls == [
         ("play", "Kind of Blue", "kitchen"),
+        ("pause", None, "kitchen"),
+        ("resume", None, "kitchen"),
+        ("skip", None, "kitchen"),
         ("set_volume", 55, "kitchen"),
     ]
 
@@ -325,15 +413,7 @@ def test_music_assistant_play_requires_a_query() -> None:
     assert client.calls == []
 
 
-def test_music_assistant_adapter_honors_client_declared_support() -> None:
-    client = _FakeMusicAssistantClient()
-    client.supported_adapter_actions = frozenset({"pause"})
-    adapter = MusicAssistantAdapter(client)
+def test_music_assistant_client_does_not_expose_adapter_action_policy() -> None:
+    client = MusicAssistantClient()
 
-    acknowledgement = adapter.execute_action(
-        _music_assistant_target(), MediaAction.PLAY, value="Kind of Blue"
-    )
-
-    assert acknowledgement.accepted is False
-    assert acknowledgement.detail == "Music Assistant action play is unsupported"
-    assert client.calls == []
+    assert not hasattr(client, "supported_adapter_actions")

@@ -281,14 +281,20 @@ class HABridge:
         if not self.enabled:
             raise RuntimeError("Home Assistant bridge is not configured.")
         self._refresh_entity_cache(force=True)
-        return [
-            {
-                **state,
-                "friendly_name": (state.get("attributes") or {}).get("friendly_name", entity_id),
-                "attributes": dict(state.get("attributes") or {}),
-            }
-            for entity_id, state in sorted(self._entity_states.items())
-        ]
+        entities = []
+        for entity_id, state in sorted(self._entity_states.items()):
+            attributes = dict(state.get("attributes") or {})
+            friendly_name = attributes.get("friendly_name")
+            entities.append(
+                {
+                    **state,
+                    "friendly_name": (
+                        friendly_name if isinstance(friendly_name, str) else entity_id
+                    ),
+                    "attributes": attributes,
+                }
+            )
+        return entities
 
     def get_entity_state(self, entity_id: str) -> dict[str, Any] | None:
         """Read one entity through Rex's existing Home Assistant state path."""
@@ -299,6 +305,47 @@ class HABridge:
             verify_ssl=self._verify_ssl,
             timeout=self._timeout,
         )
+
+    def execute_media_service(
+        self,
+        entity_id: str,
+        service: str,
+        *,
+        volume_level: float | None = None,
+    ) -> tuple[bool, str]:
+        """Execute one explicitly supported media-player service."""
+        supported_services = {
+            "media_play",
+            "media_pause",
+            "media_next_track",
+            "volume_set",
+        }
+        if service not in supported_services:
+            raise ValueError(f"Unsupported Home Assistant media service: {service}")
+        if not entity_id.startswith("media_player."):
+            raise ValueError(f"Invalid Home Assistant media-player entity: {entity_id}")
+
+        data: dict[str, Any] = {"entity_id": entity_id}
+        if service == "volume_set":
+            if (
+                isinstance(volume_level, bool)
+                or not isinstance(volume_level, (int, float))
+                or not 0 <= volume_level <= 1
+            ):
+                raise ValueError("volume_set requires a volume level from 0 to 1")
+            data["volume_level"] = float(volume_level)
+        elif volume_level is not None:
+            raise ValueError(f"Home Assistant media service {service} does not accept volume")
+
+        intent = IntentMatch(
+            domain="media_player",
+            service=service,
+            entity_id=entity_id,
+            data=data,
+            description=f"{service} {entity_id}",
+            source="canonical_media",
+        )
+        return self._execute_intent(intent)
 
     def control_light(
         self,
@@ -557,13 +604,17 @@ class HABridge:
                 if not isinstance(item, dict):
                     continue
                 entity_id = item.get("entity_id")
-                friendly = (item.get("attributes") or {}).get("friendly_name")
-                if isinstance(entity_id, str) and isinstance(friendly, str):
-                    cache[friendly.lower()] = entity_id
+                attributes = item.get("attributes")
+                if not isinstance(attributes, dict):
+                    attributes = {}
+                friendly = attributes.get("friendly_name")
+                if isinstance(entity_id, str):
                     states[entity_id] = {
                         **item,
-                        "attributes": dict(item.get("attributes") or {}),
+                        "attributes": dict(attributes),
                     }
+                    if isinstance(friendly, str):
+                        cache[friendly.lower()] = entity_id
             self._entity_cache = cache
             self._entity_states = states
             self._entity_cache_ts = time.perf_counter()
