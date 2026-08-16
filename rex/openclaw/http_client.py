@@ -25,13 +25,18 @@ import logging
 import re
 import time
 from collections.abc import Generator
-from typing import Any
+from typing import Any, cast
 
 import requests
 from requests.exceptions import ConnectionError as RequestsConnectionError
 from requests.exceptions import Timeout
 
-from rex.openclaw.errors import OpenClawAPIError, OpenClawAuthError, OpenClawConnectionError
+from rex.openclaw.errors import (
+    OpenClawAPIError,
+    OpenClawAuthError,
+    OpenClawConnectionError,
+    OpenClawOutcomeUnknownError,
+)
 from rex.runtime.cancellation import current_turn_cancellation
 
 logger = logging.getLogger(__name__)
@@ -103,6 +108,7 @@ class OpenClawClient:
     ) -> dict[str, Any]:
         url = self._url(path)
         attempt = 0
+        tool_invoke = method.upper() == "POST" and path.rstrip("/") == "/tools/invoke"
 
         while True:
             _raise_if_turn_cancelled()
@@ -118,7 +124,7 @@ class OpenClawClient:
                 )
             except (RequestsConnectionError, Timeout) as exc:
                 _raise_if_turn_cancelled()
-                if attempt > self.max_retries:
+                if tool_invoke or attempt > self.max_retries:
                     logger.warning(
                         "OpenClaw connection error on %s %s after %d attempts: %s",
                         method.upper(),
@@ -151,7 +157,7 @@ class OpenClawClient:
 
             # Retry on 429 and 5xx.
             if status == 429 or status >= 500:
-                if attempt > self.max_retries:
+                if (status >= 500 and tool_invoke) or attempt > self.max_retries:
                     body = response.text or ""
                     logger.warning(
                         "OpenClaw API error %d on %s after %d attempts",
@@ -185,9 +191,16 @@ class OpenClawClient:
             # Success — return parsed JSON (or empty dict for 204 etc.)
             _raise_if_turn_cancelled()
             if response.content:
-                result: dict[str, Any] = response.json()
+                try:
+                    result = response.json()
+                except ValueError as exc:
+                    if tool_invoke:
+                        raise OpenClawOutcomeUnknownError() from exc
+                    raise
+                if tool_invoke and not isinstance(result, dict):
+                    raise OpenClawOutcomeUnknownError()
                 _raise_if_turn_cancelled()
-                return result
+                return cast(dict[str, Any], result)
             return {}
 
     # ------------------------------------------------------------------

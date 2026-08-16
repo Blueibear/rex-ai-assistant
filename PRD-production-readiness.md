@@ -3718,11 +3718,11 @@ grep -n "askrex.app\|Cloudflare\|CORS\|rate limit\|revocation" docs/deployment.m
 **Files/areas likely involved:** OpenClaw health/reconnect loop, capability sync, tool bridge/executor, action verification adapters.
 
 **Acceptance Criteria:**
-- [ ] Gateway recovery triggers authenticated capability resynchronization before newly recovered remote capabilities dispatch.
-- [ ] In-flight reads fail/fallback per policy; mutations with unknown outcome become `attempted/unverified` unless an independent postcondition proves them.
-- [ ] Remote verification evidence is normalized into the canonical lifecycle and cannot self-declare verified without an accepted Rex adapter/postcondition.
-- [ ] Bounded reconnect/backoff has no hot loop and exposes privacy-safe health transitions.
-- [ ] Tests cover outage before dispatch, outage after mutation dispatch, schema change, stale removal, and local fallback.
+- [x] Gateway recovery triggers authenticated capability resynchronization before newly recovered remote capabilities dispatch.
+- [x] In-flight reads fail/fallback per policy; mutations with unknown outcome become `attempted/unverified` unless an independent postcondition proves them.
+- [x] Remote verification evidence is normalized into the canonical lifecycle and cannot self-declare verified without an accepted Rex adapter/postcondition.
+- [x] Bounded reconnect/backoff has no hot loop and exposes privacy-safe health transitions.
+- [x] Tests cover outage before dispatch, outage after mutation dispatch, schema change, stale removal, and local fallback.
 - [ ] All relevant GitHub checks pass.
 
 **Validation commands:** `pytest tests/rex2/test_openclaw_reconnect.py tests/rex2/test_openclaw_verification.py -q`.
