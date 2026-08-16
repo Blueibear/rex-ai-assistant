@@ -217,6 +217,13 @@ class Assistant:
         )
         self._tool_dispatcher = ToolDispatcher(tool_registry, config=self._settings)
 
+        # First-class timers and alarms (US-120) use one process-wide,
+        # deadline-driven runtime. Starting it with Assistant startup restores
+        # persisted deadlines and reconciles overdue items after a restart.
+        from .timekeeping.runtime import ensure_timekeeping_runtime
+
+        self._timekeeping_runtime = ensure_timekeeping_runtime()
+
         # Shopping list voice handler (US-SL-002)
         from .shopping_list import ShoppingList
         from .shopping_list_handler import ShoppingListHandler

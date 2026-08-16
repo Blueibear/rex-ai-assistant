@@ -2358,3 +2358,31 @@ PR #408 implementation head `891b9464f18c4cb4c5e048992246646520dc1070` completed
 - Pull request review threads: none.
 
 The final US-113 GitHub acceptance criterion is therefore satisfied. This documentation-only closure commit changes tracker/evidence only; implementation behavior remains frozen at `891b946` and will be revalidated by the full remote gate before merge.
+
+
+2026-08-16 - US-120 first-class timers and alarms local implementation complete
+
+Implemented first-class timers/alarms on branch `lead/us120-timers-alarms`, synchronized with current merged `master` including the US-120/121/122 requirements and GUI Electron-bootstrap repair.
+
+Behavior and architecture:
+- Added `rex.timekeeping` as a canonical subsystem separate from reminders. `TimekeepingService` owns atomic persisted per-user timer/alarm state under the canonical household data root; `TimekeepingRuntime` owns one condition-based nearest-deadline worker and restart reconciliation.
+- Timers support concurrent named/unnamed seconds/minutes/hours durations; remaining-time query, list, pause, resume, cancel, rename, and add/subtract time. Same display names are isolated by owner and same-user ambiguity fails closed rather than guessing.
+- Alarms support one-shot local dates/times, recurring weekdays/selected days, enable/disable, edit, cancel, snooze, and dismiss. Recurrence retains the IANA timezone and recalculates local wall-clock occurrences across DST changes.
+- Assistant startup starts the canonical runtime so persisted overdue items reconcile once and future deadlines resume without requiring a new command. Timing is deadline-driven rather than the reminder service's minute polling loop.
+- Added deterministic natural-language parsing for common timer/alarm commands without a new NLP/date-parsing dependency.
+- Added canonical `timekeeping_read` and `timekeeping_manage` registry tools. Mutations require identity and pass through the existing ToolExecutionLifecycle; `verified` requires an independent persisted-state re-read matching the expected mutation fields.
+- TurnEngine exact-routes deterministic timekeeping intent to one canonical tool before fuzzy capability retrieval, preventing duplicate stateful execution and suppressing accidental Home Assistant routing for the same turn.
+- Desktop typed chat and voice use that shared path. Mobile structured timekeeping is explicitly scoped to `tasks.read` / `tasks.write`; free-form mobile mutations remain behind the existing structured-action authorization boundary.
+- Existing notifier delivery is used for due timer/alarm events. Speaker/room/group targeting and per-user output policy are intentionally not claimed by US-120 and remain US-121/US-122.
+- Reconciled active tracker truth: US-120/121/122 are now defined in the authoritative `PRD-production-readiness.md`; the signed-off March 2026 checklist and its old test filenames are explicitly historical evidence where those IDs had unrelated meanings.
+
+TDD and local validation evidence:
+- Timekeeping service/parser/runtime/tool/startup/TurnEngine/mobile-scope tests were introduced red before implementation and now pass, including a real `ActionDispatcher -> ToolDispatcher -> ToolExecutionLifecycle -> TimekeepingService` desktop turn.
+- Focused assistant/mobile/tool integration matrix before freeze -> 139 passed, 0 failed; the final real-dispatch routing file -> 5 passed after Black formatting.
+- Required release pytest matrix `pytest -m "not slow and not audio and not gpu" -q` -> 8,952 passed, 49 skipped, 0 failed, 347 warnings in 472.49s; exit code 0. Warnings are existing deprecation/test-fixture warnings plus post-pytest PyTorch shutdown logging against a closed capture stream.
+- Repository Ruff -> passed.
+- Repository Black check -> passed across 1,099 files after formatting the one newly edited timekeeping integration test.
+- Full `mypy rex --ignore-missing-imports` -> 0 issues in 405 source files.
+- `python scripts/security_audit.py --release-gate` -> passed; 1,400 files scanned, 0 actionable source/config findings, no exposed secrets.
+
+US-120 local behavioral/documentation acceptance criteria are complete. The final `All relevant GitHub checks pass on the exact implementation PR head` criterion remains intentionally unchecked until the implementation branch is published and all required remote checks complete successfully.

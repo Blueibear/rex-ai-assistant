@@ -133,6 +133,7 @@ This is the high-level release/status view. Surface classifications mirror [SURF
 | Mobile API backend | `developer-only` backend; mobile pre-release | Authenticated companion backend; physical-device/LAN release validation remains outstanding | [Mobile API setup](docs/mobile/MOBILE_API_SETUP_WINDOWS.md) |
 | Docker image | `developer-only` | Developer/operator smoke and service path, not an end-user artifact | [Docker](docs/docker.md) |
 | Home Assistant | Supported, credential-gated | Reads require live auth; writes use policy/confirmation and independent verification evidence | [Home Assistant](docs/home_assistant.md) |
+| Timers & alarms | Locally verified; CI pending | First-class per-user concurrent timers and persistent one-shot/recurring alarms; restart recovery, snooze, pause/resume, DST-aware recurrence, and canonical verified mutations are implemented. Speaker/room targeting remains pending US-121/US-122. | [Timer/alarm design](docs/superpowers/specs/2026-08-15-timers-alarms-media-routing.md) |
 | Email | Partial | IMAP/SMTP paths exist; GUI sending remains draft-only | [Email](docs/email.md) |
 | Calendar | Partial / read-only | ICS reads exist; provider writes/OAuth remain unavailable | [Calendar](docs/calendar.md) |
 | SMS / Phone | Experimental | Twilio-backed capability; live delivery/calling remains externally verified | [Messaging](docs/messaging.md) |
@@ -144,6 +145,7 @@ No surface is currently classified `removed`; historical/low-level entries remai
 
 - Core CLI help and doctor paths work: `rex --help`, `rex doctor`, and `python -m rex doctor`.
 - Basic text chat works in the CLI and GUI.
+- First-class timers and alarms work through the canonical chat/voice tool path: multiple per-user timers, pause/resume/adjust/rename/cancel, one-shot and recurring alarms, snooze/dismiss, DST-aware recurrence, and restart recovery. Speaker/room routing is not yet implemented and remains US-121/US-122 work.
 - The Electron GUI launches and the main shell is stable.
 - GUI pages load for Tasks, Reminders, Settings, Users, Integrations, Email, Calendar, and Home Assistant.
 - The Home Assistant page loads and lists entities after the recent GUI/backend consistency fixes.

@@ -78,16 +78,19 @@ Use this order for task selection after the reconciliation above. Select the fir
 45. `US-086`
 46. `US-112`
 47. `US-088`
-48. `US-115`
-49. `US-116`
-50. `US-117`
-51. `US-089`
-52. `US-090`
-53. `US-091`
-54. `US-092`
-55. `US-093`
-56. `US-119`
-57. `US-118`
+48. `US-120`
+49. `US-121`
+50. `US-122`
+51. `US-115`
+52. `US-116`
+53. `US-117`
+54. `US-089`
+55. `US-090`
+56. `US-091`
+57. `US-092`
+58. `US-093`
+59. `US-119`
+60. `US-118`
 
 **Dependency/security notes:** TurnEngine work must preserve the already-implemented explicit, fail-closed user identity contract from its first event. US-087 later proves the broader user/household model and James/Cole concurrency invariants. OpenClaw metadata never widens local authority. Mobile remains desktop-paired and least-privilege. All benchmark evidence must label whether it is deterministic/mock, local source runtime, live provider, packaged Windows artifact, or physical hardware/device.
 
@@ -3723,6 +3726,69 @@ grep -n "askrex.app\|Cloudflare\|CORS\|rate limit\|revocation" docs/deployment.m
 
 **Risk notes:** Reconnection restores connectivity, not trust; resync and policy evaluation come first.
 
+### US-120: Add first-class concurrent timers and alarms
+
+**Priority:** P1 | **Workstream:** Scheduling / Household Assistant | **Dependencies:** US-088, US-087, US-109, US-106.
+
+**Description:** Create, manage, persist, and accurately fire multiple per-user timers and alarms as first-class Rex capabilities rather than reminders.
+
+**Acceptance Criteria:**
+- [x] A canonical `rex.timekeeping` service provides separate timer and alarm semantics with stable IDs, optional names, atomic persistence, and per-user ownership.
+- [x] Multiple concurrent timers support seconds/minutes/hours plus list, remaining-time query, cancel, pause, resume, rename, and add/subtract time.
+- [x] Alarms support local clock times, dates, weekday/selected-day recurrence, list, enable/disable, edit, cancel, snooze, and dismiss.
+- [x] Alarm recurrence retains the user's IANA timezone and recalculates across daylight-saving transitions with deterministic DST tests.
+- [x] Assistant startup restores persisted state, reconciles overdue events once, and schedules future deadlines without reminder-service minute polling.
+- [x] Deadline delivery uses a condition-based nearest-deadline worker with explicit deterministic timing tolerance and wakeup when an earlier deadline is added.
+- [x] James/Cole ownership isolation permits identical display names without cross-user reads or mutations; ambiguous same-user names require disambiguation rather than guessing.
+- [x] `timekeeping_read` and `timekeeping_manage` are canonical Tool/Capability Registry entries; mutations use the action lifecycle and independent persisted-state verification.
+- [x] Desktop typed chat and canonical voice route exact timer/alarm intent through TurnEngine without Home Assistant or generic multi-tool fanout.
+- [x] Mobile structured timekeeping uses explicit `tasks.read` / `tasks.write` device scopes; free-form mobile mutations remain behind the existing structured-action authorization boundary.
+- [x] Unit/integration coverage includes concurrency, restart recovery, recurrence, snooze, cancellation, identity isolation, timezone/DST, canonical tools, Assistant startup, desktop/voice routing, and mobile scope enforcement.
+- [x] README/CLAUDE and capability discovery describe first-class timer/alarm support truthfully; speaker targeting/output policies remain explicitly deferred to US-121/US-122.
+- [ ] All relevant GitHub checks pass on the exact implementation PR head.
+
+**Validation commands:** `pytest -q tests/timekeeping tests/mobile_api/test_action_scope_enforcement.py tests/test_us016_action_dispatcher.py tests/test_assistant.py tests/test_assistant_latency.py tests/test_tools_registry.py`; `mypy rex/timekeeping rex/actions/dispatcher.py rex/assistant.py rex/mobile_api/action_context.py rex/tools/registry.py --ignore-missing-imports`; required repository release gates.
+
+**Risk notes:** Timers/alarms are private user state. Do not reuse reminder polling, do not let capability retrieval duplicate a stateful command, and do not treat an unverified mutation as success. Speaker/room targeting belongs to US-121/US-122. Historical test filenames such as `test_us120_performance_baseline.py`, `test_us121_blocking_io_audit.py`, and `test_us122_memory_baseline.py` retain IDs from the signed-off March 2026 checklist and are unrelated legacy evidence; the active story IDs are defined here.
+
+### US-121: Add canonical speaker, room, group, and media orchestration
+
+**Priority:** P1 | **Workstream:** Audio / Media / Home Assistant / External Capabilities | **Dependencies:** US-120.
+
+**Description:** Add a provider-neutral audio target registry so Rex can resolve named speakers, rooms, and persistent groups and truthfully control supported media playback.
+
+**Acceptance Criteria:**
+- [ ] Canonical audio targets have stable IDs, names/aliases, provider, room, capabilities, online/health state, and per-user authorization.
+- [ ] Local devices, Home Assistant `media_player` entities, and future providers adapt into one registry rather than provider-specific user commands.
+- [ ] Target resolution handles room/device/group names without unsafe fuzzy ambiguity.
+- [ ] Persistent speaker groups support create, inspect, rename, membership edit, and delete.
+- [ ] Supported media actions include play/pause/resume/stop, next/previous where available, volume, mute/unmute, playback-state query, and provider-supported transfer/retargeting.
+- [ ] Unsupported/offline actions return truthful actionable limitations; mutations use canonical verification where technically possible.
+- [ ] Dynamic providers refresh discovery/health without requiring Rex restart where supported.
+- [ ] Tests cover target resolution, ambiguity, group CRUD, offline/mixed-capability providers, permissions, playback, and verified outcomes.
+- [ ] All relevant GitHub checks pass.
+
+**Risk notes:** A display-name match never grants device authority; unsupported transfer/group behavior must not be reported as completed.
+
+### US-122: Add per-user output-routing policies and Settings UI
+
+**Priority:** P1 | **Workstream:** Settings / Voice / Timers / Media | **Dependencies:** US-121.
+
+**Description:** Let each user choose default and conditional targets for spoken responses, timers, alarms, and media, with explicit one-off overrides and safe fallbacks.
+
+**Acceptance Criteria:**
+- [ ] Electron Settings exposes canonical outputs/rooms/groups and per-user defaults for spoken response, timer, alarm, and media targets.
+- [ ] Timer/alarm records may carry an explicit target overriding defaults.
+- [ ] Policies support time/day conditions, quiet hours, target volume where supported, and explicit fallback behavior.
+- [ ] One-off natural-language targets override stored defaults and Rex can explain the resolved route/policy.
+- [ ] Speaker-group management is available from Settings, including test playback where supported.
+- [ ] Electron and mobile/PWA use the same backend policy state with James/Cole isolation.
+- [ ] Routing/fallback decisions are structured and privacy-safe; unavailable targets never silently reroute against policy.
+- [ ] Tests cover defaults, conditions, explicit overrides, outages/fallbacks, quiet hours, groups, and concurrent per-user policies.
+- [ ] All relevant GitHub checks pass.
+
+**Risk notes:** Output routing is policy, not authority. It cannot widen device permissions or silently suppress explicitly required events.
+
 ### US-115: Compose capability gaps declaratively
 
 **Priority:** P1 | **Workstream:** Capabilities / Planning / Self-extension | **Dependencies:** US-078, US-107, US-109, US-108.
@@ -3826,7 +3892,7 @@ grep -n "askrex.app\|Cloudflare\|CORS\|rate limit\|revocation" docs/deployment.m
 
 **Acceptance Criteria:**
 - [ ] RexBench reports cold/warm p50/p95 by typed chat, voice, read-only tool, mutating tool, unavailable/gap-recovery, and representative multi-tool request class with stage breakdowns.
-- [ ] Production profile covers identity/privacy isolation, permission escalation denial, cancellation races, tool/provider failure, OpenClaw outage/recovery, capability-sync attacks, and Forge adversarial/promotion/rollback cases.
+- [ ] Production profile covers identity/privacy isolation, permission escalation denial, cancellation races, tool/provider failure, OpenClaw outage/recovery, capability-sync attacks, Forge adversarial/promotion/rollback cases, timer accuracy/concurrency, alarm recurrence/snooze/restart recovery, audio-target resolution, group routing, per-user output-routing isolation, and unavailable-target behavior.
 - [ ] Evidence clearly separates deterministic/mock, local source runtime, live-provider, packaged Windows Electron, mobile/device, and physical voice/hardware runs; no category substitutes for another.
 - [ ] Windows packaged Electron and authenticated mobile E2E consume canonical TurnEngine; physical voice evidence covers wake/capture/ASR/TTS/barge-in where hardware is available.
 - [ ] Retained reports contain no prompts, transcripts, memory contents, credentials, raw private tool payloads, or user IDs.

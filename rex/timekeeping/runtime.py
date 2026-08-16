@@ -1,0 +1,188 @@
+"""Deadline-driven runtime for AskRex timers and alarms."""
+
+from __future__ import annotations
+
+import logging
+import threading
+from collections.abc import Callable
+from datetime import datetime
+
+from .models import DueEvent, ensure_utc, utc_now
+from .service import TimekeepingService
+
+logger = logging.getLogger(__name__)
+
+
+def deliver_due_event_notification(event: DueEvent) -> None:
+    """Deliver a due timer/alarm through Rex's existing notification layer."""
+    from rex.notification import NotificationRequest, get_notifier
+
+    if event.kind == "timer":
+        title = "Timer"
+        body = f"{event.name or 'Timer'} finished."
+        record_key = "timer_id"
+    else:
+        title = "Alarm"
+        body = f"{event.name or 'Alarm'} is ringing."
+        record_key = "alarm_id"
+    request = NotificationRequest(
+        priority="normal",
+        title=title,
+        body=body,
+        channel_preferences=["dashboard", "ha_tts"],
+        metadata={record_key: event.record_id, "user_id": event.user_id},
+    )
+    get_notifier().send(request)
+
+
+class TimekeepingRuntime:
+    """Wait until the nearest persisted deadline and deliver due events."""
+
+    def __init__(
+        self,
+        service: TimekeepingService,
+        *,
+        event_handler: Callable[[DueEvent], object],
+        now_func: Callable[[], datetime] | None = None,
+    ) -> None:
+        self._service = service
+        self._event_handler = event_handler
+        self._now = now_func or utc_now
+        self._condition = threading.Condition()
+        self._generation = 0
+        self._running = False
+        self._thread: threading.Thread | None = None
+
+    def _now_utc(self) -> datetime:
+        return ensure_utc(self._now())
+
+    @property
+    def running(self) -> bool:
+        with self._condition:
+            return self._running
+
+    def wake(self) -> None:
+        with self._condition:
+            self._generation += 1
+            self._condition.notify_all()
+
+    def process_due_once(self) -> int:
+        events = self._service.claim_due_events(self._now_utc())
+        for event in events:
+            try:
+                self._event_handler(event)
+            except Exception:
+                logger.exception(
+                    "timekeeping event delivery failed kind=%s record_id=%s user_id=%s",
+                    event.kind,
+                    event.record_id,
+                    event.user_id,
+                )
+        return len(events)
+
+    def start(self) -> None:
+        with self._condition:
+            if self._running:
+                return
+            self._running = True
+        self._service.set_change_callback(self.wake)
+        self.process_due_once()
+        thread = threading.Thread(
+            target=self._run,
+            name="askrex-timekeeping",
+            daemon=True,
+        )
+        self._thread = thread
+        thread.start()
+
+    def stop(self, timeout: float = 2.0) -> None:
+        with self._condition:
+            if not self._running:
+                self._service.set_change_callback(None)
+                return
+            self._running = False
+            self._generation += 1
+            self._condition.notify_all()
+        self._service.set_change_callback(None)
+        thread = self._thread
+        if thread is not None and thread is not threading.current_thread():
+            thread.join(timeout=max(0.0, timeout))
+        self._thread = None
+
+    def _run(self) -> None:
+        while True:
+            with self._condition:
+                if not self._running:
+                    return
+                observed_generation = self._generation
+
+            self.process_due_once()
+            deadline = self._service.next_deadline()
+            if deadline is None:
+                with self._condition:
+                    if not self._running:
+                        return
+                    if observed_generation == self._generation:
+                        self._condition.wait()
+                continue
+
+            delay = max(0.0, (deadline - self._now_utc()).total_seconds())
+            if delay <= 0:
+                continue
+            with self._condition:
+                if not self._running:
+                    return
+                if observed_generation != self._generation:
+                    continue
+                self._condition.wait(timeout=delay)
+
+
+_global_lock = threading.RLock()
+_global_service: TimekeepingService | None = None
+_global_runtime: TimekeepingRuntime | None = None
+
+
+def get_timekeeping_service() -> TimekeepingService:
+    global _global_service
+    with _global_lock:
+        if _global_service is None:
+            _global_service = TimekeepingService()
+        return _global_service
+
+
+def ensure_timekeeping_runtime() -> TimekeepingRuntime:
+    global _global_runtime
+    with _global_lock:
+        if _global_runtime is None:
+            _global_runtime = TimekeepingRuntime(
+                get_timekeeping_service(),
+                event_handler=deliver_due_event_notification,
+            )
+            _global_runtime.start()
+        return _global_runtime
+
+
+def shutdown_timekeeping_runtime() -> None:
+    global _global_runtime
+    with _global_lock:
+        runtime = _global_runtime
+        _global_runtime = None
+    if runtime is not None:
+        runtime.stop()
+
+
+def set_timekeeping_service(service: TimekeepingService | None) -> None:
+    global _global_service
+    shutdown_timekeeping_runtime()
+    with _global_lock:
+        _global_service = service
+
+
+__all__ = [
+    "TimekeepingRuntime",
+    "deliver_due_event_notification",
+    "ensure_timekeeping_runtime",
+    "get_timekeeping_service",
+    "set_timekeeping_service",
+    "shutdown_timekeeping_runtime",
+]

@@ -160,6 +160,11 @@ def required_scope_for_tool(
     if name in read_only_chat:
         return "chat.send" if normalized_operation in {None, "read", "query"} else None
 
+    if name == "timekeeping_read":
+        return "tasks.read" if normalized_operation in {None, "read", "query"} else None
+    if name == "timekeeping_manage":
+        return "tasks.write" if normalized_operation in {None, "mutation", "write"} else None
+
     home_mutations = {
         "home_assistant_call_service",
         "music_play",
