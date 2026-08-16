@@ -2076,3 +2076,13 @@ Remote exact-head evidence:
 - No failed, cancelled, or in-progress exact-head check remained and PR #399 had no review or review-thread blocker.
 - Windows Electron Artifact was not path-triggered for this docs/mobile-policy-test-only story and was not a relevant required check.
 - US-088 acceptance criteria are therefore closed. This documentation closure head must still pass its own exact-head relevant checks before PR #399 is merged.
+
+2026-08-15 - US-105 final GitHub evidence closure
+
+Remote exact-head evidence:
+- PR #396 merged on 2026-08-14 with implementation head `f93a7439d973cbc26715bf1270d0ce6ef1736398`.
+- Exact-head CI workflow run 31798166246 completed with conclusion `success`.
+- Exact-head Commitlint workflow run 31798166255 completed with conclusion `success`.
+- The PR was merged as `f523b438abd0d92b3bd4914fa065ebdb2d8abb0e` after those required checks completed successfully.
+- Local implementation evidence remains the previously recorded 8,750 passed / 49 skipped / 0 failed release suite plus focused cache, identity-isolation, Ruff, Black, mypy, and security-gate validation.
+- US-105's final GitHub-check acceptance criterion is therefore closed.
