@@ -2203,3 +2203,37 @@ Remote exact-head evidence for corrected implementation head `a85309d10fc721ba6f
 - CodeFactor initially failed the prior implementation head `93b6c1e2e75a636f16b8d31fd5f86466343f2f86` with one complexity finding in `gui/src/main/autonomySettings.ts`. That finding was addressed by refactoring migration planning/rollback into smaller helpers. CodeFactor then completed successfully on corrected head `a85309d10fc721ba6f52a82284328f0ca5dd7562` with no issues found.
 - PR #405 has no submitted reviews and no inline review threads.
 - US-073's final GitHub-check acceptance criterion is therefore closed. This documentation-only closure commit must still pass the repository's final merge checks before PR #405 is merged.
+
+2026-08-16 - US-077 local implementation complete; remote CI pending
+
+Implementation:
+- Added narrow, explicit current-info/news intent detection before ordinary LLM generation. Covered current cues include "what is in the news today", latest/current/today news/headlines/developments/updates, "what happened today", and explicit "latest ... on/about" phrasing. Historical/topic-only prompts without a current cue continue through normal routing.
+- Configured current-info requests bypass the normal response cache so stale answers cannot satisfy live-news requests.
+- Current-info search runs through the existing pre-LLM `ToolDispatcher`, which already executes blocking providers off the asyncio event loop. No new synchronous network call was added to `IntentRouter`.
+- Current-info tool selection is biased locally with a `web search` selection hint only after the narrow current-info intent matches. Generic Web Search capability tags remain `search/web/lookup`, so unrelated requests such as current settings do not trigger browsing.
+- Search failure, missing dispatcher, or unavailable provider fails closed with a deterministic explanation; Rex does not call the LLM or guess at live events.
+- Successful current-info search adds a `CURRENT-INFO GROUNDING` instruction requiring current/live factual claims to come only from the verified `web_search` result and to admit insufficiency instead of supplementing with model memory.
+- Current-info bypasses unrelated Home Assistant transcript routing so a pending HA clarification cannot replace a verified news result or fail-closed response.
+- Added `configured_search_providers()` as the shared provider-truth helper. DuckDuckGo is usable without a key when its shipped dependencies are present; Brave, SerpAPI, Google CSE, and Browserless require usable credentials/dependencies. SerpAPI supports both `SERPAPI_KEY` and the legacy `SERPAPI_API_KEY` alias.
+- Canonical assistant execution uses explicit `AppConfig.search_providers` as non-secret provider authority. The legacy `REX_SEARCH_PROVIDERS` override remains only for direct plugin compatibility when no explicit runtime config is supplied, matching Rex's documented JSON runtime-config authority.
+- Search credential resolution uses runtime config where applicable, environment/vault secret lookup, and does not expose credentials in tool request/audit payloads.
+- `ToolExecutionLifecycle` can privately inject the exact runtime config into handlers that explicitly opt in via `_runtime_config`; `web_search` uses this so provider selection and execution share one authority without putting config or secrets into auditable tool arguments/context.
+- Integration status now uses the same provider-truth helper as execution.
+- Updated `docs/configuration.md`, `INTEGRATIONS_STATUS.md`, and `CLAUDE.md` with truthful Web Search setup/recovery rules. Documentation explicitly says there is not yet a dedicated Electron Web Search credential form, so recovery points only to existing `search.providers` plus credential/docs paths.
+
+TDD / review evidence:
+- Initial US-077 tests were red because no current-info provider-truth helper or current-info route existed.
+- Existing Web Search plugin regression tests exposed old one-argument provider/fake-plugin compatibility; compatibility was preserved while passing runtime config to the real implementation.
+- Codex found and we fixed: current cues containing a year being misclassified as historical; "latest updates on ..." bypassing current-info; legacy provider-list env/config availability mismatch; pending Home Assistant clarification intercepting current-info.
+- Additional self-review fixes: moved network search out of synchronous `IntentRouter`; unified provider selection/execution config; removed overly broad `current/latest` capability tags; bypassed stale response cache for current-info; added explicit LLM grounding rule.
+- Final Codex rereview: no discrete correctness issue identified in the modified or newly added code.
+
+Validation evidence:
+- Full US-077/tool/assistant matrix: 236 passed; 18 pre-existing `AppConfig.llm_provider` deprecation warnings.
+- Required PRD validation (`tests/test_assistant.py`, `tests/test_capabilities.py`, `tests/test_tools_registry.py`) is included in that passing matrix.
+- `tests/test_web_search_plugin.py`: 4 passed after compatibility preservation.
+- `python -m mypy rex/assistant.py rex/intent/router.py rex/actions/dispatcher.py rex/integration_state.py rex/tools/registry.py rex/tools/dispatcher.py rex/tools/execution.py plugins/web_search.py --ignore-missing-imports`: passed with no issues.
+- `python scripts/security_audit.py --release-gate`: passed with 0 actionable findings and no exposed secrets.
+- `pre-commit run --all-files`: Ruff, Black, and detect-secrets passed.
+- `git diff --check`: passed.
+- US-077 local acceptance criteria are complete. The final GitHub-check criterion remains intentionally unchecked until the exact PR implementation head passes the remote matrix.

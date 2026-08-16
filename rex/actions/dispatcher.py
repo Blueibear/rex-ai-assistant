@@ -294,18 +294,21 @@ class ActionDispatcher:
 
         # 6. Auto tool dispatch: build pre-LLM tool context string
         _tool_context: str | None = None
+        _tool_results: dict[str, Any] = {}
+        current_info_requested = getattr(intent, "intent_type", None) == "current_info"
+        selection_text = f"web search {transcript}" if current_info_requested else transcript
         if self._tool_dispatcher is not None:
             defined_select_for_user = inspect.getattr_static(
                 self._tool_dispatcher, "select_tools_for_user", None
             )
             if defined_select_for_user is not None:
                 select_for_user = self._tool_dispatcher.select_tools_for_user
-                _selected_tools = select_for_user(transcript, user_id=effective_user)
+                _selected_tools = select_for_user(selection_text, user_id=effective_user)
             else:
                 # Compatibility adapters predating US-106 implement only
                 # select_tools(message). The canonical dispatcher exposes the
                 # user-aware extension above, while older adapters remain valid.
-                _selected_tools = self._tool_dispatcher.select_tools(transcript)
+                _selected_tools = self._tool_dispatcher.select_tools(selection_text)
             if mobile_action_context_active():
                 # Pre-LLM dispatch has only free-form transcript text. Mobile
                 # mutations must wait for a canonical structured tool call so
@@ -343,12 +346,35 @@ class ActionDispatcher:
                 )
 
         completion: str | None = None
+        if current_info_requested:
+            search_result = _tool_results.get("web_search")
+            search_failed = (
+                not isinstance(search_result, str)
+                or not search_result.strip()
+                or search_result.startswith("[tool error:")
+                or search_result.startswith("I couldn't reach web_search")
+            )
+            if search_failed:
+                completion = (
+                    "I couldn't verify current news through Web Search, so I won't guess at live "
+                    "events. Check the configured search provider/network and "
+                    "`docs/configuration.md` under Integrations > Web Search."
+                )
+            else:
+                grounding_rule = (
+                    "CURRENT-INFO GROUNDING: Make current/live factual claims only from the "
+                    "web_search result below. If that result is insufficient, say so instead of "
+                    "supplementing with model memory."
+                )
+                _tool_context = f"{grounding_rule}\n{_tool_context or ''}".strip()
+
         model_generated = False
 
         # 7. HA command routing (including undo and proactive suggestion injection)
         if (
             self._ha_bridge is not None
             and self._ha_bridge.enabled
+            and not current_info_requested
             and not mobile_action_context_active()
             and mobile_scope_granted("home.control")
         ):

@@ -96,6 +96,28 @@ def test_twilio_requires_complete_credentials(monkeypatch) -> None:
     assert next(item for item in complete if item.key == "sms").state is IntegrationState.CONFIGURED
 
 
+def test_web_search_inventory_uses_actual_provider_truth(monkeypatch) -> None:
+    monkeypatch.setattr(
+        "plugins.web_search.configured_search_providers",
+        lambda config, environ=None: ["duckduckgo"],
+    )
+    configured = build_integration_inventory(_config(search_providers="duckduckgo"), {})
+    assert (
+        next(item for item in configured if item.key == "search").state
+        is IntegrationState.CONFIGURED
+    )
+
+    monkeypatch.setattr(
+        "plugins.web_search.configured_search_providers",
+        lambda config, environ=None: [],
+    )
+    unconfigured = build_integration_inventory(_config(search_providers=""), {})
+    assert (
+        next(item for item in unconfigured if item.key == "search").state
+        is IntegrationState.UNCONFIGURED
+    )
+
+
 def test_inventory_preserves_all_visible_integrations() -> None:
     keys = {item.key for item in build_integration_inventory(_config(), {})}
     assert {

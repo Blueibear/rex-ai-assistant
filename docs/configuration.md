@@ -76,6 +76,14 @@ provider. AskRex does not purchase credits or enable paid usage automatically.
 
 ### Web Search
 
+Provider order is configured by `search.providers` in Rex config (for example,
+`"duckduckgo,brave"`). DuckDuckGo is a no-key provider; Brave, SerpAPI, and
+Google CSE require the credentials below. Current-news requests use Web Search
+only when at least one enabled provider is actually usable. If no provider is
+usable, Rex reports the missing capability instead of guessing at live events.
+There is not yet a dedicated Web Search credential form in Electron Settings;
+use the documented Rex config/credential path below until that UI exists.
+
 | Variable | Default | Required | Description |
 |----------|---------|----------|-------------|
 | `BRAVE_API_KEY` | (none) | Yes (Brave) | Brave Search API key |

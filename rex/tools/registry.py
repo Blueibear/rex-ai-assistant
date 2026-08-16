@@ -246,7 +246,13 @@ class ToolRegistry:
 # ---------------------------------------------------------------------------
 
 
-def _web_search_handler(*, transcript: str = "", query: str = "", **kwargs: Any) -> Any:
+def _web_search_handler(
+    *,
+    transcript: str = "",
+    query: str = "",
+    _runtime_config: Any = None,
+    **kwargs: Any,
+) -> Any:
     """Execute web search through the installed provider integration."""
     search_query = (query or transcript).strip()
     if not search_query:
@@ -257,7 +263,7 @@ def _web_search_handler(*, transcript: str = "", query: str = "", **kwargs: Any)
     except ImportError as exc:
         raise RuntimeError("web_search integration is not installed") from exc
 
-    result = search_web(search_query)
+    result = search_web(search_query, config=_runtime_config)
     if result is None:
         raise RuntimeError("web_search integration is not configured")
     return result
@@ -354,7 +360,7 @@ def _build_default_registry(
                 "search providers (Brave, SerpAPI, DuckDuckGo, Google CSE)."
             ),
             capability_tags=["search", "web", "lookup"],
-            requires_config=["brave_api_key"],
+            requires_config=["search_providers"],
             handler=_web_search_handler,
         )
     )
