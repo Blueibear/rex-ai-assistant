@@ -403,6 +403,11 @@ def _build_default_registry(
     from rex.openclaw.tools.sms_tool import send_sms
     from rex.openclaw.tools.time_tool import time_now as _time_now
     from rex.openclaw.tools.weather_tool import weather_now
+    from rex.timekeeping.tools import (
+        timekeeping_manage,
+        timekeeping_read,
+        verify_timekeeping_mutation,
+    )
     from rex.tools.file_ops import read_file as _read_file
     from rex.tools.windows_diagnostics import (
         get_battery_status,
@@ -435,6 +440,49 @@ def _build_default_registry(
             capability_tags=["time", "clock", "date"],
             requires_config=[],
             handler=_time_now,
+        )
+    )
+
+    registry.register(
+        Tool(
+            name="timekeeping_read",
+            description="List alarms or timers and report remaining timer time.",
+            capability_tags=[
+                "remaining time",
+                "timer status",
+                "list timers",
+                "alarm status",
+                "list alarms",
+            ],
+            requires_config=[],
+            handler=timekeeping_read,
+            requires_identity=True,
+        )
+    )
+
+    registry.register(
+        Tool(
+            name="timekeeping_manage",
+            description=(
+                "Create, pause, resume, adjust, rename, cancel, snooze, dismiss, enable, "
+                "disable, or edit first-class timers and alarms."
+            ),
+            capability_tags=[
+                "timer",
+                "alarm",
+                "set timer",
+                "start timer",
+                "pause timer",
+                "resume timer",
+                "cancel timer",
+                "snooze alarm",
+                "dismiss alarm",
+            ],
+            requires_config=[],
+            handler=timekeeping_manage,
+            operation="mutation",
+            requires_identity=True,
+            verifier=verify_timekeeping_mutation,
         )
     )
 

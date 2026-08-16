@@ -137,4 +137,52 @@ class TimekeepingRuntime:
                 self._condition.wait(timeout=delay)
 
 
-__all__ = ["TimekeepingRuntime"]
+_global_lock = threading.RLock()
+_global_service: TimekeepingService | None = None
+_global_runtime: TimekeepingRuntime | None = None
+
+
+def get_timekeeping_service() -> TimekeepingService:
+    global _global_service
+    with _global_lock:
+        if _global_service is None:
+            _global_service = TimekeepingService()
+        return _global_service
+
+
+def ensure_timekeeping_runtime() -> TimekeepingRuntime:
+    global _global_runtime
+    with _global_lock:
+        if _global_runtime is None:
+            _global_runtime = TimekeepingRuntime(
+                get_timekeeping_service(),
+                event_handler=deliver_due_event_notification,
+            )
+            _global_runtime.start()
+        return _global_runtime
+
+
+def shutdown_timekeeping_runtime() -> None:
+    global _global_runtime
+    with _global_lock:
+        runtime = _global_runtime
+        _global_runtime = None
+    if runtime is not None:
+        runtime.stop()
+
+
+def set_timekeeping_service(service: TimekeepingService | None) -> None:
+    global _global_service
+    shutdown_timekeeping_runtime()
+    with _global_lock:
+        _global_service = service
+
+
+__all__ = [
+    "TimekeepingRuntime",
+    "deliver_due_event_notification",
+    "ensure_timekeeping_runtime",
+    "get_timekeeping_service",
+    "set_timekeeping_service",
+    "shutdown_timekeeping_runtime",
+]
