@@ -8,6 +8,8 @@ DONE
 
 `c9440adbe36d6f164688527c516c7d820d5dd861` (`feat(media): adapt providers and persist speaker groups`)
 
+Formatter follow-up: `a79b4525037cb083364cd07a08289854c593c92f` (`style(media): format HA entity state projection`)
+
 ## Files changed
 
 - `rex/media/adapters.py`: Added canonical Smart Speaker, Home Assistant, and Music Assistant provider adapters.
@@ -32,10 +34,10 @@ Expected RED result: exit code 1 during collection with two errors and zero coll
 - `ModuleNotFoundError: No module named 'rex.media.adapters'`
 - `ModuleNotFoundError: No module named 'rex.media.groups'`
 
-A later provider-ownership RED cycle used the same command and produced two focused failures before production changes:
+A later self-review RED cycle used the same command and produced two focused failures before production changes:
 
-- `AttributeError: 'DiscoveredSpeaker' object has no attribute 'target_id'`
-- Music Assistant play was incorrectly accepted when the client-declared support set excluded play.
+- `KeyError: 'friendly_name'` after the enriched HA entity response dropped its legacy top-level field.
+- `Failed: DID NOT RAISE <class 'ValueError'>` when creating another group would have retained an unresolved existing member.
 
 ## Design choices
 
@@ -44,7 +46,7 @@ A later provider-ownership RED cycle used the same command and produced two focu
 - `MusicAssistantAdapter` wraps only the existing `play`, `pause`, `resume`, `skip`, and `set_volume` client methods. It discovers no targets and returns `UNKNOWN` state because the existing client cannot independently read either. No new Music Assistant HTTP route or external API assumption was added.
 - `HomeAssistantMediaAdapter` filters `HABridge.list_entities()` to `media_player.*`, maps only the media actions already exposed in `rex/routes/ha.py`, uses the existing HA intent execution path, and reads state independently through the existing `rex.ha.device_state` path.
 - Provider acknowledgement is never treated as verified postcondition state. Unsupported actions return explicit non-acceptance.
-- `SpeakerGroupStore` defaults to `household_data_path("media", "speaker_groups.json")`, persists generated `group:<uuid>` IDs and member target IDs, validates every proposed member, rejects empty and duplicate members, normalizes names for case-insensitive duplicate detection, and blocks rename/set-members mutations that would retain unresolved members.
+- `SpeakerGroupStore` defaults to `household_data_path("media", "speaker_groups.json")`, persists generated `group:<uuid>` IDs and member target IDs, validates every proposed member, rejects empty and duplicate members, normalizes names for case-insensitive duplicate detection, and revalidates every surviving member before any persisted mutation.
 - Group capabilities are calculated from the current member capability intersection and are not persisted as potentially stale provider state.
 - JSON writes use a same-directory temporary file, flush plus `fsync`, and `os.replace`; temporary files are removed after failures.
 
@@ -56,7 +58,7 @@ Focused GREEN:
 & 'C:\Users\james\rex-ai-test\rex-ai-assistant\.venv\Scripts\python.exe' -m pytest -q tests/media/test_provider_adapters.py tests/media/test_groups.py
 ```
 
-Result: `18 passed in 0.46s`.
+Result: `19 passed in 0.50s`.
 
 Required provider/group regression:
 
@@ -64,7 +66,7 @@ Required provider/group regression:
 & 'C:\Users\james\rex-ai-test\rex-ai-assistant\.venv\Scripts\python.exe' -m pytest -q tests/media/test_provider_adapters.py tests/media/test_groups.py tests/test_speaker_discovery.py tests/test_sp002_smart_speaker_output.py tests/test_us021_music_assistant.py
 ```
 
-Result: `52 passed in 1.40s`.
+Result: `53 passed in 1.24s`.
 
 Additional Task 1 and HA safety regression:
 
@@ -104,7 +106,7 @@ Diff validation:
 git diff --check
 ```
 
-Result: exit code 0 with no whitespace errors. Git emitted only the repository's line-ending conversion warnings.
+Result: exit code 0 with no output.
 
 ## Self-review findings and fixes
 
@@ -112,6 +114,8 @@ Result: exit code 0 with no whitespace errors. Git emitted only the repository's
 - Found overly concrete adapter constructor annotations that rejected interface-faithful fakes under mypy. Replaced them with narrow structural protocols matching the existing provider methods.
 - Found `list` type annotations colliding with the required `SpeakerGroupStore.list()` method under mypy. Added module-level record aliases and reran all gates.
 - Found one duplicate test import and Black formatting differences. Removed/formatted them, then reran focused tests, regressions, Ruff, mypy, Black, and diff validation.
+- Found that the enriched HA entity response dropped the previous top-level `friendly_name`; added a failing regression and restored it while retaining full state.
+- Found that a mutation to a different group could leave an existing unresolved member persisted; added a failing regression and made every write validate all surviving members.
 - Confirmed no Task 3+ files or behavior were read or implemented, and no unrelated files were modified.
 
 ## Concerns or blockers
