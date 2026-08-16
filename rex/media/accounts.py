@@ -22,6 +22,27 @@ _ACCOUNT_ID_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:@-]{0,127}$")
 _MAX_DISPLAY_NAME_LENGTH = 200
 _ACCOUNT_KEYS = frozenset({"provider", "account_id", "credential_ref", "display_name"})
 
+_ACCOUNT_LOCKS_GUARD = threading.Lock()
+_ACCOUNT_LOCKS: dict[Path, threading.RLock] = {}
+
+
+def _account_path_lock(path: Path) -> threading.RLock:
+    """Return one process-wide lock shared by every store using this path.
+
+    ``os.replace`` only makes a single file replacement atomic; it does not
+    make the read-modify-write ``put`` transaction atomic across separate
+    ``MediaAccountStore`` instances pointed at the same account file. Keying
+    the lock by resolved path lets unrelated users' files proceed
+    independently while serializing same-file mutations.
+    """
+    resolved = path.resolve()
+    with _ACCOUNT_LOCKS_GUARD:
+        lock = _ACCOUNT_LOCKS.get(resolved)
+        if lock is None:
+            lock = threading.RLock()
+            _ACCOUNT_LOCKS[resolved] = lock
+        return lock
+
 
 def _validate_provider(provider: str) -> str:
     if not isinstance(provider, str) or not _PROVIDER_PATTERN.fullmatch(provider):
@@ -88,7 +109,7 @@ class MediaAccountStore:
             credential_ref=credential_ref,
             display_name=display_name,
         )
-        with self._lock:
+        with _account_path_lock(self._path(account.user_id)):
             accounts = list(self._read_accounts(account.user_id))
             accounts = [
                 existing

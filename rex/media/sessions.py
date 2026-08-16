@@ -113,7 +113,8 @@ class ActiveMediaSessionStore:
             session = self._sessions.get(user_id)
             if session is None:
                 return None
-            if current - session.updated_at >= self._ttl_seconds:
+            age = current - session.updated_at
+            if age < 0 or age >= self._ttl_seconds:
                 del self._sessions[user_id]
                 return None
             return session

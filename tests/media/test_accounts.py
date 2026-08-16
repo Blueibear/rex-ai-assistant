@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import json
+import threading
+import time
 from dataclasses import fields
 from pathlib import Path
 
@@ -175,6 +177,54 @@ def test_apple_music_is_metadata_only_without_connection_status(tmp_path: Path) 
     assert "connected" not in serialized
     assert "authenticated" not in serialized
     assert "access_token" not in serialized
+
+
+def test_concurrent_puts_across_same_root_stores_do_not_lose_updates(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    store_a = MediaAccountStore(tmp_path)
+    store_b = MediaAccountStore(tmp_path)
+
+    read_done = threading.Event()
+    proceed = threading.Event()
+    original_read = store_a._read_accounts
+
+    def paused_read(user_id: str) -> tuple[MediaAccountRef, ...]:
+        result = original_read(user_id)
+        read_done.set()
+        assert proceed.wait(timeout=5), "store_b never got a chance to race store_a"
+        return result
+
+    monkeypatch.setattr(store_a, "_read_accounts", paused_read)
+
+    thread_a = threading.Thread(
+        target=store_a.put,
+        args=("james", "apple_music", "main", generate_credential_ref(), "James Apple Music"),
+    )
+    thread_a.start()
+    assert read_done.wait(timeout=5), "store_a never reached its read pause point"
+
+    thread_b = threading.Thread(
+        target=store_b.put,
+        args=("james", "sonos", "home", generate_credential_ref(), "James Sonos"),
+    )
+    thread_b.start()
+    # Give store_b a real chance to race store_a's paused read-modify-write
+    # transaction before letting store_a resume and write.
+    time.sleep(0.2)
+    proceed.set()
+
+    thread_a.join(timeout=5)
+    thread_b.join(timeout=5)
+    assert not thread_a.is_alive()
+    assert not thread_b.is_alive()
+
+    fresh = MediaAccountStore(tmp_path)
+    accounts = fresh.list("james")
+    assert {(account.provider, account.account_id) for account in accounts} == {
+        ("apple_music", "main"),
+        ("sonos", "home"),
+    }
 
 
 def test_failed_atomic_replace_preserves_existing_account_file(

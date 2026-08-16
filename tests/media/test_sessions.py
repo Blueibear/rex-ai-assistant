@@ -73,6 +73,24 @@ def test_get_accepts_explicit_time_for_deterministic_expiry() -> None:
     assert store.get("james", now=1300.0) is None
 
 
+def test_active_session_evicts_when_now_precedes_updated_at() -> None:
+    store = ActiveMediaSessionStore(ttl_seconds=300, clock=lambda: 1000.0)
+    session = _session("james", updated_at=1000.0)
+    store.set(session)
+
+    assert store.get("james", now=500.0) is None
+    assert "james" not in store._sessions
+
+
+def test_active_session_evicts_wall_clock_updated_at_with_default_clock() -> None:
+    store = ActiveMediaSessionStore(ttl_seconds=300)
+    session = _session("james", updated_at=1_700_000_000.0)
+    store.set(session)
+
+    assert store.get("james") is None
+    assert "james" not in store._sessions
+
+
 @pytest.mark.parametrize("user_id", ["", "../cole", "two/users", "NUL"])
 @pytest.mark.parametrize("method", ["set", "get", "clear"])
 def test_session_operations_reject_invalid_user_ids(user_id: str, method: str) -> None:
