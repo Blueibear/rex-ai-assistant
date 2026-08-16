@@ -1,7 +1,9 @@
 # Production Readiness Checklist
 
-This checklist covers every phase and user story in the AskRex Assistant PRD.
-Each item is marked complete with the US number that satisfied it.
+> **Historical checklist.** This document was signed off on 2026-03-12 and is retained as evidence for that earlier readiness program. Its `US-*` identifiers are historical and may overlap newer story numbers. `PRD-production-readiness.md` is the sole authoritative tracker and numbering source for the current integrated production-readiness/Rex 2.0 work.
+
+This checklist covers the phases and user stories from that historical AskRex Assistant PRD.
+Each item is marked complete with the historical US number that satisfied it.
 Items that were explicitly waived include a justification.
 
 **Sign-off date:** 2026-03-12

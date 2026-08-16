@@ -109,7 +109,7 @@
 **Files:**
 - Modify: `PRD-production-readiness.md`
 - Modify: `CLAUDE.md`
-- Modify: `.claude/progress/progress-production-readiness.txt`
+- Modify: `docs/archive/progress/progress-production-readiness.txt`
 - Modify/add capability tests as needed
 
 - [ ] Record exact US-120 behavior and operational boundaries, including restart reconciliation and scheduling tolerance.

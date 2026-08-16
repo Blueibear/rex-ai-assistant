@@ -147,3 +147,43 @@ def test_voice_mode_uses_same_exact_timekeeping_route(monkeypatch) -> None:
 
     assert [call[0] for call in tools.dispatch_calls] == ["timekeeping_manage"]
     assert tools.select_calls == 0
+
+
+def test_desktop_turn_with_real_tool_dispatcher_persists_verified_timer(
+    tmp_path, monkeypatch
+) -> None:
+    from rex.capabilities.registry import CapabilityRegistry
+    from rex.timekeeping.runtime import (
+        set_timekeeping_service,
+        shutdown_timekeeping_runtime,
+    )
+    from rex.timekeeping.service import TimekeepingService
+    from rex.tools.dispatcher import ToolDispatcher
+    from rex.tools.registry import _build_default_registry
+
+    service = TimekeepingService(tmp_path / "timekeeping.json")
+    set_timekeeping_service(service)
+    monkeypatch.setattr(
+        "rex.timekeeping.tools.resolve_user_timezone",
+        lambda user_id: "America/Chicago",
+    )
+    tools = ToolDispatcher(_build_default_registry(capability_registry=CapabilityRegistry()))
+    dispatcher = _make_dispatcher(tool_dispatcher=tools)
+    try:
+        result = asyncio.run(
+            dispatcher.dispatch(
+                _unhandled_intent(),
+                _make_context(),
+                "set a 2-minute pasta timer",
+                user_id="james",
+            )
+        )
+
+        assert result.success is True
+        timers = service.list_timers("james")
+        assert len(timers) == 1
+        assert timers[0].name == "pasta"
+        assert 110 <= service.remaining_seconds(timers[0].timer_id, "james") <= 120
+    finally:
+        shutdown_timekeeping_runtime()
+        set_timekeeping_service(None)
