@@ -3823,6 +3823,7 @@ grep -n "askrex.app\|Cloudflare\|CORS\|rate limit\|revocation" docs/deployment.m
 - [ ] Suggestions are delivered in natural language during a suitable interaction by default; urgent notifications require an already-authorized notification route/policy.
 - [ ] Declined suggestion patterns reduce future frequency; accepting a suggestion may create an explicit automation/preference but never bypasses normal action authorization/confirmation.
 - [ ] Revoking source, context, location, or sharing permission invalidates affected active context and cached prompt/context artifacts through revision changes.
+- [ ] Future self-maintenance, generated skills, OpenClaw capabilities, and developer/self-repair agents consume these privacy/context grants as constitutional authority and cannot autonomously widen contextual-use, disclosure, upload scope/audience, location_assist, or person-specific location_share.
 - [ ] Settings surfaces expose per-user contextual-source controls, upload context/scope controls, location-assist permission, recipient-specific location-sharing permission, and proactive-assistance preferences without allowing one user/admin to override another user's private location choices.
 - [ ] Tests cover source policy, upload integration, location opt-in/non-disclosure/admin non-override, active-reference resolution/expiry, context-cache invalidation, proactive ranking/dismissal behavior, and James/Cole isolation.
 - [ ] All relevant GitHub checks pass.
@@ -4029,3 +4030,172 @@ The release candidate is "Production Ready" when ALL of the following are true o
 - [ ] No completed implementation commit on `master` left its story unchecked in this PRD.
 - [ ] All required GitHub checks listed in Section 10 are green on the release-candidate commit.
 - [ ] The core AskRex principle is preserved: every reachable code path that reports an action's success does so only when the action was verified, or it uses the precise *attempted / completed / failed* vocabulary instead.
+
+---
+
+## 13. Post-Release Rex 2.0 Roadmap: Controlled Self-Maintenance
+
+> **Scheduling rule:** The stories in this section are intentionally **outside** the Section 8 production-readiness execution order and are **not required** for the current release candidate. Do not select an `SM-###` story while any required production-readiness P0/P1 story remains open unless the owner explicitly reprioritizes the work. These stories become the implementation backlog for Rex's controlled self-maintenance capability after the release candidate is stable.
+
+### Objective
+
+Make Rex capable of safely maintaining and extending AskRex Assistant through an isolated, policy-controlled, GitHub-backed development lifecycle. Rex may diagnose defects, acquire missing capabilities, create skills, modify source code, run tests, create pull requests, respond to CI failures, merge authorized changes, update itself, verify the running version, and roll back failures. GitHub protections, Rex policy, CI, owner/user approval, and the per-user privacy/context authority defined by US-086/US-123 remain independent constitutional constraints.
+
+### Existing foundations that must be reused
+
+Current code already contains foundations for this work, including `rex/skills/`, `rex/vscode_service.py`, `rex/github_service.py`, the policy/audit/execution lifecycle, and `rex/openclaw/`. These foundations must be hardened and orchestrated; do not create competing parallel services unless an existing component is demonstrably unsuitable.
+
+### SM-001: Threat model and self-maintenance authority contract
+
+**Priority:** Post-RC P0
+**Workstream:** Security / Architecture / Governance
+**Description:** Define exactly what Rex may maintain autonomously, what requires owner approval, and what Rex can never authorize for itself.
+
+**Acceptance Criteria:**
+- [ ] A self-maintenance threat model is committed under `docs/security/`.
+- [ ] The document defines routine, elevated, constitutional, and prohibited maintenance actions.
+- [ ] Changes that increase Rex's own authority are explicitly owner-gated.
+- [ ] Per-user contextual-use, disclosure, uploaded-document scope/audience, `location_assist`, and person-specific `location_share` are constitutional authority boundaries; Rex/agents/generated skills/OpenClaw cannot widen them without the appropriate user/data-owner authorization.
+- [ ] Household/admin status cannot override another user's `location_assist` or `location_share`, and Rex cannot self-approve any proposal that broadens those grants.
+- [ ] Direct protected-branch mutation, branch-protection bypass, repository deletion, and self-granting permissions are prohibited.
+- [ ] The model defines audit, verification, rollback, and emergency-disable requirements.
+- [ ] `CLAUDE.md`, `SECURITY.md`, and the self-maintenance architecture doc agree with the contract.
+- [ ] Security tests or policy tests cover representative allowed, approval-required, and prohibited actions.
+
+### SM-002: Isolated repository workspace manager
+
+**Priority:** Post-RC P0
+**Workstream:** Developer Tooling / Git
+**Description:** Give Rex a canonical way to perform source changes without touching the running checkout or protected primary branch.
+
+**Acceptance Criteria:**
+- [ ] Rex can resolve a valid AskRex source checkout and refuses source mutation from a packaged-only runtime.
+- [ ] Every code-changing maintenance task gets a dedicated branch and Git worktree.
+- [ ] The workspace manager refuses direct commits to `master`.
+- [ ] Dirty-worktree and conflicting-task behavior is deterministic and tested.
+- [ ] Cleanup preserves evidence until the PR/task reaches a terminal state.
+- [ ] The running known-good checkout is not modified during candidate development.
+
+### SM-003: Canonical developer-agent orchestration
+
+**Priority:** Post-RC P0
+**Workstream:** Autonomy / Developer Tooling
+**Description:** Connect Rex's existing code inspection, patching, test, policy, and audit components into one maintenance workflow.
+
+**Acceptance Criteria:**
+- [ ] One canonical developer-agent entry point owns diagnose -> plan -> patch -> validate -> report.
+- [ ] The agent reuses `VSCodeService`/existing developer tools for patching and pytest.
+- [ ] It records a root-cause statement before implementing a non-trivial repair.
+- [ ] It runs targeted validation before broader validation gates.
+- [ ] Code mutation goes through the canonical policy/execution lifecycle and honors `requires_approval`.
+- [ ] Final diff scope is checked before PR creation.
+- [ ] Maintenance state uses proposed/attempted/completed/verified/failed/rolled_back terminology.
+
+### SM-004: Capability Gap Resolver
+
+**Priority:** Post-RC P1
+**Workstream:** Intelligence / Skills / OpenClaw
+**Description:** Let Rex decide how to acquire a capability it does not currently possess.
+
+**Acceptance Criteria:**
+- [ ] Resolver checks native Rex tools first.
+- [ ] Resolver checks enabled local skills second.
+- [ ] Resolver checks approved OpenClaw/ClawHub capabilities third.
+- [ ] Every candidate path is filtered through current per-user privacy/context/disclosure authority before selection; capability acquisition cannot be used to bypass US-086/US-123 boundaries.
+- [ ] Resolver chooses local skill generation before core modification when a modular skill can satisfy the request.
+- [ ] Core source modification is selected only when the capability genuinely requires it.
+- [ ] Decision trace explains which alternatives were considered and why one was selected.
+- [ ] Tests cover all resolution paths and safe failure when no permitted path exists.
+
+### SM-005: Functional generated-skill implementation pipeline
+
+**Priority:** Post-RC P1
+**Workstream:** Skills / Safety / Testing
+**Description:** Upgrade skill creation from honest scaffold generation to safe implementation of bounded new capabilities.
+
+**Acceptance Criteria:**
+- [ ] Generated skills include explicit metadata, required tools, permission scope, confirmation rules, verification behavior, and tests.
+- [ ] Generated code is linted and tested before being enabled.
+- [ ] A failed validation leaves the skill disabled.
+- [ ] A newly generated skill cannot grant itself broader permissions than the approved task.
+- [ ] Generated skills cannot widen contextual-use, upload audience/scope, disclosure, `location_assist`, or `location_share` authority; those remain externally granted user/data-owner permissions.
+- [ ] Skills can be disabled or rolled back independently from Rex core.
+- [ ] At least one end-to-end capability is implemented from a natural-language teaching request and verified.
+
+### SM-006: Dedicated Rex GitHub maintainer identity
+
+**Priority:** Post-RC P0
+**Workstream:** GitHub / Security / Credentials
+**Description:** Give Rex a least-privilege machine identity for day-to-day maintenance of its own repository.
+
+**Acceptance Criteria:**
+- [ ] A dedicated GitHub App or equivalent machine identity is created for Rex.
+- [ ] Initial installation scope is restricted to `Blueibear/AskRex-Assistant`.
+- [ ] Permissions are limited to the minimum required for issues, branch contents, pull requests, and check/status inspection.
+- [ ] Workflow-file mutation is separately permissioned and owner-gated if enabled.
+- [ ] GitHub App credentials are stored in the canonical credential vault, never tracked config.
+- [ ] Rex cannot change its own App permissions, installation scope, branch protections, or rulesets.
+- [ ] Health/status diagnostics can confirm the maintainer identity is usable without exposing secrets.
+
+### SM-007: Autonomous issue, PR, CI, and merge maintenance loop
+
+**Priority:** Post-RC P1
+**Workstream:** GitHub / CI / Autonomy
+**Description:** Allow Rex to handle routine repository maintenance through normal GitHub collaboration rather than direct primary-branch mutation.
+
+**Acceptance Criteria:**
+- [ ] Rex can create/triage an issue for a verified defect or maintenance task.
+- [ ] Rex can push its isolated maintenance branch and open/update a PR.
+- [ ] PR description includes root cause, changed files, risks, and validation evidence.
+- [ ] Rex can monitor required checks and diagnose/iterate on failures.
+- [ ] Required checks remain independent and cannot be marked successful by Rex itself.
+- [ ] Rex can auto-merge only when policy allows, no elevated approval is pending, and every required gate is green.
+- [ ] Failed/blocked PRs remain visible with an actionable reason instead of being silently abandoned.
+
+### SM-008: Constitutional-file and authority-change protection
+
+**Priority:** Post-RC P0
+**Workstream:** Security / Governance
+**Description:** Prevent Rex from using self-maintenance to remove the constraints that make self-maintenance safe.
+
+**Acceptance Criteria:**
+- [ ] A canonical protected-file/policy set is defined.
+- [ ] GitHub/ruleset permissions, authentication, credential vault, self-maintenance policy, update/rollback, verification lifecycle, and gate-weakening changes require owner approval.
+- [ ] Per-user privacy/context authority is protected constitutional state: contextual-use, disclosure, upload scope/audience, `location_assist`, person-specific `location_share`, and equivalent future privacy grants cannot be autonomously broadened by Rex, generated skills, OpenClaw, or maintenance agents.
+- [ ] Privacy-authority changes require the appropriate affected user/data-owner authorization, not merely household/admin authority, and Rex cannot approve its own authority-expanding proposal.
+- [ ] Rex may propose and test those changes but cannot approve them for itself.
+- [ ] CI contains a guard that detects unauthorized changes to protected maintenance controls.
+- [ ] Tests demonstrate that a normal maintenance task proceeds while an authority-expanding task blocks awaiting owner approval.
+
+### SM-009: Safe self-update activation and rollback
+
+**Priority:** Post-RC P0
+**Workstream:** Runtime / Deployment / Recovery
+**Description:** Let Rex activate a verified version without risking loss of the last known-good runtime.
+**Acceptance Criteria:**
+- [ ] Candidate and known-good versions are identifiable by immutable commit/version.
+- [ ] Pre-activation validation must pass before activation.
+- [ ] Activation does not destroy the previous working version.
+- [ ] Post-activation health and functional smoke checks run automatically.
+- [ ] Failure triggers automatic rollback to the last-known-good version.
+- [ ] Rollback success is independently verified.
+- [ ] Rex reports the actual running version after update or rollback.
+- [ ] A simulated bad self-update proves rollback end to end.
+
+### SM-010: Maintenance observability, controls, and staged rollout
+
+**Priority:** Post-RC P1
+**Workstream:** GUI / Operations / Safety
+**Description:** Make Rex's maintenance behavior visible and incrementally enable autonomy rather than switching directly to unrestricted maintenance.
+
+**Acceptance Criteria:**
+- [ ] GUI/status surfaces show maintenance task, branch/worktree, changed files, validation, PR/check state, approvals, running version, and rollback target.
+- [ ] An emergency disable control stops new autonomous maintenance actions without damaging an in-progress rollback.
+- [ ] Rollout stages are documented: read-only diagnosis -> issue/PR creation -> supervised code changes -> bounded auto-merge.
+- [ ] Authority-changing operations remain owner-gated at every stage.
+- [ ] Audit history can reconstruct why Rex changed itself and how success was verified.
+- [ ] At least three supervised low-risk maintenance cycles succeed before bounded auto-merge is enabled.
+
+### Post-RC completion standard
+
+Controlled self-maintenance is considered ready for bounded autonomous use only when all `SM-001` through `SM-010` stories are complete, the GitHub maintainer identity is least-privilege, protected controls and per-user privacy/context authority cannot be self-weakened or self-widened, independent CI is required, a bad-update rollback test passes, and Rex has demonstrated repeated successful supervised maintenance cycles.

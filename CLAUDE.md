@@ -42,6 +42,23 @@ The canonical primary branch is **`master`**.
 - `master` is not branch-protected. Do not use `gh pr merge --auto`; it can merge immediately while long checks are still running. Issue a merge command only after independently verifying all required GitHub checks are green on the exact PR head.
 - See `CONTRIBUTING.md` for full branching model details.
 
+## Self-Maintenance and AI Maintainer Guardrails
+
+These rules apply to Claude/Codex work today and to any future Rex self-maintenance workflow.
+
+- Never edit, commit, or push code directly to protected `master`. Use an isolated task branch; self-maintenance code changes should also use a dedicated Git worktree so the running known-good checkout remains untouched.
+- A machine maintainer identity must use least privilege and repository-specific installation scope. Never use a user's personal GitHub token as Rex's permanent maintainer identity.
+- Rex/agents may not increase their own GitHub permissions, expand repository installation scope, remove branch/ruleset protections, bypass required checks, delete the repository, or force-push protected branches.
+- Changes that increase assistant authority or weaken a security/verification boundary require explicit owner approval even if normal maintenance is otherwise pre-approved. This includes GitHub App permissions, branch protections, authentication, credential vault, self-maintenance policy, update/rollback logic, verification lifecycle, and removal/weakening of required CI/security gates.
+- Per-user privacy and context authority is constitutional. Rex, Claude/Codex, generated skills, OpenClaw capabilities, and developer/self-repair agents may not autonomously widen contextual-use, disclosure, uploaded-document audience/scope, `location_assist`, or person-specific `location_share` interpretations. Changes to those boundaries require the appropriate user/data-owner authorization and cannot be self-approved by Rex; household/admin status does not override another user's location grants.
+- Never "fix" a failing maintenance PR by disabling a relevant test, deleting validation, weakening a security rule, or adding a broad ignore unless the story explicitly requires the policy change and the owner approves it.
+- Code mutation must use the canonical policy/execution lifecycle. Checking only `decision.allowed` is insufficient when `decision.requires_approval` is true. Approval must be enforced at the actual mutation/merge/deploy boundary.
+- Self-maintenance outcomes use the same truthful vocabulary as tools: proposed, attempted, completed, verified, failed, blocked, or rolled_back. A green local command alone does not prove a deployed repair.
+- Preserve an immutable last-known-good version before activating self-modified code. A candidate is not accepted until post-activation health/functional checks pass; failure must roll back.
+- Prefer an existing Rex capability, approved OpenClaw/ClawHub capability, or bounded local skill over modifying Rex core when those options can fully solve the request.
+- Generated skills are executable code. They require explicit permission scope, tests, verification behavior for mutations, auditability, and a disable/rollback path before being enabled.
+- Routine branch/PR maintenance may eventually be pre-approved, but authority-changing operations remain owner-gated permanently.
+
 ## Tech Stack and Conventions
 
 ### Language and runtime

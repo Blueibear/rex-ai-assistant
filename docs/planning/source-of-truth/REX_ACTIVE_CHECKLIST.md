@@ -110,6 +110,143 @@
 - [ ] Test missing GPU, missing external checkout, model-download failure, timeout, cancellation, symlink/path traversal, and permission denial.
 - [ ] Add an explicit optional-component integration test procedure for a real GPU-equipped development machine.
 
+
+## Controlled Self-Maintenance and Capability Acquisition
+
+### Status Rule
+- [x] means current code plus tests/evidence verify the entire checklist item.
+- [ ] means missing, only partially implemented, or not yet reconciled against current `master`.
+- Do not rebuild an existing component under a second architecture. Reuse and harden the foundations below.
+
+### Verified Existing Foundations to Reuse
+- [x] Rex skill registry exists and persists registered skills
+- [x] Rex skill router exists and can route matching skill requests
+- [x] Rex skill trainer detects natural-language skill-creation requests and creates/registers skill scaffolds
+- [x] Rex developer tooling can apply unified-diff code patches
+- [x] Rex developer tooling can run pytest and return structured test results
+- [x] Rex GitHub service supports issues, pull requests, commits, and local branch patch workflows
+- [x] Rex policy/audit infrastructure exists and must be reused for maintenance actions
+- [x] OpenClaw HTTP integration exists as an optional external capability provider
+
+### Capability Gap Resolver
+- [ ] Add a canonical capability-gap result model and decision trace
+- [ ] Check Rex's native tool/capability registry first
+- [ ] Check enabled local skills second
+- [ ] Check approved OpenClaw/ClawHub capabilities third
+- [ ] Filter every path through current user/privacy/context/disclosure authority before selection
+- [ ] Choose local skill generation when the capability can remain modular
+- [ ] Escalate to core-code modification only when a skill/plugin cannot safely satisfy the request
+- [ ] Surface why Rex selected each capability-acquisition path
+- [ ] Add tests for each resolution path and fail-closed behavior
+
+### Functional Skill Generation
+- [ ] Extend generated skills beyond honest scaffolds into real implementations when safe
+- [ ] Generate explicit permission metadata for each new skill
+- [ ] Generate verification behavior for mutating skills
+- [ ] Generate or require tests before enabling a new skill
+- [ ] Lint/typecheck/test generated skill code before registration as enabled
+- [ ] Keep newly generated skills disabled when validation fails
+- [ ] Add rollback/disable behavior for a skill that later fails health checks
+- [ ] Prevent generated skills from silently expanding their own permissions
+- [ ] Prevent generated skills from widening contextual-use, disclosure, upload scope/audience, `location_assist`, or person-specific `location_share`
+
+### Developer Agent and Isolated Workspace
+- [ ] Create a canonical self-maintenance/developer-agent entry point
+- [ ] Resolve the AskRex source checkout safely and refuse packaged-runtime mutation when no source checkout is available
+- [ ] Create a dedicated branch and Git worktree for every code-changing maintenance task
+- [ ] Prevent direct edits/commits to protected `master`
+- [ ] Reproduce the reported defect before modifying code when reasonably possible
+- [ ] Require a root-cause statement and proposed validation plan before patching
+- [ ] Reuse `VSCodeService`/developer tools rather than adding a duplicate patch/test service
+- [ ] Run targeted tests first, then the required broader validation gates
+- [ ] Inspect the final diff for unexpected scope before PR creation
+- [ ] Preserve the working production/runtime version until a replacement is verified
+
+### Canonical Maintenance Safety Lifecycle
+- [ ] Route code mutation through the canonical policy/execution lifecycle
+- [ ] Honor both `allowed` and `requires_approval` decisions at the actual execution boundary
+- [ ] Require short-lived confirmation for maintenance actions classified as requiring approval
+- [ ] Record issue/request, plan, files changed, commands run, test results, PR, merge, deployment, and verification in audit history
+- [ ] Distinguish proposed, attempted, completed, verified, failed, rolled_back, and blocked states
+- [ ] Fail closed if the verification path is unavailable for a high-impact change
+
+### Rex GitHub Maintainer Identity
+- [ ] Create a dedicated least-privilege GitHub App or equivalent machine identity for Rex
+- [ ] Restrict installation to explicitly approved repositories, initially `Blueibear/AskRex-Assistant` only
+- [ ] Grant only repository permissions required for issues, contents/branches, pull requests, and check/status visibility
+- [ ] Grant workflow-file write permission only if explicitly required and separately approved
+- [ ] Do not use a personal GitHub token as Rex's long-term maintainer identity
+- [ ] Prevent Rex from increasing its own GitHub permissions or installation scope
+- [ ] Prevent Rex from deleting the repository or bypassing protected-branch/ruleset requirements
+- [ ] Store GitHub App credentials in the canonical credential vault
+- [ ] Add GitHub App health/status reporting
+
+### Automated Repository Maintenance
+- [ ] Let Rex create and triage issues for verified defects
+- [ ] Let Rex create maintenance branches/worktrees
+- [ ] Let Rex commit and push bounded changes to its maintenance branch
+- [ ] Let Rex open/update pull requests with evidence and validation results
+- [ ] Monitor required GitHub checks and diagnose failures
+- [ ] Allow Rex to iterate on its own PR when checks fail
+- [ ] Merge automatically only when policy permits and every required gate is green
+- [ ] Keep releases separate from merge when deployment risk requires an additional gate
+- [ ] Synchronize completed maintenance work with active PRD/checklist documentation when required
+
+### Protected Constitutional Controls
+- [ ] Define a canonical protected-file/policy list
+- [ ] Require explicit owner approval for changes that increase Rex's authority
+- [ ] Require explicit owner approval for GitHub App permission/scope changes
+- [ ] Require explicit owner approval for branch-protection/ruleset weakening
+- [ ] Require explicit owner approval for self-maintenance policy/approval changes
+- [ ] Require explicit owner approval for changes that weaken required CI/security gates
+- [ ] Treat contextual-use, disclosure, upload private/household scope/audience, `location_assist`, and person-specific `location_share` as protected per-user authority
+- [ ] Require the appropriate affected user/data-owner authorization to widen privacy/context authority; household/admin status cannot override another user's location grants
+- [ ] Ensure Rex, generated skills, OpenClaw capabilities, and maintenance agents cannot approve their own broader privacy/context authority
+- [ ] Require elevated review for credential-vault, authentication, update, rollback, and verification code
+- [ ] Ensure Rex cannot approve its own authority-expanding change
+
+### Safe Self-Update, Deployment, and Rollback
+- [ ] Define a versioned update package or checkout activation mechanism
+- [ ] Capture the last-known-good version before activation
+- [ ] Run pre-activation validation on the candidate version
+- [ ] Restart/reload only the minimum required services
+- [ ] Perform post-activation health and functional smoke verification
+- [ ] Automatically roll back when health verification fails
+- [ ] Verify rollback success independently
+- [ ] Report the running commit/version after update or rollback
+- [ ] Never replace the only known-good copy of Rex during self-update
+
+### Maintenance Observability and GUI
+- [ ] Show active maintenance task and trigger/source
+- [ ] Show current branch/worktree and changed files
+- [ ] Show tests/checks and their states
+- [ ] Show approval requests and reasons
+- [ ] Show GitHub issue/PR/check/merge state
+- [ ] Show deployed/running commit and rollback target
+- [ ] Provide an emergency disable switch for autonomous maintenance
+- [ ] Provide per-user permission controls for requesting or approving maintenance
+
+### End-to-End Verification
+- [ ] Test a missing capability resolved by an existing Rex tool
+- [ ] Test a missing capability resolved through an approved external skill/plugin
+- [ ] Test a missing capability implemented as a generated local skill
+- [ ] Test a real low-risk Rex code defect diagnosed and fixed in an isolated worktree
+- [ ] Test failed validation preventing PR/merge/deploy
+- [ ] Test required owner approval blocking a constitutional/safety change
+- [ ] Test an attempted privacy-authority widening remains blocked until the affected user/data-owner authorizes it
+- [ ] Test green PR checks allowing an authorized merge
+- [ ] Test failed post-update health check causing automatic rollback
+- [ ] Test that Rex reports only verified maintenance outcomes as successful
+
+### Rollout Policy
+- [ ] Keep self-maintenance disabled by default until the production-readiness release candidate is complete
+- [ ] Enable read-only diagnosis first
+- [ ] Enable issue/PR creation next
+- [ ] Enable low-risk branch changes after repeated successful supervised trials
+- [ ] Enable bounded auto-merge only after independent CI and rollback testing are proven
+- [ ] Keep authority-changing operations permanently owner-gated
+- [ ] Keep per-user privacy/context authority changes permanently affected-user/data-owner-gated
+
 ## Notes
 
 Goal:

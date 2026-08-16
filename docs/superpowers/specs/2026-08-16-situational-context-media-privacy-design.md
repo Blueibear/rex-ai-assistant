@@ -29,6 +29,14 @@ The canonical layer is the recommended approach because it keeps authority decis
 - Ambiguous identity, target, or active-reference resolution must not silently widen authority.
 - Rex should explain uncertainty or ask a short clarification when evidence is insufficient.
 
+## Constitutional self-maintenance boundary
+
+The privacy/source-policy rules in this design are constitutional authority boundaries for future self-maintenance. Rex, generated skills, OpenClaw/ClawHub capabilities, and developer/self-repair agents may consume the currently authorized policy state but may not autonomously widen it.
+
+In particular, self-maintenance cannot broaden contextual-use eligibility, disclosure audiences, uploaded-document private/household scope, `location_assist`, person-specific `location_share`, or equivalent future per-user privacy grants. Any change to those boundaries requires the appropriate affected user/data-owner authorization at the real mutation boundary and cannot be self-approved by Rex. Household or administrative status does not override another user's location grants.
+
+`PRD-production-readiness.md` Section 13 and `docs/SELF_MAINTENANCE.md` carry the corresponding post-release maintenance controls. US-121/US-122/US-123 implementations must expose policy state in a form those future maintenance systems can enforce without inventing a second privacy model.
+
 ## Context-source policy
 
 Each contextual source has explicit policy metadata rather than relying on prompt convention. At minimum the policy records:
