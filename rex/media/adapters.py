@@ -23,15 +23,24 @@ _HA_CAPABILITIES = frozenset(
     {
         MediaCapability.PLAY,
         MediaCapability.PAUSE,
+        MediaCapability.RESUME,
+        MediaCapability.STOP,
         MediaCapability.NEXT,
+        MediaCapability.PREVIOUS,
         MediaCapability.SET_VOLUME,
+        MediaCapability.MUTE,
     }
 )
 _HA_SERVICES = {
     MediaAction.PLAY: "media_play",
     MediaAction.PAUSE: "media_pause",
+    MediaAction.RESUME: "media_play",
+    MediaAction.STOP: "media_stop",
     MediaAction.NEXT: "media_next_track",
+    MediaAction.PREVIOUS: "media_previous_track",
     MediaAction.SET_VOLUME: "volume_set",
+    MediaAction.MUTE: "volume_mute",
+    MediaAction.UNMUTE: "volume_mute",
 }
 _MUSIC_ASSISTANT_ACTIONS = frozenset(
     {
@@ -68,6 +77,7 @@ class _HomeAssistantBridge(Protocol):
         service: str,
         *,
         volume_level: float | None = None,
+        is_volume_muted: bool | None = None,
     ) -> tuple[bool, str]: ...
 
 
@@ -211,6 +221,14 @@ class HomeAssistantMediaAdapter:
                     detail="Home Assistant volume requires a value from 0 to 100",
                 )
             data["volume_level"] = volume / 100
+        elif action is MediaAction.MUTE and value is not None:
+            return MediaActionAcknowledgement(accepted=False, detail="Mute does not accept a value")
+        elif action is MediaAction.UNMUTE and value is not None:
+            volume = _as_number(value)
+            if volume is None or not 0 <= volume <= 100:
+                return MediaActionAcknowledgement(
+                    accepted=False, detail="Unmute volume requires a value from 0 to 100"
+                )
         elif value is not None:
             return MediaActionAcknowledgement(
                 accepted=False,
@@ -218,6 +236,29 @@ class HomeAssistantMediaAdapter:
             )
 
         try:
+            if action in {MediaAction.MUTE, MediaAction.UNMUTE}:
+                accepted, detail = self._bridge.execute_media_service(
+                    target.native_id,
+                    service,
+                    is_volume_muted=action is MediaAction.MUTE,
+                )
+                if not accepted or action is MediaAction.MUTE or value is None:
+                    return MediaActionAcknowledgement(accepted=accepted, detail=detail)
+                volume = _as_number(value)
+                if volume is None or not 0 <= volume <= 100:
+                    return MediaActionAcknowledgement(
+                        accepted=False, detail="Unmute volume requires a value from 0 to 100"
+                    )
+                try:
+                    volume_accepted, volume_detail = self._bridge.execute_media_service(
+                        target.native_id, "volume_set", volume_level=volume / 100
+                    )
+                except Exception as exc:
+                    return MediaActionAcknowledgement(
+                        accepted=True, detail=f"{detail}; volume update error: {exc}"
+                    )
+                suffix = volume_detail if volume_accepted else f"volume rejected: {volume_detail}"
+                return MediaActionAcknowledgement(accepted=True, detail=f"{detail}; {suffix}")
             accepted, detail = self._bridge.execute_media_service(
                 target.native_id,
                 service,
@@ -250,6 +291,11 @@ class HomeAssistantMediaAdapter:
             playback=playback,
             observed_at=datetime.now(tz=UTC),
             volume_percent=volume * 100 if volume is not None else None,
+            muted=(
+                attributes.get("is_volume_muted")
+                if isinstance(attributes.get("is_volume_muted"), bool)
+                else None
+            ),
             position_seconds=_as_bounded_number(
                 attributes.get("media_position"),
                 minimum=0,

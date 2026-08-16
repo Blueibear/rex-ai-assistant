@@ -1,65 +1,83 @@
 import { ipcMain } from 'electron'
 import { spawn } from 'child_process'
-import type { SmartSpeaker } from '../../types/ipc'
+import type {
+  AudioTargetsResponse,
+  SpeakerGroupMutationResponse,
+  SpeakerGroupsResponse
+} from '../../types/ipc'
 import { bridgeSpawnOptions, resolveBridgePath, resolvePythonCommand } from '../bridgeResolver'
+import {
+  privateSessionPayload,
+  type ElectronSessionIdentity
+} from '../sessionIdentity'
+
+type SpeakerBridgeResponse =
+  | AudioTargetsResponse
+  | SpeakerGroupsResponse
+  | SpeakerGroupMutationResponse
+  | { ok: boolean; deleted?: boolean; error?: string }
 
 function callSpeakerBridge(
+  session: ElectronSessionIdentity,
   payload: Record<string, unknown>
-): Promise<{ ok: boolean; speakers: SmartSpeaker[]; error?: string }> {
+): Promise<SpeakerBridgeResponse> {
   return new Promise((resolve) => {
     const scriptPath = resolveBridgePath('rex_speaker_bridge.py')
-
     const py = spawn(resolvePythonCommand(), [scriptPath], {
       ...bridgeSpawnOptions(),
       stdio: ['pipe', 'pipe', 'pipe']
     })
 
     let stdout = ''
-    let stderr = ''
-
     py.stdout.on('data', (chunk: Buffer) => {
       stdout += chunk.toString()
     })
 
-    py.stderr.on('data', (chunk: Buffer) => {
-      stderr += chunk.toString()
-    })
-
     py.on('close', (code) => {
       if (code !== 0) {
-        resolve({
-          ok: false,
-          speakers: [],
-          error: `Speaker bridge exited with code ${code}: ${stderr.slice(0, 200)}`
-        })
+        resolve({ ok: false, error: 'Speaker service could not complete the request.' })
         return
       }
       try {
-        const result = JSON.parse(stdout.trim()) as {
-          ok: boolean
-          speakers: SmartSpeaker[]
-          error?: string
-        }
-        resolve(result)
+        resolve(JSON.parse(stdout.trim()) as SpeakerBridgeResponse)
       } catch {
-        resolve({ ok: false, speakers: [], error: `Failed to parse response: ${stdout.slice(0, 100)}` })
+        resolve({ ok: false, error: 'Speaker service returned an invalid response.' })
       }
     })
 
-    py.on('error', (err) => {
-      resolve({ ok: false, speakers: [], error: `Failed to spawn speaker bridge: ${err.message}` })
+    py.on('error', () => {
+      resolve({ ok: false, error: 'Speaker service is unavailable.' })
     })
 
-    py.stdin.write(JSON.stringify(payload))
+    py.stdin.write(JSON.stringify(privateSessionPayload(session, payload)))
     py.stdin.end()
   })
 }
 
-export function registerSpeakerHandlers(): void {
-  ipcMain.handle(
-    'rex:getSmartSpeakers',
-    (): Promise<{ ok: boolean; speakers: SmartSpeaker[]; error?: string }> => {
-      return callSpeakerBridge({ command: 'list' })
-    }
+export function registerSpeakerHandlers(session: ElectronSessionIdentity): void {
+  ipcMain.handle('rex:getAudioTargets', () =>
+    callSpeakerBridge(session, { command: 'list_targets' })
+  )
+  ipcMain.handle('rex:refreshAudioTargets', () =>
+    callSpeakerBridge(session, { command: 'refresh_targets' })
+  )
+  ipcMain.handle('rex:listSpeakerGroups', () =>
+    callSpeakerBridge(session, { command: 'list_groups' })
+  )
+  ipcMain.handle('rex:createSpeakerGroup', (_event, name: string, memberIds: string[]) =>
+    callSpeakerBridge(session, { command: 'create_group', name, member_ids: memberIds })
+  )
+  ipcMain.handle('rex:renameSpeakerGroup', (_event, groupId: string, name: string) =>
+    callSpeakerBridge(session, { command: 'rename_group', group_id: groupId, name })
+  )
+  ipcMain.handle('rex:setSpeakerGroupMembers', (_event, groupId: string, memberIds: string[]) =>
+    callSpeakerBridge(session, {
+      command: 'set_group_members',
+      group_id: groupId,
+      member_ids: memberIds
+    })
+  )
+  ipcMain.handle('rex:deleteSpeakerGroup', (_event, groupId: string) =>
+    callSpeakerBridge(session, { command: 'delete_group', group_id: groupId })
   )
 }

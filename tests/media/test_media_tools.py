@@ -18,7 +18,7 @@ from rex.media.models import (
 from rex.media.registry import AudioTargetRegistry
 from rex.media.service import MediaService
 from rex.media.sessions import ActiveMediaSessionStore
-from rex.media.tools import media_manage, set_media_service, verify_media_mutation
+from rex.media.tools import media_manage, media_read, set_media_service, verify_media_mutation
 from rex.tools.dispatcher import ToolDispatcher
 from rex.tools.registry import _build_default_registry
 
@@ -357,3 +357,20 @@ def test_verify_media_mutation_reads_live_state_independently(wired_service, kit
 )
 def test_verify_media_mutation_fails_closed_on_malformed_output(wired_service, output) -> None:
     assert verify_media_mutation({}, output) is False
+
+
+def test_media_read_exposes_muted_state(wired_service, kitchen) -> None:
+    _service, adapter = wired_service
+    adapter.seed(
+        kitchen.id,
+        MediaStateSnapshot(
+            target_id=kitchen.id,
+            playback=MediaState.PLAYING,
+            observed_at=datetime.now(tz=UTC),
+            muted=True,
+        ),
+    )
+
+    payload = media_read(action="state", target_text=kitchen.id, _user_id="james")
+
+    assert payload["state"]["muted"] is True

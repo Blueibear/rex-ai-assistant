@@ -625,3 +625,62 @@ def test_playing_old_content_does_not_verify_requested_play(kitchen) -> None:
     )
 
     assert result.outcome == "attempted_unverified"
+
+
+def test_execute_refreshes_registry_before_target_resolution() -> None:
+    stale = _target("ha:media_player.old", display_name="Old Speaker")
+    fresh = _target("ha:media_player.den", display_name="Den Speaker", room="Den")
+    stale_registry = AudioTargetRegistry([stale], authorized_target_ids={"james": {stale.id}})
+    fresh_registry = AudioTargetRegistry([fresh], authorized_target_ids={"james": {fresh.id}})
+    adapter = FakeAdapter("ha")
+
+    class RefreshingService(MediaService):
+        refresh_calls = 0
+
+        def _refresh_registry(self) -> None:
+            self.refresh_calls += 1
+            self._registry = fresh_registry
+
+    service = RefreshingService(registry=stale_registry, adapters={"ha": adapter})
+    result = service.execute(MediaCommand(action="state", target_text=fresh.id), user_id="james")
+
+    assert service.refresh_calls == 1
+    assert result.outcome == "read"
+    assert result.requested_target_id == fresh.id
+
+
+@pytest.mark.parametrize(("command_text", "expected_muted"), [("mute", True), ("unmute", False)])
+def test_mute_commands_use_verified_canonical_lifecycle(
+    command_text: str, expected_muted: bool
+) -> None:
+    target = _target(
+        "ha:media_player.den",
+        display_name="Den",
+        capabilities=frozenset({"mute"}),  # type: ignore[arg-type]
+    )
+
+    class MutingAdapter:
+        provider = "ha"
+        muted = not expected_muted
+
+        def execute_action(self, target, action, *, value=None):
+            self.muted = str(action) == "mute"
+            return MediaActionAcknowledgement(accepted=True, detail="accepted")
+
+        def get_state(self, target):
+            return MediaStateSnapshot(
+                target_id=target.id,
+                playback=MediaState.PLAYING,
+                observed_at=datetime.now(tz=UTC),
+                muted=self.muted,
+            )
+
+    registry = AudioTargetRegistry([target], authorized_target_ids={"james": {target.id}})
+    service = MediaService(registry=registry, adapters={"ha": MutingAdapter()})
+    result = service.execute(
+        MediaCommand(action=command_text, target_text=target.id), user_id="james"
+    )
+
+    assert result.outcome == "verified"
+    assert result.mutation is not None
+    assert getattr(result.mutation.observed_state, "muted", None) is expected_muted

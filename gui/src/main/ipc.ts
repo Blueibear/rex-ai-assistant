@@ -34,7 +34,7 @@ export function registerIpcHandlers(mainWindow: BrowserWindow | null, session: E
   registerEmailHandlers(session)
   registerSMSHandlers(session)
   registerNotificationHandlers(mainWindow)
-  registerSpeakerHandlers()
+  registerSpeakerHandlers(session)
   registerFileHandlers(session)
   registerShoppingHandlers(session)
   registerLogsHandlers()

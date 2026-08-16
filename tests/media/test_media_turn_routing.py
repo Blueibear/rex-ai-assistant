@@ -263,3 +263,109 @@ def test_exact_media_turn_blocks_post_llm_inline_ha_bypass() -> None:
     assert "[[ha:" not in result.response.casefold()
     assert result.response != "HA BYPASS EXECUTED"
     ha.post_process_response.assert_not_called()
+
+
+class _ChangingHABridge(_FakeHABridge):
+    def __init__(self) -> None:
+        self.entity = "media_player.kitchen"
+
+    def list_entities(self) -> list[dict[str, object]]:
+        name = self.entity.rsplit(".", 1)[-1].replace("_", " ").title()
+        return [
+            {"entity_id": self.entity, "state": "playing", "attributes": {"friendly_name": name}}
+        ]
+
+    def get_entity_state(self, entity_id: str) -> dict[str, object] | None:
+        if entity_id != self.entity:
+            return None
+        return {"entity_id": entity_id, "state": "playing", "attributes": {"media_title": "Jazz"}}
+
+
+def test_assistant_media_service_refreshes_dynamic_targets(monkeypatch) -> None:
+    from rex.assistant import Assistant
+    from rex.media.parser import MediaCommand
+
+    bridge = _ChangingHABridge()
+    assistant: Any = Assistant.__new__(Assistant)
+    assistant._settings = SimpleNamespace(device_room_map={})
+    assistant._user_id = "james"
+    assistant._ha_bridge = bridge
+    monkeypatch.setattr("rex.identity.list_known_users", lambda: [{"id": "james"}])
+    monkeypatch.setattr("rex.permissions.get_permissions", lambda _user_id: ["ha_control"])
+    monkeypatch.setattr("rex.media.tools.set_media_service", lambda service: None)
+
+    assistant._configure_media_service()
+    bridge.entity = "media_player.den"
+    result = assistant._media_service.execute(
+        MediaCommand(action="state", target_text="ha:media_player.den"), user_id="james"
+    )
+
+    assert result.outcome == "read"
+    assert result.requested_target_id == "ha:media_player.den"
+
+
+def test_assistant_media_registry_includes_persistent_groups(monkeypatch, tmp_path) -> None:
+    import json
+
+    from rex.assistant import Assistant
+    from rex.media.parser import MediaCommand
+
+    group_path = tmp_path / "media" / "speaker_groups.json"
+    group_path.parent.mkdir(parents=True)
+    group_path.write_text(
+        json.dumps(
+            {
+                "version": 1,
+                "groups": [
+                    {
+                        "id": "group:downstairs",
+                        "name": "Downstairs",
+                        "member_ids": ["ha:media_player.kitchen"],
+                    }
+                ],
+            }
+        )
+    )
+    monkeypatch.setattr(
+        "rex.media.groups.household_data_path", lambda *parts: tmp_path.joinpath(*parts)
+    )
+    monkeypatch.setattr("rex.identity.list_known_users", lambda: [{"id": "james"}])
+    monkeypatch.setattr("rex.permissions.get_permissions", lambda _user_id: ["ha_control"])
+    monkeypatch.setattr("rex.media.tools.set_media_service", lambda service: None)
+
+    assistant: Any = Assistant.__new__(Assistant)
+    assistant._settings = SimpleNamespace(device_room_map={})
+    assistant._user_id = "james"
+    assistant._ha_bridge = _FakeHABridge()
+    assistant._configure_media_service()
+    result = assistant._media_service.execute(
+        MediaCommand(action="state", target_text="group:downstairs"), user_id="james"
+    )
+    assert result.outcome == "unsupported"
+    assert result.requested_target_id == "group:downstairs"
+
+
+def test_assistant_media_registry_includes_cached_local_speakers(monkeypatch) -> None:
+    from rex.assistant import Assistant
+    from rex.audio.speaker_discovery import DiscoveredSpeaker
+    from rex.media.parser import MediaCommand
+
+    discovery = MagicMock()
+    discovery.get_cached_speakers.return_value = [
+        DiscoveredSpeaker(provider="sonos", name="Office", ip="10.0.0.8", model="One")
+    ]
+    monkeypatch.setattr("rex.audio.speaker_discovery.get_speaker_discovery", lambda: discovery)
+    monkeypatch.setattr("rex.identity.list_known_users", lambda: [{"id": "james"}])
+    monkeypatch.setattr("rex.permissions.get_permissions", lambda _user_id: ["ha_control"])
+    monkeypatch.setattr("rex.media.tools.set_media_service", lambda service: None)
+
+    assistant: Any = Assistant.__new__(Assistant)
+    assistant._settings = SimpleNamespace(device_room_map={})
+    assistant._user_id = "james"
+    assistant._ha_bridge = None
+    assistant._configure_media_service()
+    result = assistant._media_service.execute(
+        MediaCommand(action="state", target_text="sonos:10.0.0.8"), user_id="james"
+    )
+    assert result.outcome == "unsupported"
+    assert result.requested_target_id == "sonos:10.0.0.8"

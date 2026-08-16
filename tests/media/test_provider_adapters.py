@@ -53,8 +53,10 @@ class _FakeHABridge:
         service: str,
         *,
         volume_level: float | None = None,
+        is_volume_muted: bool | None = None,
     ) -> tuple[bool, str]:
-        self.intents.append((entity_id, service, volume_level))
+        value = is_volume_muted if service == "volume_mute" else volume_level
+        self.intents.append((entity_id, service, value))
         return True, "accepted"
 
 
@@ -147,8 +149,12 @@ def test_ha_adapter_discovers_only_media_players_without_user_authorization() ->
         {
             MediaCapability.PLAY,
             MediaCapability.PAUSE,
+            MediaCapability.RESUME,
+            MediaCapability.STOP,
             MediaCapability.NEXT,
+            MediaCapability.PREVIOUS,
             MediaCapability.SET_VOLUME,
+            MediaCapability.MUTE,
         }
     )
 
@@ -245,10 +251,21 @@ def test_ha_bridge_public_media_wrapper_is_narrow(monkeypatch) -> None:
         "volume_level": 0.35,
     }
 
-    with pytest.raises(ValueError, match="Unsupported Home Assistant media service"):
-        bridge.execute_media_service("media_player.den", "media_stop")
+    assert bridge.execute_media_service(
+        "media_player.den", "volume_mute", is_volume_muted=True
+    ) == (True, "accepted")
+    assert intents[-1].data == {
+        "entity_id": "media_player.den",
+        "is_volume_muted": True,
+    }
 
-    assert len(intents) == 1
+    assert bridge.execute_media_service("media_player.den", "media_stop") == (True, "accepted")
+    assert intents[-1].service == "media_stop"
+
+    with pytest.raises(ValueError, match="Unsupported Home Assistant media service"):
+        bridge.execute_media_service("media_player.den", "media_seek")
+
+    assert len(intents) == 3
 
 
 @pytest.mark.parametrize(
@@ -342,10 +359,10 @@ def test_ha_adapter_rejects_operations_outside_existing_rex_media_paths() -> Non
     adapter = HomeAssistantMediaAdapter(bridge)
     target = adapter.discover_targets()[0]
 
-    acknowledgement = adapter.execute_action(target, MediaAction.PREVIOUS)
+    acknowledgement = adapter.execute_action(target, MediaAction.SEEK, value=30)
 
     assert acknowledgement.accepted is False
-    assert acknowledgement.detail == "Home Assistant action previous is unsupported"
+    assert acknowledgement.detail == "Home Assistant action seek is unsupported"
     assert bridge.intents == []
 
 
@@ -473,3 +490,74 @@ def test_music_assistant_client_does_not_expose_adapter_action_policy() -> None:
     client = MusicAssistantClient()
 
     assert not hasattr(client, "supported_adapter_actions")
+
+
+def test_ha_adapter_declares_supported_transport_and_mute_capabilities() -> None:
+    adapter = HomeAssistantMediaAdapter(
+        _FakeHABridge([_ha_state("media_player.den", friendly_name="Den")])
+    )
+    capability_values = {
+        capability.value for capability in adapter.discover_targets()[0].capabilities
+    }
+    assert {
+        "play",
+        "pause",
+        "resume",
+        "stop",
+        "next",
+        "previous",
+        "set_volume",
+        "mute",
+    } <= capability_values
+
+
+def test_ha_adapter_reads_muted_state() -> None:
+    adapter = HomeAssistantMediaAdapter(
+        _FakeHABridge(
+            [
+                _ha_state(
+                    "media_player.den",
+                    state="playing",
+                    friendly_name="Den",
+                    is_volume_muted=True,
+                )
+            ]
+        )
+    )
+    snapshot = adapter.get_state(adapter.discover_targets()[0])
+    assert getattr(snapshot, "muted", None) is True
+
+
+def test_ha_adapter_unmute_with_level_applies_both_operations() -> None:
+    bridge = _FakeHABridge([_ha_state("media_player.den", friendly_name="Den")])
+    adapter = HomeAssistantMediaAdapter(bridge)
+    target = adapter.discover_targets()[0]
+
+    acknowledgement = adapter.execute_action(target, MediaAction.UNMUTE, value=30)
+
+    assert acknowledgement.accepted is True
+    assert bridge.intents == [
+        ("media_player.den", "volume_mute", False),
+        ("media_player.den", "volume_set", 0.3),
+    ]
+
+
+def test_ha_adapter_partial_unmute_is_not_reported_as_no_effect_failure() -> None:
+    class PartialBridge(_FakeHABridge):
+        def execute_media_service(
+            self, entity_id, service, *, volume_level=None, is_volume_muted=None
+        ):
+            value = is_volume_muted if service == "volume_mute" else volume_level
+            self.intents.append((entity_id, service, value))
+            if service == "volume_set":
+                return False, "volume rejected"
+            return True, "accepted"
+
+    bridge = PartialBridge([_ha_state("media_player.den", friendly_name="Den")])
+    adapter = HomeAssistantMediaAdapter(bridge)
+    target = adapter.discover_targets()[0]
+
+    acknowledgement = adapter.execute_action(target, MediaAction.UNMUTE, value=30)
+
+    assert acknowledgement.accepted is True
+    assert "volume rejected" in (acknowledgement.detail or "")

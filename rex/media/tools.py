@@ -59,6 +59,7 @@ def _state_payload(state: Any) -> dict[str, Any] | None:
         "target_id": state.target_id,
         "playback": state.playback.value,
         "volume_percent": state.volume_percent,
+        "muted": state.muted,
         "position_seconds": state.position_seconds,
         "current_item_id": state.current_item_id,
         "current_item_title": state.current_item_title,

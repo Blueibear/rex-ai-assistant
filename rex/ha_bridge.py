@@ -314,13 +314,17 @@ class HABridge:
         service: str,
         *,
         volume_level: float | None = None,
+        is_volume_muted: bool | None = None,
     ) -> tuple[bool, str]:
         """Execute one explicitly supported media-player service."""
         supported_services = {
             "media_play",
             "media_pause",
+            "media_stop",
             "media_next_track",
+            "media_previous_track",
             "volume_set",
+            "volume_mute",
         }
         if service not in supported_services:
             raise ValueError(f"Unsupported Home Assistant media service: {service}")
@@ -335,9 +339,17 @@ class HABridge:
                 or not 0 <= volume_level <= 1
             ):
                 raise ValueError("volume_set requires a volume level from 0 to 1")
+            if is_volume_muted is not None:
+                raise ValueError("volume_set does not accept mute state")
             data["volume_level"] = float(volume_level)
-        elif volume_level is not None:
-            raise ValueError(f"Home Assistant media service {service} does not accept volume")
+        elif service == "volume_mute":
+            if not isinstance(is_volume_muted, bool):
+                raise ValueError("volume_mute requires a boolean mute state")
+            if volume_level is not None:
+                raise ValueError("volume_mute does not accept volume level")
+            data["is_volume_muted"] = is_volume_muted
+        elif volume_level is not None or is_volume_muted is not None:
+            raise ValueError(f"Home Assistant media service {service} does not accept volume data")
 
         intent = IntentMatch(
             domain="media_player",

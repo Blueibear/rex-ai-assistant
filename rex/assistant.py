@@ -353,89 +353,146 @@ class Assistant:
         )
 
     def _configure_media_service(self, *, music_assistant_client: Any | None = None) -> None:
-        """Build the conservative startup snapshot for canonical media tools."""
+        """Configure canonical media tools with command-time discovery refresh."""
+        from .audio.speaker_discovery import get_speaker_discovery
         from .identity import list_known_users
-        from .media.adapters import HomeAssistantMediaAdapter, MusicAssistantAdapter
-        from .media.models import AudioTarget, TargetProviderAdapter
+        from .media.adapters import (
+            HomeAssistantMediaAdapter,
+            MusicAssistantAdapter,
+            SmartSpeakerAdapter,
+        )
+        from .media.groups import SpeakerGroupStore
+        from .media.models import AudioTarget, TargetKind, TargetProviderAdapter
         from .media.registry import AudioTargetRegistry
         from .media.service import MediaService
         from .media.tools import set_media_service
         from .permissions import get_permissions
 
         adapters: dict[str, TargetProviderAdapter] = {}
-        targets: list[AudioTarget] = []
+
+        class CachedSpeakerDiscovery:
+            def discover_now(self):
+                return get_speaker_discovery().get_cached_speakers()
+
+        smart_adapter = SmartSpeakerAdapter(CachedSpeakerDiscovery())
+        adapters[smart_adapter.provider] = smart_adapter
+
         ha_bridge = getattr(self, "_ha_bridge", None)
         if ha_bridge is not None:
             ha_adapter = HomeAssistantMediaAdapter(ha_bridge)
             adapters[ha_adapter.provider] = ha_adapter
-            try:
-                targets.extend(ha_adapter.discover_targets())
-            except Exception as exc:
-                logger.warning("Failed to discover canonical HA media targets: %s", exc)
-
         if music_assistant_client is not None:
             ma_adapter = MusicAssistantAdapter(music_assistant_client)
             adapters[ma_adapter.provider] = ma_adapter
 
-        known_users: set[str] = set()
-        bound_user = getattr(self, "_user_id", None)
-        if isinstance(bound_user, str):
-            known_users.add(bound_user)
-        try:
-            known_users.update(
-                str(user["id"])
-                for user in list_known_users()
-                if isinstance(user, dict) and isinstance(user.get("id"), str)
-            )
-        except Exception as exc:
-            logger.warning("Failed to enumerate users for media authorization: %s", exc)
-
-        target_ids = frozenset(target.id for target in targets)
-        authorized: dict[str, frozenset[str]] = {}
-        for user_id in known_users:
-            if not target_ids:
-                authorized[user_id] = frozenset()
-                continue
-            try:
-                permissions = set(get_permissions(user_id))
-            except Exception as exc:
-                logger.warning("Failed to resolve media permissions for %s: %s", user_id, exc)
-                permissions = set()
-            authorized[user_id] = (
-                target_ids if permissions.intersection({"ha_control", "admin"}) else frozenset()
-            )
-
         def normalize(value: str) -> str:
             return " ".join(value.casefold().replace("_", " ").split())
 
-        origin_targets: dict[str, str] = {}
-        room_map = getattr(self._settings, "device_room_map", {}) or {}
-        if isinstance(room_map, dict):
-            for device_id, room_name in room_map.items():
-                if not isinstance(device_id, str) or not device_id.strip():
-                    continue
-                if not isinstance(room_name, str) or not room_name.strip():
-                    continue
-                wanted = normalize(room_name)
-                matches = []
-                for target in targets:
-                    labels = {normalize(target.display_name)}
-                    if target.room:
-                        labels.add(normalize(target.room))
-                    native_tail = target.native_id.rsplit(".", 1)[-1]
-                    labels.add(normalize(native_tail))
-                    if wanted in labels:
-                        matches.append(target)
-                if len(matches) == 1:
-                    origin_targets[device_id] = matches[0].id
+        def build_registry() -> AudioTargetRegistry:
+            targets: list[AudioTarget] = []
+            for adapter in adapters.values():
+                try:
+                    targets.extend(adapter.discover_targets())
+                except Exception as exc:
+                    logger.warning("Failed to refresh %s media targets: %s", adapter.provider, exc)
 
-        registry = AudioTargetRegistry(
-            targets,
-            authorized_target_ids=authorized,
-            origin_device_targets=origin_targets,
+            base_by_id = {target.id: target for target in targets}
+            group_store = SpeakerGroupStore(
+                target_exists=base_by_id.__contains__,
+                target_capabilities=lambda target_id: base_by_id[target_id].capabilities,
+            )
+            try:
+                groups = group_store.list()
+            except (KeyError, ValueError) as exc:
+                logger.warning("Failed to load canonical speaker groups: %s", exc)
+                groups = ()
+            for group in groups:
+                members = tuple(base_by_id[member_id] for member_id in group.member_ids)
+                online = bool(members) and all(member.online for member in members)
+                targets.append(
+                    AudioTarget(
+                        id=group.id,
+                        native_id=group.id,
+                        provider="group",
+                        kind=TargetKind.GROUP,
+                        display_name=group.name,
+                        aliases=(),
+                        room=None,
+                        capabilities=frozenset(),
+                        online=online,
+                        health="configured" if online else "member_unavailable",
+                    )
+                )
+
+            known_users: set[str] = set()
+            bound_user = getattr(self, "_user_id", None)
+            if isinstance(bound_user, str):
+                known_users.add(bound_user)
+            try:
+                known_users.update(
+                    str(user["id"])
+                    for user in list_known_users()
+                    if isinstance(user, dict) and isinstance(user.get("id"), str)
+                )
+            except Exception as exc:
+                logger.warning("Failed to enumerate users for media authorization: %s", exc)
+
+            base_ids = frozenset(base_by_id)
+            group_members = {group.id: frozenset(group.member_ids) for group in groups}
+            authorized: dict[str, frozenset[str]] = {}
+            for user_id in known_users:
+                try:
+                    permissions = set(get_permissions(user_id))
+                except Exception as exc:
+                    logger.warning("Failed to resolve media permissions for %s: %s", user_id, exc)
+                    permissions = set()
+                allowed_base = (
+                    base_ids if permissions.intersection({"ha_control", "admin"}) else frozenset()
+                )
+                allowed_groups = {
+                    group_id
+                    for group_id, member_ids in group_members.items()
+                    if member_ids and member_ids.issubset(allowed_base)
+                }
+                authorized[user_id] = frozenset((*allowed_base, *allowed_groups))
+
+            origin_targets: dict[str, str] = {}
+            room_map = getattr(self._settings, "device_room_map", {}) or {}
+            if isinstance(room_map, dict):
+                for device_id, room_name in room_map.items():
+                    if not isinstance(device_id, str) or not device_id.strip():
+                        continue
+                    if not isinstance(room_name, str) or not room_name.strip():
+                        continue
+                    wanted = normalize(room_name)
+                    matches = []
+                    for target in base_by_id.values():
+                        labels = {
+                            normalize(target.display_name),
+                            normalize(target.native_id.rsplit(".", 1)[-1]),
+                        }
+                        if target.room:
+                            labels.add(normalize(target.room))
+                        if wanted in labels:
+                            matches.append(target)
+                    if len(matches) == 1:
+                        origin_targets[device_id] = matches[0].id
+
+            registry = AudioTargetRegistry(
+                targets,
+                authorized_target_ids=authorized,
+                origin_device_targets=origin_targets,
+            )
+            self._media_registry = registry
+            self._speaker_group_store = group_store
+            return registry
+
+        registry = build_registry()
+        service = MediaService(
+            registry=registry,
+            adapters=adapters,
+            registry_refresher=build_registry,
         )
-        service = MediaService(registry=registry, adapters=adapters)
-        self._media_registry = registry
         self._media_service = service
         set_media_service(service)
 

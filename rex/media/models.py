@@ -27,6 +27,7 @@ class MediaCapability(StrEnum):
     PREVIOUS = "previous"
     SEEK = "seek"
     SET_VOLUME = "set_volume"
+    MUTE = "mute"
 
 
 class MediaAction(StrEnum):
@@ -40,6 +41,8 @@ class MediaAction(StrEnum):
     PREVIOUS = "previous"
     SEEK = "seek"
     SET_VOLUME = "set_volume"
+    MUTE = "mute"
+    UNMUTE = "unmute"
 
 
 class MediaState(StrEnum):
@@ -94,6 +97,7 @@ class MediaStateSnapshot:
     playback: MediaState
     observed_at: datetime
     volume_percent: float | None = None
+    muted: bool | None = None
     position_seconds: float | None = None
     current_item_id: str | None = None
     current_item_title: str | None = None

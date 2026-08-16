@@ -3761,22 +3761,24 @@ grep -n "askrex.app\|Cloudflare\|CORS\|rate limit\|revocation" docs/deployment.m
 **Description:** Add provider-neutral audio-target and media-provider/account abstractions so Rex can resolve named speakers, rooms, persistent groups, and the correct user-owned media source while truthfully controlling supported playback.
 
 **Acceptance Criteria:**
-- [ ] Canonical audio targets have stable IDs, names/aliases, provider, room, capabilities, online/health state, and per-user authorization.
-- [ ] Local devices, Home Assistant `media_player` entities, and future providers adapt into one registry rather than provider-specific user commands.
-- [ ] Canonical media-provider accounts are bound to a Rex user/profile and credential-vault slot; provider tokens/credentials never enter prompts or cross-user fallback state.
-- [ ] The provider contract is capable of supporting Apple Music/MusicKit when Apple developer credentials and per-user authorization are available, without making live Apple Music a precondition for US-121 completion.
-- [ ] Target resolution handles room/device/group names without unsafe fuzzy ambiguity.
-- [ ] For an interactive media command with no explicit target, the trusted request-origin/listening endpoint is the preferred output when it is an authorized playable target.
-- [ ] Persistent speaker groups support create, inspect, rename, membership edit, and delete.
-- [ ] Supported media actions include play/pause/resume/stop, next/previous where available, volume, mute/unmute, playback-state query, and provider-supported transfer/retargeting.
-- [ ] Successful playback creates a bounded active-media-session reference so natural follow-ups such as "pause it", "turn it up", or "move it to the living room" resolve without needless repetition when unambiguous.
-- [ ] Ambiguous active sessions or targets cause a short clarification rather than silent selection.
-- [ ] Unsupported/offline actions return truthful actionable limitations; mutations use canonical verification where technically possible.
-- [ ] Dynamic providers refresh discovery/health without requiring Rex restart where supported.
-- [ ] Tests cover target resolution, ambiguity, request-origin routing, active-session follow-ups, group CRUD, offline/mixed-capability providers, per-user provider-account isolation, permissions, playback, and verified outcomes.
+- [x] Canonical audio targets have stable IDs, names/aliases, provider, room, capabilities, online/health state, and per-user authorization.
+- [x] Local devices, Home Assistant `media_player` entities, and future providers adapt into one registry rather than provider-specific user commands.
+- [x] Canonical media-provider accounts are bound to a Rex user/profile and credential-vault slot; provider tokens/credentials never enter prompts or cross-user fallback state.
+- [x] The provider contract is capable of supporting Apple Music/MusicKit when Apple developer credentials and per-user authorization are available, without making live Apple Music a precondition for US-121 completion.
+- [x] Target resolution handles room/device/group names without unsafe fuzzy ambiguity.
+- [x] For an interactive media command with no explicit target, the trusted request-origin/listening endpoint is the preferred output when it is an authorized playable target.
+- [x] Persistent speaker groups support create, inspect, rename, membership edit, and delete.
+- [x] Supported media actions include play/pause/resume/stop, next/previous where available, volume, mute/unmute, playback-state query, and provider-supported transfer/retargeting.
+- [x] Successful playback creates a bounded active-media-session reference so natural follow-ups such as "pause it", "turn it up", or "move it to the living room" resolve without needless repetition when unambiguous.
+- [x] Ambiguous active sessions or targets cause a short clarification rather than silent selection.
+- [x] Unsupported/offline actions return truthful actionable limitations; mutations use canonical verification where technically possible.
+- [x] Dynamic providers refresh discovery/health without requiring Rex restart where supported.
+- [x] Tests cover target resolution, ambiguity, request-origin routing, active-session follow-ups, group CRUD, offline/mixed-capability providers, per-user provider-account isolation, permissions, playback, and verified outcomes.
 - [ ] All relevant GitHub checks pass.
 
 **Risk notes:** A display-name match or request-origin device never grants device authority. Provider-account selection and output-target selection are separate. Unsupported transfer/group behavior must not be reported as completed.
+
+**Local acceptance evidence (2026-08-16):** canonical media/provider/account/group/routing tests pass locally, including dynamic refresh, request-origin authority, lifecycle-verified group CRUD, verified Home Assistant transport/volume/mute controls, truthful unsupported transfer/group playback, and Electron session-bound target/group IPC. Live Apple Music/MusicKit authorization and physical-speaker production verification remain unclaimed. The exact implementation PR-head GitHub check remains open until CI completes.
 
 ### US-122: Add per-user output-routing policies and Settings UI
 

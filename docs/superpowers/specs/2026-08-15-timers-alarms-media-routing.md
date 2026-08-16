@@ -80,22 +80,24 @@ Examples that must work after implementation:
 
 ### Acceptance criteria
 
-- [ ] A canonical audio target registry exists with stable IDs, display names, provider, room, capabilities, online/health state, and user-visible aliases.
-- [ ] The registry can represent local playback devices, Home Assistant `media_player` entities, and future OpenClaw/direct smart-speaker providers through adapters rather than provider-specific user commands.
-- [ ] Rex has a user-bound media-provider/account abstraction whose credentials stay in the vault; Apple Music/MusicKit can plug into that abstraction when Apple developer credentials and per-user authorization are available.
-- [ ] Rex can resolve natural-language targets such as "bedroom speaker", "kitchen", "downstairs", or a named device without unsafe fuzzy ambiguity.
-- [ ] When no media target is named, the trusted request-origin/listening endpoint is the preferred authorized playback target.
-- [ ] Users can create, rename, inspect, modify, and delete persistent speaker groups.
-- [ ] Groups can contain multiple compatible speakers and can be addressed as one target.
-- [ ] Rex supports provider-appropriate media actions including play, pause, resume, stop, next/previous where available, volume, mute/unmute, and playback-state query.
-- [ ] Rex can start or route requested music/media to one speaker, one room, or one group when the configured provider supports the requested source.
-- [ ] Successful playback establishes bounded active-media context so conversational follow-ups such as "pause it", "turn it up", and "move it to the living room" work when unambiguous.
-- [ ] Rex can move or re-target active playback when the provider supports transfer; otherwise it explains the limitation instead of claiming success.
-- [ ] Capability differences are explicit. Unsupported actions on a target return a truthful, user-actionable result.
-- [ ] Group and playback mutations use the canonical action lifecycle and verify resulting device/group state where technically possible.
-- [ ] Per-user permissions can restrict which devices/groups a user may control and which media provider account may be used.
-- [ ] Audio target discovery and health refresh without requiring a full Rex restart where the underlying provider supports dynamic discovery.
-- [ ] Tests cover target resolution, ambiguous names, request-origin defaulting, active-session follow-ups, provider-account isolation, group CRUD, offline devices, mixed provider capability differences, playback control, permissions, and verified outcomes.
+- [x] A canonical audio target registry exists with stable IDs, display names, provider, room, capabilities, online/health state, and user-visible aliases.
+- [x] The registry can represent local playback devices, Home Assistant `media_player` entities, and future OpenClaw/direct smart-speaker providers through adapters rather than provider-specific user commands.
+- [x] Rex has a user-bound media-provider/account abstraction whose credentials stay in the vault; Apple Music/MusicKit can plug into that abstraction when Apple developer credentials and per-user authorization are available.
+- [x] Rex can resolve natural-language targets such as "bedroom speaker", "kitchen", "downstairs", or a named device without unsafe fuzzy ambiguity.
+- [x] When no media target is named, the trusted request-origin/listening endpoint is the preferred authorized playback target.
+- [x] Users can create, rename, inspect, modify, and delete persistent speaker groups.
+- [x] Groups can contain multiple compatible speakers and can be addressed as one target.
+- [x] Rex supports provider-appropriate media actions including play, pause, resume, stop, next/previous where available, volume, mute/unmute, and playback-state query.
+- [x] Rex can start or route requested music/media to one speaker, one room, or one group when the configured provider supports the requested source.
+- [x] Successful playback establishes bounded active-media context so conversational follow-ups such as "pause it", "turn it up", and "move it to the living room" work when unambiguous.
+- [x] Rex can move or re-target active playback when the provider supports transfer; otherwise it explains the limitation instead of claiming success.
+- [x] Capability differences are explicit. Unsupported actions on a target return a truthful, user-actionable result.
+- [x] Group and playback mutations use the canonical action lifecycle and verify resulting device/group state where technically possible.
+- [x] Per-user permissions can restrict which devices/groups a user may control and which media provider account may be used.
+- [x] Audio target discovery and health refresh without requiring a full Rex restart where the underlying provider supports dynamic discovery.
+- [x] Tests cover target resolution, ambiguous names, request-origin defaulting, active-session follow-ups, provider-account isolation, group CRUD, offline devices, mixed provider capability differences, playback control, permissions, and verified outcomes.
+
+**US-121 local evidence:** persistent groups are CRUD/addressable targets and their mutations are lifecycle-verified, but they intentionally advertise no direct playback controls until a reviewed group execution adapter exists. Home Assistant is the verified control adapter; LAN Sonos/Bose targets are discovery-visible only. Apple Music is provider/account metadata only. Physical-speaker playback remains a release-gate validation item below.
 
 ---
 

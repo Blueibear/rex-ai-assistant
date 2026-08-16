@@ -275,7 +275,15 @@ Expected: PASS.
 
 **Files:**
 - Modify: `bridge/rex_speaker_bridge.py`
+- Modify: `rex/assistant.py`
+- Modify: `rex/media/service.py`
+- Modify: `rex/media/models.py`
+- Modify: `rex/media/adapters.py`
+- Modify: `rex/ha_bridge.py`
 - Modify: `gui/src/main/handlers/speakers.ts`
+- Modify: `gui/src/main/ipc.ts`
+- Modify: `gui/src/preload/index.ts`
+- Modify: `gui/src/pages/settings/AudioOutputSettingsSection.tsx`
 - Modify: `gui/src/types/ipc.ts`
 - Modify: `README.md`
 - Modify: `CLAUDE.md`
@@ -288,7 +296,7 @@ Expected: PASS.
 - Bridge commands: `list_targets`, `refresh_targets`, `list_groups`, `create_group`, `rename_group`, `set_group_members`, `delete_group`.
 - Responses expose IDs/names/provider/room/capabilities/health only; never credential refs or private account tokens.
 
-- [ ] **Step 1: Write failing bridge tests for canonical target/group payloads and refresh**
+- [x] **Step 1: Write failing bridge tests for canonical target/group payloads and refresh**
 
 ```python
 def test_list_targets_does_not_expose_credentials(fake_registry):
@@ -297,22 +305,22 @@ def test_list_targets_does_not_expose_credentials(fake_registry):
     assert "credential_ref" not in json.dumps(body)
 ```
 
-- [ ] **Step 2: Run bridge tests and verify red state**
+- [x] **Step 2: Run bridge tests and verify red state**
 Run: `pytest -q tests/media/test_speaker_bridge.py`
 Expected: FAIL because the bridge only supports legacy `list` discovery.
 
-- [ ] **Step 3: Migrate bridge/IPC to canonical registry and group store**
+- [x] **Step 3: Migrate bridge/IPC to canonical registry and group store**
 Keep renderer handlers transport-only. Authenticate/bind the active user before private authorization filtering; do not accept request-supplied authority to view another user's restricted targets.
 
-- [ ] **Step 4: Run Python and GUI focused tests**
+- [x] **Step 4: Run Python and GUI focused tests**
 Run: `pytest -q tests/media tests/test_speaker_discovery.py tests/test_us021_music_assistant.py tests/test_us022_music_handler.py tests/test_tools_registry.py`
 Run: `cd gui && npm.cmd test -- --run tests/speakerHandlers.test.ts && npm.cmd run typecheck && npm.cmd run build`
 Expected: all PASS.
 
-- [ ] **Step 5: Update tracker/docs only for behavior proven by tests**
+- [x] **Step 5: Update tracker/docs only for behavior proven by tests**
 Document canonical targets/groups/media tools, request-origin preference, provider limitations, and Apple Music as planned adapter-only. Leave physical-provider acceptance explicitly unverified until a real speaker path is exercised.
 
-- [ ] **Step 6: Run release-quality gates**
+- [x] **Step 6: Run release-quality gates**
 Run: `ruff check rex/media rex/actions/dispatcher.py rex/tools/registry.py bridge/rex_speaker_bridge.py tests/media`
 Run: `black --check rex/media rex/actions/dispatcher.py rex/tools/registry.py bridge/rex_speaker_bridge.py tests/media`
 Run: `mypy rex/media rex/actions/dispatcher.py rex/tools/registry.py --ignore-missing-imports`
@@ -321,8 +329,8 @@ Run: `pre-commit run --all-files`
 Run: `git diff --check`
 Expected: all gates PASS and working tree contains only intended changes.
 
-- [ ] **Step 7: Commit**
-`git add bridge/rex_speaker_bridge.py gui/src/main/handlers/speakers.ts gui/src/types/ipc.ts README.md CLAUDE.md PRD-production-readiness.md docs/superpowers/specs/2026-08-15-timers-alarms-media-routing.md tests/media gui/tests/speakerHandlers.test.ts && git commit -m "docs(media): record US-121 acceptance evidence"`
+- [x] **Step 7: Commit**
+`git add bridge/rex_speaker_bridge.py rex/assistant.py rex/media/service.py rex/media/models.py rex/media/adapters.py rex/media/tools.py rex/ha_bridge.py gui/src/main/handlers/speakers.ts gui/src/main/ipc.ts gui/src/preload/index.ts gui/src/pages/settings/AudioOutputSettingsSection.tsx gui/src/types/ipc.ts README.md CLAUDE.md PRD-production-readiness.md docs/superpowers/specs/2026-08-15-timers-alarms-media-routing.md docs/superpowers/plans/2026-08-16-us121-media-orchestration.md tests/media tests/rex2/test_capability_registry.py gui/tests/speakerHandlers.test.ts && git commit -m "feat(media): complete canonical speaker orchestration"`
 
 ## US-121 Completion Check
 

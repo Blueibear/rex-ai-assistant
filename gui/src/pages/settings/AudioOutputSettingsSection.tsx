@@ -1,5 +1,5 @@
-import React, { useEffect, useRef, useState } from 'react'
-import type { Settings, SmartSpeaker, VoiceSettings } from '../../types/ipc'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
+import type { AudioTargetInfo, Settings } from '../../types/ipc'
 import { useToast } from '../../components/ui/Toast'
 
 interface AudioDevice {
@@ -15,22 +15,25 @@ export function AudioOutputSettingsSection(): React.ReactElement {
   const [testing, setTesting] = useState<string | null>(null) // deviceId being tested
   const [savedVolume, setSavedVolume] = useState(false)
   const volumeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const [smartSpeakers, setSmartSpeakers] = useState<SmartSpeaker[]>([])
-  const [loadingSmartSpeakers, setLoadingSmartSpeakers] = useState(false)
+  const [audioTargets, setAudioTargets] = useState<AudioTargetInfo[]>([])
+  const [loadingAudioTargets, setLoadingAudioTargets] = useState(false)
 
-  function loadSmartSpeakers(): void {
-    setLoadingSmartSpeakers(true)
-    window.rex
-      .getSmartSpeakers()
-      .then((res) => {
-        setSmartSpeakers(res.speakers ?? [])
-        if (!res.ok && res.error) addToast(`Smart speaker discovery: ${res.error}`, 'error')
-      })
-      .catch(() => {
-        setSmartSpeakers([])
-      })
-      .finally(() => setLoadingSmartSpeakers(false))
-  }
+  const loadAudioTargets = useCallback(
+    (refresh = false): void => {
+      setLoadingAudioTargets(true)
+      const request = refresh ? window.rex.refreshAudioTargets() : window.rex.getAudioTargets()
+      request
+        .then((res) => {
+          setAudioTargets(res.targets ?? [])
+          if (!res.ok && res.error) addToast(`Audio target discovery: ${res.error}`, 'error')
+        })
+        .catch(() => {
+          setAudioTargets([])
+        })
+        .finally(() => setLoadingAudioTargets(false))
+    },
+    [addToast]
+  )
 
   useEffect(() => {
     // Load saved voice settings to get current speaker + volume
@@ -59,9 +62,9 @@ export function AudioOutputSettingsSection(): React.ReactElement {
         })
     }
 
-    // Discover smart speakers
-    loadSmartSpeakers()
-  }, [])
+    // Load canonical Rex audio targets
+    loadAudioTargets()
+  }, [loadAudioTargets])
 
   function handleSelectDevice(deviceId: string): void {
     setSelectedDeviceId(deviceId)
@@ -103,7 +106,7 @@ export function AudioOutputSettingsSection(): React.ReactElement {
 
   function handleTestDevice(deviceId: string): void {
     setTesting(deviceId)
-    if (!deviceId.startsWith('smart:')) {
+    {
       // Play a brief 440 Hz sine tone through the selected system output device
       const ctx = new AudioContext()
       const doPlay = async (): Promise<void> => {
@@ -132,17 +135,6 @@ export function AudioOutputSettingsSection(): React.ReactElement {
         }
       }
       void doPlay()
-    } else {
-      // Smart speaker: delegate to IPC
-      window.rex
-        .testVoice({ speakerDeviceId: deviceId } as unknown as VoiceSettings)
-        .then((res) => {
-          if (!res.ok) addToast(res.error ?? 'Test failed', 'error')
-        })
-        .catch(() => {
-          addToast('Test failed', 'error')
-        })
-        .finally(() => setTesting(null))
     }
   }
 
@@ -240,69 +232,41 @@ export function AudioOutputSettingsSection(): React.ReactElement {
         </div>
       </div>
 
-      {/* Smart speakers */}
+      {/* Canonical Rex audio targets */}
       <div className="border-t border-border pt-6">
         <div className="flex items-center justify-between mb-1">
-          <h3 className="text-sm font-semibold text-text-primary">Smart Speakers</h3>
+          <h3 className="text-sm font-semibold text-text-primary">Rex Audio Targets</h3>
           <button
             type="button"
-            onClick={loadSmartSpeakers}
-            disabled={loadingSmartSpeakers}
+            onClick={() => loadAudioTargets(true)}
+            disabled={loadingAudioTargets}
             className="flex items-center gap-1 rounded-lg border border-border bg-bg px-2.5 py-1 text-xs font-medium text-text-primary transition-colors hover:bg-surface-raised disabled:opacity-50 focus:outline-none"
           >
-            {loadingSmartSpeakers ? (
-              <svg className="animate-spin h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
-              </svg>
-            ) : (
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <polyline points="23 4 23 10 17 10" />
-                <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
-              </svg>
-            )}
-            Refresh
+            {loadingAudioTargets ? 'Refreshing?' : 'Refresh'}
           </button>
         </div>
         <p className="mb-4 text-xs text-text-secondary">
-          Sonos and Bose devices discovered on the local network.
+          Canonical Home Assistant, local-network, and configured group targets visible to this profile.
         </p>
-        {smartSpeakers.length === 0 ? (
+        {audioTargets.length === 0 ? (
           <div className="rounded-xl border border-dashed border-border bg-surface-raised/40 px-4 py-6 text-center">
-            <p className="text-sm text-text-secondary">No smart speakers discovered on the network.</p>
-            <p className="mt-1 text-xs text-text-secondary">
-              Ensure your Sonos or Bose device is on the same network and click Refresh.
-            </p>
+            <p className="text-sm text-text-secondary">No authorized audio targets are currently available.</p>
           </div>
         ) : (
           <div className="space-y-3">
-            {smartSpeakers.map((ss) => (
-              <div
-                key={`${ss.provider}-${ss.ip}`}
-                className="flex items-center gap-3 rounded-xl border border-border bg-surface-raised p-4"
-              >
-                <div className="flex-1 min-w-0">
-                  <div className="text-sm font-medium text-text-primary truncate">{ss.name}</div>
-                  <div className="text-xs text-text-secondary mt-0.5 capitalize">
-                    {ss.provider} · {ss.model} · {ss.ip}
+            {audioTargets.map((target) => (
+              <div key={target.id} className="rounded-xl border border-border bg-surface-raised p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="text-sm font-medium text-text-primary truncate">{target.name}</div>
+                    <div className="text-xs text-text-secondary mt-0.5">
+                      {target.provider} ? {target.room ?? target.kind} ? {target.online ? target.health : 'offline'}
+                    </div>
                   </div>
+                  <span className="text-xs text-text-secondary">
+                    {target.capabilities.length > 0 ? target.capabilities.join(', ') : 'No direct controls'}
+                  </span>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => handleTestDevice(`smart:${ss.provider}:${ss.ip}`)}
-                  disabled={testing === `smart:${ss.provider}:${ss.ip}`}
-                  className="flex items-center gap-1.5 rounded-lg border border-border bg-bg px-3 py-1.5 text-xs font-medium text-text-primary transition-colors hover:bg-surface-raised disabled:opacity-50 focus:outline-none"
-                >
-                  {testing === `smart:${ss.provider}:${ss.ip}` ? (
-                    <svg className="animate-spin h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
-                    </svg>
-                  ) : (
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <polygon points="5 3 19 12 5 21 5 3" />
-                    </svg>
-                  )}
-                  Test
-                </button>
               </div>
             ))}
           </div>

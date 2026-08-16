@@ -44,6 +44,8 @@ _ACTION_MAP: dict[MediaCommandAction, MediaAction] = {
     MediaCommandAction.NEXT: MediaAction.NEXT,
     MediaCommandAction.PREVIOUS: MediaAction.PREVIOUS,
     MediaCommandAction.SET_VOLUME: MediaAction.SET_VOLUME,
+    MediaCommandAction.MUTE: MediaAction.MUTE,
+    MediaCommandAction.UNMUTE: MediaAction.UNMUTE,
 }
 _CAPABILITY_MAP: dict[MediaAction, MediaCapability] = {
     MediaAction.PLAY: MediaCapability.PLAY,
@@ -53,12 +55,10 @@ _CAPABILITY_MAP: dict[MediaAction, MediaCapability] = {
     MediaAction.NEXT: MediaCapability.NEXT,
     MediaAction.PREVIOUS: MediaCapability.PREVIOUS,
     MediaAction.SET_VOLUME: MediaCapability.SET_VOLUME,
+    MediaAction.MUTE: MediaCapability.MUTE,
+    MediaAction.UNMUTE: MediaCapability.MUTE,
 }
-_UNSUPPORTED_ACTIONS = {
-    MediaCommandAction.MUTE,
-    MediaCommandAction.UNMUTE,
-    MediaCommandAction.TRANSFER,
-}
+_UNSUPPORTED_ACTIONS = {MediaCommandAction.TRANSFER}
 
 
 class MediaService:
@@ -69,12 +69,14 @@ class MediaService:
         adapters: Mapping[str, TargetProviderAdapter],
         account_store: MediaAccountStore | None = None,
         session_store: ActiveMediaSessionStore | None = None,
+        registry_refresher: Callable[[], AudioTargetRegistry] | None = None,
         clock: Callable[[], float] = time.monotonic,
     ) -> None:
         self._registry = registry
         self._adapters = dict(adapters)
         self._account_store = account_store or MediaAccountStore()
         self._session_store = session_store or ActiveMediaSessionStore(clock=clock)
+        self._registry_refresher = registry_refresher
         self._clock = clock
 
     def execute(
@@ -89,6 +91,7 @@ class MediaService:
         if not isinstance(command, MediaCommand):
             raise TypeError("command must be a MediaCommand")
 
+        self._refresh_registry()
         query = command.target_text
         if query is None and origin_device_id is None:
             session = self._session_store.get(user_id, now=self._clock())
@@ -228,6 +231,11 @@ class MediaService:
             return "account_ambiguous"
         return None
 
+    def _refresh_registry(self) -> None:
+        """Refresh dynamic target discovery before resolving a media command."""
+        if self._registry_refresher is not None:
+            self._registry = self._registry_refresher()
+
     @staticmethod
     def _resolution_failure(reason: str, ambiguous_ids: tuple[str, ...]) -> MediaServiceResult:
         mapped = {
@@ -264,6 +272,13 @@ class MediaService:
             return {"playback": [MediaState.STOPPED.value]}
         if action is MediaAction.SET_VOLUME and isinstance(value, (int, float)):
             return {"volume_percent": float(value)}
+        if action is MediaAction.MUTE:
+            return {"muted": True}
+        if action is MediaAction.UNMUTE:
+            expected = {"muted": False}
+            if isinstance(value, (int, float)) and not isinstance(value, bool):
+                expected["volume_percent"] = float(value)
+            return expected
         return {}
 
     @staticmethod
@@ -280,6 +295,9 @@ class MediaService:
                     if item is not None
                 }
                 if str(wanted) not in actual:
+                    return False
+            elif field == "muted":
+                if snapshot.muted is not wanted:
                     return False
             elif field == "volume_percent":
                 if snapshot.volume_percent is None:
