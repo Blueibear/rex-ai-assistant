@@ -1,7 +1,7 @@
 # Rex 2.0 + Production Readiness Implementation Plan
 
 **Date:** 2026-08-08
-**Authority:** `PRD-production-readiness.md` is the detailed story tracker; this plan groups the work and names implementation boundaries.
+**Authority:** `PRD-production-readiness.md` is the detailed story tracker; this plan groups the work and names implementation boundaries. The mandatory timers/alarms/speaker-routing addendum is `docs/superpowers/specs/2026-08-15-timers-alarms-media-routing.md`.
 
 ## Phase A ? Finish current structural work and measure baseline
 
@@ -55,15 +55,20 @@ Checkpoint: Rex is faster without reducing intelligence or bypassing security.
 
 Checkpoint: fast voice is cancellable, evidence-aware, and uses the same intelligence path as text.
 
-## Phase F ? Remaining GUI/integrations, identity, memory, mobile
+## Phase F ? Remaining GUI/integrations, identity, memory, mobile, household audio
 
 - **US-065/066/080/081/082:** truthful GUI integration/navigation/HA/Outlook/Email-SMS work.
 - **US-087:** cross-surface identity invariants and James/Cole concurrency tests.
 - **US-083/084/085/086:** history, shopping, typed/scoped semantic memory, and uploads/vector indexing.
 - **US-112:** guarded procedural experience memory.
 - **US-088:** mobile chat/voice consumes TurnEngine events while preserving existing secure pairing/strong-auth/TLS/revocation boundaries.
+- **US-120:** implement first-class concurrent timers and alarms with naming, recurrence, snooze/dismiss, restart recovery, per-user ownership, and canonical tool exposure.
+- **US-121:** implement canonical speaker/room/group discovery and provider-neutral media orchestration, including persistent speaker groups and verified playback controls.
+- **US-122:** add per-user output-routing policies and Settings UI for spoken responses, timers, alarms, and media, including explicit target overrides, time-of-day rules, quiet hours, target volume, and unavailable-target fallback behavior.
 
-Checkpoint: every user-facing surface shares identity, turn, memory, and verification semantics.
+Detailed acceptance criteria for US-120 through US-122 are mandatory in `docs/superpowers/specs/2026-08-15-timers-alarms-media-routing.md`.
+
+Checkpoint: every user-facing surface shares identity, turn, memory, verification, timer/alarm semantics, and household audio-routing semantics.
 
 ## Phase G ? Safe self-extension and release gate
 
@@ -71,9 +76,9 @@ Checkpoint: every user-facing surface shares identity, turn, memory, and verific
 - **US-116:** Forge package/manifest/sandbox/tests/security/RexBench pipeline.
 - **US-117:** approval, low-risk-only initial auto-promotion, canary, rollback/revocation.
 - **US-089?093:** retire justified compatibility/generated skips.
-- **US-118:** final production RexBench across performance, privacy, escalation, failures/outages, Forge adversarial cases, Windows Electron, mobile, and physical voice evidence.
+- **US-118:** final production RexBench across performance, privacy, escalation, failures/outages, Forge adversarial cases, Windows Electron, mobile, physical voice evidence, timer/alarm timing and recovery, speaker-group routing, per-user routing isolation, and unavailable-target behavior.
 
-Checkpoint: release candidate evidence is explicit and no mock result is mislabeled as live/hardware proof.
+Checkpoint: release candidate evidence is explicit and no mock result is mislabeled as live/hardware proof. US-120, US-121, and US-122 must be complete before this release gate can pass.
 
 ## Per-story working method
 
