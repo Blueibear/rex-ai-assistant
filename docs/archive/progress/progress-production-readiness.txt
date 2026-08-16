@@ -2053,3 +2053,26 @@ Remote exact-head evidence:
 - Windows Electron Artifact workflow run 31838356744 completed success, including managed runtime/installer build, Authenticode truthfulness, packaged-resource rejection, and installed-artifact smoke without machine Python or Node.
 - CodeFactor reported No issues found; GitGuardian reported no secrets detected. No failed/cancelled/in-progress exact-head check remained.
 - US-112 acceptance criteria are therefore closed. The docs-only closure head must pass its own exact-head repository checks before PR #398 is merged.
+
+
+2026-08-14 - US-088 authenticated askrex.app mobile/API boundary closure
+
+Implementation and local evidence:
+- Added and committed a mobile/API threat model plus evidence-based external-surface classification; only the dedicated rex.mobile_api contract is eligible for public ingress. Local admin, rex.gui_app /api routes, computer-control, TTS, OpenClaw tool-server, secret-management, and arbitrary localhost routes remain excluded.
+- Secure gateway design requires public HTTPS/WebPKI transport binding, authentication, server-side live grants and revocation, strong authentication for elevated actions, rate limiting, deny-by-default CORS, trusted-proxy handling, body/media bounds, idempotency, and privacy-safe logging.
+- Documented askrex.app Cloudflare Tunnel path allowlisting without credentials. Local cloudflared 2025.4.0 ingress validation confirmed /mobile/* routes to 127.0.0.1:8765 while /api/* falls through to http_status:404.
+- Mobile chat/stream continue through the canonical Assistant/TurnEngine contract with TurnSource.MOBILE. Existing pairing, live grant/version checks, revocation, TLS binding, strong-auth approval, least-privilege scope mapping, and per-user authorization remain server-derived and fail closed.
+- Dynamic OpenClaw tools remain denied from gaining mobile scope by default; OpenClaw is optional and does not widen authority or disable core Rex when absent.
+- Added external-gateway policy tests covering route allowlisting, auth rejection, deny-by-default/wildcard-rejecting CORS, canonical rate limiting, mobile TurnSource contract, OpenClaw scope denial, and required deployment/security documentation.
+- Full tests/mobile_api suite passed. Related Windows-agent/OpenClaw-tool-server/chat API regression passed.
+- Full Windows primary marker suite: 8,811 passed / 49 skipped / 0 failed in 479.11s.
+- Ruff, Black, mypy, compileall/security release gate, docs truth checks, pre-commit, and git diff checks passed for the US-088 branch.
+
+Remote exact-head evidence:
+- PR #399 implementation head 04dcee661002064b9da544f04b19c04fab45331b passed all 17 registered checks.
+- CI workflow run 31861029255 completed success, including Python 3.11 Tests & Coverage, skipped-test budget, integration tests, tracked-tree cleanliness, security/lint/type/GUI/dependency/pre-commit/wheel/raw-API checks.
+- Commitlint workflow run 31861029276 completed success.
+- CodeFactor reported No issues found and GitGuardian reported No secrets detected.
+- No failed, cancelled, or in-progress exact-head check remained and PR #399 had no review or review-thread blocker.
+- Windows Electron Artifact was not path-triggered for this docs/mobile-policy-test-only story and was not a relevant required check.
+- US-088 acceptance criteria are therefore closed. This documentation closure head must still pass its own exact-head relevant checks before PR #399 is merged.

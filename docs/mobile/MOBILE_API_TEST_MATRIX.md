@@ -342,3 +342,17 @@ npx expo-doctor
 ```
 
 Add real unit/contract/export scripts before claiming those gates pass. After every validation run, confirm the Git working tree contains only intentional changes.
+
+## US-088 External Gateway Policy
+
+`tests/mobile_api/test_external_gateway_policy.py` is the regression gate for the future `askrex.app` boundary. It proves that:
+
+- the dedicated mobile Flask app registers only `/mobile/*` routes and does not expose local `/api/*`, tool, TTS, agent, or GUI paths;
+- protected mobile routes reject missing bearer authentication;
+- wildcard CORS remains invalid and an exact `https://askrex.app` origin can be allowlisted without reflecting other origins;
+- the public-facing limiter returns the canonical 429 envelope and `Retry-After`;
+- loopback origin without a secure transport binding cannot create a pairing challenge;
+- dynamic/OpenClaw capability metadata cannot manufacture a mobile grant scope;
+- the committed public-gateway documentation keeps `askrex.app`, Cloudflare Tunnel, CORS, rate limiting, revocation, and the closed public-ingress gate explicit.
+
+These tests do not declare the public tunnel production-ready. They enforce the fail-closed boundary while `ASKREX_APP_GATEWAY.md` lists the remaining public transport-binding/deployment gates.

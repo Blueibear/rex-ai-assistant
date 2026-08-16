@@ -3154,19 +3154,19 @@ pytest -q tests/test_identity.py tests/test_us048_data_isolation.py tests/test_v
 > **Decomposition directive (skill-compliance):** This story is larger than one Ralph iteration. Before execution, split it into ordered one-iteration slices and run them in order: (a) commit the mobile/API threat model; (b) classify the existing Flask/API bridge as safe or unsafe for external/mobile use with evidence; (c) design the secure gateway (HTTPS, auth, rate limiting, CORS, token management/revocation) and define the iOS API scope; (d) document the Cloudflare-Tunnel-or-equivalent deployment path without committing credentials; (e) auth-rejection, rate-limit, and CORS-policy tests for mobile/API routes. Do not attempt the full bundle in one iteration.
 
 **Acceptance Criteria:**
-- [ ] A mobile/API threat model is committed.
-- [ ] Existing local Flask/API bridge is classified as safe or unsafe for external/mobile use with evidence.
-- [ ] Secure gateway design requires HTTPS, authentication, rate limiting, CORS policy, token management, and token revocation.
-- [ ] Cloudflare Tunnel or equivalent deployment path is documented without committing credentials.
-- [ ] API scope defines what the iOS app can and cannot do.
-- [ ] Local admin routes are not exposed blindly.
-- [ ] Tests or smoke checks cover auth rejection, rate-limit behavior, and CORS policy for mobile/API routes.
-- [ ] Docs use `askrex.app` as the target domain.
-- [ ] All relevant GitHub checks pass.
+- [x] A mobile/API threat model is committed.
+- [x] Existing local Flask/API bridge is classified as safe or unsafe for external/mobile use with evidence.
+- [x] Secure gateway design requires HTTPS, authentication, rate limiting, CORS policy, token management, and token revocation.
+- [x] Cloudflare Tunnel or equivalent deployment path is documented without committing credentials.
+- [x] API scope defines what the iOS app can and cannot do.
+- [x] Local admin routes are not exposed blindly.
+- [x] Tests or smoke checks cover auth rejection, rate-limit behavior, and CORS policy for mobile/API routes.
+- [x] Docs use `askrex.app` as the target domain.
+- [x] All relevant GitHub checks pass.
 
-- [ ] Mobile chat and voice consume the same canonical TurnEngine/event contract as desktop/CLI rather than a mobile-only intelligence path.
-- [ ] Existing desktop-owned pairing, live grants, revocation, TLS binding, strong authentication, rate limits, and least-privilege scopes remain enforced.
-- [ ] OpenClaw remains optional; its absence or unhealthy state grants no additional mobile authority and does not disable core Rex functionality.
+- [x] Mobile chat and voice consume the same canonical TurnEngine/event contract as desktop/CLI rather than a mobile-only intelligence path.
+- [x] Existing desktop-owned pairing, live grants, revocation, TLS binding, strong authentication, rate limits, and least-privilege scopes remain enforced.
+- [x] OpenClaw remains optional; its absence or unhealthy state grants no additional mobile authority and does not disable core Rex functionality.
 
 **Validation commands:**
 ```bash
