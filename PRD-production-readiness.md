@@ -81,16 +81,17 @@ Use this order for task selection after the reconciliation above. Select the fir
 48. `US-120`
 49. `US-121`
 50. `US-122`
-51. `US-115`
-52. `US-116`
-53. `US-117`
-54. `US-089`
-55. `US-090`
-56. `US-091`
-57. `US-092`
-58. `US-093`
-59. `US-119`
-60. `US-118`
+51. `US-123`
+52. `US-115`
+53. `US-116`
+54. `US-117`
+55. `US-089`
+56. `US-090`
+57. `US-091`
+58. `US-092`
+59. `US-093`
+60. `US-119`
+61. `US-118`
 
 **Dependency/security notes:** TurnEngine work must preserve the already-implemented explicit, fail-closed user identity contract from its first event. US-087 later proves the broader user/household model and James/Cole concurrency invariants. OpenClaw metadata never widens local authority. Mobile remains desktop-paired and least-privilege. All benchmark evidence must label whether it is deterministic/mock, local source runtime, live provider, packaged Windows artifact, or physical hardware/device.
 
@@ -3066,17 +3067,19 @@ cd gui && npm run typecheck && npm run build
 
 **Implementation notes:** Distinguish per-user vector stores from a household/shared vector store. Let users tag/label uploaded content or tell Rex how to label it.
 
-> **Decomposition directive (skill-compliance):** This story is larger than one Ralph iteration. Before execution, split it into ordered one-iteration slices and run them in order: (a) upload UI accepting supported document/data types; (b) scope selection (private vs household) plus user/Rex-confirmed tagging; (c) indexing into the correct per-user or household vector store; (d) search/delete/audit of uploaded content; (e) cross-scope isolation tests. Do not attempt the full bundle in one iteration.
+> **Decomposition directive (skill-compliance):** This story is larger than one Ralph iteration. Before execution, split it into ordered one-iteration slices and run them in order: (a) upload UI accepting supported document/data types; (b) independent context-inclusion plus audience scope selection (private vs household) and user/Rex-confirmed tagging; (c) indexing into the correct per-user or household vector store with provenance; (d) search/delete/audit and later policy editing; (e) cross-scope/context-disabled isolation tests. Do not attempt the full bundle in one iteration.
 
 **Acceptance Criteria:**
 - [ ] Upload UI accepts supported document/data types.
-- [ ] User chooses scope: private to selected user or shared household.
+- [ ] At upload time the uploader independently chooses whether the file is eligible for broad/background context and whether its audience scope is private to that user or shared household.
+- [ ] Context inclusion and audience scope remain editable later by the uploader/owner; another user cannot promote someone else's private upload to household scope.
+- [ ] Context-disabled uploads remain available for explicit authorized file questions but cannot silently influence unrelated turns, proactive suggestions, or situational reasoning.
 - [ ] User can add tags/labels during upload.
 - [ ] Rex can infer labels only with user confirmation.
-- [ ] Uploaded content is indexed into the correct per-user or household vector store.
-- [ ] Private uploads are not retrieved for household context.
-- [ ] User can search, delete, and audit uploaded content.
-- [ ] Tests cover scope, tagging, retrieval, deletion, and cross-scope isolation.
+- [ ] Uploaded content is indexed into the correct per-user or household vector store with source provenance retained for derived context.
+- [ ] Private uploads are filtered before retrieval/ranking and are not retrieved or summarized into household/other-user context.
+- [ ] User can search, delete, audit, and inspect contextual-use/scope settings for uploaded content.
+- [ ] Tests cover scope, context inclusion on/off, tagging, retrieval, deletion, uploader authority, provenance, and cross-user/cross-scope isolation.
 - [ ] `cd gui && npm run typecheck && npm run build` passes.
 - [ ] All relevant GitHub checks pass.
 
@@ -3755,39 +3758,78 @@ grep -n "askrex.app\|Cloudflare\|CORS\|rate limit\|revocation" docs/deployment.m
 
 **Priority:** P1 | **Workstream:** Audio / Media / Home Assistant / External Capabilities | **Dependencies:** US-120.
 
-**Description:** Add a provider-neutral audio target registry so Rex can resolve named speakers, rooms, and persistent groups and truthfully control supported media playback.
+**Description:** Add provider-neutral audio-target and media-provider/account abstractions so Rex can resolve named speakers, rooms, persistent groups, and the correct user-owned media source while truthfully controlling supported playback.
 
 **Acceptance Criteria:**
 - [ ] Canonical audio targets have stable IDs, names/aliases, provider, room, capabilities, online/health state, and per-user authorization.
 - [ ] Local devices, Home Assistant `media_player` entities, and future providers adapt into one registry rather than provider-specific user commands.
+- [ ] Canonical media-provider accounts are bound to a Rex user/profile and credential-vault slot; provider tokens/credentials never enter prompts or cross-user fallback state.
+- [ ] The provider contract is capable of supporting Apple Music/MusicKit when Apple developer credentials and per-user authorization are available, without making live Apple Music a precondition for US-121 completion.
 - [ ] Target resolution handles room/device/group names without unsafe fuzzy ambiguity.
+- [ ] For an interactive media command with no explicit target, the trusted request-origin/listening endpoint is the preferred output when it is an authorized playable target.
 - [ ] Persistent speaker groups support create, inspect, rename, membership edit, and delete.
 - [ ] Supported media actions include play/pause/resume/stop, next/previous where available, volume, mute/unmute, playback-state query, and provider-supported transfer/retargeting.
+- [ ] Successful playback creates a bounded active-media-session reference so natural follow-ups such as "pause it", "turn it up", or "move it to the living room" resolve without needless repetition when unambiguous.
+- [ ] Ambiguous active sessions or targets cause a short clarification rather than silent selection.
 - [ ] Unsupported/offline actions return truthful actionable limitations; mutations use canonical verification where technically possible.
 - [ ] Dynamic providers refresh discovery/health without requiring Rex restart where supported.
-- [ ] Tests cover target resolution, ambiguity, group CRUD, offline/mixed-capability providers, permissions, playback, and verified outcomes.
+- [ ] Tests cover target resolution, ambiguity, request-origin routing, active-session follow-ups, group CRUD, offline/mixed-capability providers, per-user provider-account isolation, permissions, playback, and verified outcomes.
 - [ ] All relevant GitHub checks pass.
 
-**Risk notes:** A display-name match never grants device authority; unsupported transfer/group behavior must not be reported as completed.
+**Risk notes:** A display-name match or request-origin device never grants device authority. Provider-account selection and output-target selection are separate. Unsupported transfer/group behavior must not be reported as completed.
 
 ### US-122: Add per-user output-routing policies and Settings UI
 
 **Priority:** P1 | **Workstream:** Settings / Voice / Timers / Media | **Dependencies:** US-121.
 
-**Description:** Let each user choose default and conditional targets for spoken responses, timers, alarms, and media, with explicit one-off overrides and safe fallbacks.
+**Description:** Let each user choose default and conditional targets and media-account behavior for spoken responses, timers, alarms, and media, with request-origin convenience, explicit one-off overrides, and safe fallbacks.
 
 **Acceptance Criteria:**
 - [ ] Electron Settings exposes canonical outputs/rooms/groups and per-user defaults for spoken response, timer, alarm, and media targets.
+- [ ] Each profile can link/select its own media provider account(s) and default provider/account without exposing another user's credentials.
+- [ ] When voice identity is confidently resolved, media uses that user's linked/default provider account. When identity is unresolved, policy may use a configured household primary playback account for ordinary playback without granting another user's private library mutation authority.
+- [ ] Interactive media defaults to the authorized request-origin/listening endpoint when no target is named; an explicit natural-language room/device/group always overrides that preference.
 - [ ] Timer/alarm records may carry an explicit target overriding defaults.
 - [ ] Policies support time/day conditions, quiet hours, target volume where supported, and explicit fallback behavior.
 - [ ] One-off natural-language targets override stored defaults and Rex can explain the resolved route/policy.
 - [ ] Speaker-group management is available from Settings, including test playback where supported.
 - [ ] Electron and mobile/PWA use the same backend policy state with James/Cole isolation.
 - [ ] Routing/fallback decisions are structured and privacy-safe; unavailable targets never silently reroute against policy.
-- [ ] Tests cover defaults, conditions, explicit overrides, outages/fallbacks, quiet hours, groups, and concurrent per-user policies.
+- [ ] Tests cover per-user media-account isolation, unresolved-speaker primary-account fallback, request-origin default, defaults, conditions, explicit overrides, outages/fallbacks, quiet hours, groups, and concurrent per-user policies.
 - [ ] All relevant GitHub checks pass.
 
-**Risk notes:** Output routing is policy, not authority. It cannot widen device permissions or silently suppress explicitly required events.
+**Risk notes:** Output/account routing is policy, not authority. It cannot widen device permissions, borrow another user's private library authority, or silently suppress explicitly required events.
+
+### US-123: Add canonical situational context and proactive assistance
+
+**Priority:** P1 | **Workstream:** Context / Identity / Privacy / Proactivity | **Dependencies:** US-085, US-086, US-087, US-109, US-121, US-122.
+
+**Description:** Add one canonical, user-scoped situational-context/source-policy layer that lets Rex preserve conversational references and proactively combine authorized connected information into timely, personable assistance without widening disclosure or action authority.
+
+**Why it matters:** Rex should understand what is going on across an interaction and offer useful next steps, but ad hoc feature-specific context would create inconsistent privacy behavior and cross-user leakage risk.
+
+**Acceptance Criteria:**
+- [ ] Context sources use explicit policy metadata including source ID/type, private owner when applicable, audience scope, context-enabled state, disclosure policy, and a content-free revision used to invalidate stale context/cache state.
+- [ ] Ordinary integrations deliberately connected by a user are eligible for that user's contextual reasoning by default unless disabled; contextual access never grants mutation authority.
+- [ ] Uploaded sources obey US-086's independent per-file context-inclusion and private/household audience choices, including provenance-preserving retrieval and cross-user isolation.
+- [ ] Location is a special opt-in source: each user must explicitly grant `location_assist` before Rex uses current/recent location for that user's assistance, and household/admin status cannot override that grant.
+- [ ] Location disclosure is a separate person-specific `location_share` grant. Enabling location-assisted features never lets another user ask "where is <user>?" and receive location unless the tracked user explicitly granted that recipient access.
+- [ ] A denied location-disclosure request does not reveal or confirm whether Rex currently has location data for that user.
+- [ ] Rex accesses location only when it materially improves the current task or an enabled proactive rule; permission alone does not require continuous polling/tracking.
+- [ ] Capabilities publish typed, bounded/expiring active-context references rather than separate conversation engines; TurnEngine resolves natural follow-ups such as "it", "that one", "move it", or "turn it up" against authorized active state.
+- [ ] Ambiguous or expired references cause a short clarification rather than a guessed cross-domain action.
+- [ ] A canonical proactive-opportunity evaluator can combine calendar, current weather/traffic/search, relevant memory/preferences, capability state, and recent verified activity to identify useful next actions for the affected user.
+- [ ] Proactive candidates carry provenance, freshness, confidence, urgency/benefit, user scope, and dismissal/preference evidence; only high-signal opportunities surface.
+- [ ] Suggestions are delivered in natural language during a suitable interaction by default; urgent notifications require an already-authorized notification route/policy.
+- [ ] Declined suggestion patterns reduce future frequency; accepting a suggestion may create an explicit automation/preference but never bypasses normal action authorization/confirmation.
+- [ ] Revoking source, context, location, or sharing permission invalidates affected active context and cached prompt/context artifacts through revision changes.
+- [ ] Settings surfaces expose per-user contextual-source controls, upload context/scope controls, location-assist permission, recipient-specific location-sharing permission, and proactive-assistance preferences without allowing one user/admin to override another user's private location choices.
+- [ ] Tests cover source policy, upload integration, location opt-in/non-disclosure/admin non-override, active-reference resolution/expiry, context-cache invalidation, proactive ranking/dismissal behavior, and James/Cole isolation.
+- [ ] All relevant GitHub checks pass.
+
+**Validation commands:** focused context/privacy/proactivity tests; identity/cache/upload suites; `cd gui && npm run typecheck && npm run build`; required repository release gates.
+
+**Risk notes:** Connected-data availability, contextual eligibility, disclosure, and action authority are four distinct concerns. Historical checklist uses of `US-123` are legacy evidence only; this active story is defined by the authoritative production-readiness PRD.
 
 ### US-115: Compose capability gaps declaratively
 
@@ -3892,7 +3934,7 @@ grep -n "askrex.app\|Cloudflare\|CORS\|rate limit\|revocation" docs/deployment.m
 
 **Acceptance Criteria:**
 - [ ] RexBench reports cold/warm p50/p95 by typed chat, voice, read-only tool, mutating tool, unavailable/gap-recovery, and representative multi-tool request class with stage breakdowns.
-- [ ] Production profile covers identity/privacy isolation, permission escalation denial, cancellation races, tool/provider failure, OpenClaw outage/recovery, capability-sync attacks, Forge adversarial/promotion/rollback cases, timer accuracy/concurrency, alarm recurrence/snooze/restart recovery, audio-target resolution, group routing, per-user output-routing isolation, and unavailable-target behavior.
+- [ ] Production profile covers identity/privacy isolation, permission escalation denial, cancellation races, tool/provider failure, OpenClaw outage/recovery, capability-sync attacks, Forge adversarial/promotion/rollback cases, timer accuracy/concurrency, alarm recurrence/snooze/restart recovery, audio-target resolution, group routing, per-user media-account/output-routing isolation, request-origin routing, upload context/scope isolation, location opt-in/non-disclosure/admin non-override, contextual-reference expiry, proactive-opportunity behavior, and unavailable-target behavior.
 - [ ] Evidence clearly separates deterministic/mock, local source runtime, live-provider, packaged Windows Electron, mobile/device, and physical voice/hardware runs; no category substitutes for another.
 - [ ] Windows packaged Electron and authenticated mobile E2E consume canonical TurnEngine; physical voice evidence covers wake/capture/ASR/TTS/barge-in where hardware is available.
 - [ ] Retained reports contain no prompts, transcripts, memory contents, credentials, raw private tool payloads, or user IDs.

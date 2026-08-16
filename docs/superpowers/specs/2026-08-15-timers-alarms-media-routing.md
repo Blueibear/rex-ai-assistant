@@ -2,7 +2,7 @@
 
 **Date:** 2026-08-15
 **Status:** Mandatory production-readiness addendum
-**Authority:** This addendum is part of the active AskRex production-readiness workstream and must be completed before the final release gate. It supplements `PRD-production-readiness.md` and `docs/superpowers/plans/2026-08-08-rex2-production-readiness-integration.md`.
+**Authority:** This addendum is part of the active AskRex production-readiness workstream and must be completed before the final release gate. It supplements `PRD-production-readiness.md` and `docs/superpowers/plans/2026-08-08-rex2-production-readiness-integration.md`. The 2026-08-16 situational-context/media/privacy design further refines US-121/US-122 and adds the US-123 context/proactivity boundary.
 
 ## Goal
 
@@ -82,17 +82,20 @@ Examples that must work after implementation:
 
 - [ ] A canonical audio target registry exists with stable IDs, display names, provider, room, capabilities, online/health state, and user-visible aliases.
 - [ ] The registry can represent local playback devices, Home Assistant `media_player` entities, and future OpenClaw/direct smart-speaker providers through adapters rather than provider-specific user commands.
+- [ ] Rex has a user-bound media-provider/account abstraction whose credentials stay in the vault; Apple Music/MusicKit can plug into that abstraction when Apple developer credentials and per-user authorization are available.
 - [ ] Rex can resolve natural-language targets such as "bedroom speaker", "kitchen", "downstairs", or a named device without unsafe fuzzy ambiguity.
+- [ ] When no media target is named, the trusted request-origin/listening endpoint is the preferred authorized playback target.
 - [ ] Users can create, rename, inspect, modify, and delete persistent speaker groups.
 - [ ] Groups can contain multiple compatible speakers and can be addressed as one target.
 - [ ] Rex supports provider-appropriate media actions including play, pause, resume, stop, next/previous where available, volume, mute/unmute, and playback-state query.
 - [ ] Rex can start or route requested music/media to one speaker, one room, or one group when the configured provider supports the requested source.
+- [ ] Successful playback establishes bounded active-media context so conversational follow-ups such as "pause it", "turn it up", and "move it to the living room" work when unambiguous.
 - [ ] Rex can move or re-target active playback when the provider supports transfer; otherwise it explains the limitation instead of claiming success.
 - [ ] Capability differences are explicit. Unsupported actions on a target return a truthful, user-actionable result.
 - [ ] Group and playback mutations use the canonical action lifecycle and verify resulting device/group state where technically possible.
-- [ ] Per-user permissions can restrict which devices/groups a user may control.
+- [ ] Per-user permissions can restrict which devices/groups a user may control and which media provider account may be used.
 - [ ] Audio target discovery and health refresh without requiring a full Rex restart where the underlying provider supports dynamic discovery.
-- [ ] Tests cover target resolution, ambiguous names, group CRUD, offline devices, mixed provider capability differences, playback control, permissions, and verified outcomes.
+- [ ] Tests cover target resolution, ambiguous names, request-origin defaulting, active-session follow-ups, provider-account isolation, group CRUD, offline devices, mixed provider capability differences, playback control, permissions, and verified outcomes.
 
 ---
 
@@ -107,6 +110,9 @@ Examples that must work after implementation:
 
 - [ ] Settings exposes audio outputs, rooms, and speaker groups using the canonical audio target registry.
 - [ ] Users can set a default spoken-response target, default timer target, default alarm target, and default media target.
+- [ ] Each profile can link/select its own media-provider account(s) and default provider/account without exposing another user's credentials or library authority.
+- [ ] High-confidence voice identity selects that user's linked/default media account; unresolved identity may use a configured household primary playback account for ordinary playback only under policy.
+- [ ] For interactive media, the authorized request-origin/listening endpoint is the normal default target when no room/device/group is named.
 - [ ] Defaults can be configured per user rather than globally only.
 - [ ] A timer or alarm may store an explicit output target that overrides defaults, for example "only sound this alarm on the bedroom speaker."
 - [ ] Routing policies can include time/day conditions, for example morning alarms on the bedroom speaker and evening timers on the kitchen speaker.
@@ -118,7 +124,7 @@ Examples that must work after implementation:
 - [ ] Rex can answer "where will my morning alarm play?" and explain the resolved route and policy that produced it.
 - [ ] Routing decisions and fallbacks are recorded in structured logs without exposing sensitive user content.
 - [ ] Electron and mobile/PWA surfaces use the same routing/policy backend and do not maintain separate conflicting settings.
-- [ ] Tests cover per-user defaults, time-of-day routing, explicit overrides, target outage fallback, quiet hours, group routing, and concurrent James/Cole policies.
+- [ ] Tests cover per-user provider-account isolation, unresolved-speaker primary-account fallback, request-origin media defaulting, per-user outputs, time-of-day routing, explicit overrides, target outage fallback, quiet hours, group routing, and concurrent James/Cole policies.
 
 ---
 
