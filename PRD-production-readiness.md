@@ -3519,7 +3519,7 @@ grep -n "askrex.app\|Cloudflare\|CORS\|rate limit\|revocation" docs/deployment.m
 - [x] Deterministic invalidation occurs on relevant identity/scope/policy/model/config/memory revisions.
 - [x] Cache metrics contain categories/timing but never raw private content or credentials.
 - [x] Concurrent James/Cole tests prove no cache hit returns the other user's prompt/context/memory.
-- [ ] All relevant GitHub checks pass.
+- [x] All relevant GitHub checks pass.
 
 **Validation commands:** `pytest tests/rex2/test_context_cache.py tests/rex2/test_context_cache_identity.py -q`.
 
