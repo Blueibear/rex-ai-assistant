@@ -16,7 +16,8 @@
     "preview": "electron-vite preview",
     "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
     "lint": "eslint .",
-    "test": "vitest run"
+    "test": "vitest run",
+    "postinstall": "install-electron --no"
   },
   "dependencies": {
     "@electron-toolkit/preload": "^3.0.1",
