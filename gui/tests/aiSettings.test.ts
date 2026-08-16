@@ -45,3 +45,33 @@ describe('AI provider settings', () => {
     expect(settings.openrouterBaseUrl).toBe(OPENROUTER_DEFAULT_BASE_URL)
   })
 })
+
+
+describe('AI provider reload behavior (US-071)', () => {
+  beforeEach(() => mockReadRexConfig.mockReset().mockReturnValue({}))
+
+  it('reloads the canonical runtime provider instead of stale GUI state', () => {
+    mockReadRexConfig.mockReturnValue({
+      models: { llm_provider: 'ollama', llm_model: 'llama3.2:3b' }
+    })
+
+    const settings = buildAiSettings({ provider: 'local', customModelId: 'stale-local-model' })
+
+    expect(settings.provider).toBe('ollama')
+    expect(settings.customModelId).toBe('stale-local-model')
+  })
+
+  it('maps the runtime transformers provider back to the Local Transformers GUI value', () => {
+    mockReadRexConfig.mockReturnValue({
+      models: { llm_provider: 'transformers', llm_model: 'mistralai/Mistral-7B-Instruct-v0.3' }
+    })
+
+    expect(buildAiSettings({}).provider).toBe('local')
+  })
+
+  it('falls back safely when the canonical runtime provider is invalid', () => {
+    mockReadRexConfig.mockReturnValue({ models: { llm_provider: 'not-a-provider' } })
+
+    expect(buildAiSettings({ provider: 'ollama' }).provider).toBe('openai')
+  })
+})
