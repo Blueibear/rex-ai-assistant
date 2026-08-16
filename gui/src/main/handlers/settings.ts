@@ -2,7 +2,14 @@ import { ipcMain } from 'electron'
 import { join } from 'path'
 import { homedir } from 'os'
 import { existsSync, readFileSync } from 'fs'
-import type { AiSettings, PreferenceSuggestion, Settings, WakeWordStatus } from '../../types/ipc'
+import type {
+  AiSettings,
+  ModelDiscoveryProvider,
+  ModelDiscoveryResponse,
+  PreferenceSuggestion,
+  Settings,
+  WakeWordStatus
+} from '../../types/ipc'
 import { readGuiSettings, readRexConfigStrict, writeGuiSettings, writeRexConfig } from '../configStore'
 import { buildAiSettings } from '../aiSettings'
 import { buildVoiceSettings, buildWakeWordStatus } from '../voiceSettings'
@@ -13,6 +20,7 @@ import { getVaultReference, putVaultReference } from '../credentialReferences'
 import type { ElectronSessionIdentity } from '../sessionIdentity'
 import { safeIpcErrorMessage, SafeValidationError } from '../ipcErrors'
 import { loadIntegrationSettings, persistSettingsSection, removeEmailAccount } from '../integrationSettingsStorage'
+import { discoverAiModelsAtEndpoint } from '../modelDiscovery'
 
 const ALLOWED_API_KEYS = [
   'OPENAI_API_KEY',
@@ -41,6 +49,10 @@ function apiKeyContext(key: string): VaultContext {
   return { scope: 'household', integration: integrationNameForKey(key), account: null, slot: 'api_key' }
 }
 
+function objectSection(value: unknown): Record<string, unknown> {
+  return value && typeof value === 'object' ? (value as Record<string, unknown>) : {}
+}
+
 export function registerSettingsHandlers(session: ElectronSessionIdentity): void {
   ipcMain.handle('rex:getSettings', async (_event, section: string): Promise<Settings> => {
     const stored = readGuiSettings()
@@ -55,6 +67,27 @@ export function registerSettingsHandlers(session: ElectronSessionIdentity): void
     }
     return stored[section] ?? defaultSettingsMap[section] ?? {}
   })
+
+  ipcMain.handle(
+    'rex:discoverAiModels',
+    async (_event, provider: ModelDiscoveryProvider | string): Promise<ModelDiscoveryResponse> => {
+      if (provider !== 'ollama' && provider !== 'lmstudio') {
+        return { ok: false, models: [], error: 'Unsupported model discovery provider' }
+      }
+      try {
+        const config = readRexConfigStrict()
+        const section = objectSection(provider === 'ollama' ? config.ollama : config.openai)
+        const endpoint = typeof section.base_url === 'string' ? section.base_url : ''
+        return discoverAiModelsAtEndpoint(provider, endpoint)
+      } catch {
+        return {
+          ok: false,
+          models: [],
+          error: 'Model discovery configuration could not be read'
+        }
+      }
+    }
+  )
 
   ipcMain.handle('rex:getWakeWordStatus', (_event, values?: Settings): WakeWordStatus => {
     const stored = readGuiSettings()

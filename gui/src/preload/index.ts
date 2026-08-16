@@ -50,7 +50,9 @@ import type {
   TurnStatusValue,
   VoiceStartOptions,
   PairingResponse,
-  ProfileOperationResponse
+  ProfileOperationResponse,
+  ModelDiscoveryProvider,
+  ModelDiscoveryResponse
 } from '../types/ipc'
 
 function makeSendChatStream(
@@ -236,6 +238,8 @@ const rexAPI = {
   },
   getSettings: (section: string): Promise<Settings> =>
     ipcRenderer.invoke('rex:getSettings', section),
+  discoverAiModels: (provider: ModelDiscoveryProvider): Promise<ModelDiscoveryResponse> =>
+    ipcRenderer.invoke('rex:discoverAiModels', provider),
   setSettings: (section: string, values: Settings): Promise<SetSettingsResponse> =>
     ipcRenderer.invoke('rex:setSettings', section, values),
   removeEmailAccount: (id: string, confirmed: boolean): Promise<SetSettingsResponse> =>

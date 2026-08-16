@@ -2505,14 +2505,14 @@ cd gui && npm run typecheck && npm run build
 **Implementation notes:** Ollama and LM Studio have different APIs. Use configured endpoints, show loading/error/empty states, and avoid network calls unless the user requests discovery or opens the relevant provider section.
 
 **Acceptance Criteria:**
-- [ ] Ollama model discovery reads the configured Ollama endpoint.
-- [ ] LM Studio model discovery reads the configured OpenAI-compatible endpoint.
-- [ ] UI shows loading, error, and empty states.
-- [ ] Selected model persists and reloads.
-- [ ] Stale or hardcoded fake model names are not shown as available.
-- [ ] Tests mock provider endpoints for success, failure, and empty responses.
-- [ ] `cd gui && npm run typecheck && npm run build` passes.
-- [ ] All relevant GitHub checks pass.
+- [x] Ollama model discovery reads the configured Ollama endpoint.
+- [x] LM Studio model discovery reads the configured OpenAI-compatible endpoint.
+- [x] UI shows loading, error, and empty states.
+- [x] Selected model persists and reloads.
+- [x] Stale or hardcoded fake model names are not shown as available.
+- [x] Tests mock provider endpoints for success, failure, and empty responses.
+- [x] `cd gui && npm run typecheck && npm run build` passes.
+- [x] All relevant GitHub checks pass.
 
 **Validation commands:**
 ```bash

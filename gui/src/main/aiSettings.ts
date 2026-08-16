@@ -66,6 +66,11 @@ export function buildAiSettings(raw: Settings = {}): AiSettings {
   const customModelId =
     nonEmptyString(raw.customModelId)
     || (provider === 'ollama' || provider === 'local' ? runtimeModelId : '')
+  const openaiBaseUrl = Object.prototype.hasOwnProperty.call(raw, 'openaiBaseUrl')
+    ? typeof raw.openaiBaseUrl === 'string'
+      ? raw.openaiBaseUrl.trim()
+      : ''
+    : nonEmptyString(openai.base_url)
   const ollamaBaseUrl =
     nonEmptyString(raw.ollamaBaseUrl)
     || nonEmptyString(ollama.base_url)
@@ -91,6 +96,7 @@ export function buildAiSettings(raw: Settings = {}): AiSettings {
     model,
     provider,
     customModelId,
+    openaiBaseUrl,
     ollamaBaseUrl,
     openrouterModel,
     openrouterBaseUrl,

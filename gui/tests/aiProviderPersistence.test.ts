@@ -72,3 +72,56 @@ describe('AI provider persistence across settings reloads (US-071)', () => {
     expect(reloaded.provider).toBe('ollama')
   })
 })
+
+
+describe('discovered model persistence across settings reloads (US-072)', () => {
+  it('persists and reloads an Ollama model selected from discovery', async () => {
+    guiSettings = { ai: { provider: 'ollama', customModelId: '' } }
+    rexConfig = {
+      models: { llm_provider: 'ollama', llm_model: 'old-model:latest' },
+      ollama: { base_url: 'http://127.0.0.1:11434' }
+    }
+
+    const result = await persistSettingsSection(session, 'ai', {
+      provider: 'ollama',
+      customModelId: 'qwen2.5:7b',
+      ollamaBaseUrl: 'http://127.0.0.1:11434'
+    })
+
+    expect(result).toEqual({ ok: true })
+    expect(rexConfig).toMatchObject({
+      models: { llm_provider: 'ollama', llm_model: 'qwen2.5:7b' },
+      ollama: { base_url: 'http://127.0.0.1:11434' }
+    })
+    const reloaded = buildAiSettings(guiSettings.ai)
+    expect(reloaded.provider).toBe('ollama')
+    expect(reloaded.customModelId).toBe('qwen2.5:7b')
+  })
+
+  it('persists and reloads an LM Studio model through the OpenAI-compatible runtime path', async () => {
+    guiSettings = { ai: { provider: 'openai', model: 'gpt-4o', openaiBaseUrl: '' } }
+    rexConfig = {
+      models: { llm_provider: 'openai' },
+      openai: { model: 'gpt-4o', base_url: null }
+    }
+
+    const result = await persistSettingsSection(session, 'ai', {
+      provider: 'openai',
+      model: 'qwen/qwen3-8b',
+      openaiBaseUrl: 'http://127.0.0.1:1234/v1'
+    })
+
+    expect(result).toEqual({ ok: true })
+    expect(rexConfig).toMatchObject({
+      models: { llm_provider: 'openai' },
+      openai: {
+        model: 'qwen/qwen3-8b',
+        base_url: 'http://127.0.0.1:1234/v1'
+      }
+    })
+    const reloaded = buildAiSettings(guiSettings.ai)
+    expect(reloaded.provider).toBe('openai')
+    expect(reloaded.model).toBe('qwen/qwen3-8b')
+    expect(reloaded.openaiBaseUrl).toBe('http://127.0.0.1:1234/v1')
+  })
+})

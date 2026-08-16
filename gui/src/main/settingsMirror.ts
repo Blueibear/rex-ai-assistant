@@ -48,6 +48,11 @@ export function mirrorToRexConfig(section: string, values: Settings): MirrorResu
         openai.model = values.model.trim()
         rexConfig.openai = openai
       }
+      if (typeof values.openaiBaseUrl === 'string') {
+        const openai = ((rexConfig.openai ?? {}) as Record<string, unknown>)
+        openai.base_url = values.openaiBaseUrl.trim() || null
+        rexConfig.openai = openai
+      }
       if (
         provider === 'openrouter'
         && (providerWasSupplied || typeof values.openrouterModel === 'string')
