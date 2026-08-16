@@ -19,7 +19,9 @@ def test_disabled_provider_list_is_unconfigured() -> None:
 
 
 def test_brave_runtime_config_key_counts_as_configured() -> None:
-    config = SimpleNamespace(search_providers="brave", brave_api_key="vault-brave-key")
+    config = SimpleNamespace(
+        search_providers="brave", brave_api_key="vault-brave-key"
+    )  # pragma: allowlist secret
 
     assert configured_search_providers(config, environ={}) == ["brave"]
 
@@ -27,15 +29,15 @@ def test_brave_runtime_config_key_counts_as_configured() -> None:
 def test_serpapi_accepts_documented_key_name() -> None:
     config = SimpleNamespace(search_providers="serpapi", brave_api_key=None)
 
-    assert configured_search_providers(config, environ={"SERPAPI_KEY": "serp-key"}) == ["serpapi"]
+    env = {"SERPAPI_KEY": "serp-key"}  # pragma: allowlist secret
+    assert configured_search_providers(config, environ=env) == ["serpapi"]
 
 
 def test_serpapi_accepts_legacy_api_key_alias() -> None:
     config = SimpleNamespace(search_providers="serpapi", brave_api_key=None)
 
-    assert configured_search_providers(config, environ={"SERPAPI_API_KEY": "serp-key"}) == [
-        "serpapi"
-    ]
+    env = {"SERPAPI_API_KEY": "serp-key"}  # pragma: allowlist secret
+    assert configured_search_providers(config, environ=env) == ["serpapi"]
 
 
 def test_unconfigured_brave_does_not_count_vault_lookup_failure() -> None:
