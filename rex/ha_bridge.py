@@ -284,9 +284,7 @@ class HABridge:
         return [
             {
                 **state,
-                "friendly_name": (state.get("attributes") or {}).get(
-                    "friendly_name", entity_id
-                ),
+                "friendly_name": (state.get("attributes") or {}).get("friendly_name", entity_id),
                 "attributes": dict(state.get("attributes") or {}),
             }
             for entity_id, state in sorted(self._entity_states.items())
