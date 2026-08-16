@@ -2287,3 +2287,15 @@ Local validation on the final merged-master baseline:
 - `git diff --check` -> passed.
 
 US-078's local acceptance criteria are complete. The final `All relevant GitHub checks pass` criterion remains intentionally unchecked until the exact implementation head is published and all required GitHub/external checks complete successfully.
+
+
+2026-08-16 - US-078 remote GitHub evidence complete
+
+Remote exact-head evidence for implementation head `f59e33e8213248ceef50ae6495cc50c62d33d624` on PR #407:
+- GitHub Actions CI run #1201 completed successfully, including the full Python 3.11 tests/coverage + integration path, skipped-test budget, working-tree-clean proof, mypy, Ruff/Black/compile/deprecated-API guards, GUI Vitest/typecheck/build/ESLint/raw-API guard, security audit, hardcoded-secret scan, pre-commit, dependency audits, and wheel contents smoke.
+- Commitlint run #818 completed successfully.
+- Windows Electron Artifact run #168 completed successfully, including managed runtime/installer build, Authenticode truth verification, packaged-resource validation, and installed-artifact execution without machine Python or Node.
+- The exact-head check suite registered 18 checks; every check completed successfully and none remained in progress.
+- CodeFactor concluded success. Its sole annotation is a non-blocking maintainability warning that `ActionDispatcher.dispatch()` is a very complex method; it is not a correctness/security failure and no CodeFactor check failed.
+- PR #407 has no submitted reviews and no inline review threads.
+- US-078's final GitHub-check acceptance criterion is therefore closed. This documentation-only closure commit must still pass the repository's final merge checks before PR #407 is merged.

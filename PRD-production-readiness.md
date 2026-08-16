@@ -2744,7 +2744,7 @@ pytest -q tests/test_assistant.py tests/test_capabilities.py tests/test_tools_re
 - [x] Missing tool responses offer a concrete enable/configure/build path when one exists.
 - [x] The GUI can render structured recovery actions where available.
 - [x] Tests cover missing integration, missing key, missing permission, and missing tool responses.
-- [ ] All relevant GitHub checks pass.
+- [x] All relevant GitHub checks pass. *(PR #407 exact implementation head `f59e33e8213248ceef50ae6495cc50c62d33d624` completed all 18 checks successfully, including CI #1201, Commitlint #818, Windows Electron Artifact #168, CodeFactor, GitGuardian, pre-commit, security, wheel, GUI, and packaging checks; no submitted reviews or review threads.)*
 
 - [x] Before offering to build a missing capability, the recovery path searches in order: enabled local capabilities, disabled local capabilities, OpenClaw/ClawHub, configured MCP providers, configured OpenAPI descriptions, and safely composable capabilities.
 - [x] Candidate gap-recovery options are filtered by current-user permission, health, risk, identity scope, and configuration before they are offered or ranked.
