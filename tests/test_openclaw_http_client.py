@@ -264,3 +264,199 @@ class TestGetOpenClawClient:
         c1 = get_openclaw_client(config)
         c2 = get_openclaw_client(config)
         assert c1 is c2
+
+
+# ---------------------------------------------------------------------------
+# OpenClaw read-only WebSocket control-plane discovery (US-113)
+# ---------------------------------------------------------------------------
+
+
+class _FakeGatewaySocket:
+    def __init__(self) -> None:
+        import json
+
+        self._json = json
+        self.sent: list[dict] = []
+        self.closed = False
+        self._first = True
+
+    def recv(self) -> str:
+        if self._first:
+            self._first = False
+            return self._json.dumps(
+                {
+                    "type": "event",
+                    "event": "connect.challenge",
+                    "payload": {"nonce": "nonce-123", "ts": 123456},
+                }
+            )
+        request = self.sent[-1]
+        if request.get("method") == "connect":
+            return self._json.dumps(
+                {
+                    "type": "res",
+                    "id": request["id"],
+                    "ok": True,
+                    "payload": {
+                        "type": "hello-ok",
+                        "protocol": 4,
+                        "auth": {"role": "operator", "scopes": ["operator.read"]},
+                    },
+                }
+            )
+        method = request["method"]
+        payloads = {
+            "tools.catalog": {"groups": []},
+            "skills.status": {"skills": []},
+            "tools.effective": {"profile": "full", "found": [["core", ["browser_search"]]]},
+        }
+        return self._json.dumps(
+            {"type": "res", "id": request["id"], "ok": True, "payload": payloads[method]}
+        )
+
+    def send(self, raw: str) -> None:
+        self.sent.append(self._json.loads(raw))
+
+    def close(self) -> None:
+        self.closed = True
+
+
+def test_gateway_rpc_inventory_uses_operator_read_and_shared_token_only() -> None:
+    from rex.openclaw.gateway_rpc import OpenClawGatewayRpcClient
+
+    socket = _FakeGatewaySocket()
+    connector_calls: list[tuple[str, float]] = []
+
+    def connector(url: str, timeout: float):
+        connector_calls.append((url, timeout))
+        return socket
+
+    client = OpenClawGatewayRpcClient(
+        "http://127.0.0.1:18789",
+        "gateway-secret-token",
+        timeout=4,
+        connector=connector,
+    )
+
+    inventory = client.fetch_capability_inventory(session_key="agent:main:main")
+
+    assert connector_calls == [("ws://127.0.0.1:18789", 4.0)]
+    connect = socket.sent[0]
+    assert connect["method"] == "connect"
+    assert connect["params"]["role"] == "operator"
+    assert connect["params"]["scopes"] == ["operator.read"]
+    assert connect["params"]["auth"] == {"token": "gateway-secret-token"}
+    assert connect["params"]["client"]["mode"] == "backend"
+    assert connect["params"]["client"]["id"] == "gateway-client"
+    methods = [frame.get("method") for frame in socket.sent[1:]]
+    assert methods == ["tools.catalog", "skills.status", "tools.effective"]
+    assert inventory["effective_tools"] == {
+        "profile": "full",
+        "found": [["core", ["browser_search"]]],
+    }
+    assert socket.closed is True
+
+
+def test_gateway_rpc_rejects_remote_backend_without_device_identity() -> None:
+    from rex.openclaw.errors import OpenClawConfigError
+    from rex.openclaw.gateway_rpc import OpenClawGatewayRpcClient
+
+    with pytest.raises(OpenClawConfigError, match="loopback"):
+        OpenClawGatewayRpcClient("https://gateway.example.com", "secret")
+
+
+def test_gateway_rpc_connection_error_never_echoes_token() -> None:
+    from rex.openclaw.errors import OpenClawConnectionError
+    from rex.openclaw.gateway_rpc import OpenClawGatewayRpcClient
+
+    token = "do-not-leak-this-token"
+
+    def connector(_url: str, _timeout: float):
+        raise RuntimeError(f"connection refused with {token}")
+
+    client = OpenClawGatewayRpcClient("http://127.0.0.1:18789", token, connector=connector)
+
+    with pytest.raises(OpenClawConnectionError) as exc_info:
+        client.fetch_capability_inventory()
+
+    assert token not in str(exc_info.value)
+
+
+def test_gateway_rpc_rejects_malformed_challenge() -> None:
+    from rex.openclaw.errors import OpenClawProtocolError
+    from rex.openclaw.gateway_rpc import OpenClawGatewayRpcClient
+
+    class BadSocket(_FakeGatewaySocket):
+        def recv(self) -> str:
+            return '{"type":"event","event":"wrong.event","payload":{}}'
+
+    with pytest.raises(OpenClawProtocolError, match="challenge"):
+        OpenClawGatewayRpcClient(
+            "http://127.0.0.1:18789", "token", connector=lambda _u, _t: BadSocket()
+        ).fetch_capability_inventory()
+
+
+def test_gateway_rpc_error_response_is_sanitized() -> None:
+    from rex.openclaw.errors import OpenClawProtocolError
+    from rex.openclaw.gateway_rpc import OpenClawGatewayRpcClient
+
+    token = "never-print-me"
+
+    class ErrorSocket(_FakeGatewaySocket):
+        def recv(self) -> str:
+            if self._first:
+                return super().recv()
+            request = self.sent[-1]
+            if request.get("method") == "connect":
+                return super().recv()
+            return self._json.dumps(
+                {
+                    "type": "res",
+                    "id": request["id"],
+                    "ok": False,
+                    "error": {"code": "BAD_RPC", "message": f"remote detail {token}"},
+                }
+            )
+
+    client = OpenClawGatewayRpcClient(
+        "http://127.0.0.1:18789", token, connector=lambda _u, _t: ErrorSocket()
+    )
+
+    with pytest.raises(OpenClawProtocolError) as exc_info:
+        client.fetch_capability_inventory()
+
+    assert "BAD_RPC" in str(exc_info.value)
+    assert token not in str(exc_info.value)
+    assert "remote detail" not in str(exc_info.value)
+
+
+def test_gateway_rpc_requires_operator_read_in_hello_auth_scopes() -> None:
+    from rex.openclaw.errors import OpenClawProtocolError
+    from rex.openclaw.gateway_rpc import OpenClawGatewayRpcClient
+
+    class MissingReadSocket(_FakeGatewaySocket):
+        def recv(self) -> str:
+            if self._first:
+                return super().recv()
+            request = self.sent[-1]
+            if request.get("method") == "connect":
+                return self._json.dumps(
+                    {
+                        "type": "res",
+                        "id": request["id"],
+                        "ok": True,
+                        "payload": {
+                            "type": "hello-ok",
+                            "protocol": 4,
+                            "auth": {"role": "operator", "scopes": []},
+                        },
+                    }
+                )
+            return super().recv()
+
+    client = OpenClawGatewayRpcClient(
+        "http://127.0.0.1:18789", "token", connector=lambda _u, _t: MissingReadSocket()
+    )
+
+    with pytest.raises(OpenClawProtocolError, match="operator.read"):
+        client.fetch_capability_inventory()

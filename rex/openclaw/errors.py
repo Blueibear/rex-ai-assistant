@@ -49,6 +49,18 @@ class OpenClawAPIError(AssistantError):
         self.body = body
 
 
+class OpenClawProtocolError(AssistantError):
+    """Raised when the authenticated OpenClaw control-plane protocol is invalid.
+
+    The detail must already be sanitized and must never contain gateway-provided
+    free-form text or credential values.
+    """
+
+    def __init__(self, detail: str = "protocol error") -> None:
+        super().__init__(f"OpenClaw gateway protocol error: {detail}")
+        self.detail = detail
+
+
 class OpenClawConfigError(AssistantError):
     """Raised when an OpenClaw feature is enabled but the required API is not available.
 
@@ -68,4 +80,5 @@ __all__ = [
     "OpenClawAuthError",
     "OpenClawAPIError",
     "OpenClawConfigError",
+    "OpenClawProtocolError",
 ]

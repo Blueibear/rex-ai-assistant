@@ -3690,11 +3690,11 @@ grep -n "askrex.app\|Cloudflare\|CORS\|rate limit\|revocation" docs/deployment.m
 **Files/areas likely involved:** `rex/openclaw/`, Capability Registry sync/adapters, health/status UI, tests.
 
 **Acceptance Criteria:**
-- [ ] Discovery uses the authenticated configured gateway and schema-validates remote capability metadata before normalization.
-- [ ] Startup, manual refresh, and supported hot-refresh apply registry changes atomically; removed capabilities become stale/unavailable rather than lingering executable.
-- [ ] Remote metadata may update source/schema/description but can never widen local permission, operation type, risk tier, or verification policy.
-- [ ] Sync failure preserves the last known safe snapshot with explicit unhealthy/stale status and does not break core local Rex.
-- [ ] Tests cover add/update/remove/malformed/duplicate capabilities and malicious risk/permission metadata.
+- [x] Discovery uses the authenticated configured gateway and schema-validates remote capability metadata before normalization.
+- [x] Startup, manual refresh, and supported hot-refresh apply registry changes atomically; removed capabilities become stale/unavailable rather than lingering executable.
+- [x] Remote metadata may update source/schema/description but can never widen local permission, operation type, risk tier, or verification policy.
+- [x] Sync failure preserves the last known safe snapshot with explicit unhealthy/stale status and does not break core local Rex.
+- [x] Tests cover add/update/remove/malformed/duplicate capabilities and malicious risk/permission metadata.
 - [ ] All relevant GitHub checks pass.
 
 **Validation commands:** `pytest tests/rex2/test_openclaw_capability_sync.py tests/test_openclaw_http_client.py -q`.

@@ -17,7 +17,8 @@ from __future__ import annotations
 
 import builtins
 import logging
-from dataclasses import dataclass, field
+import threading
+from dataclasses import dataclass, field, replace
 from typing import Any, ClassVar, Literal
 
 logger = logging.getLogger(__name__)
@@ -215,6 +216,7 @@ class CapabilityRegistry:
 
     def __init__(self) -> None:
         self._capabilities: dict[str, Capability] = {}
+        self._lock = threading.RLock()
 
     # ------------------------------------------------------------------
     # Mutation helpers
@@ -222,45 +224,146 @@ class CapabilityRegistry:
 
     def register(self, capability: Capability, *, replace: bool = False) -> Capability:
         """Register canonical metadata without silent duplicate drift."""
-        existing = self._capabilities.get(capability.id)
-        if existing is not None:
-            if existing.static_signature() == capability.static_signature():
-                return existing
-            if not replace:
-                raise CapabilityConflictError(
-                    f"Capability {capability.id!r} is already registered with different metadata"
-                )
-        self._capabilities[capability.id] = capability
-        logger.debug("Registered capability: %s", capability.id)
-        return capability
+        with self._lock:
+            existing = self._capabilities.get(capability.id)
+            if existing is not None:
+                if existing.static_signature() == capability.static_signature():
+                    return existing
+                if not replace:
+                    raise CapabilityConflictError(
+                        f"Capability {capability.id!r} is already registered with different metadata"
+                    )
+            self._capabilities[capability.id] = capability
+            logger.debug("Registered capability: %s", capability.id)
+            return capability
 
     def register_remote(self, capability: Capability) -> Capability:
         """Register remote metadata without weakening an existing local card."""
         if capability.source != "openclaw":
             raise ValueError("register_remote() requires source='openclaw'")
-        existing = self._capabilities.get(capability.id)
-        if existing is None:
+        with self._lock:
+            existing = self._capabilities.get(capability.id)
+            if existing is None:
+                return self.register(capability)
+            if existing.security_signature() != capability.security_signature():
+                raise SecurityClassificationError(
+                    f"Remote metadata for {capability.id!r} conflicts with local security classification"
+                )
+            if existing.source != "openclaw":
+                return existing
             return self.register(capability)
-        if existing.security_signature() != capability.security_signature():
-            raise SecurityClassificationError(
-                f"Remote metadata for {capability.id!r} conflicts with local security classification"
-            )
-        if existing.source != "openclaw":
-            return existing
-        return self.register(capability)
+
+    def apply_openclaw_snapshot(
+        self, capabilities: list[Capability] | tuple[Capability, ...]
+    ) -> tuple[tuple[str, ...], tuple[str, ...], tuple[str, ...]]:
+        """Atomically apply one validated OpenClaw capability snapshot.
+
+        Remote-owned descriptive/schema metadata may refresh, but an existing
+        Rex security classification is preserved. Local capabilities are never
+        replaced by a remote card with the same ID. Removed OpenClaw cards stay
+        visible as unavailable so stale inventory never remains executable.
+        """
+        desired: dict[str, Capability] = {}
+        for capability in capabilities:
+            if capability.source != "openclaw":
+                raise ValueError("OpenClaw snapshot entries require source='openclaw'")
+            if capability.id in desired:
+                raise CapabilityConflictError(
+                    f"Duplicate OpenClaw capability in snapshot: {capability.id!r}"
+                )
+            desired[capability.id] = capability
+
+        with self._lock:
+            current = self._capabilities
+            staged = dict(current)
+            added: list[str] = []
+            updated: list[str] = []
+            removed: list[str] = []
+
+            for capability_id, incoming in desired.items():
+                existing = current.get(capability_id)
+                if existing is not None and existing.source != "openclaw":
+                    # The local card remains the canonical authority.
+                    continue
+                candidate = incoming
+                if existing is not None:
+                    candidate = replace(
+                        incoming,
+                        operation=existing.operation,
+                        risk=existing.risk,
+                        required_permissions=existing.required_permissions,
+                        requires_identity=existing.requires_identity,
+                        verification_supported=existing.verification_supported,
+                    )
+                if existing is None:
+                    added.append(capability_id)
+                elif (
+                    existing.static_signature() != candidate.static_signature()
+                    or existing.enabled != candidate.enabled
+                    or existing.health != candidate.health
+                    or existing.integration_state != candidate.integration_state
+                    or existing.read_capable != candidate.read_capable
+                    or existing.write_capable != candidate.write_capable
+                ):
+                    updated.append(capability_id)
+                staged[capability_id] = candidate
+
+            desired_ids = set(desired)
+            for capability_id, existing in current.items():
+                if existing.source != "openclaw" or capability_id in desired_ids:
+                    continue
+                unavailable = replace(
+                    existing,
+                    enabled=False,
+                    health="unavailable",
+                    integration_state="unavailable",
+                    read_capable=False,
+                    write_capable=False,
+                )
+                staged[capability_id] = unavailable
+                if (
+                    existing.enabled
+                    or existing.health != "unavailable"
+                    or existing.integration_state != "unavailable"
+                ):
+                    removed.append(capability_id)
+
+            self._capabilities = staged
+            return tuple(sorted(added)), tuple(sorted(updated)), tuple(sorted(removed))
+
+    def mark_openclaw_unavailable(self) -> tuple[str, ...]:
+        """Atomically mark the last known OpenClaw snapshot stale/unavailable."""
+        with self._lock:
+            staged = dict(self._capabilities)
+            changed: list[str] = []
+            for capability_id, existing in self._capabilities.items():
+                if existing.source != "openclaw":
+                    continue
+                staged[capability_id] = replace(
+                    existing,
+                    enabled=False,
+                    health="unhealthy",
+                    integration_state="unavailable",
+                    read_capable=False,
+                    write_capable=False,
+                )
+                changed.append(capability_id)
+            self._capabilities = staged
+            return tuple(sorted(changed))
 
     def update_runtime_state(self, name: str, **updates: object) -> Capability:
         """Update only mutable operational evidence for a registered card."""
-        capability = self._capabilities[name]
-        allowed = {"enabled", "health", "integration_state", "read_capable", "write_capable"}
-        invalid = set(updates) - allowed
-        if invalid:
-            raise ValueError(f"Static capability metadata cannot be updated: {sorted(invalid)}")
-        for field_name, value in updates.items():
-            setattr(capability, field_name, value)
-        if capability.health not in _ALLOWED_HEALTH:
-            raise ValueError(f"Unsupported capability health: {capability.health!r}")
-        return capability
+        with self._lock:
+            capability = self._capabilities[name]
+            allowed = {"enabled", "health", "integration_state", "read_capable", "write_capable"}
+            invalid = set(updates) - allowed
+            if invalid:
+                raise ValueError(f"Static capability metadata cannot be updated: {sorted(invalid)}")
+            for field_name, value in updates.items():
+                setattr(capability, field_name, value)
+            if capability.health not in _ALLOWED_HEALTH:
+                raise ValueError(f"Unsupported capability health: {capability.health!r}")
+            return capability
 
     def unregister(self, name: str) -> bool:
         """Remove a capability by name.
@@ -271,11 +374,12 @@ class CapabilityRegistry:
         Returns:
             ``True`` if the capability was found and removed, ``False`` otherwise.
         """
-        if name in self._capabilities:
-            del self._capabilities[name]
-            logger.debug("Unregistered capability: %s", name)
-            return True
-        return False
+        with self._lock:
+            if name in self._capabilities:
+                del self._capabilities[name]
+                logger.debug("Unregistered capability: %s", name)
+                return True
+            return False
 
     # ------------------------------------------------------------------
     # Query helpers
@@ -290,10 +394,11 @@ class CapabilityRegistry:
         Returns:
             List of :class:`Capability` instances sorted by name.
         """
-        caps = list(self._capabilities.values())
-        if not include_disabled:
-            caps = [c for c in caps if c.enabled]
-        return sorted(caps, key=lambda c: c.name)
+        with self._lock:
+            caps = list(self._capabilities.values())
+            if not include_disabled:
+                caps = [c for c in caps if c.enabled]
+            return sorted(caps, key=lambda c: c.name)
 
     def search(self, query: str) -> builtins.list[Capability]:
         """Filter capabilities whose metadata contains *query* as a substring.
@@ -309,14 +414,17 @@ class CapabilityRegistry:
             sorted by name.
         """
         q = query.lower()
-        results: builtins.list[Capability] = []
-        for cap in self._capabilities.values():
-            if not cap.enabled:
-                continue
-            haystack = " ".join([cap.name, cap.description, cap.category] + cap.triggers).lower()
-            if q in haystack:
-                results.append(cap)
-        return sorted(results, key=lambda c: c.name)
+        with self._lock:
+            results: builtins.list[Capability] = []
+            for cap in self._capabilities.values():
+                if not cap.enabled:
+                    continue
+                haystack = " ".join(
+                    [cap.name, cap.description, cap.category] + cap.triggers
+                ).lower()
+                if q in haystack:
+                    results.append(cap)
+            return sorted(results, key=lambda c: c.name)
 
     def metadata_snapshot(self) -> builtins.list[dict[str, object]]:
         """Return a deterministic metadata snapshot sorted by stable ID."""
@@ -341,7 +449,8 @@ class CapabilityRegistry:
         Returns:
             The :class:`Capability` instance or ``None`` if not found.
         """
-        return self._capabilities.get(name)
+        with self._lock:
+            return self._capabilities.get(name)
 
     def __len__(self) -> int:  # pragma: no cover
         return len(self._capabilities)

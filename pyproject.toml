@@ -28,6 +28,7 @@ dependencies = [
     "flask-limiter>=3.5.0",
     "flask-sock>=0.7.0",  # mobile WebSocket chat (issue #323); pure-Python, validated on Windows/Py3.11
     "requests>=2.32.0",  # CVE-2024-35195 fixed in 2.32.0
+    "websocket-client>=1.9.0,<2",  # OpenClaw read-only Gateway capability discovery
 
     # Configuration & Validation
     "pydantic>=2.0.0",  # Upgraded to v2 for security and performance
