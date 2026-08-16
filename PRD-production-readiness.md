@@ -2707,7 +2707,7 @@ pytest -q tests/test_llm_client.py tests/test_assistant.py
 - [x] Rex does not claim live news access when the capability is unavailable.
 - [x] Suggested setup paths are backed by actual code/config/docs.
 - [x] Tests cover configured and unconfigured paths for "what is in the news today".
-- [ ] All relevant GitHub checks pass.
+- [x] All relevant GitHub checks pass. *(PR #406 corrected exact head `c897fb8d745f1352d6b2fc53cb740468b61f5c4f` completed all 18 checks successfully, including CI #1197, Commitlint #815, Windows Electron Artifact #166, CodeFactor, GitGuardian, and pre-commit; no submitted reviews or review threads.)*
 
 **Validation commands:**
 ```bash

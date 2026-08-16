@@ -2237,3 +2237,17 @@ Validation evidence:
 - `pre-commit run --all-files`: Ruff, Black, and detect-secrets passed.
 - `git diff --check`: passed.
 - US-077 local acceptance criteria are complete. The final GitHub-check criterion remains intentionally unchecked until the exact PR implementation head passes the remote matrix.
+
+
+2026-08-16 - US-077 remote GitHub evidence complete
+
+Remote exact-head evidence for corrected implementation head `c897fb8d745f1352d6b2fc53cb740468b61f5c4f` on PR #406:
+- GitHub Actions CI run #1197 completed successfully, including Python 3.11 tests/coverage, integration tests, mypy, Ruff/Black, GUI tests/typecheck/build/lint, security audit, wheel smoke, dependency audits, raw-API guard, and pre-commit validation.
+- Commitlint run #815 completed successfully.
+- Windows Electron Artifact run #166 completed successfully, including managed runtime/installer build, signature/resource validation, and installed-artifact execution without machine Python or Node.
+- The exact-head check suite registered 18 checks; every check completed and none concluded failure or remained in progress.
+- CodeFactor completed successfully with no issues found.
+- GitGuardian/hardcoded-secret checks completed successfully with no exposed secrets.
+- Earlier PR heads exposed synthetic provider-key fixtures to detect-secrets; the fixtures were corrected with scanner-compatible inline allowlist annotations. The corrected exact head passed GitHub's Pre-commit Hook Validation.
+- PR #406 has no submitted reviews and no inline review threads.
+- US-077's final GitHub-check acceptance criterion is therefore closed. This documentation-only closure commit must still pass the repository's final merge checks before PR #406 is merged.
