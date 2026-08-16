@@ -397,6 +397,7 @@ def _build_default_registry(
 ) -> ToolRegistry:
     """Build and return a ``ToolRegistry`` pre-populated with all Rex tools."""
     # Lazily import so optional dependencies don't block startup.
+    from rex.media.tools import media_manage, media_read, verify_media_mutation
     from rex.openclaw.tools.calendar_tool import calendar_create
     from rex.openclaw.tools.email_tool import send_email
     from rex.openclaw.tools.ha_tool import ha_call_service
@@ -483,6 +484,33 @@ def _build_default_registry(
             operation="mutation",
             requires_identity=True,
             verifier=verify_timekeeping_mutation,
+        )
+    )
+
+    registry.register(
+        Tool(
+            name="media_read",
+            description="Read authorized speaker or media playback state.",
+            capability_tags=["media state", "what is playing", "speaker status"],
+            requires_config=[],
+            handler=media_read,
+            operation="read",
+            requires_identity=True,
+            required_permissions=("ha_control",),
+        )
+    )
+
+    registry.register(
+        Tool(
+            name="media_manage",
+            description="Control authorized media playback through the canonical verified lifecycle.",
+            capability_tags=["media", "play", "pause", "resume", "stop", "volume", "speaker"],
+            requires_config=[],
+            handler=media_manage,
+            operation="mutation",
+            requires_identity=True,
+            verifier=verify_media_mutation,
+            required_permissions=("ha_control",),
         )
     )
 
