@@ -2191,3 +2191,15 @@ Validation evidence:
 - `pre-commit run --all-files`: passed after Black reformatted `rex/config.py` and the baseline line-number refresh was staged.
 - `git diff --check`: passed.
 - US-073 local acceptance criteria are complete. The final GitHub-check criterion remains intentionally unchecked until the exact PR implementation head passes the remote matrix.
+
+
+2026-08-16 - US-073 remote GitHub evidence complete
+
+Remote exact-head evidence for corrected implementation head `a85309d10fc721ba6f52a82284328f0ca5dd7562` on PR #405:
+- GitHub Actions CI run #1191 completed successfully.
+- Commitlint run #810 completed successfully.
+- Windows Electron Artifact run #162 completed successfully, including installed-artifact validation.
+- The exact-head check suite completed without failure; GitGuardian remained green and no secrets were reported.
+- CodeFactor initially failed the prior implementation head `93b6c1e2e75a636f16b8d31fd5f86466343f2f86` with one complexity finding in `gui/src/main/autonomySettings.ts`. That finding was addressed by refactoring migration planning/rollback into smaller helpers. CodeFactor then completed successfully on corrected head `a85309d10fc721ba6f52a82284328f0ca5dd7562` with no issues found.
+- PR #405 has no submitted reviews and no inline review threads.
+- US-073's final GitHub-check acceptance criterion is therefore closed. This documentation-only closure commit must still pass the repository's final merge checks before PR #405 is merged.

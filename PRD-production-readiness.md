@@ -2551,7 +2551,7 @@ pytest -q tests/test_llm_client.py tests/test_model_router.py
 - [x] AI and runtime config read the same autonomy value.
 - [x] Tests cover migration from old duplicate values and System tab absence.
 - [x] `cd gui && npm run typecheck && npm run build` passes.
-- [ ] All relevant GitHub checks pass.
+- [x] All relevant GitHub checks pass.
 
 **Validation commands:**
 ```bash
