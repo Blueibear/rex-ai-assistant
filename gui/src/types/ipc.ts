@@ -202,7 +202,6 @@ export interface Procedure {
 }
 
 export interface SystemSettings {
-  autonomyMode: 'manual' | 'supervised' | 'full-auto'
   toolTimeoutSeconds: number
   requireConfirmSystemChanges: boolean
   allowedFileRoots: string

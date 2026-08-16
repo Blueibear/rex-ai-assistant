@@ -1,5 +1,6 @@
 import type { AiSettings, Settings } from '../types/ipc'
 import { readRexConfig } from './configStore'
+import { normalizeAutonomyMode, resolveAutonomyMode } from './autonomySettings'
 
 export const OPENROUTER_DEFAULT_BASE_URL = 'https://openrouter.ai/api/v1'
 export const OPENAI_DEFAULT_MODEL = 'gpt-4o'
@@ -113,13 +114,17 @@ export function buildAiSettings(raw: Settings = {}): AiSettings {
           ? models.llm_max_tokens
           : 2048,
     systemPrompt: typeof raw.systemPrompt === 'string' ? raw.systemPrompt : '',
-    autonomyMode:
-      raw.autonomyMode === 'supervised' || raw.autonomyMode === 'full-auto'
-        ? raw.autonomyMode
-        : 'manual',
+    autonomyMode: resolveAutonomyMode(models.autonomy_mode, raw.autonomyMode),
     budgetPerPlan: typeof raw.budgetPerPlan === 'number' ? raw.budgetPerPlan : 0,
     budgetPerStep: typeof raw.budgetPerStep === 'number' ? raw.budgetPerStep : 0,
     modelRouting: normalizeAiModelRouting(routingSource),
     personality
   }
+}
+
+
+export function buildAiSettingsForSave(raw: Settings = {}): AiSettings {
+  const resolved = buildAiSettings(raw)
+  const submittedAutonomyMode = normalizeAutonomyMode(raw.autonomyMode)
+  return submittedAutonomyMode ? { ...resolved, autonomyMode: submittedAutonomyMode } : resolved
 }

@@ -86,7 +86,6 @@ export const defaultSettingsMap: Record<string, Settings> = {
     credentialStatus: {}
   } satisfies IntegrationsSettings,
   system: {
-    autonomyMode: 'manual',
     toolTimeoutSeconds: 10,
     requireConfirmSystemChanges: true,
     allowedFileRoots: '',

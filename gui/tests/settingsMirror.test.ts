@@ -166,3 +166,32 @@ describe('OpenAI-compatible endpoint persistence (US-072)', () => {
     }))
   })
 })
+
+
+describe('autonomy runtime persistence (US-073)', () => {
+  beforeEach(() => {
+    mockReadRexConfig.mockReset().mockReturnValue({ models: { autonomy_mode: 'manual' } })
+    mockWriteRexConfig.mockReset()
+  })
+
+  it('mirrors autonomy only from the AI settings section', () => {
+    expect(mirrorToRexConfig('ai', { autonomyMode: 'supervised' } as never)).toEqual({ ok: true })
+    expect(mockWriteRexConfig).toHaveBeenCalledWith(expect.objectContaining({
+      models: expect.objectContaining({ autonomy_mode: 'supervised' })
+    }))
+  })
+
+  it('rejects an invalid AI autonomy mode instead of corrupting runtime config', () => {
+    const result = mirrorToRexConfig('ai', { autonomyMode: 'unbounded' } as never)
+
+    expect(result).toEqual({ ok: false, error: 'Invalid autonomy mode' })
+    expect(mockWriteRexConfig).not.toHaveBeenCalled()
+  })
+
+  it('ignores a legacy System autonomy field instead of changing runtime authority', () => {
+    expect(mirrorToRexConfig('system', { autonomyMode: 'full-auto' } as never)).toEqual({ ok: true })
+    expect(mockWriteRexConfig).toHaveBeenCalledWith(expect.objectContaining({
+      models: expect.objectContaining({ autonomy_mode: 'manual' })
+    }))
+  })
+})

@@ -8,6 +8,7 @@ import {
   OPENROUTER_DEFAULT_BASE_URL,
   OPENROUTER_DEFAULT_MODEL,
   buildAiSettings,
+  buildAiSettingsForSave,
   normalizeGuiAiProvider,
   toRuntimeAiProvider
 } from '../src/main/aiSettings'
@@ -94,5 +95,27 @@ describe('OpenAI-compatible endpoint settings (US-072)', () => {
     })
 
     expect(buildAiSettings({ openaiBaseUrl: '' }).openaiBaseUrl).toBe('')
+  })
+})
+
+
+describe('autonomy runtime authority (US-073)', () => {
+  beforeEach(() => mockReadRexConfig.mockReset().mockReturnValue({}))
+
+  it('loads the canonical runtime autonomy mode instead of stale GUI state', () => {
+    mockReadRexConfig.mockReturnValue({ models: { autonomy_mode: 'supervised' } })
+
+    expect(buildAiSettings({ autonomyMode: 'full-auto' }).autonomyMode).toBe('supervised')
+  })
+
+  it('falls back to a legacy AI value only when runtime authority is absent', () => {
+    expect(buildAiSettings({ autonomyMode: 'supervised' }).autonomyMode).toBe('supervised')
+  })
+
+  it('preserves an explicitly submitted autonomy change during save normalization', () => {
+    mockReadRexConfig.mockReturnValue({ models: { autonomy_mode: 'manual' } })
+
+    expect(buildAiSettingsForSave({ autonomyMode: 'full-auto' }).autonomyMode).toBe('full-auto')
+    expect(buildAiSettings({ autonomyMode: 'full-auto' }).autonomyMode).toBe('manual')
   })
 })

@@ -5,7 +5,6 @@ import { useToast } from '../../components/ui/Toast'
 export function SystemSettingsSection(): React.ReactElement {
   const addToast = useToast()
   const [settings, setSettings] = useState<SystemSettings>({
-    autonomyMode: 'manual',
     toolTimeoutSeconds: 10,
     requireConfirmSystemChanges: true,
     allowedFileRoots: '',
@@ -21,10 +20,6 @@ export function SystemSettingsSection(): React.ReactElement {
       .getSettings('system')
       .then((s: Settings) => {
         setSettings({
-          autonomyMode:
-            s.autonomyMode === 'supervised' || s.autonomyMode === 'full-auto'
-              ? (s.autonomyMode as 'supervised' | 'full-auto')
-              : 'manual',
           toolTimeoutSeconds: typeof s.toolTimeoutSeconds === 'number' ? s.toolTimeoutSeconds : 10,
           requireConfirmSystemChanges:
             typeof s.requireConfirmSystemChanges === 'boolean' ? s.requireConfirmSystemChanges : true,
@@ -81,28 +76,6 @@ export function SystemSettingsSection(): React.ReactElement {
   return (
     <div className="p-6 max-w-lg">
       <h2 className="text-lg font-semibold text-text-primary mb-6">System &amp; Advanced</h2>
-
-      {/* Autonomy mode */}
-      <div className="mb-6">
-        <label className="block text-sm font-medium text-text-primary mb-2">Autonomy Mode</label>
-        <select
-          value={settings.autonomyMode}
-          onChange={(e) =>
-            setSettings((s) => ({
-              ...s,
-              autonomyMode: e.target.value as SystemSettings['autonomyMode']
-            }))
-          }
-          className="w-full rounded-lg border border-border bg-bg px-3 py-2 text-sm text-text-primary focus:border-accent focus:outline-none"
-        >
-          <option value="manual">Manual — Rex only acts when explicitly asked</option>
-          <option value="supervised">Supervised — Rex proposes actions, you confirm</option>
-          <option value="full-auto">Full-Auto — Rex acts autonomously within budget</option>
-        </select>
-        <p className="mt-1 text-xs text-text-secondary">
-          Controls how independently Rex takes actions on your behalf.
-        </p>
-      </div>
 
       {/* Tool timeout */}
       <div className="mb-6">

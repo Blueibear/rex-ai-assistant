@@ -3,7 +3,6 @@ import { join } from 'path'
 import { homedir } from 'os'
 import { existsSync, readFileSync } from 'fs'
 import type {
-  AiSettings,
   ModelDiscoveryProvider,
   ModelDiscoveryResponse,
   PreferenceSuggestion,
@@ -11,7 +10,8 @@ import type {
   WakeWordStatus
 } from '../../types/ipc'
 import { readGuiSettings, readRexConfigStrict, writeGuiSettings, writeRexConfig } from '../configStore'
-import { buildAiSettings } from '../aiSettings'
+import { buildAiSettings, buildAiSettingsForSave } from '../aiSettings'
+import { migrateLegacyAutonomySettings, stripLegacyAutonomyMode } from '../autonomySettings'
 import { buildVoiceSettings, buildWakeWordStatus } from '../voiceSettings'
 import { defaultSettingsMap } from '../settingsDefaults'
 import { mirrorToRexConfig } from '../settingsMirror'
@@ -55,7 +55,7 @@ function objectSection(value: unknown): Record<string, unknown> {
 
 export function registerSettingsHandlers(session: ElectronSessionIdentity): void {
   ipcMain.handle('rex:getSettings', async (_event, section: string): Promise<Settings> => {
-    const stored = readGuiSettings()
+    const stored = section === 'ai' ? migrateLegacyAutonomySettings() : readGuiSettings()
     if (section === 'ai') {
       return buildAiSettings((stored[section] ?? {}) as Settings) as unknown as Settings
     }
@@ -100,7 +100,7 @@ export function registerSettingsHandlers(session: ElectronSessionIdentity): void
     async (_event, section: string, values: Settings): Promise<{ ok: boolean; error?: string }> => {
       const normalizedValues =
         section === 'ai'
-          ? (buildAiSettings(values) as unknown as Settings)
+          ? (buildAiSettingsForSave(values) as unknown as Settings)
           : section === 'voice'
             ? (buildVoiceSettings(values) as unknown as Settings)
             : values
@@ -134,7 +134,7 @@ export function registerSettingsHandlers(session: ElectronSessionIdentity): void
     }
 
     const stored = readGuiSettings()
-    const aiSettings = (stored['ai'] ?? defaultSettingsMap['ai'] ?? {}) as unknown as AiSettings
+    const aiSettings = buildAiSettings((stored['ai'] ?? defaultSettingsMap['ai'] ?? {}) as Settings)
 
     const suggestions: PreferenceSuggestion[] = []
 
@@ -187,7 +187,7 @@ export function registerSettingsHandlers(session: ElectronSessionIdentity): void
       const originalStored = JSON.parse(JSON.stringify(stored)) as Record<string, Settings>
       const aiSection = buildAiSettings((stored['ai'] ?? defaultSettingsMap['ai'] ?? {}) as Settings) as unknown as Record<string, unknown>
       aiSection[field] = value
-      stored['ai'] = aiSection as Settings
+      stored['ai'] = stripLegacyAutonomyMode(aiSection as Settings)
       writeGuiSettings(stored)
       const result = mirrorToRexConfig('ai', aiSection as Settings)
       if (result.ok) return { ok: true }

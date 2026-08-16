@@ -23,6 +23,7 @@
     "llm_model": "sshleifer/tiny-gpt2",
     "llm_max_tokens": 120,
     "llm_temperature": 0.7,
+    "autonomy_mode": "manual",
     "llm_top_p": 0.9,
     "llm_top_k": 50,
     "llm_seed": 42,

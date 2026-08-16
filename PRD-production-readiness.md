@@ -2544,14 +2544,14 @@ pytest -q tests/test_llm_client.py tests/test_model_router.py
 **Implementation notes:** Keep autonomy under AI. Remove the duplicate System autonomy control and audit System for other AI-related settings that should move.
 
 **Acceptance Criteria:**
-- [ ] Only one autonomy UI control exists.
-- [ ] The remaining control lives under Settings > AI.
-- [ ] System no longer has a duplicate autonomy setting.
-- [ ] Saved autonomy value has one source of truth.
-- [ ] AI and runtime config read the same autonomy value.
-- [ ] Tests cover migration from old duplicate values and System tab absence.
-- [ ] `cd gui && npm run typecheck && npm run build` passes.
-- [ ] All relevant GitHub checks pass.
+- [x] Only one autonomy UI control exists.
+- [x] The remaining control lives under Settings > AI.
+- [x] System no longer has a duplicate autonomy setting.
+- [x] Saved autonomy value has one source of truth.
+- [x] AI and runtime config read the same autonomy value.
+- [x] Tests cover migration from old duplicate values and System tab absence.
+- [x] `cd gui && npm run typecheck && npm run build` passes.
+- [x] All relevant GitHub checks pass.
 
 **Validation commands:**
 ```bash
