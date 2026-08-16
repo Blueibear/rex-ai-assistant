@@ -229,7 +229,7 @@ Expected: PASS.
 - Modify: `rex/assistant.py`
 - Modify: `rex/music_handler.py`
 - Modify: `rex/runtime/invocation.py` only if a trusted origin-device helper is needed; do not duplicate `TurnContext.device_id`.
-- Test: `tests/media/test_turn_routing.py`
+- Test: `tests/media/test_media_turn_routing.py`
 - Modify/Test: `tests/test_us022_music_handler.py`
 - Modify/Test: `tests/test_us024_speaker_origin.py`
 - Modify/Test: `tests/test_us016_action_dispatcher.py`
@@ -255,7 +255,7 @@ async def test_followup_move_it_does_not_fan_out(dispatcher):
 ```
 
 - [ ] **Step 2: Run turn routing tests and verify failure**
-Run: `pytest -q tests/media/test_turn_routing.py tests/test_us016_action_dispatcher.py`
+Run: `pytest -q tests/media/test_media_turn_routing.py tests/test_us016_action_dispatcher.py`
 Expected: FAIL because media still uses the direct `MusicHandler` path.
 
 - [ ] **Step 3: Add exact media routing before generic capability retrieval**

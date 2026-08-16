@@ -48,7 +48,7 @@ def _passthrough_router(completion, tool_context, model_call_fn):
     return completion
 
 
-def _make_result_handler() -> MagicMock:
+def _make_result_handler():
     from rex.tools.result_handler import ToolResultHandler
 
     return ToolResultHandler(tool_router_fn=_passthrough_router, ha_bridge=None)
@@ -187,15 +187,15 @@ def test_shopping_list_no_match_proceeds():
 # ---------------------------------------------------------------------------
 
 
-def test_music_handler_returns_early():
+def test_legacy_music_handler_is_never_a_dispatch_bypass():
     handler = MagicMock()
-    handler.handle.return_value = "Playing jazz."
+    handler.handle.return_value = "legacy direct mutation"
 
     ad = _make_dispatcher(music_handler=handler)
     result = _run(ad.dispatch(_unhandled_intent(), _make_context(), "play jazz", user_id="default"))
 
-    assert result.response == "Playing jazz."
-    assert "music" in result.actions_taken
+    assert result.response == "LLM reply"
+    handler.handle.assert_not_called()
 
 
 # ---------------------------------------------------------------------------

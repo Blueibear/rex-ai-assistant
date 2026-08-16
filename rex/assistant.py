@@ -234,14 +234,15 @@ class Assistant:
             _shopping_list
         )
 
-        # Music Assistant voice handler (US-022)
+        # Music Assistant provider client remains available only behind the
+        # canonical media adapter. Conversational routing never calls it directly.
         from .integrations.music_assistant import MusicAssistantClient
-        from .music_handler import MusicHandler
 
         _ma_url = getattr(self._settings, "music_assistant_url", None)
         _ma_token = getattr(self._settings, "music_assistant_token", None)
         _ma_client = MusicAssistantClient(base_url=_ma_url, token=_ma_token)
-        self._music_handler: MusicHandler | None = MusicHandler(_ma_client)
+        self._music_assistant_client = _ma_client
+        self._music_handler = None
 
         # Device state query handler (US-028)
         from .ha.state_handler import DeviceStateHandler
@@ -270,6 +271,10 @@ class Assistant:
             except Exception as exc:
                 logger.warning("Failed to initialize Home Assistant bridge: %s", exc)
                 self._ha_bridge = None
+
+        # Canonical media runtime (US-121). This initial snapshot is deliberately
+        # conservative; Task 6 owns dynamic refresh and group-management surfaces.
+        self._configure_media_service(music_assistant_client=_ma_client)
 
         # Tool result post-processing handler (US-013)
         from .tools.result_handler import ToolResultHandler
@@ -338,7 +343,7 @@ class Assistant:
             skill_registry=self._skill_registry,
             skill_router=self._skill_router,
             shopping_list_handler=self._shopping_list_handler,
-            music_handler=self._music_handler,
+            music_handler=None,
             device_state_handler=self._device_state_handler,
             suggestion_engine=self._suggestion_engine,
             pattern_entries=self._pattern_entries,
@@ -346,6 +351,93 @@ class Assistant:
             model_call_fn_builder=self._build_tool_model_call,
             run_plugins_fn=self._run_plugins,
         )
+
+    def _configure_media_service(self, *, music_assistant_client: Any | None = None) -> None:
+        """Build the conservative startup snapshot for canonical media tools."""
+        from .identity import list_known_users
+        from .media.adapters import HomeAssistantMediaAdapter, MusicAssistantAdapter
+        from .media.models import AudioTarget, TargetProviderAdapter
+        from .media.registry import AudioTargetRegistry
+        from .media.service import MediaService
+        from .media.tools import set_media_service
+        from .permissions import get_permissions
+
+        adapters: dict[str, TargetProviderAdapter] = {}
+        targets: list[AudioTarget] = []
+        ha_bridge = getattr(self, "_ha_bridge", None)
+        if ha_bridge is not None:
+            ha_adapter = HomeAssistantMediaAdapter(ha_bridge)
+            adapters[ha_adapter.provider] = ha_adapter
+            try:
+                targets.extend(ha_adapter.discover_targets())
+            except Exception as exc:
+                logger.warning("Failed to discover canonical HA media targets: %s", exc)
+
+        if music_assistant_client is not None:
+            ma_adapter = MusicAssistantAdapter(music_assistant_client)
+            adapters[ma_adapter.provider] = ma_adapter
+
+        known_users: set[str] = set()
+        bound_user = getattr(self, "_user_id", None)
+        if isinstance(bound_user, str):
+            known_users.add(bound_user)
+        try:
+            known_users.update(
+                str(user["id"])
+                for user in list_known_users()
+                if isinstance(user, dict) and isinstance(user.get("id"), str)
+            )
+        except Exception as exc:
+            logger.warning("Failed to enumerate users for media authorization: %s", exc)
+
+        target_ids = frozenset(target.id for target in targets)
+        authorized: dict[str, frozenset[str]] = {}
+        for user_id in known_users:
+            if not target_ids:
+                authorized[user_id] = frozenset()
+                continue
+            try:
+                permissions = set(get_permissions(user_id))
+            except Exception as exc:
+                logger.warning("Failed to resolve media permissions for %s: %s", user_id, exc)
+                permissions = set()
+            authorized[user_id] = (
+                target_ids if permissions.intersection({"ha_control", "admin"}) else frozenset()
+            )
+
+        def normalize(value: str) -> str:
+            return " ".join(value.casefold().replace("_", " ").split())
+
+        origin_targets: dict[str, str] = {}
+        room_map = getattr(self._settings, "device_room_map", {}) or {}
+        if isinstance(room_map, dict):
+            for device_id, room_name in room_map.items():
+                if not isinstance(device_id, str) or not device_id.strip():
+                    continue
+                if not isinstance(room_name, str) or not room_name.strip():
+                    continue
+                wanted = normalize(room_name)
+                matches = []
+                for target in targets:
+                    labels = {normalize(target.display_name)}
+                    if target.room:
+                        labels.add(normalize(target.room))
+                    native_tail = target.native_id.rsplit(".", 1)[-1]
+                    labels.add(normalize(native_tail))
+                    if wanted in labels:
+                        matches.append(target)
+                if len(matches) == 1:
+                    origin_targets[device_id] = matches[0].id
+
+        registry = AudioTargetRegistry(
+            targets,
+            authorized_target_ids=authorized,
+            origin_device_targets=origin_targets,
+        )
+        service = MediaService(registry=registry, adapters=adapters)
+        self._media_registry = registry
+        self._media_service = service
+        set_media_service(service)
 
     def _schedule_daily_prune(self) -> None:
         """Prune old history turns and schedule the next prune in 24 hours.
@@ -1350,7 +1442,7 @@ class Assistant:
                 skill_registry=getattr(self, "_skill_registry", None),
                 skill_router=getattr(self, "_skill_router", None),
                 shopping_list_handler=getattr(self, "_shopping_list_handler", None),
-                music_handler=getattr(self, "_music_handler", None),
+                music_handler=None,
                 device_state_handler=getattr(self, "_device_state_handler", None),
                 suggestion_engine=getattr(self, "_suggestion_engine", None),
                 pattern_entries=getattr(self, "_pattern_entries", None),

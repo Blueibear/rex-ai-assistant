@@ -791,74 +791,8 @@ def _build_default_registry(
         )
     )
 
-    # Music Assistant tools (US-022)
-    registry.register(
-        Tool(
-            name="music_play",
-            description="Play music via Music Assistant. Args: query (str), room (str, optional).",
-            capability_tags=["music", "play", "audio", "media"],
-            requires_config=["music_assistant_url"],
-            required_permissions=("ha_control",),
-            handler=_delegated_handler("music_play"),
-            operation="mutation",
-            requires_identity=True,
-        )
-    )
-
-    registry.register(
-        Tool(
-            name="music_pause",
-            description="Pause music playback via Music Assistant. Args: room (str, optional).",
-            capability_tags=["music", "pause", "audio", "media"],
-            requires_config=["music_assistant_url"],
-            required_permissions=("ha_control",),
-            handler=_delegated_handler("music_pause"),
-            operation="mutation",
-            requires_identity=True,
-        )
-    )
-
-    registry.register(
-        Tool(
-            name="music_resume",
-            description="Resume paused music via Music Assistant. Args: room (str, optional).",
-            capability_tags=["music", "resume", "audio", "media"],
-            requires_config=["music_assistant_url"],
-            required_permissions=("ha_control",),
-            handler=_delegated_handler("music_resume"),
-            operation="mutation",
-            requires_identity=True,
-        )
-    )
-
-    registry.register(
-        Tool(
-            name="music_skip",
-            description="Skip to the next track via Music Assistant. Args: room (str, optional).",
-            capability_tags=["music", "skip", "next", "audio", "media"],
-            requires_config=["music_assistant_url"],
-            required_permissions=("ha_control",),
-            handler=_delegated_handler("music_skip"),
-            operation="mutation",
-            requires_identity=True,
-        )
-    )
-
-    registry.register(
-        Tool(
-            name="music_volume",
-            description=(
-                "Set the volume level (0–100) via Music Assistant. "
-                "Args: level (int), room (str, optional)."
-            ),
-            capability_tags=["music", "volume", "audio", "media"],
-            requires_config=["music_assistant_url"],
-            required_permissions=("ha_control",),
-            handler=_delegated_handler("music_volume"),
-            operation="mutation",
-            requires_identity=True,
-        )
-    )
+    # Legacy music_* delegated cards were retired by US-121.
+    # Canonical media_read/media_manage are the only media tool authority surface.
 
     return registry
 

@@ -95,6 +95,12 @@ def parse_media_command(text: str) -> MediaCommand | None:
     if not cleaned:
         return None
     lower = cleaned.casefold()
+    if lower.startswith("please "):
+        cleaned = cleaned[7:].lstrip()
+        lower = cleaned.casefold()
+        if not cleaned:
+            return None
+
     transfer = re.fullmatch(
         r"(?:move|send|transfer)\s+(?:it|this)(?:\s+(?:music|playback))?\s+to\s+(?:the\s+)?(.+)",
         cleaned,
@@ -107,7 +113,9 @@ def parse_media_command(text: str) -> MediaCommand | None:
         return MediaCommand(MediaCommandAction.TRANSFER, target_text=transfer.group(1))
 
     volume = re.fullmatch(
-        r"(?:set\s+)?volume\s+(?:to\s+)?(-?\d+)(.*)", cleaned, flags=re.IGNORECASE
+        r"(?:(?:set|turn)\s+)?volume\s+(?:(?:up|down)\s+to\s+|to\s+)?(-?\d+)(.*)",
+        cleaned,
+        flags=re.IGNORECASE,
     )
     if volume:
         level = int(volume.group(1))
@@ -159,12 +167,18 @@ def parse_media_command(text: str) -> MediaCommand | None:
         "resume": MediaCommandAction.RESUME,
         "unpause": MediaCommandAction.RESUME,
         "continue": MediaCommandAction.RESUME,
+        "continue playing": MediaCommandAction.RESUME,
+        "continue music": MediaCommandAction.RESUME,
         "continue the playback": MediaCommandAction.RESUME,
         "stop": MediaCommandAction.STOP,
         "stop the music": MediaCommandAction.STOP,
         "next": MediaCommandAction.NEXT,
         "skip": MediaCommandAction.NEXT,
         "skip track": MediaCommandAction.NEXT,
+        "skip this song": MediaCommandAction.NEXT,
+        "skip this track": MediaCommandAction.NEXT,
+        "next song": MediaCommandAction.NEXT,
+        "next track": MediaCommandAction.NEXT,
         "previous": MediaCommandAction.PREVIOUS,
         "go back": MediaCommandAction.PREVIOUS,
         "back": MediaCommandAction.PREVIOUS,

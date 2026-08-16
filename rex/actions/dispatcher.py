@@ -21,6 +21,7 @@ from typing import Any
 from rex.latency import LatencyTrace
 from rex.runtime.cancellation import await_with_cancellation, current_turn_cancellation
 from rex.runtime.events import EventKind, TurnEventStream
+from rex.runtime.invocation import current_turn_invocation
 
 logger = logging.getLogger(__name__)
 
@@ -264,17 +265,7 @@ class ActionDispatcher:
                     actions_taken=["shopping_list"],
                 )
 
-        # 4. Music Assistant voice commands
-        if self._music_handler is not None and mobile_scope_granted("home.control"):
-            _music_response = self._music_handler.handle(transcript)
-            if _music_response is not None:
-                emit(EventKind.CAPABILITY_PROGRESS, {"capability": "music", "status": "selected"})
-                emit(EventKind.ACTION_PROGRESS, {"capability": "music", "status": "returned"})
-                return ActionResult(
-                    success=True,
-                    response=str(_music_response),
-                    actions_taken=["music"],
-                )
+        # 4. Media commands are routed through canonical tools below.
 
         # 5. Device state queries
         if self._device_state_handler is not None and mobile_scope_granted("home.read"):
@@ -299,6 +290,7 @@ class ActionDispatcher:
         _selected_tools: list[Any] = []
         _tool_candidates_found = False
         _timekeeping_handled = False
+        _media_handled = False
         _recovery_actions: list[dict[str, object]] = []
         current_info_requested = getattr(intent, "intent_type", None) == "current_info"
         selection_text = f"web search {transcript}" if current_info_requested else transcript
@@ -365,7 +357,67 @@ class ActionDispatcher:
                         {"stage": "tool_execution", "status": "returned", "count": 1},
                     )
 
-            if not _timekeeping_handled:
+            if timekeeping_command is None:
+                from rex.media.parser import (  # noqa: PLC0415
+                    MediaCommandAction,
+                    parse_media_command,
+                )
+
+                media_command = parse_media_command(transcript)
+                if media_command is not None:
+                    media_tool = (
+                        "media_read"
+                        if media_command.action is MediaCommandAction.QUERY_STATE
+                        else "media_manage"
+                    )
+                    _tool_candidates_found = True
+                    _media_handled = True
+                    can_pre_dispatch = not (
+                        mobile_action_context_active() and media_tool == "media_manage"
+                    )
+                    dispatch_fn = getattr(self._tool_dispatcher, "dispatch", None)
+                    if can_pre_dispatch and callable(dispatch_fn):
+                        emit(
+                            EventKind.CAPABILITY_PROGRESS,
+                            {"stage": "tool_selection", "capabilities": [media_tool]},
+                        )
+                        if latency_trace is not None:
+                            latency_trace.start("tool")
+                        try:
+                            exact_result = await run_blocking(
+                                functools.partial(
+                                    dispatch_fn,
+                                    media_tool,
+                                    {
+                                        "transcript": transcript,
+                                        "origin_device_id": current_turn_invocation().device_id,
+                                    },
+                                    {"user_id": effective_user},
+                                )
+                            )
+                        finally:
+                            if latency_trace is not None:
+                                latency_trace.end("tool")
+                        if getattr(exact_result, "success", False):
+                            _tool_results[media_tool] = getattr(exact_result, "output", None)
+                        elif getattr(exact_result, "error", None) == "Execution timed out":
+                            _tool_results[media_tool] = f"I couldn't reach {media_tool} in time"
+                        else:
+                            detail = (
+                                getattr(exact_result, "detail", None)
+                                or getattr(exact_result, "error", None)
+                                or "unknown error"
+                            )
+                            _tool_results[media_tool] = f"[tool error: {detail}]"
+                        _tool_context = (
+                            self._tool_dispatcher.format_tool_context(_tool_results) or None
+                        )
+                        emit(
+                            EventKind.ACTION_PROGRESS,
+                            {"stage": "tool_execution", "status": "returned", "count": 1},
+                        )
+
+            if not _timekeeping_handled and not _media_handled:
                 defined_select_for_user = inspect.getattr_static(
                     self._tool_dispatcher, "select_tools_for_user", None
                 )
@@ -451,6 +503,7 @@ class ActionDispatcher:
             and self._ha_bridge.enabled
             and not current_info_requested
             and not _timekeeping_handled
+            and not _media_handled
             and not mobile_action_context_active()
             and mobile_scope_granted("home.control")
         ):
@@ -604,13 +657,27 @@ class ActionDispatcher:
             if latency_trace is not None:
                 latency_trace.start("postprocess")
             try:
+                result_handler_kwargs = {
+                    "tool_context": tool_context_dict,
+                    "model_call_fn": model_call_fn,
+                    "plugin_enrichments": plugin_enrichments,
+                }
+                try:
+                    process_signature = inspect.signature(self._result_handler.process)
+                    process_parameters = process_signature.parameters
+                    supports_media_ha_flag = "allow_ha_postprocess" in process_parameters or any(
+                        parameter.kind is inspect.Parameter.VAR_KEYWORD
+                        for parameter in process_parameters.values()
+                    )
+                except (TypeError, ValueError):
+                    supports_media_ha_flag = True
+                if supports_media_ha_flag:
+                    result_handler_kwargs["allow_ha_postprocess"] = not _media_handled
                 completion = await await_with_cancellation(
                     self._result_handler.process(
                         transcript,
                         completion,
-                        tool_context=tool_context_dict,
-                        model_call_fn=model_call_fn,
-                        plugin_enrichments=plugin_enrichments,
+                        **result_handler_kwargs,
                     )
                 )
                 check_cancelled()

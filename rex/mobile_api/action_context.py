@@ -165,13 +165,13 @@ def required_scope_for_tool(
     if name == "timekeeping_manage":
         return "tasks.write" if normalized_operation in {None, "mutation", "write"} else None
 
+    if name == "media_read":
+        return "home.read" if normalized_operation in {None, "read", "query"} else None
+    if name == "media_manage":
+        return "home.control" if normalized_operation in {None, "mutation", "write"} else None
+
     home_mutations = {
         "home_assistant_call_service",
-        "music_play",
-        "music_pause",
-        "music_resume",
-        "music_skip",
-        "music_volume",
     }
     if name in home_mutations:
         return "home.control" if normalized_operation in {None, "mutation", "write"} else None
