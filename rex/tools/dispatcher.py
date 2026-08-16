@@ -219,6 +219,7 @@ class ToolDispatcher:
                 context,
                 timeout_seconds=self._timeout_seconds,
                 available=available,
+                runtime_config=self._config,
             )
 
     @staticmethod

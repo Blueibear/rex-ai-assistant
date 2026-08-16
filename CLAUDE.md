@@ -594,6 +594,8 @@ The following must degrade gracefully if not configured:
 - Home Assistant
 - web search
 
+Current-news/current-info requests must never fall through to an ungrounded LLM answer. Detect explicit live-news intent before generation, require an actually usable Web Search provider, execute search through the pre-LLM tool dispatcher, and fail closed if search is unavailable or returns no verified result. Do not claim a Settings UI path that does not exist; current Web Search setup authority is `search.providers` plus the credential/config guidance in `docs/configuration.md`.
+
 Integration readiness uses the shared state vocabulary in `rex/integration_state.py` and
 `gui/src/types/ipc.ts`: unavailable, unconfigured, configured, reachable, authenticated,
 degraded, read-only, write-capable, write-tested, and verified. Credentials alone mean

@@ -2702,12 +2702,12 @@ pytest -q tests/test_llm_client.py tests/test_assistant.py
 **Implementation notes:** Detect current-info/news intent before a plain LLM answer. If search/news capability is configured, route to it. If not configured, explain the missing provider/key and point to the exact settings/docs path.
 
 **Acceptance Criteria:**
-- [ ] News/current-info questions route to a configured search/news capability when available.
-- [ ] If no capability is configured, Rex explains what is missing and how to enable it.
-- [ ] Rex does not claim live news access when the capability is unavailable.
-- [ ] Suggested setup paths are backed by actual code/config/docs.
-- [ ] Tests cover configured and unconfigured paths for "what is in the news today".
-- [ ] All relevant GitHub checks pass.
+- [x] News/current-info questions route to a configured search/news capability when available.
+- [x] If no capability is configured, Rex explains what is missing and how to enable it.
+- [x] Rex does not claim live news access when the capability is unavailable.
+- [x] Suggested setup paths are backed by actual code/config/docs.
+- [x] Tests cover configured and unconfigured paths for "what is in the news today".
+- [x] All relevant GitHub checks pass. *(PR #406 corrected exact head `c897fb8d745f1352d6b2fc53cb740468b61f5c4f` completed all 18 checks successfully, including CI #1197, Commitlint #815, Windows Electron Artifact #166, CodeFactor, GitGuardian, and pre-commit; no submitted reviews or review threads.)*
 
 **Validation commands:**
 ```bash

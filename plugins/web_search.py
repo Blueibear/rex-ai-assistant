@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import inspect
 import logging
 import os
 import re
+from collections.abc import Mapping
 from typing import TYPE_CHECKING
 from urllib.parse import quote_plus
 
@@ -59,6 +61,75 @@ def _extract_explicit_search_query(text: str) -> str | None:
     return query or None
 
 
+def _credential_value(
+    names: tuple[str, ...],
+    *,
+    config: object | None = None,
+    config_attr: str | None = None,
+    environ: Mapping[str, str] | None = None,
+) -> str | None:
+    """Resolve a search credential from runtime config, env, or the household vault."""
+    if config_attr and config is not None:
+        value = getattr(config, config_attr, None)
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+
+    env = os.environ if environ is None else environ
+    for name in names:
+        value = env.get(name)
+        if value:
+            return value
+
+    try:
+        from rex.credentials import get_persisted_credential
+
+        for name in names:
+            value = get_persisted_credential(name)
+            if value:
+                return value
+    except Exception as exc:
+        logger.debug("Search credential lookup failed: %s", exc)
+    return None
+
+
+def configured_search_providers(
+    config: object | None = None,
+    *,
+    environ: Mapping[str, str] | None = None,
+) -> list[str]:
+    """Return providers that are both enabled and actually usable right now."""
+    env = os.environ if environ is None else environ
+    source = config if config is not None else settings
+    configured = str(getattr(source, "search_providers", "") or "")
+    if config is None:
+        # Legacy direct-plugin compatibility only. Canonical assistant execution
+        # passes AppConfig explicitly, where non-secret provider authority lives.
+        configured = env.get("REX_SEARCH_PROVIDERS") or configured
+    providers = [item.strip().lower() for item in configured.split(",") if item.strip()]
+    usable: list[str] = []
+    for provider in providers:
+        if provider == "duckduckgo":
+            if requests is not None and BeautifulSoupType is not None:
+                usable.append(provider)
+        elif provider == "brave":
+            if _credential_value(
+                ("BRAVE_API_KEY",), config=source, config_attr="brave_api_key", environ=env
+            ):
+                usable.append(provider)
+        elif provider == "serpapi":
+            if _credential_value(("SERPAPI_KEY", "SERPAPI_API_KEY"), config=source, environ=env):
+                usable.append(provider)
+        elif provider == "google":
+            if _credential_value(("GOOGLE_API_KEY",), config=source, environ=env) and env.get(
+                "GOOGLE_CSE_ID"
+            ):
+                usable.append(provider)
+        elif provider == "browserless":
+            if env.get("BROWSERLESS_API_KEY") and BeautifulSoupType is not None:
+                usable.append(provider)
+    return usable
+
+
 # API Endpoints
 SERPAPI_URL = "https://serpapi.com/search"
 BRAVE_URL = "https://api.search.brave.com/res/v1/web/search"
@@ -106,15 +177,21 @@ class WebSearchPlugin:
             return None
         return self.search(explicit_query)
 
-    def search(self, query: str) -> str | None:
+    def search(self, query: str, *, config: object | None = None) -> str | None:
         query = _sanitize_query(query)
         if not query:
             return None
-        for provider in self._provider_order():
+        source = config if config is not None else settings
+        for provider in configured_search_providers(source):
             method = getattr(self, f"_search_{provider}", None)
             if callable(method):
                 try:
-                    result = method(query)
+                    parameters = inspect.signature(method).parameters
+                    accepts_config = "config" in parameters or any(
+                        parameter.kind == inspect.Parameter.VAR_KEYWORD
+                        for parameter in parameters.values()
+                    )
+                    result = method(query, config=source) if accepts_config else method(query)
                     if isinstance(result, str):
                         return result
                     if result is not None:
@@ -124,16 +201,11 @@ class WebSearchPlugin:
         logger.warning("All search providers failed")
         return None
 
-    def _provider_order(self) -> list[str]:
-        env_value = os.getenv("REX_SEARCH_PROVIDERS")
-        providers_value = env_value if env_value else settings.search_providers
-        return [p.strip() for p in providers_value.split(",") if p.strip()]
-
     def _format_result(self, title: str, url: str, snippet: str) -> str:
         return f"{title} - {url}\n{snippet}"
 
-    def _search_serpapi(self, query: str) -> str | None:
-        api_key = os.getenv("SERPAPI_KEY")
+    def _search_serpapi(self, query: str, *, config: object | None = None) -> str | None:
+        api_key = _credential_value(("SERPAPI_KEY", "SERPAPI_API_KEY"), config=config)
         if not api_key:
             return None
         params: dict[str, str] = {
@@ -160,8 +232,8 @@ class WebSearchPlugin:
             logger.warning("SerpAPI search failed: %s", e)
             return None
 
-    def _search_brave(self, query: str) -> str | None:
-        api_key = os.getenv("BRAVE_API_KEY")
+    def _search_brave(self, query: str, *, config: object | None = None) -> str | None:
+        api_key = _credential_value(("BRAVE_API_KEY",), config=config, config_attr="brave_api_key")
         if not api_key:
             return None
         headers = {"X-Subscription-Token": api_key}
@@ -183,7 +255,7 @@ class WebSearchPlugin:
             logger.warning("Brave search failed: %s", e)
             return None
 
-    def _search_duckduckgo(self, query: str) -> str | None:
+    def _search_duckduckgo(self, query: str, *, config: object | None = None) -> str | None:
         if BeautifulSoupType is None:
             logger.warning("BeautifulSoup is required for DuckDuckGo scraping")
             return None
@@ -209,8 +281,8 @@ class WebSearchPlugin:
             logger.warning("DuckDuckGo search failed: %s", e)
             return None
 
-    def _search_google(self, query: str) -> str | None:
-        api_key = os.getenv("GOOGLE_API_KEY")
+    def _search_google(self, query: str, *, config: object | None = None) -> str | None:
+        api_key = _credential_value(("GOOGLE_API_KEY",), config=config)
         engine_id = os.getenv("GOOGLE_CSE_ID")
         if not api_key or not engine_id:
             return None
@@ -232,7 +304,7 @@ class WebSearchPlugin:
             logger.warning("Google CSE search failed: %s", e)
             return None
 
-    def _search_browserless(self, query: str) -> str | None:
+    def _search_browserless(self, query: str, *, config: object | None = None) -> str | None:
         token = os.getenv("BROWSERLESS_API_KEY")
         if not token or BeautifulSoupType is None:
             return None
@@ -284,9 +356,12 @@ def _get_plugin() -> WebSearchPlugin:
 # --- Public API ---
 
 
-def search_web(query: str) -> str | None:
-    """Search the web using the configured fallback order."""
-    return _get_plugin().search(query)
+def search_web(query: str, *, config: object | None = None) -> str | None:
+    """Search the web using only providers that are configured and usable."""
+    plugin = _get_plugin()
+    if config is None:
+        return plugin.search(query)
+    return plugin.search(query, config=config)
 
 
 def search_serpapi(query: str) -> str | None:

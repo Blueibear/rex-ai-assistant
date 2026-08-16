@@ -14,7 +14,7 @@ For the production-facing mapping from backend/docs capabilities to Electron vis
 | Email | Partial | IMAP/SMTP backend paths exist. GUI email sending is unavailable; it creates a draft that can be copied to a mail client. Outlook Graph OAuth is unavailable. |
 | Calendar | Partial / read-only by backend | ICS reads exist. Credentials are configured-only until authenticated. Provider writes and Outlook Graph OAuth are unavailable. |
 | SMS / Phone | Experimental | Twilio paths require complete credentials. Status checks do not claim delivery or calling success; live delivery is externally verified. |
-| Web search | Partial | Provider selection exists. Configuration does not prove current network reachability. |
+| Web search | Partial | Provider selection exists. DuckDuckGo is a no-key fallback when enabled; keyed providers require usable credentials. Explicit current-news requests are routed through Web Search before the LLM and fail closed if no verified search result is returned. Configuration still does not prove current network reachability. |
 | OpenAI / OpenRouter / Ollama | Supported provider options | A key or URL is configuration evidence only. Provider availability depends on a live request. |
 | MQTT / Telegram / Push | Experimental | Visible and configurable, but live broker/provider authentication and delivery are externally verified. |
 | OpenClaw gateway | Experimental and optional | Disabled by default. URL/token are configuration evidence; the GUI health check can establish `reachable`, but authentication and tool capability remain unproven. The external gateway is not required by the packaged app. |

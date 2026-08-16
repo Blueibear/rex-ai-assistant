@@ -125,6 +125,7 @@ class ToolExecutionLifecycle:
         *,
         timeout_seconds: float = 10.0,
         available: bool = True,
+        runtime_config: Any = None,
     ) -> ToolResult:
         ambient = dict(context or {})
         request_id = str(
@@ -287,6 +288,8 @@ class ToolExecutionLifecycle:
             handler_args.setdefault("_user_id", user_id)
         if ambient.get("confirmed") and ("confirmed" in signature.parameters or accepts_kwargs):
             handler_args.setdefault("confirmed", True)
+        if runtime_config is not None and "_runtime_config" in signature.parameters:
+            handler_args.setdefault("_runtime_config", runtime_config)
         attempts = 2 if operation == ToolOperation.READ else 1
         for attempt in range(attempts):
             if cancellation is not None:

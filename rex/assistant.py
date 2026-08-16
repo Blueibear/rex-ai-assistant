@@ -1040,9 +1040,11 @@ class Assistant:
             return completion
 
         check_cancelled()
-        cached = self._get_or_create_response_builder().check_cache(
-            transcript, user_id=effective_user_id
-        )
+        cached = None
+        if self._should_check_response_cache(intent):
+            cached = self._get_or_create_response_builder().check_cache(
+                transcript, user_id=effective_user_id
+            )
         check_cancelled()
         turn_events.emit(
             EventKind.ROUTE_PROGRESS,
@@ -1154,6 +1156,11 @@ class Assistant:
         latency_trace.finish()
         latency_trace.log_summary(logger, event=latency_event)
         return completion
+
+    @staticmethod
+    def _should_check_response_cache(intent: Any) -> bool:
+        """Current-info replies must be freshly verified instead of served from cache."""
+        return getattr(intent, "intent_type", None) != "current_info"
 
     async def generate_reply(
         self,
