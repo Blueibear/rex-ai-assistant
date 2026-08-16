@@ -65,6 +65,40 @@ _RECIPE_REQUEST_PATTERN = re.compile(
 _CHOCOLATE_CAKE_PATTERN = re.compile(r"\bchocolate\s+cake\b", re.IGNORECASE)
 _SHOPPING_LIST_REFERENCE_PATTERN = re.compile(r"\b(?:shopping\s+)?list\b", re.IGNORECASE)
 
+_CURRENT_INFO_PATTERNS = (
+    re.compile(
+        r"\bwhat(?:'s| is)\s+(?:in\s+)?(?:the\s+)?news\s+today\b",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        r"\b(?:latest|current|today'?s)\s+(?:news|headlines?|events?|developments?|updates?)\b",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        r"\b(?:news|headlines?|updates?|developments?)\s+(?:today|right\s+now|currently)\b",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        r"\bwhat(?:'s| is)\s+happening\s+(?:today|right\s+now|currently)\b",
+        re.IGNORECASE,
+    ),
+    re.compile(r"\bwhat\s+happened\s+today\b", re.IGNORECASE),
+    re.compile(
+        r"\bwhat(?:'s| is| are)\s+(?:the\s+)?latest\s+(?:updates?\s+)?(?:on|about)\b",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        r"\b(?:give|show|tell)\s+me\s+(?:the\s+)?latest\s+(?:updates?\s+)?(?:on|about)\b",
+        re.IGNORECASE,
+    ),
+)
+_CURRENT_INFO_SETUP = (
+    "Web Search is not configured for verified current information. Enable at least one "
+    "provider in `search.providers` in Rex config. DuckDuckGo works without an API key; "
+    "Brave and SerpAPI require `BRAVE_API_KEY` or `SERPAPI_KEY`. See "
+    "`docs/configuration.md` under Integrations > Web Search."
+)
+
 _CHOCOLATE_CAKE_RECIPE = (
     "Here is a simple chocolate cake recipe: mix 1 and 3/4 cups flour, "
     "2 cups sugar, 3/4 cup cocoa, 1 and 1/2 teaspoons baking powder, "
@@ -198,6 +232,10 @@ class IntentRouter:
         if resp is not None:
             return IntentResult(handled=True, response=resp, intent_type="time_query")
 
+        current_info = self._try_current_info(text, settings=settings)
+        if current_info is not None:
+            return current_info
+
         resp = self._try_greeting(text)
         if resp is not None:
             return IntentResult(handled=True, response=resp, intent_type="greeting")
@@ -211,6 +249,41 @@ class IntentRouter:
     # ------------------------------------------------------------------
     # Private helpers — time / date
     # ------------------------------------------------------------------
+
+    def _try_current_info(self, text: str, *, settings: Any = None) -> IntentResult | None:
+        """Mark explicit current-news requests for pre-LLM web-search dispatch."""
+        if not any(pattern.search(text) for pattern in _CURRENT_INFO_PATTERNS):
+            return None
+
+        if settings is None:
+            return IntentResult(
+                handled=True,
+                response=_CURRENT_INFO_SETUP,
+                intent_type="current_info_unavailable",
+            )
+
+        try:
+            from plugins.web_search import configured_search_providers
+
+            providers = configured_search_providers(settings)
+        except Exception as exc:
+            logger.debug("current-info provider check failed: %s", exc)
+            providers = []
+
+        if not providers:
+            return IntentResult(
+                handled=True,
+                response=_CURRENT_INFO_SETUP,
+                intent_type="current_info_unavailable",
+            )
+
+        # The actual network call belongs to ActionDispatcher, which already
+        # executes selected tools off the asyncio event loop before the LLM.
+        return IntentResult(
+            handled=False,
+            response=None,
+            intent_type="current_info",
+        )
 
     def _try_time(self, text: str) -> str | None:
         """Answer simple clock/date queries without an LLM round trip."""

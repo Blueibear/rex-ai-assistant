@@ -18,6 +18,7 @@ import asyncio
 import json
 import sys
 import traceback
+from collections.abc import Mapping
 
 
 def emit(obj: dict) -> None:  # noqa: ANN001
@@ -47,16 +48,16 @@ def main() -> None:
         sys.exit(1)
 
     async def run() -> None:
-        from rex import settings  # type: ignore[import]
-        from rex.assistant import Assistant  # type: ignore[import]
-        from rex.identity import validate_user_id  # type: ignore[import]
-        from rex.logging_utils import configure_logging  # type: ignore[import]
-        from rex.plugins import load_plugins, shutdown_plugins  # type: ignore[import]
-        from rex.runtime.events import EventKind  # type: ignore[import]
-        from rex.runtime.invocation import turn_invocation  # type: ignore[import]
-        from rex.runtime.status import TurnStatusProjector  # type: ignore[import]
-        from rex.runtime.turn import TurnSource  # type: ignore[import]
-        from rex.services import initialize_services  # type: ignore[import]
+        from rex import settings
+        from rex.assistant import Assistant
+        from rex.identity import validate_user_id
+        from rex.logging_utils import configure_logging
+        from rex.plugins import load_plugins, shutdown_plugins
+        from rex.runtime.events import EventKind
+        from rex.runtime.invocation import turn_invocation
+        from rex.runtime.status import TurnStatusProjector
+        from rex.runtime.turn import TurnSource
+        from rex.services import initialize_services
 
         configure_logging()
         initialize_services()
@@ -76,6 +77,12 @@ def main() -> None:
 
         def observe_turn(event) -> None:  # noqa: ANN001
             status_projector.observe(event)
+            if (
+                event.kind is EventKind.CAPABILITY_PROGRESS
+                and event.details.get("stage") == "recovery"
+                and isinstance(event.details.get("recovery"), Mapping)
+            ):
+                emit({"type": "recovery", "recovery": dict(event.details["recovery"])})
             if (
                 event.kind is EventKind.RESPONSE_PROGRESS
                 and event.details.get("stage") == "output_validation"

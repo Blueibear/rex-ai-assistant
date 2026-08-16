@@ -41,6 +41,7 @@ class ActionResult:
     actions_taken: list[str] = field(default_factory=list)
     error: str | None = None
     model_generated: bool = False
+    recovery_actions: list[dict[str, object]] = field(default_factory=list)
 
 
 # ---------------------------------------------------------------------------
@@ -294,18 +295,25 @@ class ActionDispatcher:
 
         # 6. Auto tool dispatch: build pre-LLM tool context string
         _tool_context: str | None = None
+        _tool_results: dict[str, Any] = {}
+        _selected_tools: list[Any] = []
+        _tool_candidates_found = False
+        _recovery_actions: list[dict[str, object]] = []
+        current_info_requested = getattr(intent, "intent_type", None) == "current_info"
+        selection_text = f"web search {transcript}" if current_info_requested else transcript
         if self._tool_dispatcher is not None:
             defined_select_for_user = inspect.getattr_static(
                 self._tool_dispatcher, "select_tools_for_user", None
             )
             if defined_select_for_user is not None:
                 select_for_user = self._tool_dispatcher.select_tools_for_user
-                _selected_tools = select_for_user(transcript, user_id=effective_user)
+                _selected_tools = select_for_user(selection_text, user_id=effective_user)
             else:
                 # Compatibility adapters predating US-106 implement only
                 # select_tools(message). The canonical dispatcher exposes the
                 # user-aware extension above, while older adapters remain valid.
-                _selected_tools = self._tool_dispatcher.select_tools(transcript)
+                _selected_tools = self._tool_dispatcher.select_tools(selection_text)
+            _tool_candidates_found = bool(_selected_tools)
             if mobile_action_context_active():
                 # Pre-LLM dispatch has only free-form transcript text. Mobile
                 # mutations must wait for a canonical structured tool call so
@@ -343,12 +351,35 @@ class ActionDispatcher:
                 )
 
         completion: str | None = None
+        if current_info_requested:
+            search_result = _tool_results.get("web_search")
+            search_failed = (
+                not isinstance(search_result, str)
+                or not search_result.strip()
+                or search_result.startswith("[tool error:")
+                or search_result.startswith("I couldn't reach web_search")
+            )
+            if search_failed:
+                completion = (
+                    "I couldn't verify current news through Web Search, so I won't guess at live "
+                    "events. Check the configured search provider/network and "
+                    "`docs/configuration.md` under Integrations > Web Search."
+                )
+            else:
+                grounding_rule = (
+                    "CURRENT-INFO GROUNDING: Make current/live factual claims only from the "
+                    "web_search result below. If that result is insufficient, say so instead of "
+                    "supplementing with model memory."
+                )
+                _tool_context = f"{grounding_rule}\n{_tool_context or ''}".strip()
+
         model_generated = False
 
         # 7. HA command routing (including undo and proactive suggestion injection)
         if (
             self._ha_bridge is not None
             and self._ha_bridge.enabled
+            and not current_info_requested
             and not mobile_action_context_active()
             and mobile_scope_granted("home.control")
         ):
@@ -402,7 +433,52 @@ class ActionDispatcher:
                     {"capability": "home_assistant", "status": "returned"},
                 )
 
-        # 8. LLM call (if no pre-LLM handler produced a completion)
+        # 8. Capability-gap recovery. This offers only structured next actions;
+        # it never grants authority or executes the proposed recovery itself.
+        if (
+            completion is None
+            and not current_info_requested
+            and self._tool_dispatcher is not None
+            and not _tool_candidates_found
+        ):
+            defined_recovery_plan = inspect.getattr_static(
+                self._tool_dispatcher, "recovery_plan", None
+            )
+            if defined_recovery_plan is not None:
+                try:
+                    recovery_plan = self._tool_dispatcher.recovery_plan(
+                        transcript, user_id=effective_user
+                    )
+                except Exception:
+                    logger.exception("capability recovery planning failed")
+                    recovery_plan = None
+                if recovery_plan is not None:
+                    completion = str(recovery_plan.message)
+                    recovery_payload = recovery_plan.to_dict()
+                    raw_actions = recovery_payload.get("actions")
+                    if isinstance(raw_actions, list):
+                        _recovery_actions = [
+                            {str(key): value for key, value in action.items()}
+                            for action in raw_actions
+                            if isinstance(action, dict)
+                        ]
+                    emit(
+                        EventKind.CAPABILITY_PROGRESS,
+                        {
+                            "stage": "recovery",
+                            "recovery": recovery_payload,
+                        },
+                    )
+                    emit(
+                        EventKind.ACTION_PROGRESS,
+                        {
+                            "stage": "recovery",
+                            "status": "offered",
+                            "count": len(_recovery_actions),
+                        },
+                    )
+
+        # 9. LLM call (if no pre-LLM handler or recovery path produced a completion)
         if completion is None:
             model_generated = True
             # Rebuild context with tool_context if auto-dispatch populated it.
@@ -438,7 +514,7 @@ class ActionDispatcher:
                 {"stage": "generation", "status": "returned"},
             )
 
-            # 9. Post-process LLM output (TOOL_REQUEST resolution, OpenClaw bridge)
+            # 10. Post-process LLM output (TOOL_REQUEST resolution, OpenClaw bridge)
             plugin_enrichments: list[str] = []
             if self._run_plugins_fn is not None and not mobile_action_context_active():
                 plugin_enrichments = await await_with_cancellation(self._run_plugins_fn(transcript))
@@ -483,4 +559,5 @@ class ActionDispatcher:
             response=completion,
             actions_taken=["llm"] if not completion else ["dispatch"],
             model_generated=model_generated,
+            recovery_actions=_recovery_actions,
         )

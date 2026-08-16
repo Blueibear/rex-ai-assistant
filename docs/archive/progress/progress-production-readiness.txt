@@ -2086,3 +2086,275 @@ Remote exact-head evidence:
 - The PR was merged as `f523b438abd0d92b3bd4914fa065ebdb2d8abb0e` after those required checks completed successfully.
 - Local implementation evidence remains the previously recorded 8,750 passed / 49 skipped / 0 failed release suite plus focused cache, identity-isolation, Ruff, Black, mypy, and security-gate validation.
 - US-105's final GitHub-check acceptance criterion is therefore closed.
+
+2026-08-15 - US-071 local implementation complete; remote CI pending
+
+Implementation:
+- Confirmed the provider-persistence defect with a red Vitest regression: switching the GUI provider from runtime `transformers` to `ollama` with a blank `customModelId` returned `{ok:false, error:"Model identifier is required"}`.
+- `gui/src/main/settingsMirror.ts` now persists `models.llm_provider` independently from local/Ollama model editing. `models.llm_model` changes only when a nonblank `customModelId` is supplied.
+- Existing canonical mapping remains unchanged: GUI `local` <-> runtime `transformers`; no duplicate `llm.provider` authority was introduced.
+- Added reload coverage proving canonical runtime provider state wins over stale GUI state, runtime `transformers` maps back to GUI `local`, and invalid runtime providers fail safely to `openai`.
+- Added navigation-remount coverage proving Settings delegates the AI panel by active category and `AiSettingsSection` reloads `getSettings('ai')` when mounted again.
+- Added a real settings-persistence-path regression using `persistSettingsSection()` plus `buildAiSettings()` to prove a provider-only save reaches canonical runtime config and reloads correctly while preserving the existing local model value.
+- Added the durable provider-source-of-truth rule to `CLAUDE.md` and the implementation plan under `docs/superpowers/plans/2026-08-15-us071-provider-persistence.md`.
+
+Validation:
+- Red test before implementation: 1 failed / 7 passed in `gui/tests/settingsMirror.test.ts`, with the expected `Model identifier is required` failure.
+- Focused US-071 regression matrix: 18 passed across `aiProviderPersistence.test.ts`, `aiSettings.test.ts`, `settingsMirror.test.ts`, and `settingsSections.test.ts`.
+- Full GUI Vitest suite via documented Windows runner `npm.cmd test`: 130 passed across 29 files.
+- `npm.cmd run typecheck`: passed.
+- `npm.cmd run build`: passed.
+- `npm.cmd run lint`: 0 errors, 3 pre-existing warnings in unrelated files.
+- `npm.cmd audit --audit-level=high`: passed; only 2 moderate pre-existing React Router advisories remain and require a breaking v7 upgrade.
+- US-071 local acceptance criteria are complete. The final GitHub-check criterion remains intentionally unchecked until the exact PR head passes the remote matrix.
+
+2026-08-15 - US-071 exact-head GitHub evidence complete
+
+Remote exact-head evidence for implementation commit `b8d8ed3aa9be688ec2a02cfe6a9aed475cc08d34` on PR #401:
+- CI run 31923201998 completed with conclusion `success`.
+- Python 3.11 Tests & Coverage job 95106440062 completed successfully, including the full coverage suite, skipped-test budget, integration tests, tracked-working-tree cleanliness check, and coverage upload.
+- Windows Electron Artifact run 31923201984 completed with conclusion `success`; the installed artifact was exercised successfully without machine Python or Node, and installer evidence upload completed.
+- Commitlint completed successfully.
+- CodeFactor and GitGuardian exact-head checks completed successfully with no blocking findings.
+- PR #401 has no submitted reviews and no inline review threads.
+- US-071's final GitHub-check acceptance criterion is therefore closed. The subsequent documentation-only closure commit must still pass the repository's final merge checks before PR #401 is merged.
+
+2026-08-15 - US-072 local implementation complete; remote CI pending
+
+Implementation:
+- Added bounded, dependency-free local model discovery in `gui/src/main/modelDiscovery.ts`.
+- Ollama discovery reads the configured `ollama.base_url` and requests `/api/tags`; LM Studio remains Rex's existing OpenAI-compatible runtime path and discovery reads configured `openai.base_url` and requests `/models`.
+- Discovery validates HTTP/HTTPS endpoints, applies a five-second AbortController timeout, deduplicates nonblank model IDs, distinguishes successful empty lists from malformed responses, and returns content-free errors without provider bodies or exception payloads.
+- Added typed `rex:discoverAiModels` IPC. The renderer can request only `ollama` or `lmstudio`; the main process reads the endpoint from canonical runtime config and does not accept a renderer-supplied fetch URL.
+- Added `openaiBaseUrl` to Electron AI settings and mirrored it to `openai.base_url`. Blank explicitly clears the compatible endpoint back to official OpenAI behavior; no new LM Studio provider identity or duplicate provider authority was introduced.
+- Added explicit user-triggered discovery controls for Ollama and LM Studio. Current settings are persisted before discovery so the main process always reads canonical configured endpoints.
+- Added truthful UI states for idle, loading, safe error, successful empty list, and populated discovered models. The discovered-model selector renders only endpoint-returned model IDs while manual model-entry fields remain available.
+- Selecting a discovered Ollama or LM Studio model uses the existing settings persistence path and reloads correctly from canonical runtime config.
+- Documented the durable discovery/security boundary in `CLAUDE.md`, plus the design spec and implementation plan under `docs/superpowers/`.
+
+TDD / validation evidence:
+- Discovery contract began red because `modelDiscovery.ts` did not exist; after implementation `gui/tests/modelDiscovery.test.ts` passes 13/13 covering Ollama/LM Studio success, deduplication, empty, HTTP failure, network failure, malformed payloads, URL composition, query/fragment rejection, and invalid configuration without a fetch.
+- OpenAI-compatible endpoint persistence began with 4 intended red failures; after implementation `aiSettings.test.ts` + `settingsMirror.test.ts` pass 18/18.
+- IPC boundary began with 4 intended red failures because `rex:discoverAiModels` was unregistered; after implementation the targeted discovery/settings matrix passes.
+- Model discovery results component passes 6/6 for idle, loading, error, successful-empty, returned-model-only, and selected-model rendering.
+- Complete focused US-072 GUI matrix: 67 passed across discovery, UI wiring, persistence/reload, settings mapping, and settings handler tests.
+- Full GUI Vitest suite: 164 passed across 32 files.
+- `npm.cmd run typecheck`: passed.
+- `npm.cmd run build`: passed.
+- `npm.cmd run lint`: 0 errors, 3 pre-existing unrelated warnings.
+- `npm.cmd audit --audit-level=high`: passed; only 2 pre-existing moderate React Router advisories remain and require a breaking v7 upgrade.
+- `pytest -q tests/test_llm_client.py tests/test_model_router.py`: 49 passed, with 2 pre-existing root-shim deprecation warnings.
+- Independent Codex review found two pre-commit issues: stale out-of-order discovery completions and malformed query/fragment URL composition. Both were fixed with request invalidation and URL-API construction/rejection tests; the follow-up Codex review returned `NO ACTIONABLE FINDINGS`.
+- `python scripts/security_audit.py --release-gate`: passed with 0 actionable findings and no exposed secrets.
+- `git diff --check`: passed.
+- US-072 local acceptance criteria are complete. The final GitHub-check criterion remains intentionally unchecked until the exact PR implementation head passes the remote matrix.
+
+2026-08-15 - US-072 remote GitHub evidence complete
+
+Remote exact-head evidence for implementation commit `ebc1d6616949eef99bd6a223aa6f9d2846c4270c` on PR #404:
+- GitHub Actions CI run #1186 completed successfully.
+- Commitlint run #806 completed successfully.
+- Windows Electron Artifact run #159 completed successfully, including managed runtime/installer build, signature/resource validation, and installed-artifact smoke execution without machine Python or Node.
+- Exact-head check suite registered 18 checks; all completed with no failure or cancellation conclusions.
+- CodeFactor completed successfully.
+- GitGuardian completed successfully with no secrets detected.
+- PR #404 has no submitted reviews and no inline review threads.
+- US-072's final GitHub-check acceptance criterion is therefore closed. This documentation-only closure commit must still pass the repository's final merge checks before PR #404 is merged.
+
+
+2026-08-15 - US-073 local implementation complete; remote CI pending
+
+Implementation:
+- Consolidated the user-facing Autonomy Mode control under Settings > AI and removed the duplicate System control, type field, default, and System runtime mirror path.
+- Established `models.autonomy_mode` as the single persisted authority. Electron AI reads the canonical runtime value, writes valid submitted changes there, and no longer persists duplicate AI/System `autonomyMode` copies in `gui_settings.json`.
+- Added conservative legacy migration: a valid runtime value wins; otherwise conflicting legacy GUI values resolve to the more restrictive mode (`manual` < `supervised` < `full-auto`) so migration cannot increase autonomy unexpectedly.
+- Malformed runtime JSON is never silently overwritten by migration. AI Settings remains readable using a conservative in-memory legacy value and defers on-disk migration until the runtime config is repaired.
+- Added `AppConfig.autonomy_mode`, JSON loading from `models.autonomy_mode`, schema/example/default config coverage, and validation for the three supported string values. Non-string values fail with `ConfigurationError`, not `TypeError`.
+- Added a durable `CLAUDE.md` rule and config reference documentation so future work does not reintroduce duplicate autonomy authority.
+- Updated `.secrets.baseline` only for the one shifted line in `config/rex_config.example.json`; the final detect-secrets hook passed.
+
+Independent review / fixes:
+- First Codex review found a P1 save-path bug where canonical load precedence could overwrite a newly submitted autonomy change before persistence. Fixed by separating load normalization (`buildAiSettings`) from save intent (`buildAiSettingsForSave`) and added an IPC-level regression test.
+- Second Codex review found a P2 regression where strict migration reads could block AI Settings on malformed runtime JSON. Fixed with non-destructive deferred migration and regression coverage.
+- Third Codex review found a P2 malformed-input case where array/object autonomy values could raise `TypeError`. Fixed with explicit string validation and parametrized regression coverage.
+- Final Codex rereview found no discrete correctness issue in the reviewed changes.
+
+Validation evidence:
+- `pytest -q tests/test_us073_autonomy_config.py tests/test_config_loading.py tests/test_config_migration.py tests/test_config_string_coercion.py tests/test_us075_config_validation.py`: 74 passed on Python 3.11.9; 4 pre-existing `llm_provider` deprecation warnings.
+- Full GUI Vitest suite: 181 passed across 34 files.
+- Focused post-migration GUI matrix: 57 passed across autonomy/settings tests before final Python-only validation tightening; the full suite subsequently passed 181/181.
+- `npm.cmd run typecheck`: passed.
+- `npm.cmd run build`: passed.
+- `npm.cmd run lint`: 0 errors, 3 pre-existing unrelated warnings.
+- `python -m mypy rex/config.py --ignore-missing-imports`: passed.
+- `python scripts/security_audit.py --release-gate`: passed with 0 actionable findings and no exposed secrets.
+- `pre-commit run --all-files`: passed after Black reformatted `rex/config.py` and the baseline line-number refresh was staged.
+- `git diff --check`: passed.
+- US-073 local acceptance criteria are complete. The final GitHub-check criterion remains intentionally unchecked until the exact PR implementation head passes the remote matrix.
+
+
+2026-08-16 - US-073 remote GitHub evidence complete
+
+Remote exact-head evidence for corrected implementation head `a85309d10fc721ba6f52a82284328f0ca5dd7562` on PR #405:
+- GitHub Actions CI run #1191 completed successfully.
+- Commitlint run #810 completed successfully.
+- Windows Electron Artifact run #162 completed successfully, including installed-artifact validation.
+- The exact-head check suite completed without failure; GitGuardian remained green and no secrets were reported.
+- CodeFactor initially failed the prior implementation head `93b6c1e2e75a636f16b8d31fd5f86466343f2f86` with one complexity finding in `gui/src/main/autonomySettings.ts`. That finding was addressed by refactoring migration planning/rollback into smaller helpers. CodeFactor then completed successfully on corrected head `a85309d10fc721ba6f52a82284328f0ca5dd7562` with no issues found.
+- PR #405 has no submitted reviews and no inline review threads.
+- US-073's final GitHub-check acceptance criterion is therefore closed. This documentation-only closure commit must still pass the repository's final merge checks before PR #405 is merged.
+
+2026-08-16 - US-077 local implementation complete; remote CI pending
+
+Implementation:
+- Added narrow, explicit current-info/news intent detection before ordinary LLM generation. Covered current cues include "what is in the news today", latest/current/today news/headlines/developments/updates, "what happened today", and explicit "latest ... on/about" phrasing. Historical/topic-only prompts without a current cue continue through normal routing.
+- Configured current-info requests bypass the normal response cache so stale answers cannot satisfy live-news requests.
+- Current-info search runs through the existing pre-LLM `ToolDispatcher`, which already executes blocking providers off the asyncio event loop. No new synchronous network call was added to `IntentRouter`.
+- Current-info tool selection is biased locally with a `web search` selection hint only after the narrow current-info intent matches. Generic Web Search capability tags remain `search/web/lookup`, so unrelated requests such as current settings do not trigger browsing.
+- Search failure, missing dispatcher, or unavailable provider fails closed with a deterministic explanation; Rex does not call the LLM or guess at live events.
+- Successful current-info search adds a `CURRENT-INFO GROUNDING` instruction requiring current/live factual claims to come only from the verified `web_search` result and to admit insufficiency instead of supplementing with model memory.
+- Current-info bypasses unrelated Home Assistant transcript routing so a pending HA clarification cannot replace a verified news result or fail-closed response.
+- Added `configured_search_providers()` as the shared provider-truth helper. DuckDuckGo is usable without a key when its shipped dependencies are present; Brave, SerpAPI, Google CSE, and Browserless require usable credentials/dependencies. SerpAPI supports both `SERPAPI_KEY` and the legacy `SERPAPI_API_KEY` alias.
+- Canonical assistant execution uses explicit `AppConfig.search_providers` as non-secret provider authority. The legacy `REX_SEARCH_PROVIDERS` override remains only for direct plugin compatibility when no explicit runtime config is supplied, matching Rex's documented JSON runtime-config authority.
+- Search credential resolution uses runtime config where applicable, environment/vault secret lookup, and does not expose credentials in tool request/audit payloads.
+- `ToolExecutionLifecycle` can privately inject the exact runtime config into handlers that explicitly opt in via `_runtime_config`; `web_search` uses this so provider selection and execution share one authority without putting config or secrets into auditable tool arguments/context.
+- Integration status now uses the same provider-truth helper as execution.
+- Updated `docs/configuration.md`, `INTEGRATIONS_STATUS.md`, and `CLAUDE.md` with truthful Web Search setup/recovery rules. Documentation explicitly says there is not yet a dedicated Electron Web Search credential form, so recovery points only to existing `search.providers` plus credential/docs paths.
+
+TDD / review evidence:
+- Initial US-077 tests were red because no current-info provider-truth helper or current-info route existed.
+- Existing Web Search plugin regression tests exposed old one-argument provider/fake-plugin compatibility; compatibility was preserved while passing runtime config to the real implementation.
+- Codex found and we fixed: current cues containing a year being misclassified as historical; "latest updates on ..." bypassing current-info; legacy provider-list env/config availability mismatch; pending Home Assistant clarification intercepting current-info.
+- Additional self-review fixes: moved network search out of synchronous `IntentRouter`; unified provider selection/execution config; removed overly broad `current/latest` capability tags; bypassed stale response cache for current-info; added explicit LLM grounding rule.
+- Final Codex rereview: no discrete correctness issue identified in the modified or newly added code.
+
+Validation evidence:
+- Full US-077/tool/assistant matrix: 236 passed; 18 pre-existing `AppConfig.llm_provider` deprecation warnings.
+- Required PRD validation (`tests/test_assistant.py`, `tests/test_capabilities.py`, `tests/test_tools_registry.py`) is included in that passing matrix.
+- `tests/test_web_search_plugin.py`: 4 passed after compatibility preservation.
+- `python -m mypy rex/assistant.py rex/intent/router.py rex/actions/dispatcher.py rex/integration_state.py rex/tools/registry.py rex/tools/dispatcher.py rex/tools/execution.py plugins/web_search.py --ignore-missing-imports`: passed with no issues.
+- `python scripts/security_audit.py --release-gate`: passed with 0 actionable findings and no exposed secrets.
+- `pre-commit run --all-files`: Ruff, Black, and detect-secrets passed.
+- `git diff --check`: passed.
+- US-077 local acceptance criteria are complete. The final GitHub-check criterion remains intentionally unchecked until the exact PR implementation head passes the remote matrix.
+
+
+2026-08-16 - US-077 remote GitHub evidence complete
+
+Remote exact-head evidence for corrected implementation head `c897fb8d745f1352d6b2fc53cb740468b61f5c4f` on PR #406:
+- GitHub Actions CI run #1197 completed successfully, including Python 3.11 tests/coverage, integration tests, mypy, Ruff/Black, GUI tests/typecheck/build/lint, security audit, wheel smoke, dependency audits, raw-API guard, and pre-commit validation.
+- Commitlint run #815 completed successfully.
+- Windows Electron Artifact run #166 completed successfully, including managed runtime/installer build, signature/resource validation, and installed-artifact execution without machine Python or Node.
+- The exact-head check suite registered 18 checks; every check completed and none concluded failure or remained in progress.
+- CodeFactor completed successfully with no issues found.
+- GitGuardian/hardcoded-secret checks completed successfully with no exposed secrets.
+- Earlier PR heads exposed synthetic provider-key fixtures to detect-secrets; the fixtures were corrected with scanner-compatible inline allowlist annotations. The corrected exact head passed GitHub's Pre-commit Hook Validation.
+- PR #406 has no submitted reviews and no inline review threads.
+- US-077's final GitHub-check acceptance criterion is therefore closed. This documentation-only closure commit must still pass the repository's final merge checks before PR #406 is merged.
+
+
+2026-08-16 - US-078 local implementation complete
+
+Implemented capability-limit recovery UX on branch `lead/us078-recovery-ux`, based directly on merged `master` `c03de4f95fa3efcec55775b17fa96ca33e419e66` (US-077 merged).
+
+Behavior and architecture:
+- Added `rex.capabilities.recovery.CapabilityGapResolver` as a non-executing recovery planner invoked only after normal selected-tool and Home Assistant paths do not produce a result.
+- Recovery search order is enabled local capabilities, disabled local capabilities, canonical OpenClaw/ClawHub capabilities, configured MCP candidates, configured OpenAPI candidates, safe declarative composition, then confirmation-gated Forge/build suggestion. The current repository has no configured direct MCP/OpenAPI subsystem, so those configured-provider sets are truthfully empty in the production Assistant today rather than invented; the resolver/dispatcher accepts typed configured candidates when such adapters exist.
+- Candidate recovery options fail closed on prohibited risk, unhealthy/unavailable state, identity scope, missing configuration, and current-user permissions before being offered. `admin` satisfies declared Rex permissions.
+- Missing integration/config/key recovery names the requirement/config key but never a secret value. Missing permission recovery names only the permission(s) actually absent and directs the user to the administrator/owner action required.
+- Disabled capabilities with missing config offer configuration; disabled capabilities whose config is already satisfied offer enablement rather than falsely claiming credentials are missing.
+- Informational, creative, conversational, and UI-navigation wording is prevented from spuriously entering capability recovery. Explicit action requests still recover; Forge is offered only for explicit requests to create/build a capability/tool/integration/plugin/skill/provider.
+- Recovery actions never enable, install, compose, grant permission, or claim success. Composition proposals are safe/read-only/authorized/configured and still require confirmation.
+- Added structured recovery metadata to canonical turn events, the Electron chat bridge, main/preload IPC, ChatPage state, and MessageList recovery cards. Only an existing safe settings route receives an `Open settings` button; permission/build actions remain non-executing proposals.
+- Updated `CLAUDE.md` with the canonical recovery authority/order/fail-closed rule so later work does not bypass it.
+
+Independent review findings fixed before freeze:
+- P1: enabled cards with missing `requires_config` could be mistaken for usable; fixed with explicit config-state evaluation.
+- P1: argument-bearing requests could dilute an obvious capability match; matching was made candidate-aware without allowing generic action verbs to dominate.
+- P2: `admin` was not consistently treated as satisfying declared permissions; fixed.
+- Additional stress findings fixed: identity-scoped candidates, unavailable external candidates, unconfigured/unavailable integration states, conversational/creative false positives, exact missing permission/config reporting, and disabled-but-already-configured capabilities now correctly offer enablement rather than reconfiguration.
+- Final clean Codex rereview after all fixes: ?The recovery planner, dispatcher integration, Electron transport, and renderer presentation are consistent and preserve existing execution authority. No discrete correctness issue was identified in the current changes.?
+
+Local validation on the final merged-master baseline:
+- `pytest -q tests/test_capabilities.py tests/test_tools_registry.py tests/test_assistant.py tests/rex2/test_capability_recovery.py tests/test_us078_recovery_tool_dispatcher.py tests/test_us078_recovery_action_dispatcher.py tests/test_us078_tool_error_recovery.py tests/test_tool_dispatcher.py tests/test_tool_execution_lifecycle.py tests/rex2/test_generate_reply_turn_engine.py` -> 152 passed, 0 failed (18 existing `AppConfig.llm_provider` deprecation warnings).
+- Full Electron/Vitest suite -> 183 passed, 0 failed.
+- Electron TypeScript typecheck -> passed.
+- Electron production build -> passed.
+- Electron ESLint -> 0 errors; 3 pre-existing warnings.
+- Touched-file mypy (`rex/capabilities/recovery.py`, `rex/tools/dispatcher.py`, `rex/tools/execution.py`, `rex/actions/dispatcher.py`, `bridge/rex_chat_stream_bridge.py`) -> 0 issues.
+- `python scripts/security_audit.py --release-gate` -> passed; 0 actionable source/config findings; no exposed secrets.
+- `pre-commit run --all-files --show-diff-on-failure` -> Ruff passed, Black passed, detect-secrets passed.
+- `git diff --check` -> passed.
+
+US-078's local acceptance criteria are complete. The final `All relevant GitHub checks pass` criterion remains intentionally unchecked until the exact implementation head is published and all required GitHub/external checks complete successfully.
+
+
+2026-08-16 - US-078 remote GitHub evidence complete
+
+Remote exact-head evidence for implementation head `f59e33e8213248ceef50ae6495cc50c62d33d624` on PR #407:
+- GitHub Actions CI run #1201 completed successfully, including the full Python 3.11 tests/coverage + integration path, skipped-test budget, working-tree-clean proof, mypy, Ruff/Black/compile/deprecated-API guards, GUI Vitest/typecheck/build/ESLint/raw-API guard, security audit, hardcoded-secret scan, pre-commit, dependency audits, and wheel contents smoke.
+- Commitlint run #818 completed successfully.
+- Windows Electron Artifact run #168 completed successfully, including managed runtime/installer build, Authenticode truth verification, packaged-resource validation, and installed-artifact execution without machine Python or Node.
+- The exact-head check suite registered 18 checks; every check completed successfully and none remained in progress.
+- CodeFactor concluded success. Its sole annotation is a non-blocking maintainability warning that `ActionDispatcher.dispatch()` is a very complex method; it is not a correctness/security failure and no CodeFactor check failed.
+- PR #407 has no submitted reviews and no inline review threads.
+- US-078's final GitHub-check acceptance criterion is therefore closed. This documentation-only closure commit must still pass the repository's final merge checks before PR #407 is merged.
+
+
+2026-08-16 - US-113 local implementation and independent review complete
+
+Implemented dynamic OpenClaw/ClawHub capability synchronization on branch `lead/us113-openclaw-capability-sync`, based on merged `master` `9550ce69641bf70fa6a4c2013b8cfecf074a5c35`.
+
+Behavior and architecture:
+- Added an authenticated OpenClaw Gateway protocol-v4 WebSocket discovery client using `operator.read` only. Loopback backend discovery validates challenge/connect/hello scope evidence and queries `tools.catalog`, session-scoped `tools.effective`, and `skills.status`; tokens are never placed in command arguments, logs, or persisted snapshots.
+- Added `rex.openclaw.capability_sync` as the sole startup/manual/hot-refresh synchronizer. The complete untrusted inventory is bounded/schema-validated before mutation. The canonical effective session is `agent:main:main`; request context cannot select another privileged session.
+- Catalog-only tools remain unavailable. Only current session-effective tool IDs receive executable bindings in the same canonical `ToolRegistry` used by `Assistant`/`ToolDispatcher`. ClawHub skill status is retained as informational metadata unless OpenClaw exposes a real effective tool ID.
+- Unknown effective remote tools fail closed as identity-required sensitive mutations requiring Rex `openclaw_execute` permission (or `admin`) and confirmation before gateway dispatch. Existing local permission/operation/risk/identity/verification classifications remain authoritative on ID collisions.
+- Fully validated snapshots are durably persisted to household runtime state before in-memory publication. Add/update/remove is atomic; removed or stale remote tools keep audit-visible metadata but are disabled/unavailable in both metadata and executable registries. Failed refresh preserves the last known safe snapshot and does not break local Rex.
+- Startup, manual refresh, and the explicit hot-refresh event use one serialized lifecycle controller. Closed/reconfigured controllers cannot publish late results. Reconnect-triggered reconciliation and remote mutation verification remain intentionally scoped to US-114.
+- Added `websocket-client>=1.9.0,<2` as the lightweight direct runtime dependency required by Gateway capability discovery.
+- Updated `CLAUDE.md`, OpenClaw migration documentation, the implementation plan, and canonical permission model with the new safety invariants.
+
+TDD and independent review evidence:
+- New behavior was introduced test-first; missing sync/RPC modules and each subsequent review finding were observed red before fixes.
+- Current OpenClaw v4 source/protocol verification corrected early fixtures from `name`/flat effective lists to catalog `id`, grouped `tools.effective.found`, and `hello-ok.auth.scopes`.
+- Independent Codex review findings fixed before closure included: current v4 inventory-shape mismatches; catalog-only tools being treated as live; persistence ordering; concurrent controller publication; metadata-only remote cards not reaching executable ToolRegistry; stale controller/reconfiguration races; caller-controlled session keys; stale gateway handler closures; synthetic skills being executable without a tool ID; non-atomic stale disabling; and missing Rex-side permission on owner-authority remote tools.
+- Final independent closure rereview after all fixes: `No discrete correctness issue was identified.`
+
+Validation completed before the final repository-wide sweep:
+- OpenClaw/capability/tool-registry/permissions compatibility matrix -> 233 passed, 0 failed (only pre-existing OpenClaw flat-config deprecation and short JWT fixture-key warnings).
+- Touched-file Ruff, Black, and mypy -> passed.
+- `python scripts/security_audit.py --release-gate` -> passed with 0 actionable source/config findings and no exposed secrets.
+- `pre-commit run --all-files` -> Ruff, Black, and detect-secrets passed.
+
+US-113 local behavioral acceptance criteria are complete. The GitHub-check criterion remains intentionally unchecked until the exact implementation head passes all required remote checks. Final full-suite/release validation evidence is appended below before the implementation commit is frozen.
+
+Final local freeze evidence:
+- Authoritative US-113 validation command `pytest tests/rex2/test_openclaw_capability_sync.py tests/test_openclaw_http_client.py -q` -> 51 passed, 0 failed.
+- Full repository `pytest -q` -> 8,914 passed, 49 skipped, 0 failed, 347 warnings; exit code 0. The warnings are existing deprecation/test-fixture warnings plus a post-pytest PyTorch shutdown logger writing to a closed capture stream; pytest itself completed successfully.
+- Touched-file Ruff -> passed.
+- Touched-file Black -> passed.
+- Touched-file mypy -> 0 issues.
+- `git diff --check` -> passed.
+- Final security release gate -> passed; 1,382 files scanned, 0 actionable source/config findings, no exposed secrets.
+- Final pre-commit -> Ruff passed, Black passed, detect-secrets passed. The only baseline change is the existing `tests/test_us052_permissions.py` finding line moving from 208 to 215 after the permission-enum regression update; no new suppression or secret was added.
+
+Remote implementation-head follow-up:
+- PR #408 exact head `817c5d5` passed the visible GitHub Actions fast gates but CodeFactor reported one B110 notice at `rex/openclaw/gateway_rpc.py` for `try/except/pass` around best-effort socket close.
+- Replaced the empty exception handler with explicit `contextlib.suppress(Exception)` so cleanup failure still cannot mask the RPC outcome without silently using an empty catch block.
+- Added a regression proving a socket close failure does not mask a successful inventory fetch.
+- Post-fix authoritative US-113 matrix -> 52 passed, 0 failed; gateway-client test file -> 26 passed; Ruff/Black/mypy/security release gate -> passed.
+
+
+2026-08-16 - US-113 exact-head GitHub evidence complete
+
+PR #408 implementation head `891b9464f18c4cb4c5e048992246646520dc1070` completed all required remote gates successfully:
+- Exact-head check-runs: 18/18 completed successfully; no failed or in-progress checks.
+- CI workflow run 1206: success, including full Python coverage/integration and all lint/type/security/GUI/dependency/pre-commit jobs.
+- Commitlint run 822: success.
+- Windows Electron Artifact run 171: success, including managed runtime/installer build, Authenticode truth check, packaged-resource validation, and installed execution without machine Python or Node.
+- CodeFactor: success, `No issues found.` The earlier B110 cleanup notice on implementation head `817c5d5` was corrected by `891b946` and re-evaluated cleanly.
+- Pull request reviews: none.
+- Pull request review threads: none.
+
+The final US-113 GitHub acceptance criterion is therefore satisfied. This documentation-only closure commit changes tracker/evidence only; implementation behavior remains frozen at `891b946` and will be revalidated by the full remote gate before merge.

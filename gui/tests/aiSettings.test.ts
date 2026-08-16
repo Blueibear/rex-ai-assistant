@@ -8,6 +8,7 @@ import {
   OPENROUTER_DEFAULT_BASE_URL,
   OPENROUTER_DEFAULT_MODEL,
   buildAiSettings,
+  buildAiSettingsForSave,
   normalizeGuiAiProvider,
   toRuntimeAiProvider
 } from '../src/main/aiSettings'
@@ -43,5 +44,78 @@ describe('AI provider settings', () => {
     const settings = buildAiSettings({ provider: 'openrouter' })
     expect(settings.openrouterModel).toBe(OPENROUTER_DEFAULT_MODEL)
     expect(settings.openrouterBaseUrl).toBe(OPENROUTER_DEFAULT_BASE_URL)
+  })
+})
+
+
+describe('AI provider reload behavior (US-071)', () => {
+  beforeEach(() => mockReadRexConfig.mockReset().mockReturnValue({}))
+
+  it('reloads the canonical runtime provider instead of stale GUI state', () => {
+    mockReadRexConfig.mockReturnValue({
+      models: { llm_provider: 'ollama', llm_model: 'llama3.2:3b' }
+    })
+
+    const settings = buildAiSettings({ provider: 'local', customModelId: 'stale-local-model' })
+
+    expect(settings.provider).toBe('ollama')
+    expect(settings.customModelId).toBe('stale-local-model')
+  })
+
+  it('maps the runtime transformers provider back to the Local Transformers GUI value', () => {
+    mockReadRexConfig.mockReturnValue({
+      models: { llm_provider: 'transformers', llm_model: 'mistralai/Mistral-7B-Instruct-v0.3' }
+    })
+
+    expect(buildAiSettings({}).provider).toBe('local')
+  })
+
+  it('falls back safely when the canonical runtime provider is invalid', () => {
+    mockReadRexConfig.mockReturnValue({ models: { llm_provider: 'not-a-provider' } })
+
+    expect(buildAiSettings({ provider: 'ollama' }).provider).toBe('openai')
+  })
+})
+
+
+describe('OpenAI-compatible endpoint settings (US-072)', () => {
+  beforeEach(() => mockReadRexConfig.mockReset().mockReturnValue({}))
+
+  it('loads the configured OpenAI-compatible base URL for LM Studio discovery', () => {
+    mockReadRexConfig.mockReturnValue({
+      openai: { base_url: 'http://127.0.0.1:1234/v1' }
+    })
+
+    expect(buildAiSettings({}).openaiBaseUrl).toBe('http://127.0.0.1:1234/v1')
+  })
+
+  it('preserves an explicit blank GUI base URL so a configured compatible endpoint can be cleared', () => {
+    mockReadRexConfig.mockReturnValue({
+      openai: { base_url: 'http://127.0.0.1:1234/v1' }
+    })
+
+    expect(buildAiSettings({ openaiBaseUrl: '' }).openaiBaseUrl).toBe('')
+  })
+})
+
+
+describe('autonomy runtime authority (US-073)', () => {
+  beforeEach(() => mockReadRexConfig.mockReset().mockReturnValue({}))
+
+  it('loads the canonical runtime autonomy mode instead of stale GUI state', () => {
+    mockReadRexConfig.mockReturnValue({ models: { autonomy_mode: 'supervised' } })
+
+    expect(buildAiSettings({ autonomyMode: 'full-auto' }).autonomyMode).toBe('supervised')
+  })
+
+  it('falls back to a legacy AI value only when runtime authority is absent', () => {
+    expect(buildAiSettings({ autonomyMode: 'supervised' }).autonomyMode).toBe('supervised')
+  })
+
+  it('preserves an explicitly submitted autonomy change during save normalization', () => {
+    mockReadRexConfig.mockReturnValue({ models: { autonomy_mode: 'manual' } })
+
+    expect(buildAiSettingsForSave({ autonomyMode: 'full-auto' }).autonomyMode).toBe('full-auto')
+    expect(buildAiSettings({ autonomyMode: 'full-auto' }).autonomyMode).toBe('manual')
   })
 })

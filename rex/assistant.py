@@ -203,11 +203,19 @@ class Assistant:
         self._skill_trainer = SkillTrainer()
         self._skill_router = SkillRouter(self._skill_registry)
 
-        # Auto tool dispatcher (US-TD-002)
+        # Auto tool dispatcher (US-TD-002). Dynamic OpenClaw discovery updates
+        # the same canonical capability registry before the dispatcher is built.
+        from .openclaw.capability_sync import initialize_openclaw_capability_sync
         from .tools.dispatcher import ToolDispatcher
         from .tools.registry import get_default_registry
 
-        self._tool_dispatcher = ToolDispatcher(get_default_registry(), config=self._settings)
+        tool_registry = get_default_registry()
+        initialize_openclaw_capability_sync(
+            self._settings,
+            registry=tool_registry.capability_registry,
+            tool_registry=tool_registry,
+        )
+        self._tool_dispatcher = ToolDispatcher(tool_registry, config=self._settings)
 
         # Shopping list voice handler (US-SL-002)
         from .shopping_list import ShoppingList
@@ -1040,9 +1048,11 @@ class Assistant:
             return completion
 
         check_cancelled()
-        cached = self._get_or_create_response_builder().check_cache(
-            transcript, user_id=effective_user_id
-        )
+        cached = None
+        if self._should_check_response_cache(intent):
+            cached = self._get_or_create_response_builder().check_cache(
+                transcript, user_id=effective_user_id
+            )
         check_cancelled()
         turn_events.emit(
             EventKind.ROUTE_PROGRESS,
@@ -1154,6 +1164,11 @@ class Assistant:
         latency_trace.finish()
         latency_trace.log_summary(logger, event=latency_event)
         return completion
+
+    @staticmethod
+    def _should_check_response_cache(intent: Any) -> bool:
+        """Current-info replies must be freshly verified instead of served from cache."""
+        return getattr(intent, "intent_type", None) != "current_info"
 
     async def generate_reply(
         self,

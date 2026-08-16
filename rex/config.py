@@ -392,6 +392,7 @@ class AppConfig:
     llm_max_tokens: int = 120
     voice_max_tokens: int = 150
     llm_temperature: float = 0.7
+    autonomy_mode: str = "manual"
     llm_top_p: float = 0.9
     llm_top_k: int = 50
     llm_seed: int = 42
@@ -1266,6 +1267,7 @@ def build_app_config(json_config: dict) -> AppConfig:
         llm_model=_get_nested(json_config, "models.llm_model", "sshleifer/tiny-gpt2"),
         llm_max_tokens=_coerce_int(json_config, "models.llm_max_tokens", 120),
         llm_temperature=_coerce_float(json_config, "models.llm_temperature", 0.7),
+        autonomy_mode=_get_nested(json_config, "models.autonomy_mode", "manual"),
         llm_top_p=_coerce_float(json_config, "models.llm_top_p", 0.9),
         llm_top_k=_coerce_int(json_config, "models.llm_top_k", 50),
         llm_seed=_coerce_int(json_config, "models.llm_seed", 42),
@@ -1493,6 +1495,12 @@ def validate_config(config: AppConfig) -> None:
         raise ConfigurationError("llm_max_tokens must be positive.")
     if not (0 <= config.llm_temperature <= 5.0):
         raise ConfigurationError("llm_temperature must be between 0 and 5.")
+    if not isinstance(config.autonomy_mode, str) or config.autonomy_mode not in {
+        "manual",
+        "supervised",
+        "full-auto",
+    }:
+        raise ConfigurationError("autonomy_mode must be manual, supervised, or full-auto.")
     if config.memory_max_turns <= 0:
         raise ConfigurationError("memory_max_turns must be positive.")
     if config.use_openclaw_tools or config.use_openclaw_voice_backend:

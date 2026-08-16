@@ -46,18 +46,22 @@ import type {
   IntegrationConnectionStatus,
   ChatStreamCancelHandle,
   ChatStreamStatus,
+  ChatRecoveryPlan,
   TurnStatusUpdate,
   TurnStatusValue,
   VoiceStartOptions,
   PairingResponse,
-  ProfileOperationResponse
+  ProfileOperationResponse,
+  ModelDiscoveryProvider,
+  ModelDiscoveryResponse
 } from '../types/ipc'
 
 function makeSendChatStream(
   message: string,
   onToken: (token: string) => void,
   cancel?: ChatStreamCancelHandle,
-  onStatus?: (status: ChatStreamStatus) => void
+  onStatus?: (status: ChatStreamStatus) => void,
+  onRecovery?: (recovery: ChatRecoveryPlan) => void
 ): Promise<void> {
   return new Promise<void>((resolve, reject) => {
     const streamId = `${Date.now()}-${Math.random()}`
@@ -70,6 +74,12 @@ function makeSendChatStream(
       data: { streamId: string; status: ChatStreamStatus }
     ): void {
       if (data.streamId === streamId) onStatus?.(data.status)
+    }
+    function recoveryHandler(
+      _e: unknown,
+      data: { streamId: string; recovery: ChatRecoveryPlan }
+    ): void {
+      if (data.streamId === streamId) onRecovery?.(data.recovery)
     }
     function doneHandler(_e: unknown, data: { streamId: string }): void {
       if (data.streamId === streamId) {
@@ -87,6 +97,7 @@ function makeSendChatStream(
     function cleanup(): void {
       ipcRenderer.removeListener('rex:chatToken', tokenHandler)
       ipcRenderer.removeListener('rex:chatStatus', statusHandler)
+      ipcRenderer.removeListener('rex:chatRecovery', recoveryHandler)
       ipcRenderer.removeListener('rex:chatDone', doneHandler)
       ipcRenderer.removeListener('rex:chatError', errorHandler)
       if (typeof cancel?.offAbort === 'function') cancel.offAbort(abortHandler)
@@ -100,6 +111,7 @@ function makeSendChatStream(
 
     ipcRenderer.on('rex:chatToken', tokenHandler)
     ipcRenderer.on('rex:chatStatus', statusHandler)
+    ipcRenderer.on('rex:chatRecovery', recoveryHandler)
     ipcRenderer.on('rex:chatDone', doneHandler)
     ipcRenderer.on('rex:chatError', errorHandler)
     // Defensive: a malformed cancel handle (e.g. a raw AbortSignal-shaped
@@ -236,6 +248,8 @@ const rexAPI = {
   },
   getSettings: (section: string): Promise<Settings> =>
     ipcRenderer.invoke('rex:getSettings', section),
+  discoverAiModels: (provider: ModelDiscoveryProvider): Promise<ModelDiscoveryResponse> =>
+    ipcRenderer.invoke('rex:discoverAiModels', provider),
   setSettings: (section: string, values: Settings): Promise<SetSettingsResponse> =>
     ipcRenderer.invoke('rex:setSettings', section, values),
   removeEmailAccount: (id: string, confirmed: boolean): Promise<SetSettingsResponse> =>

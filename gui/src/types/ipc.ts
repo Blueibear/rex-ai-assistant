@@ -34,6 +34,14 @@ export interface SetSettingsResponse {
   error?: string
 }
 
+export type ModelDiscoveryProvider = 'ollama' | 'lmstudio'
+
+export interface ModelDiscoveryResponse {
+  ok: boolean
+  models: string[]
+  error?: string
+}
+
 export interface VoiceInfo {
   id: string
   name: string
@@ -194,7 +202,6 @@ export interface Procedure {
 }
 
 export interface SystemSettings {
-  autonomyMode: 'manual' | 'supervised' | 'full-auto'
   toolTimeoutSeconds: number
   requireConfirmSystemChanges: boolean
   allowedFileRoots: string
@@ -258,6 +265,7 @@ export interface AiSettings {
   model: string
   provider: 'openai' | 'openrouter' | 'ollama' | 'local'
   customModelId: string
+  openaiBaseUrl: string
   ollamaBaseUrl: string
   openrouterModel: string
   openrouterBaseUrl: string
@@ -725,18 +733,39 @@ export interface TurnStatusUpdate {
 
 export type ChatStreamStatus = 'model_failure'
 
+export interface ChatRecoveryAction {
+  kind: string
+  label: string
+  detail: string
+  source: string
+  target?: string
+  targets?: string[]
+  settings_route?: string
+  required_permissions?: string[]
+  requires_confirmation: boolean
+}
+
+export interface ChatRecoveryPlan {
+  message: string
+  actions: ChatRecoveryAction[]
+  searched_sources: string[]
+  blocked: boolean
+}
+
 export interface RexAPI {
   sendChat: (message: string) => Promise<string>
   sendChatStream: (
     message: string,
     onToken: (token: string) => void,
     cancel?: ChatStreamCancelHandle,
-    onStatus?: (status: ChatStreamStatus) => void
+    onStatus?: (status: ChatStreamStatus) => void,
+    onRecovery?: (recovery: ChatRecoveryPlan) => void
   ) => Promise<void>
   getStatus: () => Promise<StatusResponse>
   onStatusChange: (cb: (status: string) => void) => (() => void)
   onTurnStatus: (cb: (update: TurnStatusUpdate) => void) => (() => void)
   getSettings: (section: string) => Promise<Settings>
+  discoverAiModels: (provider: ModelDiscoveryProvider) => Promise<ModelDiscoveryResponse>
   setSettings: (section: string, values: Settings) => Promise<SetSettingsResponse>
   removeEmailAccount: (id: string, confirmed: boolean) => Promise<SetSettingsResponse>
   startVoice: (

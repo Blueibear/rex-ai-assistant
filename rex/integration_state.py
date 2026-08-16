@@ -115,12 +115,12 @@ def build_integration_inventory(
             "TWILIO_PHONE_NUMBER",
         )
     )
-    search_configured = bool(
-        has_credential("SERPAPI_API_KEY")
-        or has_credential("BRAVE_API_KEY")
-        or has_credential("GOOGLE_API_KEY")
-        or "duckduckgo" in str(getattr(config, "search_providers", ""))
-    )
+    try:
+        from plugins.web_search import configured_search_providers
+    except ImportError:
+        search_configured = False
+    else:
+        search_configured = bool(configured_search_providers(config, environ=env))
     specs = [
         (
             "home_assistant",

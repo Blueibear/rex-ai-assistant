@@ -1,8 +1,15 @@
 import React, { useEffect, useRef, useState } from 'react'
-import type { Settings, AiSettings, PreferenceSuggestion } from '../../types/ipc'
+import type {
+  Settings,
+  AiSettings,
+  ModelDiscoveryProvider,
+  PreferenceSuggestion
+} from '../../types/ipc'
 import { PageLoadingFallback } from '../../components/ui/PageLoadingFallback'
 import { useToast } from '../../components/ui/Toast'
 import { PasswordInput, SavedIndicator } from './shared'
+import { ModelDiscoveryRequestGate } from '../../types/modelDiscoveryRequestGate'
+import { ModelDiscoveryResults, type ModelDiscoveryStatus } from './ModelDiscoveryResults'
 
 const MODEL_ROUTING_FIELDS: Array<{
   key: keyof AiSettings['modelRouting']
@@ -43,6 +50,7 @@ export function AiSettingsSection(): React.ReactElement {
     model: 'gpt-4o',
     provider: 'openai',
     customModelId: '',
+    openaiBaseUrl: '',
     ollamaBaseUrl: 'http://localhost:11434',
     openrouterModel: 'openai/gpt-4o',
     openrouterBaseUrl: 'https://openrouter.ai/api/v1',
@@ -74,6 +82,11 @@ export function AiSettingsSection(): React.ReactElement {
   const [openaiKeyValue, setOpenaiKeyValue] = useState('')
   const [openrouterKeyValue, setOpenrouterKeyValue] = useState('')
   const [credentialSaving, setCredentialSaving] = useState<'openai' | 'openrouter' | null>(null)
+  const [discoveryProvider, setDiscoveryProvider] = useState<ModelDiscoveryProvider | null>(null)
+  const [discoveryStatus, setDiscoveryStatus] = useState<ModelDiscoveryStatus>('idle')
+  const [discoveredModels, setDiscoveredModels] = useState<string[]>([])
+  const [discoveryError, setDiscoveryError] = useState('')
+  const discoveryRequestGateRef = useRef(new ModelDiscoveryRequestGate())
 
   function loadSuggestions(): void {
     window.rex
@@ -101,6 +114,7 @@ export function AiSettingsSection(): React.ReactElement {
           model: typeof settings.model === 'string' && settings.model.trim() ? settings.model : 'gpt-4o',
           provider,
           customModelId: typeof settings.customModelId === 'string' ? settings.customModelId : '',
+          openaiBaseUrl: typeof settings.openaiBaseUrl === 'string' ? settings.openaiBaseUrl : '',
           ollamaBaseUrl: typeof settings.ollamaBaseUrl === 'string' ? settings.ollamaBaseUrl : 'http://localhost:11434',
           openrouterModel:
             typeof settings.openrouterModel === 'string' && settings.openrouterModel.trim()
@@ -158,8 +172,52 @@ export function AiSettingsSection(): React.ReactElement {
     savedTimerRef.current = setTimeout(() => setSavedField(null), 2000)
   }
 
+  function resetModelDiscovery(): void {
+    discoveryRequestGateRef.current.invalidate()
+    setDiscoveryProvider(null)
+    setDiscoveryStatus('idle')
+    setDiscoveredModels([])
+    setDiscoveryError('')
+  }
+
+  function handleDiscoverModels(provider: ModelDiscoveryProvider): void {
+    const requestId = discoveryRequestGateRef.current.begin()
+    setDiscoveryProvider(provider)
+    setDiscoveryStatus('loading')
+    setDiscoveredModels([])
+    setDiscoveryError('')
+
+    window.rex
+      .setSettings('ai', form as unknown as Settings)
+      .then((saved) => {
+        if (!saved.ok) {
+          throw new Error(saved.error ?? 'Failed to save AI settings before model discovery')
+        }
+        if (!discoveryRequestGateRef.current.isCurrent(requestId)) return null
+        return window.rex.discoverAiModels(provider)
+      })
+      .then((result) => {
+        if (!result || !discoveryRequestGateRef.current.isCurrent(requestId)) return
+        if (result.ok) {
+          setDiscoveredModels(result.models)
+          setDiscoveryStatus('success')
+          return
+        }
+        setDiscoveryError(result.error ?? 'Model discovery failed')
+        setDiscoveryStatus('error')
+      })
+      .catch(() => {
+        if (!discoveryRequestGateRef.current.isCurrent(requestId)) return
+        setDiscoveryError('Model discovery could not be completed')
+        setDiscoveryStatus('error')
+      })
+  }
+
   function handleFieldChange<K extends keyof AiSettings>(field: K, value: AiSettings[K]): void {
     const updated = { ...form, [field]: value }
+    if (field === 'provider' || field === 'openaiBaseUrl' || field === 'ollamaBaseUrl') {
+      resetModelDiscovery()
+    }
     setForm(updated)
     window.rex
       .setSettings('ai', updated as unknown as Settings)
@@ -345,6 +403,48 @@ export function AiSettingsSection(): React.ReactElement {
 
           <div className="mb-5">
             <div className="flex items-center justify-between mb-1.5">
+              <label htmlFor="openaiBaseUrl" className="text-sm font-medium text-text-primary">
+                OpenAI-compatible Base URL (LM Studio)
+              </label>
+              <SavedIndicator visible={savedField === 'openaiBaseUrl'} />
+            </div>
+            <input
+              id="openaiBaseUrl"
+              type="text"
+              value={form.openaiBaseUrl}
+              placeholder="Leave blank for official OpenAI"
+              onChange={(e) => {
+                resetModelDiscovery()
+                setForm((current) => ({ ...current, openaiBaseUrl: e.target.value }))
+              }}
+              onBlur={(e) => handleFieldChange('openaiBaseUrl', e.target.value)}
+              className="w-full bg-surface-raised border border-border rounded-lg px-3 py-2 text-sm text-text-primary placeholder:text-text-secondary focus:outline-none focus:ring-2 focus:ring-accent"
+            />
+            <p className="mt-1 text-xs text-text-secondary">
+              Leave blank for official OpenAI. For LM Studio, use its OpenAI-compatible endpoint such as http://127.0.0.1:1234/v1.
+            </p>
+            {form.openaiBaseUrl.trim() && (
+              <button
+                type="button"
+                onClick={() => handleDiscoverModels('lmstudio')}
+                disabled={discoveryProvider === 'lmstudio' && discoveryStatus === 'loading'}
+                className="mt-2 rounded-lg border border-border bg-surface-raised px-3 py-2 text-sm font-medium text-text-primary transition-colors hover:border-accent/60 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Discover LM Studio Models
+              </button>
+            )}
+            <ModelDiscoveryResults
+              providerLabel="LM Studio"
+              status={discoveryProvider === 'lmstudio' ? discoveryStatus : 'idle'}
+              models={discoveryProvider === 'lmstudio' ? discoveredModels : []}
+              selectedModel={form.model}
+              error={discoveryProvider === 'lmstudio' ? discoveryError : ''}
+              onSelect={(model) => handleFieldChange('model', model)}
+            />
+          </div>
+
+          <div className="mb-5">
+            <div className="flex items-center justify-between mb-1.5">
               <label htmlFor="openaiApiKey" className="text-sm font-medium text-text-primary">
                 OpenAI API Key
               </label>
@@ -464,9 +564,28 @@ export function AiSettingsSection(): React.ReactElement {
               type="text"
               value={form.ollamaBaseUrl}
               placeholder="http://localhost:11434"
-              onChange={(e) => setForm((f) => ({ ...f, ollamaBaseUrl: e.target.value }))}
+              onChange={(e) => {
+                resetModelDiscovery()
+                setForm((f) => ({ ...f, ollamaBaseUrl: e.target.value }))
+              }}
               onBlur={(e) => handleFieldChange('ollamaBaseUrl', e.target.value)}
               className="w-full bg-surface-raised border border-border rounded-lg px-3 py-2 text-sm text-text-primary placeholder:text-text-secondary focus:outline-none focus:ring-2 focus:ring-accent"
+            />
+            <button
+              type="button"
+              onClick={() => handleDiscoverModels('ollama')}
+              disabled={discoveryProvider === 'ollama' && discoveryStatus === 'loading'}
+              className="mt-2 rounded-lg border border-border bg-surface-raised px-3 py-2 text-sm font-medium text-text-primary transition-colors hover:border-accent/60 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Discover Models
+            </button>
+            <ModelDiscoveryResults
+              providerLabel="Ollama"
+              status={discoveryProvider === 'ollama' ? discoveryStatus : 'idle'}
+              models={discoveryProvider === 'ollama' ? discoveredModels : []}
+              selectedModel={form.customModelId}
+              error={discoveryProvider === 'ollama' ? discoveryError : ''}
+              onSelect={(model) => handleFieldChange('customModelId', model)}
             />
           </div>
           <div className="mb-5">

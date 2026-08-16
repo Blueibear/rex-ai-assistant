@@ -101,3 +101,97 @@ describe('mirrorToRexConfig truthful failures (S4)', () => {
   })
 
 })
+
+
+describe('AI provider persistence (US-071)', () => {
+  beforeEach(() => {
+    mockReadRexConfig.mockReset().mockReturnValue({
+      models: { llm_provider: 'transformers' }
+    })
+    mockWriteRexConfig.mockReset()
+  })
+
+  it('persists an Ollama provider switch before a model identifier is selected', () => {
+    const result = mirrorToRexConfig('ai', {
+      provider: 'ollama',
+      customModelId: ''
+    } as never)
+
+    expect(result).toEqual({ ok: true })
+    expect(mockWriteRexConfig).toHaveBeenCalledWith(expect.objectContaining({
+      models: expect.objectContaining({ llm_provider: 'ollama' })
+    }))
+  })
+})
+
+
+describe('OpenAI-compatible endpoint persistence (US-072)', () => {
+  beforeEach(() => {
+    mockReadRexConfig.mockReset().mockReturnValue({
+      openai: { model: 'gpt-4o', base_url: null }
+    })
+    mockWriteRexConfig.mockReset()
+  })
+
+  it('mirrors a configured LM Studio-compatible base URL into openai.base_url', () => {
+    const result = mirrorToRexConfig('ai', {
+      provider: 'openai',
+      model: 'gpt-4o',
+      openaiBaseUrl: '  http://127.0.0.1:1234/v1  '
+    } as never)
+
+    expect(result).toEqual({ ok: true })
+    expect(mockWriteRexConfig).toHaveBeenCalledWith(expect.objectContaining({
+      openai: expect.objectContaining({
+        model: 'gpt-4o',
+        base_url: 'http://127.0.0.1:1234/v1'
+      })
+    }))
+  })
+
+  it('clears openai.base_url when the compatible endpoint field is blank', () => {
+    mockReadRexConfig.mockReturnValue({
+      openai: { model: 'gpt-4o', base_url: 'http://127.0.0.1:1234/v1' }
+    })
+
+    const result = mirrorToRexConfig('ai', {
+      provider: 'openai',
+      model: 'gpt-4o',
+      openaiBaseUrl: '   '
+    } as never)
+
+    expect(result).toEqual({ ok: true })
+    expect(mockWriteRexConfig).toHaveBeenCalledWith(expect.objectContaining({
+      openai: expect.objectContaining({ base_url: null })
+    }))
+  })
+})
+
+
+describe('autonomy runtime persistence (US-073)', () => {
+  beforeEach(() => {
+    mockReadRexConfig.mockReset().mockReturnValue({ models: { autonomy_mode: 'manual' } })
+    mockWriteRexConfig.mockReset()
+  })
+
+  it('mirrors autonomy only from the AI settings section', () => {
+    expect(mirrorToRexConfig('ai', { autonomyMode: 'supervised' } as never)).toEqual({ ok: true })
+    expect(mockWriteRexConfig).toHaveBeenCalledWith(expect.objectContaining({
+      models: expect.objectContaining({ autonomy_mode: 'supervised' })
+    }))
+  })
+
+  it('rejects an invalid AI autonomy mode instead of corrupting runtime config', () => {
+    const result = mirrorToRexConfig('ai', { autonomyMode: 'unbounded' } as never)
+
+    expect(result).toEqual({ ok: false, error: 'Invalid autonomy mode' })
+    expect(mockWriteRexConfig).not.toHaveBeenCalled()
+  })
+
+  it('ignores a legacy System autonomy field instead of changing runtime authority', () => {
+    expect(mirrorToRexConfig('system', { autonomyMode: 'full-auto' } as never)).toEqual({ ok: true })
+    expect(mockWriteRexConfig).toHaveBeenCalledWith(expect.objectContaining({
+      models: expect.objectContaining({ autonomy_mode: 'manual' })
+    }))
+  })
+})

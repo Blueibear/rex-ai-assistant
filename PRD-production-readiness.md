@@ -2469,13 +2469,13 @@ cd gui && npm run typecheck && npm run build
 **Implementation notes:** Establish one source of truth for GUI provider labels and runtime provider names. The UI should reload from saved state, not local defaults, after tab changes.
 
 **Acceptance Criteria:**
-- [ ] Changing from Local Transformers to Ollama Local persists immediately.
-- [ ] Switching tabs and returning does not reset the provider.
-- [ ] App restart reloads the saved provider from the source of truth.
-- [ ] Runtime config mirror uses the same provider mapping as the UI.
-- [ ] Tests cover save, reload, tab navigation, and invalid provider fallback.
-- [ ] `cd gui && npm run typecheck && npm run build` passes.
-- [ ] All relevant GitHub checks pass.
+- [x] Changing from Local Transformers to Ollama Local persists immediately.
+- [x] Switching tabs and returning does not reset the provider.
+- [x] App restart reloads the saved provider from the source of truth.
+- [x] Runtime config mirror uses the same provider mapping as the UI.
+- [x] Tests cover save, reload, tab navigation, and invalid provider fallback.
+- [x] `cd gui && npm run typecheck && npm run build` passes.
+- [x] All relevant GitHub checks pass.
 
 **Validation commands:**
 ```bash
@@ -2505,14 +2505,14 @@ cd gui && npm run typecheck && npm run build
 **Implementation notes:** Ollama and LM Studio have different APIs. Use configured endpoints, show loading/error/empty states, and avoid network calls unless the user requests discovery or opens the relevant provider section.
 
 **Acceptance Criteria:**
-- [ ] Ollama model discovery reads the configured Ollama endpoint.
-- [ ] LM Studio model discovery reads the configured OpenAI-compatible endpoint.
-- [ ] UI shows loading, error, and empty states.
-- [ ] Selected model persists and reloads.
-- [ ] Stale or hardcoded fake model names are not shown as available.
-- [ ] Tests mock provider endpoints for success, failure, and empty responses.
-- [ ] `cd gui && npm run typecheck && npm run build` passes.
-- [ ] All relevant GitHub checks pass.
+- [x] Ollama model discovery reads the configured Ollama endpoint.
+- [x] LM Studio model discovery reads the configured OpenAI-compatible endpoint.
+- [x] UI shows loading, error, and empty states.
+- [x] Selected model persists and reloads.
+- [x] Stale or hardcoded fake model names are not shown as available.
+- [x] Tests mock provider endpoints for success, failure, and empty responses.
+- [x] `cd gui && npm run typecheck && npm run build` passes.
+- [x] All relevant GitHub checks pass.
 
 **Validation commands:**
 ```bash
@@ -2544,14 +2544,14 @@ pytest -q tests/test_llm_client.py tests/test_model_router.py
 **Implementation notes:** Keep autonomy under AI. Remove the duplicate System autonomy control and audit System for other AI-related settings that should move.
 
 **Acceptance Criteria:**
-- [ ] Only one autonomy UI control exists.
-- [ ] The remaining control lives under Settings > AI.
-- [ ] System no longer has a duplicate autonomy setting.
-- [ ] Saved autonomy value has one source of truth.
-- [ ] AI and runtime config read the same autonomy value.
-- [ ] Tests cover migration from old duplicate values and System tab absence.
-- [ ] `cd gui && npm run typecheck && npm run build` passes.
-- [ ] All relevant GitHub checks pass.
+- [x] Only one autonomy UI control exists.
+- [x] The remaining control lives under Settings > AI.
+- [x] System no longer has a duplicate autonomy setting.
+- [x] Saved autonomy value has one source of truth.
+- [x] AI and runtime config read the same autonomy value.
+- [x] Tests cover migration from old duplicate values and System tab absence.
+- [x] `cd gui && npm run typecheck && npm run build` passes.
+- [x] All relevant GitHub checks pass.
 
 **Validation commands:**
 ```bash
@@ -2702,12 +2702,12 @@ pytest -q tests/test_llm_client.py tests/test_assistant.py
 **Implementation notes:** Detect current-info/news intent before a plain LLM answer. If search/news capability is configured, route to it. If not configured, explain the missing provider/key and point to the exact settings/docs path.
 
 **Acceptance Criteria:**
-- [ ] News/current-info questions route to a configured search/news capability when available.
-- [ ] If no capability is configured, Rex explains what is missing and how to enable it.
-- [ ] Rex does not claim live news access when the capability is unavailable.
-- [ ] Suggested setup paths are backed by actual code/config/docs.
-- [ ] Tests cover configured and unconfigured paths for "what is in the news today".
-- [ ] All relevant GitHub checks pass.
+- [x] News/current-info questions route to a configured search/news capability when available.
+- [x] If no capability is configured, Rex explains what is missing and how to enable it.
+- [x] Rex does not claim live news access when the capability is unavailable.
+- [x] Suggested setup paths are backed by actual code/config/docs.
+- [x] Tests cover configured and unconfigured paths for "what is in the news today".
+- [x] All relevant GitHub checks pass. *(PR #406 corrected exact head `c897fb8d745f1352d6b2fc53cb740468b61f5c4f` completed all 18 checks successfully, including CI #1197, Commitlint #815, Windows Electron Artifact #166, CodeFactor, GitGuardian, and pre-commit; no submitted reviews or review threads.)*
 
 **Validation commands:**
 ```bash
@@ -2738,17 +2738,17 @@ pytest -q tests/test_assistant.py tests/test_capabilities.py tests/test_tools_re
 **Implementation notes:** Standardize missing-requirement responses. Where appropriate, ask permission to configure or guide the user to the exact settings section. Do not pretend setup or action succeeded.
 
 **Acceptance Criteria:**
-- [ ] Missing integration responses name the missing requirement.
-- [ ] Missing permission responses name the permission and owner/action required.
-- [ ] Missing API key responses name the config key location without revealing secret values.
-- [ ] Missing tool responses offer a concrete enable/configure/build path when one exists.
-- [ ] The GUI can render structured recovery actions where available.
-- [ ] Tests cover missing integration, missing key, missing permission, and missing tool responses.
-- [ ] All relevant GitHub checks pass.
+- [x] Missing integration responses name the missing requirement.
+- [x] Missing permission responses name the permission and owner/action required.
+- [x] Missing API key responses name the config key location without revealing secret values.
+- [x] Missing tool responses offer a concrete enable/configure/build path when one exists.
+- [x] The GUI can render structured recovery actions where available.
+- [x] Tests cover missing integration, missing key, missing permission, and missing tool responses.
+- [x] All relevant GitHub checks pass. *(PR #407 exact implementation head `f59e33e8213248ceef50ae6495cc50c62d33d624` completed all 18 checks successfully, including CI #1201, Commitlint #818, Windows Electron Artifact #168, CodeFactor, GitGuardian, pre-commit, security, wheel, GUI, and packaging checks; no submitted reviews or review threads.)*
 
-- [ ] Before offering to build a missing capability, the recovery path searches in order: enabled local capabilities, disabled local capabilities, OpenClaw/ClawHub, configured MCP providers, configured OpenAPI descriptions, and safely composable capabilities.
-- [ ] Candidate gap-recovery options are filtered by current-user permission, health, risk, identity scope, and configuration before they are offered or ranked.
-- [ ] Rex never enables, installs, composes, or grants capability authority without the required risk-policy decision/confirmation.
+- [x] Before offering to build a missing capability, the recovery path searches in order: enabled local capabilities, disabled local capabilities, OpenClaw/ClawHub, configured MCP providers, configured OpenAPI descriptions, and safely composable capabilities.
+- [x] Candidate gap-recovery options are filtered by current-user permission, health, risk, identity scope, and configuration before they are offered or ranked.
+- [x] Rex never enables, installs, composes, or grants capability authority without the required risk-policy decision/confirmation.
 
 **Validation commands:**
 ```bash
@@ -3690,12 +3690,12 @@ grep -n "askrex.app\|Cloudflare\|CORS\|rate limit\|revocation" docs/deployment.m
 **Files/areas likely involved:** `rex/openclaw/`, Capability Registry sync/adapters, health/status UI, tests.
 
 **Acceptance Criteria:**
-- [ ] Discovery uses the authenticated configured gateway and schema-validates remote capability metadata before normalization.
-- [ ] Startup, manual refresh, and supported hot-refresh apply registry changes atomically; removed capabilities become stale/unavailable rather than lingering executable.
-- [ ] Remote metadata may update source/schema/description but can never widen local permission, operation type, risk tier, or verification policy.
-- [ ] Sync failure preserves the last known safe snapshot with explicit unhealthy/stale status and does not break core local Rex.
-- [ ] Tests cover add/update/remove/malformed/duplicate capabilities and malicious risk/permission metadata.
-- [ ] All relevant GitHub checks pass.
+- [x] Discovery uses the authenticated configured gateway and schema-validates remote capability metadata before normalization.
+- [x] Startup, manual refresh, and supported hot-refresh apply registry changes atomically; removed capabilities become stale/unavailable rather than lingering executable.
+- [x] Remote metadata may update source/schema/description but can never widen local permission, operation type, risk tier, or verification policy.
+- [x] Sync failure preserves the last known safe snapshot with explicit unhealthy/stale status and does not break core local Rex.
+- [x] Tests cover add/update/remove/malformed/duplicate capabilities and malicious risk/permission metadata.
+- [x] All relevant GitHub checks pass.
 
 **Validation commands:** `pytest tests/rex2/test_openclaw_capability_sync.py tests/test_openclaw_http_client.py -q`.
 

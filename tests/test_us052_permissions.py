@@ -62,7 +62,14 @@ class TestPermissionEnum:
         from rex.permissions import Permission
 
         names = {p.value for p in Permission}
-        assert names == {"computer_control", "email_send", "sms_send", "ha_control", "admin"}
+        assert names == {
+            "computer_control",
+            "email_send",
+            "sms_send",
+            "ha_control",
+            "openclaw_execute",
+            "admin",
+        }
 
     def test_permission_is_string_enum(self) -> None:
         from rex.permissions import Permission

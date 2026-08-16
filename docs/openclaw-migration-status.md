@@ -10,6 +10,14 @@ Normal OpenClaw requests use the configured `openclaw_gateway_max_retries` as a 
 
 There is no sticky circuit breaker. A fallback applies only to the failed call, so a later request probes/uses the gateway again and automatically resumes remote execution when it has recovered.
 
+## Dynamic capability discovery
+
+When `openclaw.use_tools` is enabled and the configured loopback Gateway is authenticated, Rex reads the Gateway protocol-v4 control plane with `operator.read` only. Startup, manual refresh, and the explicit hot-refresh seam query `tools.catalog`, `tools.effective` for the canonical `agent:main:main` session, and `skills.status`.
+
+Only tool IDs present in the session-effective inventory become executable bindings in Rex's canonical `ToolRegistry`. Catalog-only tools remain unavailable, and ClawHub `skills.status` records are informational metadata unless OpenClaw exposes a real effective tool ID for execution. Unknown effective tools are classified conservatively as identity-required sensitive mutations and require Rex `openclaw_execute` permission (or `admin`) plus confirmation before dispatch. Existing local permission, operation, risk, identity, and verification classifications remain authoritative on ID collisions.
+
+Rex validates the complete remote inventory before mutation and durably persists the safe snapshot to household runtime state before projecting canonical metadata and executable bindings. Removed tools and failed/stale refreshes disable existing remote bindings instead of leaving them executable, while local Rex capabilities remain available. Request-supplied context cannot choose the privileged OpenClaw session key, and refreshed bindings replace old gateway/config closures. Reconnect-triggered reconciliation and remote action verification are intentionally owned by US-114.
+
 ## Electron GUI configuration
 
 OpenClaw is user-configurable under **Settings -> Integrations** and is also listed on the main **Integrations** inventory. Both surfaces label it **Experimental - off by default**. The settings panel exposes the gateway URL, separate tools and voice-backend enable flags, the current connection-test result/last error, and a **Test connection** action. The Integrations inventory exposes the current evidence state plus its own **Test connection** and Configure actions.

@@ -530,6 +530,7 @@ Deprecated flat-field aliases that currently emit `DeprecationWarning`:
 | `active_profile` | `active_profile` (merged from profile) | json-only | runtime | `"default"` |
 | `capabilities` | `capabilities` (merged from profile) | json-only | runtime | `[]` |
 | `personality` | *(dataclass default only)* | default | runtime | `"Friendly"` |
+| `autonomy_mode` | `models.autonomy_mode` | json-only | runtime | `"manual"` |
 | `ui_enabled` | *(dataclass default only)* | default | feature-flag | `True` |
 | `shopping_pwa_pin` | *(dataclass default only)* | default | runtime | `None` |
 | `music_assistant_url` | *(dataclass default only)* | default | runtime | `None` |

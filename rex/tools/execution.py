@@ -125,6 +125,7 @@ class ToolExecutionLifecycle:
         *,
         timeout_seconds: float = 10.0,
         available: bool = True,
+        runtime_config: Any = None,
     ) -> ToolResult:
         ambient = dict(context or {})
         request_id = str(
@@ -140,13 +141,30 @@ class ToolExecutionLifecycle:
             cancellation.raise_if_cancelled()
 
         if not available:
+            required_config = tuple(getattr(tool, "requires_config", ()) or ())
+            missing_config = tuple(
+                key
+                for key in required_config
+                if runtime_config is None
+                or not (
+                    runtime_config.get(key)
+                    if isinstance(runtime_config, dict)
+                    else getattr(runtime_config, key, None)
+                )
+            )
+            next_action = (
+                f" Required Rex config key(s): {', '.join(missing_config)}. "
+                "Configure them through the existing settings/credential source, then retry."
+                if missing_config
+                else " Enable or configure the tool, then retry."
+            )
             return self._finish(
                 request,
                 ToolOutcome.UNAVAILABLE,
                 risk,
                 stages,
                 started,
-                error="Tool is not configured",
+                error=f"Tool is not configured.{next_action}",
             )
 
         stages.append("argument_validation")
@@ -158,7 +176,10 @@ class ToolExecutionLifecycle:
                 risk,
                 stages,
                 started,
-                error=f"Missing required arguments: {', '.join(missing)}",
+                error=(
+                    f"Missing required arguments: {', '.join(missing)}. "
+                    "Provide the missing value(s), then retry."
+                ),
             )
 
         user_id = ""
@@ -186,7 +207,10 @@ class ToolExecutionLifecycle:
                 risk,
                 stages,
                 started,
-                error="User is not permitted to execute this tool",
+                error=(
+                    "User is not permitted to execute this tool. Ask an administrator to grant "
+                    "access to this Rex profile, then retry."
+                ),
             )
 
         required_permissions = set(getattr(tool, "required_permissions", ()) or ())
@@ -214,16 +238,18 @@ class ToolExecutionLifecycle:
                         )
                         raw_permissions = ()
             granted_permissions = set(raw_permissions or ())
-            if "admin" not in granted_permissions and not required_permissions.issubset(
-                granted_permissions
-            ):
+            missing_permissions = required_permissions - granted_permissions
+            if "admin" not in granted_permissions and missing_permissions:
                 return self._finish(
                     request,
                     ToolOutcome.DENIED,
                     risk,
                     stages,
                     started,
-                    error="Required user permission is not granted",
+                    error=(
+                        "Required user permission is not granted. Ask an administrator to grant "
+                        f"{', '.join(sorted(missing_permissions))} to this Rex profile, then retry."
+                    ),
                 )
 
         if risk == ToolRisk.PROHIBITED:
@@ -287,6 +313,8 @@ class ToolExecutionLifecycle:
             handler_args.setdefault("_user_id", user_id)
         if ambient.get("confirmed") and ("confirmed" in signature.parameters or accepts_kwargs):
             handler_args.setdefault("confirmed", True)
+        if runtime_config is not None and "_runtime_config" in signature.parameters:
+            handler_args.setdefault("_runtime_config", runtime_config)
         attempts = 2 if operation == ToolOperation.READ else 1
         for attempt in range(attempts):
             if cancellation is not None:

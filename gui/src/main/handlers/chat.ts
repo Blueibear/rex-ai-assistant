@@ -3,6 +3,7 @@ import { spawn, ChildProcess } from 'child_process'
 import { bridgeSpawnOptions, resolveBridgePath, resolvePythonCommand } from '../bridgeResolver'
 import { logChatLatency } from '../chatLatency'
 import { privateSessionPayload, type ElectronSessionIdentity } from '../sessionIdentity'
+import type { ChatRecoveryPlan } from '../../types/ipc'
 
 /**
  * Spawn the rex_chat_bridge.py script, pass the message via stdin,
@@ -236,6 +237,12 @@ export function registerChatHandlers(session: ElectronSessionIdentity): void {
       }
     }
 
+    function sendRecovery(recovery: ChatRecoveryPlan): void {
+      if (!event.sender.isDestroyed()) {
+        event.sender.send('rex:chatRecovery', { streamId, recovery })
+      }
+    }
+
     function sendDone(): void {
       if (!sentFinal) {
         sentFinal = true
@@ -274,6 +281,7 @@ export function registerChatHandlers(session: ElectronSessionIdentity): void {
             sequence?: number
             terminal?: boolean
             error?: string
+            recovery?: ChatRecoveryPlan
           }
           if (obj.type === 'token' && obj.token !== undefined) {
             sendToken(obj.token)
@@ -284,6 +292,8 @@ export function registerChatHandlers(session: ElectronSessionIdentity): void {
               sequence: obj.sequence,
               terminal: obj.terminal
             })
+          } else if (obj.type === 'recovery' && obj.recovery !== undefined) {
+            sendRecovery(obj.recovery)
           } else if (obj.type === 'done') {
             sendDone()
           } else if (obj.type === 'error') {
@@ -308,6 +318,7 @@ export function registerChatHandlers(session: ElectronSessionIdentity): void {
             sequence?: number
             terminal?: boolean
             error?: string
+            recovery?: ChatRecoveryPlan
           }
           if (obj.type === 'token' && obj.token !== undefined) sendToken(obj.token)
           else if (obj.type === 'status' && obj.status !== undefined) {
@@ -318,6 +329,7 @@ export function registerChatHandlers(session: ElectronSessionIdentity): void {
               terminal: obj.terminal
             })
           }
+          else if (obj.type === 'recovery' && obj.recovery !== undefined) sendRecovery(obj.recovery)
           else if (obj.type === 'done') sendDone()
           else if (obj.type === 'error') sendError(obj.error ?? 'Streaming error')
         } catch {
