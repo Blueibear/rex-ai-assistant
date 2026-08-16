@@ -2107,3 +2107,14 @@ Validation:
 - `npm.cmd run lint`: 0 errors, 3 pre-existing warnings in unrelated files.
 - `npm.cmd audit --audit-level=high`: passed; only 2 moderate pre-existing React Router advisories remain and require a breaking v7 upgrade.
 - US-071 local acceptance criteria are complete. The final GitHub-check criterion remains intentionally unchecked until the exact PR head passes the remote matrix.
+
+2026-08-15 - US-071 exact-head GitHub evidence complete
+
+Remote exact-head evidence for implementation commit `b8d8ed3aa9be688ec2a02cfe6a9aed475cc08d34` on PR #401:
+- CI run 31923201998 completed with conclusion `success`.
+- Python 3.11 Tests & Coverage job 95106440062 completed successfully, including the full coverage suite, skipped-test budget, integration tests, tracked-working-tree cleanliness check, and coverage upload.
+- Windows Electron Artifact run 31923201984 completed with conclusion `success`; the installed artifact was exercised successfully without machine Python or Node, and installer evidence upload completed.
+- Commitlint completed successfully.
+- CodeFactor and GitGuardian exact-head checks completed successfully with no blocking findings.
+- PR #401 has no submitted reviews and no inline review threads.
+- US-071's final GitHub-check acceptance criterion is therefore closed. The subsequent documentation-only closure commit must still pass the repository's final merge checks before PR #401 is merged.

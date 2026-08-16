@@ -2475,7 +2475,7 @@ cd gui && npm run typecheck && npm run build
 - [x] Runtime config mirror uses the same provider mapping as the UI.
 - [x] Tests cover save, reload, tab navigation, and invalid provider fallback.
 - [x] `cd gui && npm run typecheck && npm run build` passes.
-- [ ] All relevant GitHub checks pass.
+- [x] All relevant GitHub checks pass.
 
 **Validation commands:**
 ```bash
