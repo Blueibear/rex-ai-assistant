@@ -1,9 +1,20 @@
 from __future__ import annotations
 
 from dataclasses import FrozenInstanceError
+from datetime import UTC, datetime
+from typing import get_type_hints
 
 import pytest
 
+from rex.media import (
+    MediaAction,
+    MediaActionAcknowledgement,
+    MediaMutationOutcome,
+    MediaMutationResult,
+    MediaState,
+    MediaStateSnapshot,
+    TargetProviderAdapter,
+)
 from rex.media.models import AudioTarget, MediaCapability, TargetKind
 from rex.media.registry import AudioTargetRegistry
 
@@ -260,3 +271,53 @@ def test_duplicate_stable_ids_are_rejected() -> None:
             [target, duplicate],
             authorized_target_ids={"james": {target.id}},
         )
+
+
+def test_media_contract_separates_acknowledgement_from_independent_verification() -> None:
+    execute_hints = get_type_hints(TargetProviderAdapter.execute_action)
+    state_hints = get_type_hints(TargetProviderAdapter.get_state)
+    assert execute_hints["return"] is MediaActionAcknowledgement
+    assert state_hints["return"] is MediaStateSnapshot
+
+    acknowledgement = MediaActionAcknowledgement(
+        accepted=True,
+        detail="provider accepted the command",
+    )
+    observed_state = MediaStateSnapshot(
+        target_id="sonos:RINCON_2",
+        playback=MediaState.PLAYING,
+        volume_percent=35,
+        position_seconds=87.5,
+        current_item_id="track:42",
+        current_item_title="Independent Readback",
+        observed_at=datetime(2026, 8, 16, 12, 0, tzinfo=UTC),
+    )
+    attempted = MediaMutationResult(
+        target_id="sonos:RINCON_2",
+        action=MediaAction.SET_VOLUME,
+        requested_value=40,
+        outcome=MediaMutationOutcome.ATTEMPTED_UNVERIFIED,
+        acknowledgement=acknowledgement,
+        observed_state=observed_state,
+        verification_evidence=("observed volume 35 did not verify requested volume 40",),
+    )
+    failed = MediaMutationResult(
+        target_id="sonos:RINCON_2",
+        action=MediaAction.SEEK,
+        requested_value=120.0,
+        outcome=MediaMutationOutcome.FAILED,
+        acknowledgement=MediaActionAcknowledgement(
+            accepted=False,
+            detail="provider rejected the command",
+        ),
+    )
+
+    assert attempted.outcome is MediaMutationOutcome.ATTEMPTED_UNVERIFIED
+    assert attempted.observed_state is not None
+    assert attempted.observed_state.volume_percent == 35
+    assert attempted.observed_state.position_seconds == 87.5
+    assert attempted.observed_state.current_item_id == "track:42"
+    assert attempted.verification_evidence
+    assert failed.outcome is MediaMutationOutcome.FAILED
+    assert not failed.acknowledgement.accepted
+    assert MediaMutationOutcome.VERIFIED.value == "verified"

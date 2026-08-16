@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import datetime
 from enum import StrEnum
 from typing import Protocol, runtime_checkable
 
@@ -42,7 +43,7 @@ class MediaAction(StrEnum):
 
 
 class MediaState(StrEnum):
-    """Canonical playback state reported by a provider adapter."""
+    """Canonical playback state within an independently read snapshot."""
 
     UNKNOWN = "unknown"
     IDLE = "idle"
@@ -51,6 +52,14 @@ class MediaState(StrEnum):
     BUFFERING = "buffering"
     STOPPED = "stopped"
     UNAVAILABLE = "unavailable"
+
+
+class MediaMutationOutcome(StrEnum):
+    """Truthful canonical outcome assigned by the orchestration lifecycle."""
+
+    VERIFIED = "verified"
+    ATTEMPTED_UNVERIFIED = "attempted_unverified"
+    FAILED = "failed"
 
 
 @dataclass(frozen=True, slots=True)
@@ -67,6 +76,40 @@ class AudioTarget:
     capabilities: frozenset[MediaCapability]
     online: bool
     health: str
+
+
+@dataclass(frozen=True, slots=True)
+class MediaActionAcknowledgement:
+    """Provider acknowledgement of a command, never proof of its postcondition."""
+
+    accepted: bool
+    detail: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class MediaStateSnapshot:
+    """State obtained independently from a provider after or between commands."""
+
+    target_id: str
+    playback: MediaState
+    observed_at: datetime
+    volume_percent: float | None = None
+    position_seconds: float | None = None
+    current_item_id: str | None = None
+    current_item_title: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class MediaMutationResult:
+    """Provider-neutral mutation outcome produced by a verification lifecycle."""
+
+    target_id: str
+    action: MediaAction
+    outcome: MediaMutationOutcome
+    acknowledgement: MediaActionAcknowledgement
+    requested_value: str | int | float | None = None
+    observed_state: MediaStateSnapshot | None = None
+    verification_evidence: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -94,20 +137,24 @@ class TargetProviderAdapter(Protocol):
         action: MediaAction,
         *,
         value: str | int | float | None = None,
-    ) -> MediaState:
-        """Attempt an action and return the provider's resulting state."""
+    ) -> MediaActionAcknowledgement:
+        """Attempt an action and return acknowledgement, not verification."""
         ...
 
-    def get_state(self, target: AudioTarget) -> MediaState:
-        """Read the current canonical state for a target."""
+    def get_state(self, target: AudioTarget) -> MediaStateSnapshot:
+        """Independently read target state without reusing a command response."""
         ...
 
 
 __all__ = [
     "AudioTarget",
     "MediaAction",
+    "MediaActionAcknowledgement",
     "MediaCapability",
+    "MediaMutationOutcome",
+    "MediaMutationResult",
     "MediaState",
+    "MediaStateSnapshot",
     "TargetKind",
     "TargetProviderAdapter",
     "TargetResolution",
