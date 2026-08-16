@@ -34,6 +34,8 @@ from rex.config import settings
 
 logger = logging.getLogger(__name__)
 
+_MEDIA_PLAYER_ENTITY_ID_PATTERN = re.compile(r"media_player\.[a-z0-9_]+")
+
 _flask_blueprint = None
 _flask_jsonify = None
 _flask_request = None
@@ -322,7 +324,7 @@ class HABridge:
         }
         if service not in supported_services:
             raise ValueError(f"Unsupported Home Assistant media service: {service}")
-        if not entity_id.startswith("media_player."):
+        if _MEDIA_PLAYER_ENTITY_ID_PATTERN.fullmatch(entity_id) is None:
             raise ValueError(f"Invalid Home Assistant media-player entity: {entity_id}")
 
         data: dict[str, Any] = {"entity_id": entity_id}

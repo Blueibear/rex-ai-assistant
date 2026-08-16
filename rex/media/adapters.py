@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 from collections.abc import Mapping
 from datetime import UTC, datetime
 from typing import Any, Protocol
@@ -85,7 +86,20 @@ class _MusicAssistantClient(Protocol):
 def _as_number(value: object) -> float | None:
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         return None
-    return float(value)
+    number = float(value)
+    return number if math.isfinite(number) else None
+
+
+def _as_bounded_number(
+    value: object,
+    *,
+    minimum: float,
+    maximum: float | None = None,
+) -> float | None:
+    number = _as_number(value)
+    if number is None or number < minimum or (maximum is not None and number > maximum):
+        return None
+    return number
 
 
 def _as_optional_string(value: object) -> str | None:
@@ -224,9 +238,9 @@ class HomeAssistantMediaAdapter:
         attributes = state.get("attributes")
         if not isinstance(attributes, Mapping):
             attributes = {}
-        volume = _as_number(attributes.get("volume_level"))
+        volume = _as_bounded_number(attributes.get("volume_level"), minimum=0, maximum=1)
         if volume is None:
-            volume = _as_number(attributes.get("volume"))
+            volume = _as_bounded_number(attributes.get("volume"), minimum=0, maximum=1)
         playback = _PLAYBACK_STATES.get(
             str(state.get("state", "unknown")).casefold(),
             MediaState.UNKNOWN,
@@ -236,7 +250,10 @@ class HomeAssistantMediaAdapter:
             playback=playback,
             observed_at=datetime.now(tz=UTC),
             volume_percent=volume * 100 if volume is not None else None,
-            position_seconds=_as_number(attributes.get("media_position")),
+            position_seconds=_as_bounded_number(
+                attributes.get("media_position"),
+                minimum=0,
+            ),
             current_item_id=_as_optional_string(attributes.get("media_content_id")),
             current_item_title=_as_optional_string(attributes.get("media_title")),
         )

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 from copy import deepcopy
 from typing import Any
 
@@ -250,6 +251,35 @@ def test_ha_bridge_public_media_wrapper_is_narrow(monkeypatch) -> None:
     assert len(intents) == 1
 
 
+@pytest.mark.parametrize(
+    "entity_id",
+    [
+        "media_player.",
+        "media_player.den speaker",
+        "media_player.den.extra",
+        "media_player.den,media_player.kitchen",
+        "light.den",
+    ],
+)
+def test_ha_bridge_public_media_wrapper_rejects_malformed_entity_ids(
+    monkeypatch,
+    entity_id: str,
+) -> None:
+    bridge = HABridge.__new__(HABridge)
+    intents: list[Any] = []
+
+    def execute_intent(intent: Any) -> tuple[bool, str]:
+        intents.append(intent)
+        return True, "accepted"
+
+    monkeypatch.setattr(bridge, "_execute_intent", execute_intent)
+
+    with pytest.raises(ValueError, match="Invalid Home Assistant media-player entity"):
+        bridge.execute_media_service(entity_id, "media_play")
+
+    assert intents == []
+
+
 def test_ha_adapter_uses_existing_mutation_and_independent_state_paths() -> None:
     bridge = _FakeHABridge(
         [
@@ -279,6 +309,32 @@ def test_ha_adapter_uses_existing_mutation_and_independent_state_paths() -> None
     assert snapshot.position_seconds == 18.5
     assert snapshot.current_item_id == "track:7"
     assert snapshot.current_item_title == "Seven"
+
+
+@pytest.mark.parametrize(
+    ("attributes", "expected_volume", "expected_position"),
+    [
+        ({"volume_level": 1.5, "media_position": 4.0}, None, 4.0),
+        ({"volume_level": math.nan, "media_position": 4.0}, None, 4.0),
+        ({"volume_level": 0.25, "media_position": math.inf}, 25.0, None),
+        ({"volume_level": 0.25, "media_position": -1.0}, 25.0, None),
+    ],
+)
+def test_ha_adapter_discards_invalid_numeric_snapshot_evidence(
+    attributes: dict[str, float],
+    expected_volume: float | None,
+    expected_position: float | None,
+) -> None:
+    state = _ha_state("media_player.den")
+    state["attributes"].update(attributes)
+    bridge = _FakeHABridge([state])
+    adapter = HomeAssistantMediaAdapter(bridge)
+    target = adapter.discover_targets()[0]
+
+    snapshot = adapter.get_state(target)
+
+    assert snapshot.volume_percent == expected_volume
+    assert snapshot.position_seconds == expected_position
 
 
 def test_ha_adapter_rejects_operations_outside_existing_rex_media_paths() -> None:
