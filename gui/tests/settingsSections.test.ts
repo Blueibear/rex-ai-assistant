@@ -47,3 +47,15 @@ describe('SettingsPage decomposition', () => {
     }
   })
 })
+
+describe('AI settings navigation persistence (US-071)', () => {
+  it('reloads AI settings whenever navigation remounts the AI panel', () => {
+    const pageSource = readFileSync(settingsPage, 'utf8')
+    const aiSource = readFileSync(join(settingsDir, 'AiSettingsSection.tsx'), 'utf8')
+
+    expect(pageSource).toContain("case 'ai'")
+    expect(pageSource).toContain('<AiSettingsSection />')
+    expect(pageSource).toContain('renderPanel(activeCategory)')
+    expect(aiSource).toContain("getSettings('ai')")
+  })
+})

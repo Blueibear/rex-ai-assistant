@@ -101,3 +101,25 @@ describe('mirrorToRexConfig truthful failures (S4)', () => {
   })
 
 })
+
+
+describe('AI provider persistence (US-071)', () => {
+  beforeEach(() => {
+    mockReadRexConfig.mockReset().mockReturnValue({
+      models: { llm_provider: 'transformers' }
+    })
+    mockWriteRexConfig.mockReset()
+  })
+
+  it('persists an Ollama provider switch before a model identifier is selected', () => {
+    const result = mirrorToRexConfig('ai', {
+      provider: 'ollama',
+      customModelId: ''
+    } as never)
+
+    expect(result).toEqual({ ok: true })
+    expect(mockWriteRexConfig).toHaveBeenCalledWith(expect.objectContaining({
+      models: expect.objectContaining({ llm_provider: 'ollama' })
+    }))
+  })
+})

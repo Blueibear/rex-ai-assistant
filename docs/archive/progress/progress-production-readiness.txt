@@ -2086,3 +2086,35 @@ Remote exact-head evidence:
 - The PR was merged as `f523b438abd0d92b3bd4914fa065ebdb2d8abb0e` after those required checks completed successfully.
 - Local implementation evidence remains the previously recorded 8,750 passed / 49 skipped / 0 failed release suite plus focused cache, identity-isolation, Ruff, Black, mypy, and security-gate validation.
 - US-105's final GitHub-check acceptance criterion is therefore closed.
+
+2026-08-15 - US-071 local implementation complete; remote CI pending
+
+Implementation:
+- Confirmed the provider-persistence defect with a red Vitest regression: switching the GUI provider from runtime `transformers` to `ollama` with a blank `customModelId` returned `{ok:false, error:"Model identifier is required"}`.
+- `gui/src/main/settingsMirror.ts` now persists `models.llm_provider` independently from local/Ollama model editing. `models.llm_model` changes only when a nonblank `customModelId` is supplied.
+- Existing canonical mapping remains unchanged: GUI `local` <-> runtime `transformers`; no duplicate `llm.provider` authority was introduced.
+- Added reload coverage proving canonical runtime provider state wins over stale GUI state, runtime `transformers` maps back to GUI `local`, and invalid runtime providers fail safely to `openai`.
+- Added navigation-remount coverage proving Settings delegates the AI panel by active category and `AiSettingsSection` reloads `getSettings('ai')` when mounted again.
+- Added a real settings-persistence-path regression using `persistSettingsSection()` plus `buildAiSettings()` to prove a provider-only save reaches canonical runtime config and reloads correctly while preserving the existing local model value.
+- Added the durable provider-source-of-truth rule to `CLAUDE.md` and the implementation plan under `docs/superpowers/plans/2026-08-15-us071-provider-persistence.md`.
+
+Validation:
+- Red test before implementation: 1 failed / 7 passed in `gui/tests/settingsMirror.test.ts`, with the expected `Model identifier is required` failure.
+- Focused US-071 regression matrix: 18 passed across `aiProviderPersistence.test.ts`, `aiSettings.test.ts`, `settingsMirror.test.ts`, and `settingsSections.test.ts`.
+- Full GUI Vitest suite via documented Windows runner `npm.cmd test`: 130 passed across 29 files.
+- `npm.cmd run typecheck`: passed.
+- `npm.cmd run build`: passed.
+- `npm.cmd run lint`: 0 errors, 3 pre-existing warnings in unrelated files.
+- `npm.cmd audit --audit-level=high`: passed; only 2 moderate pre-existing React Router advisories remain and require a breaking v7 upgrade.
+- US-071 local acceptance criteria are complete. The final GitHub-check criterion remains intentionally unchecked until the exact PR head passes the remote matrix.
+
+2026-08-15 - US-071 exact-head GitHub evidence complete
+
+Remote exact-head evidence for implementation commit `b8d8ed3aa9be688ec2a02cfe6a9aed475cc08d34` on PR #401:
+- CI run 31923201998 completed with conclusion `success`.
+- Python 3.11 Tests & Coverage job 95106440062 completed successfully, including the full coverage suite, skipped-test budget, integration tests, tracked-working-tree cleanliness check, and coverage upload.
+- Windows Electron Artifact run 31923201984 completed with conclusion `success`; the installed artifact was exercised successfully without machine Python or Node, and installer evidence upload completed.
+- Commitlint completed successfully.
+- CodeFactor and GitGuardian exact-head checks completed successfully with no blocking findings.
+- PR #401 has no submitted reviews and no inline review threads.
+- US-071's final GitHub-check acceptance criterion is therefore closed. The subsequent documentation-only closure commit must still pass the repository's final merge checks before PR #401 is merged.

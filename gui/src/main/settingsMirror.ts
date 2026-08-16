@@ -35,11 +35,9 @@ export function mirrorToRexConfig(section: string, values: Settings): MirrorResu
       }
       if (
         (provider === 'ollama' || provider === 'local')
-        && (providerWasSupplied || typeof values.customModelId === 'string')
+        && typeof values.customModelId === 'string'
+        && values.customModelId.trim()
       ) {
-        if (typeof values.customModelId !== 'string' || !values.customModelId.trim()) {
-          return { ok: false, error: 'Model identifier is required' }
-        }
         models.llm_model = values.customModelId.trim()
       }
       if (provider === 'openai' && (providerWasSupplied || typeof values.model === 'string')) {

@@ -2469,13 +2469,13 @@ cd gui && npm run typecheck && npm run build
 **Implementation notes:** Establish one source of truth for GUI provider labels and runtime provider names. The UI should reload from saved state, not local defaults, after tab changes.
 
 **Acceptance Criteria:**
-- [ ] Changing from Local Transformers to Ollama Local persists immediately.
-- [ ] Switching tabs and returning does not reset the provider.
-- [ ] App restart reloads the saved provider from the source of truth.
-- [ ] Runtime config mirror uses the same provider mapping as the UI.
-- [ ] Tests cover save, reload, tab navigation, and invalid provider fallback.
-- [ ] `cd gui && npm run typecheck && npm run build` passes.
-- [ ] All relevant GitHub checks pass.
+- [x] Changing from Local Transformers to Ollama Local persists immediately.
+- [x] Switching tabs and returning does not reset the provider.
+- [x] App restart reloads the saved provider from the source of truth.
+- [x] Runtime config mirror uses the same provider mapping as the UI.
+- [x] Tests cover save, reload, tab navigation, and invalid provider fallback.
+- [x] `cd gui && npm run typecheck && npm run build` passes.
+- [x] All relevant GitHub checks pass.
 
 **Validation commands:**
 ```bash
