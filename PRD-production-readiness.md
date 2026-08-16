@@ -2512,7 +2512,7 @@ cd gui && npm run typecheck && npm run build
 - [x] Stale or hardcoded fake model names are not shown as available.
 - [x] Tests mock provider endpoints for success, failure, and empty responses.
 - [x] `cd gui && npm run typecheck && npm run build` passes.
-- [ ] All relevant GitHub checks pass.
+- [x] All relevant GitHub checks pass.
 
 **Validation commands:**
 ```bash
