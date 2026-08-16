@@ -13,6 +13,7 @@ aligned in a follow-up story without breaking existing callers.
 from __future__ import annotations
 
 import logging
+import threading
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any, Literal
@@ -104,6 +105,7 @@ class ToolRegistry:
 
     def __init__(self, *, capability_registry: CapabilityRegistry | None = None) -> None:
         self._tools: dict[str, Tool] = {}
+        self._lock = threading.RLock()
         self._capability_registry = (
             capability_registry if capability_registry is not None else CapabilityRegistry()
         )
@@ -159,17 +161,107 @@ class ToolRegistry:
             )
         return resolved
 
+    def apply_openclaw_snapshot(
+        self,
+        capabilities: list[Capability] | tuple[Capability, ...],
+        *,
+        handler_factory: Callable[[str], Callable[..., Any]],
+    ) -> tuple[tuple[str, ...], tuple[str, ...], tuple[str, ...]]:
+        """Atomically project OpenClaw metadata into executable tool bindings.
+
+        The canonical CapabilityRegistry remains the security authority. Remote
+        cards are first applied there, then every remote card (including stale
+        unavailable removals) is mirrored into this executable registry while
+        holding one ToolRegistry mutation lock. Local tools are never replaced.
+        """
+        with self._lock:
+            deltas = self._capability_registry.apply_openclaw_snapshot(capabilities)
+            for card in self._capability_registry.list(include_disabled=True):
+                if card.source != "openclaw":
+                    continue
+                existing = self._tools.get(card.id)
+                if existing is not None and existing.source != "openclaw":
+                    continue
+                if existing is None and not card.enabled:
+                    continue
+                handler = handler_factory(card.id)
+                self._tools[card.id] = Tool(
+                    name=card.id,
+                    description=card.description,
+                    capability_tags=list(card.triggers),
+                    requires_config=list(card.requires_config),
+                    handler=handler,
+                    source="openclaw",
+                    operation=card.operation,
+                    risk=card.risk,
+                    requires_identity=card.requires_identity,
+                    required_args=card.required_args,
+                    input_schema=dict(card.input_schema),
+                    output_schema=dict(card.output_schema),
+                    required_permissions=card.required_permissions,
+                    health=card.health,
+                    enabled=card.enabled,
+                    examples=card.examples,
+                )
+            return deltas
+
+    def sync_openclaw_runtime_state(
+        self, *, handler_factory: Callable[[str], Callable[..., Any]]
+    ) -> None:
+        """Mirror current canonical state into already-bound OpenClaw tools."""
+        with self._lock:
+            self._sync_openclaw_runtime_state_locked(handler_factory=handler_factory)
+
+    def mark_openclaw_unavailable(
+        self, *, handler_factory: Callable[[str], Callable[..., Any]]
+    ) -> tuple[str, ...]:
+        """Atomically disable canonical and executable OpenClaw state for readers."""
+        with self._lock:
+            changed = self._capability_registry.mark_openclaw_unavailable()
+            self._sync_openclaw_runtime_state_locked(handler_factory=handler_factory)
+            return changed
+
+    def _sync_openclaw_runtime_state_locked(
+        self, *, handler_factory: Callable[[str], Callable[..., Any]]
+    ) -> None:
+        for card in self._capability_registry.list(include_disabled=True):
+            if card.source != "openclaw":
+                continue
+            existing = self._tools.get(card.id)
+            if existing is None or existing.source != "openclaw":
+                continue
+            self._tools[card.id] = Tool(
+                name=card.id,
+                description=card.description,
+                capability_tags=list(card.triggers),
+                requires_config=list(card.requires_config),
+                handler=handler_factory(card.id),
+                source="openclaw",
+                operation=card.operation,
+                risk=card.risk,
+                requires_identity=card.requires_identity,
+                required_args=card.required_args,
+                input_schema=dict(card.input_schema),
+                output_schema=dict(card.output_schema),
+                required_permissions=card.required_permissions,
+                health=card.health,
+                enabled=card.enabled,
+                examples=card.examples,
+            )
+
     # ------------------------------------------------------------------
     # Query
     # ------------------------------------------------------------------
 
     def get(self, name: str) -> Tool | None:
         """Return the tool with *name* or ``None`` if not registered."""
-        return self._tools.get(name)
+        with self._lock:
+            return self._tools.get(name)
 
     def all_tools(self) -> list[Tool]:
         """Return all registered tools regardless of availability."""
-        return list(self._tools.values())
+        with self._lock:
+            return list(self._tools.values())
 
     def list_tools(self) -> list[Any]:
         """Return ``ToolDescriptor`` objects for all registered tools.
@@ -181,7 +273,9 @@ class ToolRegistry:
         from rex.tools.protocol import ToolDescriptor  # local import to avoid cycles
 
         descriptors: list[Any] = []
-        for tool in sorted(self._tools.values(), key=lambda item: item.name):
+        with self._lock:
+            tools = sorted(self._tools.values(), key=lambda item: item.name)
+        for tool in tools:
             card = self._capability_registry.get(tool.name)
             if card is None:
                 continue
@@ -214,7 +308,9 @@ class ToolRegistry:
             Subset of registered tools that are fully configured.
         """
         result: list[Tool] = []
-        for tool in self._tools.values():
+        with self._lock:
+            tools = list(self._tools.values())
+        for tool in tools:
             if not tool.enabled or not self._is_available(tool, config):
                 continue
             if granted_permissions is not None and not self._capability_registry.is_authorized(

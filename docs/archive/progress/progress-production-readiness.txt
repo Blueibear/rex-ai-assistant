@@ -2299,3 +2299,62 @@ Remote exact-head evidence for implementation head `f59e33e8213248ceef50ae6495cc
 - CodeFactor concluded success. Its sole annotation is a non-blocking maintainability warning that `ActionDispatcher.dispatch()` is a very complex method; it is not a correctness/security failure and no CodeFactor check failed.
 - PR #407 has no submitted reviews and no inline review threads.
 - US-078's final GitHub-check acceptance criterion is therefore closed. This documentation-only closure commit must still pass the repository's final merge checks before PR #407 is merged.
+
+
+2026-08-16 - US-113 local implementation and independent review complete
+
+Implemented dynamic OpenClaw/ClawHub capability synchronization on branch `lead/us113-openclaw-capability-sync`, based on merged `master` `9550ce69641bf70fa6a4c2013b8cfecf074a5c35`.
+
+Behavior and architecture:
+- Added an authenticated OpenClaw Gateway protocol-v4 WebSocket discovery client using `operator.read` only. Loopback backend discovery validates challenge/connect/hello scope evidence and queries `tools.catalog`, session-scoped `tools.effective`, and `skills.status`; tokens are never placed in command arguments, logs, or persisted snapshots.
+- Added `rex.openclaw.capability_sync` as the sole startup/manual/hot-refresh synchronizer. The complete untrusted inventory is bounded/schema-validated before mutation. The canonical effective session is `agent:main:main`; request context cannot select another privileged session.
+- Catalog-only tools remain unavailable. Only current session-effective tool IDs receive executable bindings in the same canonical `ToolRegistry` used by `Assistant`/`ToolDispatcher`. ClawHub skill status is retained as informational metadata unless OpenClaw exposes a real effective tool ID.
+- Unknown effective remote tools fail closed as identity-required sensitive mutations requiring Rex `openclaw_execute` permission (or `admin`) and confirmation before gateway dispatch. Existing local permission/operation/risk/identity/verification classifications remain authoritative on ID collisions.
+- Fully validated snapshots are durably persisted to household runtime state before in-memory publication. Add/update/remove is atomic; removed or stale remote tools keep audit-visible metadata but are disabled/unavailable in both metadata and executable registries. Failed refresh preserves the last known safe snapshot and does not break local Rex.
+- Startup, manual refresh, and the explicit hot-refresh event use one serialized lifecycle controller. Closed/reconfigured controllers cannot publish late results. Reconnect-triggered reconciliation and remote mutation verification remain intentionally scoped to US-114.
+- Added `websocket-client>=1.9.0,<2` as the lightweight direct runtime dependency required by Gateway capability discovery.
+- Updated `CLAUDE.md`, OpenClaw migration documentation, the implementation plan, and canonical permission model with the new safety invariants.
+
+TDD and independent review evidence:
+- New behavior was introduced test-first; missing sync/RPC modules and each subsequent review finding were observed red before fixes.
+- Current OpenClaw v4 source/protocol verification corrected early fixtures from `name`/flat effective lists to catalog `id`, grouped `tools.effective.found`, and `hello-ok.auth.scopes`.
+- Independent Codex review findings fixed before closure included: current v4 inventory-shape mismatches; catalog-only tools being treated as live; persistence ordering; concurrent controller publication; metadata-only remote cards not reaching executable ToolRegistry; stale controller/reconfiguration races; caller-controlled session keys; stale gateway handler closures; synthetic skills being executable without a tool ID; non-atomic stale disabling; and missing Rex-side permission on owner-authority remote tools.
+- Final independent closure rereview after all fixes: `No discrete correctness issue was identified.`
+
+Validation completed before the final repository-wide sweep:
+- OpenClaw/capability/tool-registry/permissions compatibility matrix -> 233 passed, 0 failed (only pre-existing OpenClaw flat-config deprecation and short JWT fixture-key warnings).
+- Touched-file Ruff, Black, and mypy -> passed.
+- `python scripts/security_audit.py --release-gate` -> passed with 0 actionable source/config findings and no exposed secrets.
+- `pre-commit run --all-files` -> Ruff, Black, and detect-secrets passed.
+
+US-113 local behavioral acceptance criteria are complete. The GitHub-check criterion remains intentionally unchecked until the exact implementation head passes all required remote checks. Final full-suite/release validation evidence is appended below before the implementation commit is frozen.
+
+Final local freeze evidence:
+- Authoritative US-113 validation command `pytest tests/rex2/test_openclaw_capability_sync.py tests/test_openclaw_http_client.py -q` -> 51 passed, 0 failed.
+- Full repository `pytest -q` -> 8,914 passed, 49 skipped, 0 failed, 347 warnings; exit code 0. The warnings are existing deprecation/test-fixture warnings plus a post-pytest PyTorch shutdown logger writing to a closed capture stream; pytest itself completed successfully.
+- Touched-file Ruff -> passed.
+- Touched-file Black -> passed.
+- Touched-file mypy -> 0 issues.
+- `git diff --check` -> passed.
+- Final security release gate -> passed; 1,382 files scanned, 0 actionable source/config findings, no exposed secrets.
+- Final pre-commit -> Ruff passed, Black passed, detect-secrets passed. The only baseline change is the existing `tests/test_us052_permissions.py` finding line moving from 208 to 215 after the permission-enum regression update; no new suppression or secret was added.
+
+Remote implementation-head follow-up:
+- PR #408 exact head `817c5d5` passed the visible GitHub Actions fast gates but CodeFactor reported one B110 notice at `rex/openclaw/gateway_rpc.py` for `try/except/pass` around best-effort socket close.
+- Replaced the empty exception handler with explicit `contextlib.suppress(Exception)` so cleanup failure still cannot mask the RPC outcome without silently using an empty catch block.
+- Added a regression proving a socket close failure does not mask a successful inventory fetch.
+- Post-fix authoritative US-113 matrix -> 52 passed, 0 failed; gateway-client test file -> 26 passed; Ruff/Black/mypy/security release gate -> passed.
+
+
+2026-08-16 - US-113 exact-head GitHub evidence complete
+
+PR #408 implementation head `891b9464f18c4cb4c5e048992246646520dc1070` completed all required remote gates successfully:
+- Exact-head check-runs: 18/18 completed successfully; no failed or in-progress checks.
+- CI workflow run 1206: success, including full Python coverage/integration and all lint/type/security/GUI/dependency/pre-commit jobs.
+- Commitlint run 822: success.
+- Windows Electron Artifact run 171: success, including managed runtime/installer build, Authenticode truth check, packaged-resource validation, and installed execution without machine Python or Node.
+- CodeFactor: success, `No issues found.` The earlier B110 cleanup notice on implementation head `817c5d5` was corrected by `891b946` and re-evaluated cleanly.
+- Pull request reviews: none.
+- Pull request review threads: none.
+
+The final US-113 GitHub acceptance criterion is therefore satisfied. This documentation-only closure commit changes tracker/evidence only; implementation behavior remains frozen at `891b946` and will be revalidated by the full remote gate before merge.

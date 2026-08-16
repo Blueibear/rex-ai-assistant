@@ -8,6 +8,7 @@ Permissions
 - ``email_send``       — send email via configured email backend
 - ``sms_send``         — send SMS via configured messaging backend
 - ``ha_control``       — control Home Assistant entities
+- ``openclaw_execute`` — execute approved OpenClaw capabilities
 - ``admin``            — manage users and permissions
 
 The first registered user is automatically granted ``admin``.
@@ -32,6 +33,7 @@ class Permission(StrEnum):
     email_send = "email_send"
     sms_send = "sms_send"
     ha_control = "ha_control"
+    openclaw_execute = "openclaw_execute"
     admin = "admin"
 
 
