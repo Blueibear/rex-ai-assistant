@@ -13,6 +13,7 @@ import logging
 import sys
 import uuid
 from collections.abc import Callable
+from contextlib import suppress
 from typing import Any, Protocol, cast
 from urllib.parse import urlsplit, urlunsplit
 
@@ -106,10 +107,8 @@ class OpenClawGatewayRpcClient:
             }
         finally:
             if sock is not None:
-                try:
+                with suppress(Exception):
                     sock.close()
-                except Exception:
-                    pass
 
     def _connect(self, sock: _GatewaySocket) -> None:
         challenge = self._recv_json(sock)

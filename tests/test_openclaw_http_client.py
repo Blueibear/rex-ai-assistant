@@ -460,3 +460,22 @@ def test_gateway_rpc_requires_operator_read_in_hello_auth_scopes() -> None:
 
     with pytest.raises(OpenClawProtocolError, match="operator.read"):
         client.fetch_capability_inventory()
+
+
+def test_gateway_rpc_close_failure_does_not_mask_successful_inventory() -> None:
+    from rex.openclaw.gateway_rpc import OpenClawGatewayRpcClient
+
+    class CloseFailSocket(_FakeGatewaySocket):
+        def close(self) -> None:
+            raise RuntimeError("close failed")
+
+    client = OpenClawGatewayRpcClient(
+        "http://127.0.0.1:18789",
+        "gateway-secret-token",
+        connector=lambda _url, _timeout: CloseFailSocket(),
+    )
+
+    inventory = client.fetch_capability_inventory(session_key="agent:main:main")
+
+    assert inventory["tools_catalog"] == {"groups": []}
+    assert inventory["skills_status"] == {"skills": []}

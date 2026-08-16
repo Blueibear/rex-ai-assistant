@@ -2338,3 +2338,9 @@ Final local freeze evidence:
 - `git diff --check` -> passed.
 - Final security release gate -> passed; 1,382 files scanned, 0 actionable source/config findings, no exposed secrets.
 - Final pre-commit -> Ruff passed, Black passed, detect-secrets passed. The only baseline change is the existing `tests/test_us052_permissions.py` finding line moving from 208 to 215 after the permission-enum regression update; no new suppression or secret was added.
+
+Remote implementation-head follow-up:
+- PR #408 exact head `817c5d5` passed the visible GitHub Actions fast gates but CodeFactor reported one B110 notice at `rex/openclaw/gateway_rpc.py` for `try/except/pass` around best-effort socket close.
+- Replaced the empty exception handler with explicit `contextlib.suppress(Exception)` so cleanup failure still cannot mask the RPC outcome without silently using an empty catch block.
+- Added a regression proving a socket close failure does not mask a successful inventory fetch.
+- Post-fix authoritative US-113 matrix -> 52 passed, 0 failed; gateway-client test file -> 26 passed; Ruff/Black/mypy/security release gate -> passed.
