@@ -180,9 +180,9 @@ Expected: PASS.
 - Create: `rex/media/tools.py`
 - Modify: `rex/tools/registry.py`
 - Modify: `rex/local_tool_executor.py`
-- Test: `tests/media/test_parser.py`
-- Test: `tests/media/test_service.py`
-- Test: `tests/media/test_tools.py`
+- Test: `tests/media/test_media_parser.py`
+- Test: `tests/media/test_media_service.py`
+- Test: `tests/media/test_media_tools.py`
 
 **Interfaces:**
 - Produces: `MediaCommand(action, query, target_text, level)`, `parse_media_command(text)`, `MediaService.execute(command, *, user_id, origin_device_id, account_ref=None)`, `media_read`, `media_manage`, `verify_media_mutation`.
@@ -203,7 +203,7 @@ def test_unverified_provider_mutation_is_not_success():
 ```
 
 - [ ] **Step 2: Run focused tests and confirm red state**
-Run: `pytest -q tests/media/test_parser.py tests/media/test_service.py tests/media/test_tools.py`
+Run: `pytest -q tests/media/test_media_parser.py tests/media/test_media_service.py tests/media/test_media_tools.py`
 Expected: FAIL on missing parser/service/tools.
 
 - [ ] **Step 3: Implement deterministic common media grammar**
@@ -216,7 +216,7 @@ Dispatch only after target/account authorization. For mutations, independently r
 Use identity-required user context, explicit media/home-control permission policy, mutation metadata, and `verify_media_mutation`; retire `music_*` delegated handlers only after compatibility routing in Task 5 is green.
 
 - [ ] **Step 6: Run canonical tool/lifecycle regressions**
-Run: `pytest -q tests/media/test_parser.py tests/media/test_service.py tests/media/test_tools.py tests/test_tools_registry.py tests/test_tool_execution_lifecycle.py tests/rex2/test_action_lifecycle.py`
+Run: `pytest -q tests/media/test_media_parser.py tests/media/test_media_service.py tests/media/test_media_tools.py tests/test_tools_registry.py tests/test_tool_execution_lifecycle.py tests/rex2/test_action_lifecycle.py`
 Expected: PASS.
 
 - [ ] **Step 7: Commit**
