@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, time, timedelta
+from zoneinfo import ZoneInfo
 
 import pytest
 
@@ -111,6 +112,8 @@ def test_manage_tool_requires_identity(service) -> None:
 
 
 def test_structured_alarm_create_is_verified(service) -> None:
+    chicago = ZoneInfo("America/Chicago")
+    alarm_date = (datetime.now(chicago) + timedelta(days=2)).date()
     registry = _build_default_registry(capability_registry=CapabilityRegistry())
     dispatcher = ToolDispatcher(registry)
 
@@ -119,7 +122,7 @@ def test_structured_alarm_create_is_verified(service) -> None:
         {
             "action": "create_alarm",
             "alarm_time": "07:00",
-            "alarm_date": "2026-08-17",
+            "alarm_date": alarm_date.isoformat(),
             "timezone_name": "America/Chicago",
             "reference": "morning",
         },
@@ -130,7 +133,9 @@ def test_structured_alarm_create_is_verified(service) -> None:
     assert result.status == "verified"
     alarm = service.get_alarm(result.output["record_id"], "james")
     assert alarm is not None
-    assert alarm.next_fire_at == datetime(2026, 8, 17, 12, 0, tzinfo=UTC)
+    assert alarm.next_fire_at == datetime.combine(alarm_date, time(7), tzinfo=chicago).astimezone(
+        UTC
+    )
 
 
 def test_mobile_timekeeping_uses_explicit_task_scopes(service) -> None:
@@ -165,11 +170,12 @@ def test_mobile_timekeeping_uses_explicit_task_scopes(service) -> None:
 
 
 def test_structured_alarm_edit_can_change_recurrence_and_timezone(service) -> None:
+    alarm_date = (datetime.now(ZoneInfo("America/Chicago")) + timedelta(days=2)).date()
     alarm = service.create_alarm(
         "james",
         local_time=datetime.strptime("07:00", "%H:%M").time(),
         timezone_name="America/Chicago",
-        local_date=datetime(2026, 8, 17, tzinfo=UTC).date(),
+        local_date=alarm_date,
         name="work",
     )
     registry = _build_default_registry(capability_registry=CapabilityRegistry())
