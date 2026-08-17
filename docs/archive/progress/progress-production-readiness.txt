@@ -2417,3 +2417,12 @@ Local gates before the final full-suite freeze:
 - `git diff --check`: passed.
 
 US-114's first five local acceptance criteria are complete. The final `All relevant GitHub checks pass` criterion remains intentionally unchecked until the exact implementation head is pushed and all required remote checks/review-thread gates complete successfully. Final repository-wide pytest evidence is appended below after the code/docs freeze.
+
+
+2026-08-17 - US-114 repaired-master rebase and remote-gate follow-up
+
+- During exact-head release verification, two structured-alarm tests on current `master` were found to hard-code August 17, 2026 at 07:00 America/Chicago as a future one-shot alarm. The same failures reproduced on clean `master`, independently of US-114.
+- The test-only wall-clock defect was fixed separately in PR #413 (`test(timekeeping): make alarm dates future-safe`) and squash-merged as `df08d89a287ca71b28be8ab8a0ead60d58d4f526` after exact GitHub CI, CodeFactor, and GitGuardian passed.
+- US-114 was rebased cleanly onto that repaired master. Post-rebase authoritative reconnect/verification matrix: 36 passed; capability-sync/HTTP/tool-bridge/action-lifecycle regression matrix: 98 passed; skip inventory: 127/127 current; pre-commit Ruff/Black/detect-secrets and `git diff --check`: passed.
+- Windows Electron Artifact on the pre-hotfix US-114 SHA passed on the single controlled retry; its first attempt had the known isolated installed-app OpenClaw settings read/write smoke symptom while all other packaged behavior passed.
+- On rebased head `4fb8b51cefb4f44ab125ecd83e3fe0e9448e6dc6`, GitHub-native fast checks began green, but CodeFactor returned an immediate external-analysis error (`Something went wrong`) with zero annotations rather than a code finding. The final GitHub acceptance criterion remains unchecked; this follow-up entry intentionally changes evidence/history only and triggers a fresh external analysis attempt.
