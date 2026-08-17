@@ -397,6 +397,7 @@ def _build_default_registry(
 ) -> ToolRegistry:
     """Build and return a ``ToolRegistry`` pre-populated with all Rex tools."""
     # Lazily import so optional dependencies don't block startup.
+    from rex.media.tools import media_manage, media_read, verify_media_mutation
     from rex.openclaw.tools.calendar_tool import calendar_create
     from rex.openclaw.tools.email_tool import send_email
     from rex.openclaw.tools.ha_tool import ha_call_service
@@ -483,6 +484,33 @@ def _build_default_registry(
             operation="mutation",
             requires_identity=True,
             verifier=verify_timekeeping_mutation,
+        )
+    )
+
+    registry.register(
+        Tool(
+            name="media_read",
+            description="Read authorized speaker or media playback state.",
+            capability_tags=["media state", "what is playing", "speaker status"],
+            requires_config=[],
+            handler=media_read,
+            operation="read",
+            requires_identity=True,
+            required_permissions=("ha_control",),
+        )
+    )
+
+    registry.register(
+        Tool(
+            name="media_manage",
+            description="Control authorized media playback through the canonical verified lifecycle.",
+            capability_tags=["media", "play", "pause", "resume", "stop", "volume", "speaker"],
+            requires_config=[],
+            handler=media_manage,
+            operation="mutation",
+            requires_identity=True,
+            verifier=verify_media_mutation,
+            required_permissions=("ha_control",),
         )
     )
 
@@ -763,74 +791,8 @@ def _build_default_registry(
         )
     )
 
-    # Music Assistant tools (US-022)
-    registry.register(
-        Tool(
-            name="music_play",
-            description="Play music via Music Assistant. Args: query (str), room (str, optional).",
-            capability_tags=["music", "play", "audio", "media"],
-            requires_config=["music_assistant_url"],
-            required_permissions=("ha_control",),
-            handler=_delegated_handler("music_play"),
-            operation="mutation",
-            requires_identity=True,
-        )
-    )
-
-    registry.register(
-        Tool(
-            name="music_pause",
-            description="Pause music playback via Music Assistant. Args: room (str, optional).",
-            capability_tags=["music", "pause", "audio", "media"],
-            requires_config=["music_assistant_url"],
-            required_permissions=("ha_control",),
-            handler=_delegated_handler("music_pause"),
-            operation="mutation",
-            requires_identity=True,
-        )
-    )
-
-    registry.register(
-        Tool(
-            name="music_resume",
-            description="Resume paused music via Music Assistant. Args: room (str, optional).",
-            capability_tags=["music", "resume", "audio", "media"],
-            requires_config=["music_assistant_url"],
-            required_permissions=("ha_control",),
-            handler=_delegated_handler("music_resume"),
-            operation="mutation",
-            requires_identity=True,
-        )
-    )
-
-    registry.register(
-        Tool(
-            name="music_skip",
-            description="Skip to the next track via Music Assistant. Args: room (str, optional).",
-            capability_tags=["music", "skip", "next", "audio", "media"],
-            requires_config=["music_assistant_url"],
-            required_permissions=("ha_control",),
-            handler=_delegated_handler("music_skip"),
-            operation="mutation",
-            requires_identity=True,
-        )
-    )
-
-    registry.register(
-        Tool(
-            name="music_volume",
-            description=(
-                "Set the volume level (0–100) via Music Assistant. "
-                "Args: level (int), room (str, optional)."
-            ),
-            capability_tags=["music", "volume", "audio", "media"],
-            requires_config=["music_assistant_url"],
-            required_permissions=("ha_control",),
-            handler=_delegated_handler("music_volume"),
-            operation="mutation",
-            requires_identity=True,
-        )
-    )
+    # Legacy music_* delegated cards were retired by US-121.
+    # Canonical media_read/media_manage are the only media tool authority surface.
 
     return registry
 

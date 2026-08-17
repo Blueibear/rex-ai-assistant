@@ -894,6 +894,148 @@ data/
   backups/
 ```
 
+
+### Controlled Self-Maintenance and Capability Acquisition
+
+Rex should eventually be able to maintain and extend itself, but only through the same policy, verification, source-control, and rollback rules that apply to other high-impact actions. Self-maintenance is a controlled developer workflow, not unrestricted runtime source mutation.
+
+#### Capability acquisition hierarchy
+
+When Rex receives a request it cannot currently satisfy, it should resolve the capability gap in this order:
+
+1. Use an existing Rex tool or skill if one already provides the capability.
+2. Use an approved OpenClaw or ClawHub capability if one is available and permitted.
+3. Create or extend a local Rex skill when the capability can be isolated cleanly from the core runtime.
+4. Modify Rex core code only when the requested behavior genuinely requires a core architectural change.
+
+Rex should prefer the least invasive option that fully solves the request. Core modification is the last resort, not the default.
+
+#### Existing foundations to reuse
+
+The self-maintenance system should build on existing Rex components rather than create parallel implementations:
+
+| Existing component | Self-maintenance role |
+|---|---|
+| Skill registry/router/trainer | Detect, register, route, and persist locally created skills |
+| OpenClaw HTTP/tool adapters | Discover or invoke optional external capabilities |
+| `VSCodeService` / developer tools | Read code, generate/apply patches, run pytest, inspect diffs |
+| `GitHubService` | Issues, branches/commits, pull requests, and repository patch workflows |
+| Policy engine / execution lifecycle | Risk classification, approval, dispatch, audit, and verification boundaries |
+| Audit logging | Permanent record of proposed and executed maintenance actions |
+| CI / required checks | Independent validation before merge or release |
+
+Existing components are foundations only. They do not, by themselves, constitute a complete autonomous self-maintenance pipeline.
+
+#### Required self-maintenance components
+
+| Component | Requirement |
+|---|---|
+| Capability Gap Resolver | Decide whether to use an existing tool, external capability, generated skill, or core-code change |
+| Developer Agent | Diagnose code problems, plan changes, edit code, add tests, and explain root cause |
+| Isolated Workspace Manager | Perform code changes in a dedicated branch/worktree, never directly in `master` |
+| Validation Orchestrator | Run targeted tests first, then required lint/type/security/integration gates |
+| GitHub Maintainer Adapter | Open issues/PRs, monitor checks, respond to failures, and merge only when policy permits |
+| Self-Update Manager | Activate a verified version, health-check it, and roll back automatically on failure |
+| Maintenance Observability | Show current maintenance task, branch/PR, checks, approvals, deployment state, and rollback state |
+
+#### GitHub maintainer model
+
+Rex should use a dedicated GitHub App or equivalent machine identity installed only on explicitly approved repositories. Do not give Rex a user's personal GitHub token as its long-term maintainer identity.
+
+The maintainer identity should use least-privilege repository permissions and should be unable to:
+
+- delete the repository;
+- remove or bypass protected-branch/ruleset requirements;
+- increase its own GitHub permissions;
+- grant itself access to additional repositories;
+- force-push protected branches;
+- disable required CI or security checks merely to make a change pass.
+
+Routine maintenance may be pre-approved for branch creation, commits, PR creation, issue management, and fixes that remain inside an approved repository and pass all required gates. Changes that increase Rex's authority or weaken a safety boundary always require explicit owner approval.
+
+#### Protected constitutional files and controls
+
+The following categories require a higher approval level even when Rex is otherwise allowed to maintain itself:
+
+- repository rulesets and branch protections;
+- GitHub App permissions and installation scope;
+- authentication, credential-vault, and secret-handling code;
+- self-maintenance policy and approval rules;
+- per-user privacy/context authority, including contextual-use, disclosure, uploaded-document scope/audience, `location_assist`, and person-specific `location_share` grants;
+- code that controls the update, rollback, verification, or policy lifecycle itself;
+- CI/security workflows when the change weakens, removes, or bypasses a required gate.
+
+Rex may diagnose and propose changes to these areas, but it must not autonomously approve an increase in its own authority. Privacy-authority changes require the appropriate affected user/data-owner authorization; household/admin status does not override another user's location grants.
+
+#### Canonical self-maintenance lifecycle
+
+```text
+Capability gap or defect detected
+        |
+        v
+Classify request and risk
+        |
+        v
+Search existing Rex/OpenClaw capabilities
+        |
+        +--> existing capability -> execute through normal tool lifecycle
+        |
+        +--> local skill appropriate -> implement in isolated workspace
+        |
+        +--> core change required -> developer-agent workflow
+                                      |
+                                      v
+                              branch/worktree isolation
+                                      |
+                                      v
+                              reproduce + diagnose
+                                      |
+                                      v
+                              patch + tests + docs
+                                      |
+                                      v
+                              local validation gates
+                                      |
+                                      v
+                              PR + independent CI
+                                      |
+                             fail <---+---> pass
+                              |               |
+                              v               v
+                           revise       approval policy
+                                              |
+                                              v
+                                         merge/deploy
+                                              |
+                                              v
+                                         health verify
+                                              |
+                                  fail <------+------> pass
+                                   |                     |
+                                   v                     v
+                               rollback             report verified
+```
+
+#### Self-maintenance rules
+
+1. Never edit or commit directly to the protected primary branch.
+2. Never report a repair as successful until the changed version is independently verified.
+3. Never disable a failing test or security control solely to obtain a green build.
+4. Never expand Rex's own permissions without explicit owner approval.
+4a. Never autonomously widen a user's contextual-use, disclosure, uploaded-document scope/audience, `location_assist`, or person-specific `location_share` permissions. Rex, generated skills, OpenClaw capabilities, and maintenance agents inherit the current grants and cannot self-approve broader ones.
+5. Preserve a known-good version and an automatic rollback path before activating self-modified code.
+6. Changes should be minimal, explainable, reviewable, and linked to an issue/task or user request.
+7. Generated skills must be treated as code: linted, tested, permission-scoped, auditable, and disableable.
+8. Prefer extension through skills/plugins over modifying Rex core when both can solve the problem safely.
+9. Maintain the same attempted/completed/verified vocabulary used by normal Rex tool execution.
+10. A self-maintenance action that cannot be safely verified must stop as `attempted_unverified`, not silently deploy.
+
+#### Long-term outcome
+
+The desired end state is that Rex can act as the day-to-day operational maintainer of AskRex Assistant while GitHub protections, Rex policy, CI, and owner approval remain independent constraints on what Rex is allowed to merge, deploy, or change about its own authority.
+
+**Confidence: High**
+**What would raise confidence:** A threat model, GitHub App proof-of-concept, isolated self-fix integration test, rollback test, and repeated successful maintenance cycles on non-critical issues before enabling broader autonomy.
 ---
 
 ## 22. Evaluation Layer

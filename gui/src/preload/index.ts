@@ -28,7 +28,9 @@ import type {
   SMSThread,
   SMSMessage,
   GuiNotification,
-  SmartSpeaker,
+  AudioTargetsResponse,
+  SpeakerGroupsResponse,
+  SpeakerGroupMutationResponse,
   FileExtractResult,
   ShoppingItem,
   WakeWordInfo,
@@ -388,8 +390,20 @@ const rexAPI = {
     ipcRenderer.invoke('rex:getApiKeys'),
   setApiKey: (name: string, value: string): Promise<{ ok: boolean; error?: string }> =>
     ipcRenderer.invoke('rex:setApiKey', name, value),
-  getSmartSpeakers: (): Promise<{ ok: boolean; speakers: SmartSpeaker[]; error?: string }> =>
-    ipcRenderer.invoke('rex:getSmartSpeakers'),
+  getAudioTargets: (): Promise<AudioTargetsResponse> =>
+    ipcRenderer.invoke('rex:getAudioTargets'),
+  refreshAudioTargets: (): Promise<AudioTargetsResponse> =>
+    ipcRenderer.invoke('rex:refreshAudioTargets'),
+  listSpeakerGroups: (): Promise<SpeakerGroupsResponse> =>
+    ipcRenderer.invoke('rex:listSpeakerGroups'),
+  createSpeakerGroup: (name: string, memberIds: string[]): Promise<SpeakerGroupMutationResponse> =>
+    ipcRenderer.invoke('rex:createSpeakerGroup', name, memberIds),
+  renameSpeakerGroup: (groupId: string, name: string): Promise<SpeakerGroupMutationResponse> =>
+    ipcRenderer.invoke('rex:renameSpeakerGroup', groupId, name),
+  setSpeakerGroupMembers: (groupId: string, memberIds: string[]): Promise<SpeakerGroupMutationResponse> =>
+    ipcRenderer.invoke('rex:setSpeakerGroupMembers', groupId, memberIds),
+  deleteSpeakerGroup: (groupId: string): Promise<{ ok: boolean; deleted?: boolean; error?: string }> =>
+    ipcRenderer.invoke('rex:deleteSpeakerGroup', groupId),
   restartRex: (): Promise<{ ok: boolean; error?: string }> =>
     ipcRenderer.invoke('rex:restartRex'),
   resetToDefaults: (): Promise<{ ok: boolean; error?: string }> =>

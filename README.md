@@ -133,7 +133,8 @@ This is the high-level release/status view. Surface classifications mirror [SURF
 | Mobile API backend | `developer-only` backend; mobile pre-release | Authenticated companion backend; physical-device/LAN release validation remains outstanding | [Mobile API setup](docs/mobile/MOBILE_API_SETUP_WINDOWS.md) |
 | Docker image | `developer-only` | Developer/operator smoke and service path, not an end-user artifact | [Docker](docs/docker.md) |
 | Home Assistant | Supported, credential-gated | Reads require live auth; writes use policy/confirmation and independent verification evidence | [Home Assistant](docs/home_assistant.md) |
-| Timers & alarms | Locally verified; CI pending | First-class per-user concurrent timers and persistent one-shot/recurring alarms; restart recovery, snooze, pause/resume, DST-aware recurrence, and canonical verified mutations are implemented. Speaker/room targeting remains pending US-121/US-122. | [Timer/alarm design](docs/superpowers/specs/2026-08-15-timers-alarms-media-routing.md) |
+| Timers & alarms | Locally verified; CI pending | First-class per-user concurrent timers and persistent one-shot/recurring alarms; restart recovery, snooze, pause/resume, DST-aware recurrence, and canonical verified mutations are implemented. Choosing timer/alarm output destinations remains US-122. | [Timer/alarm design](docs/superpowers/specs/2026-08-15-timers-alarms-media-routing.md) |
+| Media / audio targets | Locally verified; CI pending | Canonical per-user targets cover Home Assistant media players, cached LAN speakers, rooms, request-origin preference, and persistent groups. HA playback supports verified play/pause/resume/stop/next/previous/volume/mute controls where state is readable. Persistent groups are addressable/configurable but advertise no direct playback controls until a verified group adapter exists. Apple Music is metadata/adapter contract only; physical-provider production verification remains outstanding. | [Media routing design](docs/superpowers/specs/2026-08-15-timers-alarms-media-routing.md) |
 | Email | Partial | IMAP/SMTP paths exist; GUI sending remains draft-only | [Email](docs/email.md) |
 | Calendar | Partial / read-only | ICS reads exist; provider writes/OAuth remain unavailable | [Calendar](docs/calendar.md) |
 | SMS / Phone | Experimental | Twilio-backed capability; live delivery/calling remains externally verified | [Messaging](docs/messaging.md) |
@@ -145,7 +146,8 @@ No surface is currently classified `removed`; historical/low-level entries remai
 
 - Core CLI help and doctor paths work: `rex --help`, `rex doctor`, and `python -m rex doctor`.
 - Basic text chat works in the CLI and GUI.
-- First-class timers and alarms work through the canonical chat/voice tool path: multiple per-user timers, pause/resume/adjust/rename/cancel, one-shot and recurring alarms, snooze/dismiss, DST-aware recurrence, and restart recovery. Speaker/room routing is not yet implemented and remains US-121/US-122 work.
+- First-class timers and alarms work through the canonical chat/voice tool path: multiple per-user timers, pause/resume/adjust/rename/cancel, one-shot and recurring alarms, snooze/dismiss, DST-aware recurrence, and restart recovery. Per-user timer/alarm output policy remains US-122.
+- Canonical media routing resolves authorized device/room/group names without fuzzy guessing, prefers the trusted request-origin target when appropriate, refreshes dynamic target state without a Rex restart where supported, and routes mutations through verified lifecycle evidence. Home Assistant is the currently verified control adapter; LAN Sonos/Bose targets are discovery-visible but do not claim direct media controls through this adapter.
 - The Electron GUI launches and the main shell is stable.
 - GUI pages load for Tasks, Reminders, Settings, Users, Integrations, Email, Calendar, and Home Assistant.
 - The Home Assistant page loads and lists entities after the recent GUI/backend consistency fixes.
@@ -163,7 +165,7 @@ No surface is currently classified `removed`; historical/low-level entries remai
 - Outlook email and calendar are labeled unavailable because Graph OAuth is not implemented.
 - Some pages and integrations are still in active stabilization; do not assume every registered integration is production-ready.
 - The locally built Windows installer is unsigned. Signing remains a public-release gate.
-- Microphone input, audible selected-output TTS, barge-in, live Home Assistant transitions, and provider delivery/write paths require environment-specific validation.
+- Microphone input, audible selected-output TTS, barge-in, live Home Assistant transitions, physical speaker/media playback paths, and provider delivery/write paths require environment-specific validation. Apple Music/MusicKit has no live credential or authorization verification in this repository.
 
 ## Implemented Privacy Boundary
 

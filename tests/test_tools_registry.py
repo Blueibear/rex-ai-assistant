@@ -251,8 +251,8 @@ def test_get_default_registry_availability_filter_works() -> None:
     assert "send_email" not in available_names
 
 
-def test_delegated_music_handler_fails_closed() -> None:
-    """Dedicated-runtime tools must not report an empty successful result."""
+def test_retired_music_tool_fails_closed_as_unknown() -> None:
+    """Retired pre-US-121 media tool names are not executable authority surfaces."""
     from rex.tools.dispatcher import ToolDispatcher
     from rex.tools.registry import get_default_registry
 
@@ -261,10 +261,10 @@ def test_delegated_music_handler_fails_closed() -> None:
         {},
         {
             "user_id": "james",
-            "request_id": "music-delegation-test",
+            "request_id": "music-retired-test",
             "granted_permissions": frozenset({"ha_control"}),
         },
     )
 
     assert result.success is False
-    assert "dedicated runtime handler" in (result.error or "")
+    assert result.error == "Unknown tool: 'music_pause'"

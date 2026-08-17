@@ -81,16 +81,17 @@ Use this order for task selection after the reconciliation above. Select the fir
 48. `US-120`
 49. `US-121`
 50. `US-122`
-51. `US-115`
-52. `US-116`
-53. `US-117`
-54. `US-089`
-55. `US-090`
-56. `US-091`
-57. `US-092`
-58. `US-093`
-59. `US-119`
-60. `US-118`
+51. `US-123`
+52. `US-115`
+53. `US-116`
+54. `US-117`
+55. `US-089`
+56. `US-090`
+57. `US-091`
+58. `US-092`
+59. `US-093`
+60. `US-119`
+61. `US-118`
 
 **Dependency/security notes:** TurnEngine work must preserve the already-implemented explicit, fail-closed user identity contract from its first event. US-087 later proves the broader user/household model and James/Cole concurrency invariants. OpenClaw metadata never widens local authority. Mobile remains desktop-paired and least-privilege. All benchmark evidence must label whether it is deterministic/mock, local source runtime, live provider, packaged Windows artifact, or physical hardware/device.
 
@@ -3066,17 +3067,19 @@ cd gui && npm run typecheck && npm run build
 
 **Implementation notes:** Distinguish per-user vector stores from a household/shared vector store. Let users tag/label uploaded content or tell Rex how to label it.
 
-> **Decomposition directive (skill-compliance):** This story is larger than one Ralph iteration. Before execution, split it into ordered one-iteration slices and run them in order: (a) upload UI accepting supported document/data types; (b) scope selection (private vs household) plus user/Rex-confirmed tagging; (c) indexing into the correct per-user or household vector store; (d) search/delete/audit of uploaded content; (e) cross-scope isolation tests. Do not attempt the full bundle in one iteration.
+> **Decomposition directive (skill-compliance):** This story is larger than one Ralph iteration. Before execution, split it into ordered one-iteration slices and run them in order: (a) upload UI accepting supported document/data types; (b) independent context-inclusion plus audience scope selection (private vs household) and user/Rex-confirmed tagging; (c) indexing into the correct per-user or household vector store with provenance; (d) search/delete/audit and later policy editing; (e) cross-scope/context-disabled isolation tests. Do not attempt the full bundle in one iteration.
 
 **Acceptance Criteria:**
 - [ ] Upload UI accepts supported document/data types.
-- [ ] User chooses scope: private to selected user or shared household.
+- [ ] At upload time the uploader independently chooses whether the file is eligible for broad/background context and whether its audience scope is private to that user or shared household.
+- [ ] Context inclusion and audience scope remain editable later by the uploader/owner; another user cannot promote someone else's private upload to household scope.
+- [ ] Context-disabled uploads remain available for explicit authorized file questions but cannot silently influence unrelated turns, proactive suggestions, or situational reasoning.
 - [ ] User can add tags/labels during upload.
 - [ ] Rex can infer labels only with user confirmation.
-- [ ] Uploaded content is indexed into the correct per-user or household vector store.
-- [ ] Private uploads are not retrieved for household context.
-- [ ] User can search, delete, and audit uploaded content.
-- [ ] Tests cover scope, tagging, retrieval, deletion, and cross-scope isolation.
+- [ ] Uploaded content is indexed into the correct per-user or household vector store with source provenance retained for derived context.
+- [ ] Private uploads are filtered before retrieval/ranking and are not retrieved or summarized into household/other-user context.
+- [ ] User can search, delete, audit, and inspect contextual-use/scope settings for uploaded content.
+- [ ] Tests cover scope, context inclusion on/off, tagging, retrieval, deletion, uploader authority, provenance, and cross-user/cross-scope isolation.
 - [ ] `cd gui && npm run typecheck && npm run build` passes.
 - [ ] All relevant GitHub checks pass.
 
@@ -3755,39 +3758,81 @@ grep -n "askrex.app\|Cloudflare\|CORS\|rate limit\|revocation" docs/deployment.m
 
 **Priority:** P1 | **Workstream:** Audio / Media / Home Assistant / External Capabilities | **Dependencies:** US-120.
 
-**Description:** Add a provider-neutral audio target registry so Rex can resolve named speakers, rooms, and persistent groups and truthfully control supported media playback.
+**Description:** Add provider-neutral audio-target and media-provider/account abstractions so Rex can resolve named speakers, rooms, persistent groups, and the correct user-owned media source while truthfully controlling supported playback.
 
 **Acceptance Criteria:**
-- [ ] Canonical audio targets have stable IDs, names/aliases, provider, room, capabilities, online/health state, and per-user authorization.
-- [ ] Local devices, Home Assistant `media_player` entities, and future providers adapt into one registry rather than provider-specific user commands.
-- [ ] Target resolution handles room/device/group names without unsafe fuzzy ambiguity.
-- [ ] Persistent speaker groups support create, inspect, rename, membership edit, and delete.
-- [ ] Supported media actions include play/pause/resume/stop, next/previous where available, volume, mute/unmute, playback-state query, and provider-supported transfer/retargeting.
-- [ ] Unsupported/offline actions return truthful actionable limitations; mutations use canonical verification where technically possible.
-- [ ] Dynamic providers refresh discovery/health without requiring Rex restart where supported.
-- [ ] Tests cover target resolution, ambiguity, group CRUD, offline/mixed-capability providers, permissions, playback, and verified outcomes.
+- [x] Canonical audio targets have stable IDs, names/aliases, provider, room, capabilities, online/health state, and per-user authorization.
+- [x] Local devices, Home Assistant `media_player` entities, and future providers adapt into one registry rather than provider-specific user commands.
+- [x] Canonical media-provider accounts are bound to a Rex user/profile and credential-vault slot; provider tokens/credentials never enter prompts or cross-user fallback state.
+- [x] The provider contract is capable of supporting Apple Music/MusicKit when Apple developer credentials and per-user authorization are available, without making live Apple Music a precondition for US-121 completion.
+- [x] Target resolution handles room/device/group names without unsafe fuzzy ambiguity.
+- [x] For an interactive media command with no explicit target, the trusted request-origin/listening endpoint is the preferred output when it is an authorized playable target.
+- [x] Persistent speaker groups support create, inspect, rename, membership edit, and delete.
+- [x] Supported media actions include play/pause/resume/stop, next/previous where available, volume, mute/unmute, playback-state query, and provider-supported transfer/retargeting.
+- [x] Successful playback creates a bounded active-media-session reference so natural follow-ups such as "pause it", "turn it up", or "move it to the living room" resolve without needless repetition when unambiguous.
+- [x] Ambiguous active sessions or targets cause a short clarification rather than silent selection.
+- [x] Unsupported/offline actions return truthful actionable limitations; mutations use canonical verification where technically possible.
+- [x] Dynamic providers refresh discovery/health without requiring Rex restart where supported.
+- [x] Tests cover target resolution, ambiguity, request-origin routing, active-session follow-ups, group CRUD, offline/mixed-capability providers, per-user provider-account isolation, permissions, playback, and verified outcomes.
 - [ ] All relevant GitHub checks pass.
 
-**Risk notes:** A display-name match never grants device authority; unsupported transfer/group behavior must not be reported as completed.
+**Risk notes:** A display-name match or request-origin device never grants device authority. Provider-account selection and output-target selection are separate. Unsupported transfer/group behavior must not be reported as completed.
+
+**Local acceptance evidence (2026-08-16):** canonical media/provider/account/group/routing tests pass locally, including dynamic refresh, request-origin authority, lifecycle-verified group CRUD, verified Home Assistant transport/volume/mute controls, truthful unsupported transfer/group playback, and Electron session-bound target/group IPC. Live Apple Music/MusicKit authorization and physical-speaker production verification remain unclaimed. The exact implementation PR-head GitHub check remains open until CI completes.
 
 ### US-122: Add per-user output-routing policies and Settings UI
 
 **Priority:** P1 | **Workstream:** Settings / Voice / Timers / Media | **Dependencies:** US-121.
 
-**Description:** Let each user choose default and conditional targets for spoken responses, timers, alarms, and media, with explicit one-off overrides and safe fallbacks.
+**Description:** Let each user choose default and conditional targets and media-account behavior for spoken responses, timers, alarms, and media, with request-origin convenience, explicit one-off overrides, and safe fallbacks.
 
 **Acceptance Criteria:**
 - [ ] Electron Settings exposes canonical outputs/rooms/groups and per-user defaults for spoken response, timer, alarm, and media targets.
+- [ ] Each profile can link/select its own media provider account(s) and default provider/account without exposing another user's credentials.
+- [ ] When voice identity is confidently resolved, media uses that user's linked/default provider account. When identity is unresolved, policy may use a configured household primary playback account for ordinary playback without granting another user's private library mutation authority.
+- [ ] Interactive media defaults to the authorized request-origin/listening endpoint when no target is named; an explicit natural-language room/device/group always overrides that preference.
 - [ ] Timer/alarm records may carry an explicit target overriding defaults.
 - [ ] Policies support time/day conditions, quiet hours, target volume where supported, and explicit fallback behavior.
 - [ ] One-off natural-language targets override stored defaults and Rex can explain the resolved route/policy.
 - [ ] Speaker-group management is available from Settings, including test playback where supported.
 - [ ] Electron and mobile/PWA use the same backend policy state with James/Cole isolation.
 - [ ] Routing/fallback decisions are structured and privacy-safe; unavailable targets never silently reroute against policy.
-- [ ] Tests cover defaults, conditions, explicit overrides, outages/fallbacks, quiet hours, groups, and concurrent per-user policies.
+- [ ] Tests cover per-user media-account isolation, unresolved-speaker primary-account fallback, request-origin default, defaults, conditions, explicit overrides, outages/fallbacks, quiet hours, groups, and concurrent per-user policies.
 - [ ] All relevant GitHub checks pass.
 
-**Risk notes:** Output routing is policy, not authority. It cannot widen device permissions or silently suppress explicitly required events.
+**Risk notes:** Output/account routing is policy, not authority. It cannot widen device permissions, borrow another user's private library authority, or silently suppress explicitly required events.
+
+### US-123: Add canonical situational context and proactive assistance
+
+**Priority:** P1 | **Workstream:** Context / Identity / Privacy / Proactivity | **Dependencies:** US-085, US-086, US-087, US-109, US-121, US-122.
+
+**Description:** Add one canonical, user-scoped situational-context/source-policy layer that lets Rex preserve conversational references and proactively combine authorized connected information into timely, personable assistance without widening disclosure or action authority.
+
+**Why it matters:** Rex should understand what is going on across an interaction and offer useful next steps, but ad hoc feature-specific context would create inconsistent privacy behavior and cross-user leakage risk.
+
+**Acceptance Criteria:**
+- [ ] Context sources use explicit policy metadata including source ID/type, private owner when applicable, audience scope, context-enabled state, disclosure policy, and a content-free revision used to invalidate stale context/cache state.
+- [ ] Ordinary integrations deliberately connected by a user are eligible for that user's contextual reasoning by default unless disabled; contextual access never grants mutation authority.
+- [ ] Uploaded sources obey US-086's independent per-file context-inclusion and private/household audience choices, including provenance-preserving retrieval and cross-user isolation.
+- [ ] Location is a special opt-in source: each user must explicitly grant `location_assist` before Rex uses current/recent location for that user's assistance, and household/admin status cannot override that grant.
+- [ ] Location disclosure is a separate person-specific `location_share` grant. Enabling location-assisted features never lets another user ask "where is <user>?" and receive location unless the tracked user explicitly granted that recipient access.
+- [ ] A denied location-disclosure request does not reveal or confirm whether Rex currently has location data for that user.
+- [ ] Rex accesses location only when it materially improves the current task or an enabled proactive rule; permission alone does not require continuous polling/tracking.
+- [ ] Capabilities publish typed, bounded/expiring active-context references rather than separate conversation engines; TurnEngine resolves natural follow-ups such as "it", "that one", "move it", or "turn it up" against authorized active state.
+- [ ] Ambiguous or expired references cause a short clarification rather than a guessed cross-domain action.
+- [ ] A canonical proactive-opportunity evaluator can combine calendar, current weather/traffic/search, relevant memory/preferences, capability state, and recent verified activity to identify useful next actions for the affected user.
+- [ ] Proactive candidates carry provenance, freshness, confidence, urgency/benefit, user scope, and dismissal/preference evidence; only high-signal opportunities surface.
+- [ ] Suggestions are delivered in natural language during a suitable interaction by default; urgent notifications require an already-authorized notification route/policy.
+- [ ] Declined suggestion patterns reduce future frequency; accepting a suggestion may create an explicit automation/preference but never bypasses normal action authorization/confirmation.
+- [ ] Revoking source, context, location, or sharing permission invalidates affected active context and cached prompt/context artifacts through revision changes.
+- [ ] Future self-maintenance, generated skills, OpenClaw capabilities, and developer/self-repair agents consume these privacy/context grants as constitutional authority and cannot autonomously widen contextual-use, disclosure, upload scope/audience, location_assist, or person-specific location_share.
+- [ ] Settings surfaces expose per-user contextual-source controls, upload context/scope controls, location-assist permission, recipient-specific location-sharing permission, and proactive-assistance preferences without allowing one user/admin to override another user's private location choices.
+- [ ] Tests cover source policy, upload integration, location opt-in/non-disclosure/admin non-override, active-reference resolution/expiry, context-cache invalidation, proactive ranking/dismissal behavior, and James/Cole isolation.
+- [ ] All relevant GitHub checks pass.
+
+**Validation commands:** focused context/privacy/proactivity tests; identity/cache/upload suites; `cd gui && npm run typecheck && npm run build`; required repository release gates.
+
+**Risk notes:** Connected-data availability, contextual eligibility, disclosure, and action authority are four distinct concerns. Historical checklist uses of `US-123` are legacy evidence only; this active story is defined by the authoritative production-readiness PRD.
 
 ### US-115: Compose capability gaps declaratively
 
@@ -3892,7 +3937,7 @@ grep -n "askrex.app\|Cloudflare\|CORS\|rate limit\|revocation" docs/deployment.m
 
 **Acceptance Criteria:**
 - [ ] RexBench reports cold/warm p50/p95 by typed chat, voice, read-only tool, mutating tool, unavailable/gap-recovery, and representative multi-tool request class with stage breakdowns.
-- [ ] Production profile covers identity/privacy isolation, permission escalation denial, cancellation races, tool/provider failure, OpenClaw outage/recovery, capability-sync attacks, Forge adversarial/promotion/rollback cases, timer accuracy/concurrency, alarm recurrence/snooze/restart recovery, audio-target resolution, group routing, per-user output-routing isolation, and unavailable-target behavior.
+- [ ] Production profile covers identity/privacy isolation, permission escalation denial, cancellation races, tool/provider failure, OpenClaw outage/recovery, capability-sync attacks, Forge adversarial/promotion/rollback cases, timer accuracy/concurrency, alarm recurrence/snooze/restart recovery, audio-target resolution, group routing, per-user media-account/output-routing isolation, request-origin routing, upload context/scope isolation, location opt-in/non-disclosure/admin non-override, contextual-reference expiry, proactive-opportunity behavior, and unavailable-target behavior.
 - [ ] Evidence clearly separates deterministic/mock, local source runtime, live-provider, packaged Windows Electron, mobile/device, and physical voice/hardware runs; no category substitutes for another.
 - [ ] Windows packaged Electron and authenticated mobile E2E consume canonical TurnEngine; physical voice evidence covers wake/capture/ASR/TTS/barge-in where hardware is available.
 - [ ] Retained reports contain no prompts, transcripts, memory contents, credentials, raw private tool payloads, or user IDs.
@@ -3987,3 +4032,172 @@ The release candidate is "Production Ready" when ALL of the following are true o
 - [ ] No completed implementation commit on `master` left its story unchecked in this PRD.
 - [ ] All required GitHub checks listed in Section 10 are green on the release-candidate commit.
 - [ ] The core AskRex principle is preserved: every reachable code path that reports an action's success does so only when the action was verified, or it uses the precise *attempted / completed / failed* vocabulary instead.
+
+---
+
+## 13. Post-Release Rex 2.0 Roadmap: Controlled Self-Maintenance
+
+> **Scheduling rule:** The stories in this section are intentionally **outside** the Section 8 production-readiness execution order and are **not required** for the current release candidate. Do not select an `SM-###` story while any required production-readiness P0/P1 story remains open unless the owner explicitly reprioritizes the work. These stories become the implementation backlog for Rex's controlled self-maintenance capability after the release candidate is stable.
+
+### Objective
+
+Make Rex capable of safely maintaining and extending AskRex Assistant through an isolated, policy-controlled, GitHub-backed development lifecycle. Rex may diagnose defects, acquire missing capabilities, create skills, modify source code, run tests, create pull requests, respond to CI failures, merge authorized changes, update itself, verify the running version, and roll back failures. GitHub protections, Rex policy, CI, owner/user approval, and the per-user privacy/context authority defined by US-086/US-123 remain independent constitutional constraints.
+
+### Existing foundations that must be reused
+
+Current code already contains foundations for this work, including `rex/skills/`, `rex/vscode_service.py`, `rex/github_service.py`, the policy/audit/execution lifecycle, and `rex/openclaw/`. These foundations must be hardened and orchestrated; do not create competing parallel services unless an existing component is demonstrably unsuitable.
+
+### SM-001: Threat model and self-maintenance authority contract
+
+**Priority:** Post-RC P0
+**Workstream:** Security / Architecture / Governance
+**Description:** Define exactly what Rex may maintain autonomously, what requires owner approval, and what Rex can never authorize for itself.
+
+**Acceptance Criteria:**
+- [ ] A self-maintenance threat model is committed under `docs/security/`.
+- [ ] The document defines routine, elevated, constitutional, and prohibited maintenance actions.
+- [ ] Changes that increase Rex's own authority are explicitly owner-gated.
+- [ ] Per-user contextual-use, disclosure, uploaded-document scope/audience, `location_assist`, and person-specific `location_share` are constitutional authority boundaries; Rex/agents/generated skills/OpenClaw cannot widen them without the appropriate user/data-owner authorization.
+- [ ] Household/admin status cannot override another user's `location_assist` or `location_share`, and Rex cannot self-approve any proposal that broadens those grants.
+- [ ] Direct protected-branch mutation, branch-protection bypass, repository deletion, and self-granting permissions are prohibited.
+- [ ] The model defines audit, verification, rollback, and emergency-disable requirements.
+- [ ] `CLAUDE.md`, `SECURITY.md`, and the self-maintenance architecture doc agree with the contract.
+- [ ] Security tests or policy tests cover representative allowed, approval-required, and prohibited actions.
+
+### SM-002: Isolated repository workspace manager
+
+**Priority:** Post-RC P0
+**Workstream:** Developer Tooling / Git
+**Description:** Give Rex a canonical way to perform source changes without touching the running checkout or protected primary branch.
+
+**Acceptance Criteria:**
+- [ ] Rex can resolve a valid AskRex source checkout and refuses source mutation from a packaged-only runtime.
+- [ ] Every code-changing maintenance task gets a dedicated branch and Git worktree.
+- [ ] The workspace manager refuses direct commits to `master`.
+- [ ] Dirty-worktree and conflicting-task behavior is deterministic and tested.
+- [ ] Cleanup preserves evidence until the PR/task reaches a terminal state.
+- [ ] The running known-good checkout is not modified during candidate development.
+
+### SM-003: Canonical developer-agent orchestration
+
+**Priority:** Post-RC P0
+**Workstream:** Autonomy / Developer Tooling
+**Description:** Connect Rex's existing code inspection, patching, test, policy, and audit components into one maintenance workflow.
+
+**Acceptance Criteria:**
+- [ ] One canonical developer-agent entry point owns diagnose -> plan -> patch -> validate -> report.
+- [ ] The agent reuses `VSCodeService`/existing developer tools for patching and pytest.
+- [ ] It records a root-cause statement before implementing a non-trivial repair.
+- [ ] It runs targeted validation before broader validation gates.
+- [ ] Code mutation goes through the canonical policy/execution lifecycle and honors `requires_approval`.
+- [ ] Final diff scope is checked before PR creation.
+- [ ] Maintenance state uses proposed/attempted/completed/verified/failed/rolled_back terminology.
+
+### SM-004: Capability Gap Resolver
+
+**Priority:** Post-RC P1
+**Workstream:** Intelligence / Skills / OpenClaw
+**Description:** Let Rex decide how to acquire a capability it does not currently possess.
+
+**Acceptance Criteria:**
+- [ ] Resolver checks native Rex tools first.
+- [ ] Resolver checks enabled local skills second.
+- [ ] Resolver checks approved OpenClaw/ClawHub capabilities third.
+- [ ] Every candidate path is filtered through current per-user privacy/context/disclosure authority before selection; capability acquisition cannot be used to bypass US-086/US-123 boundaries.
+- [ ] Resolver chooses local skill generation before core modification when a modular skill can satisfy the request.
+- [ ] Core source modification is selected only when the capability genuinely requires it.
+- [ ] Decision trace explains which alternatives were considered and why one was selected.
+- [ ] Tests cover all resolution paths and safe failure when no permitted path exists.
+
+### SM-005: Functional generated-skill implementation pipeline
+
+**Priority:** Post-RC P1
+**Workstream:** Skills / Safety / Testing
+**Description:** Upgrade skill creation from honest scaffold generation to safe implementation of bounded new capabilities.
+
+**Acceptance Criteria:**
+- [ ] Generated skills include explicit metadata, required tools, permission scope, confirmation rules, verification behavior, and tests.
+- [ ] Generated code is linted and tested before being enabled.
+- [ ] A failed validation leaves the skill disabled.
+- [ ] A newly generated skill cannot grant itself broader permissions than the approved task.
+- [ ] Generated skills cannot widen contextual-use, upload audience/scope, disclosure, `location_assist`, or `location_share` authority; those remain externally granted user/data-owner permissions.
+- [ ] Skills can be disabled or rolled back independently from Rex core.
+- [ ] At least one end-to-end capability is implemented from a natural-language teaching request and verified.
+
+### SM-006: Dedicated Rex GitHub maintainer identity
+
+**Priority:** Post-RC P0
+**Workstream:** GitHub / Security / Credentials
+**Description:** Give Rex a least-privilege machine identity for day-to-day maintenance of its own repository.
+
+**Acceptance Criteria:**
+- [ ] A dedicated GitHub App or equivalent machine identity is created for Rex.
+- [ ] Initial installation scope is restricted to `Blueibear/AskRex-Assistant`.
+- [ ] Permissions are limited to the minimum required for issues, branch contents, pull requests, and check/status inspection.
+- [ ] Workflow-file mutation is separately permissioned and owner-gated if enabled.
+- [ ] GitHub App credentials are stored in the canonical credential vault, never tracked config.
+- [ ] Rex cannot change its own App permissions, installation scope, branch protections, or rulesets.
+- [ ] Health/status diagnostics can confirm the maintainer identity is usable without exposing secrets.
+
+### SM-007: Autonomous issue, PR, CI, and merge maintenance loop
+
+**Priority:** Post-RC P1
+**Workstream:** GitHub / CI / Autonomy
+**Description:** Allow Rex to handle routine repository maintenance through normal GitHub collaboration rather than direct primary-branch mutation.
+
+**Acceptance Criteria:**
+- [ ] Rex can create/triage an issue for a verified defect or maintenance task.
+- [ ] Rex can push its isolated maintenance branch and open/update a PR.
+- [ ] PR description includes root cause, changed files, risks, and validation evidence.
+- [ ] Rex can monitor required checks and diagnose/iterate on failures.
+- [ ] Required checks remain independent and cannot be marked successful by Rex itself.
+- [ ] Rex can auto-merge only when policy allows, no elevated approval is pending, and every required gate is green.
+- [ ] Failed/blocked PRs remain visible with an actionable reason instead of being silently abandoned.
+
+### SM-008: Constitutional-file and authority-change protection
+
+**Priority:** Post-RC P0
+**Workstream:** Security / Governance
+**Description:** Prevent Rex from using self-maintenance to remove the constraints that make self-maintenance safe.
+
+**Acceptance Criteria:**
+- [ ] A canonical protected-file/policy set is defined.
+- [ ] GitHub/ruleset permissions, authentication, credential vault, self-maintenance policy, update/rollback, verification lifecycle, and gate-weakening changes require owner approval.
+- [ ] Per-user privacy/context authority is protected constitutional state: contextual-use, disclosure, upload scope/audience, `location_assist`, person-specific `location_share`, and equivalent future privacy grants cannot be autonomously broadened by Rex, generated skills, OpenClaw, or maintenance agents.
+- [ ] Privacy-authority changes require the appropriate affected user/data-owner authorization, not merely household/admin authority, and Rex cannot approve its own authority-expanding proposal.
+- [ ] Rex may propose and test those changes but cannot approve them for itself.
+- [ ] CI contains a guard that detects unauthorized changes to protected maintenance controls.
+- [ ] Tests demonstrate that a normal maintenance task proceeds while an authority-expanding task blocks awaiting owner approval.
+
+### SM-009: Safe self-update activation and rollback
+
+**Priority:** Post-RC P0
+**Workstream:** Runtime / Deployment / Recovery
+**Description:** Let Rex activate a verified version without risking loss of the last known-good runtime.
+**Acceptance Criteria:**
+- [ ] Candidate and known-good versions are identifiable by immutable commit/version.
+- [ ] Pre-activation validation must pass before activation.
+- [ ] Activation does not destroy the previous working version.
+- [ ] Post-activation health and functional smoke checks run automatically.
+- [ ] Failure triggers automatic rollback to the last-known-good version.
+- [ ] Rollback success is independently verified.
+- [ ] Rex reports the actual running version after update or rollback.
+- [ ] A simulated bad self-update proves rollback end to end.
+
+### SM-010: Maintenance observability, controls, and staged rollout
+
+**Priority:** Post-RC P1
+**Workstream:** GUI / Operations / Safety
+**Description:** Make Rex's maintenance behavior visible and incrementally enable autonomy rather than switching directly to unrestricted maintenance.
+
+**Acceptance Criteria:**
+- [ ] GUI/status surfaces show maintenance task, branch/worktree, changed files, validation, PR/check state, approvals, running version, and rollback target.
+- [ ] An emergency disable control stops new autonomous maintenance actions without damaging an in-progress rollback.
+- [ ] Rollout stages are documented: read-only diagnosis -> issue/PR creation -> supervised code changes -> bounded auto-merge.
+- [ ] Authority-changing operations remain owner-gated at every stage.
+- [ ] Audit history can reconstruct why Rex changed itself and how success was verified.
+- [ ] At least three supervised low-risk maintenance cycles succeed before bounded auto-merge is enabled.
+
+### Post-RC completion standard
+
+Controlled self-maintenance is considered ready for bounded autonomous use only when all `SM-001` through `SM-010` stories are complete, the GitHub maintainer identity is least-privilege, protected controls and per-user privacy/context authority cannot be self-weakened or self-widened, independent CI is required, a bad-update rollback test passes, and Rex has demonstrated repeated successful supervised maintenance cycles.

@@ -23,6 +23,7 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 _INTERNAL_TOOL_SYNTAX_PATTERN = re.compile(r"\bTOOL_(?:REQUEST|RESULT)\s*:", re.IGNORECASE)
+_HA_INLINE_SYNTAX_PATTERN = re.compile(r"\[\[ha:[^\]\r\n]*\]\]", re.IGNORECASE)
 
 _UNVERIFIED_ACTION_CLAIM_PATTERNS = (
     re.compile(
@@ -107,6 +108,7 @@ class ToolResultHandler:
         tool_context: dict[str, str],
         model_call_fn: Any,
         plugin_enrichments: list[str],
+        allow_ha_postprocess: bool = True,
     ) -> str:
         """Post-process *completion* through all tool and safety layers.
 
@@ -140,7 +142,13 @@ class ToolResultHandler:
         if plugin_enrichments:
             completion = f"{completion}\n\nAdditional info:\n" + "\n".join(plugin_enrichments)
 
-        if (
+        if not allow_ha_postprocess and _HA_INLINE_SYNTAX_PATTERN.search(completion):
+            logger.warning(
+                "Suppressed inline Home Assistant syntax for canonical media turn",
+                extra={"event": "assistant_media_ha_bypass_suppressed"},
+            )
+            completion = "I did not execute that Home Assistant command."
+        elif (
             self._ha_bridge is not None
             and self._ha_bridge.enabled
             and not mobile_action_context_active()

@@ -1,6 +1,8 @@
 # Archived PRD Files
 
-These are completed or superseded product requirement documents. The only active release-readiness PRD is `PRD-production-readiness.md` at the repo root. Root `PRD.md` and `PRD-remaining-release-readiness.md` are also explicitly marked superseded but remain at the root to preserve historical links.
+These are completed or superseded product requirement documents. They are historical references and must not drive new implementation work unless a current PRD explicitly points back to them.
+
+The current authoritative production-readiness tracker is `PRD-production-readiness.md`. The product-level architecture is `docs/planning/source-of-truth/REX_Unified_Build_Spec_UPDATED.md`, and `docs/planning/source-of-truth/REX_ACTIVE_CHECKLIST.md` tracks active capability and controlled self-maintenance work. Root `PRD.md`, `PRD-remaining-release-readiness.md`, and archived next-cycle PRDs remain historical evidence.
 
 | File | Description |
 |------|-------------|

@@ -9,6 +9,7 @@ This index covers active documentation under `docs/`. Files under `docs/archive/
 | [../README.md](../README.md) | Current project overview and quick start |
 | [../INSTALL.md](../INSTALL.md) | Supported install paths |
 | [../RUNNING.md](../RUNNING.md) | Runtime command guide |
+| [../PRD-production-readiness.md](../PRD-production-readiness.md) | Authoritative current production-readiness tracker; Section 13 contains the post-RC self-maintenance roadmap |
 | [usage.md](usage.md) | User-facing usage guide |
 | [UI_SURFACES.md](UI_SURFACES.md) | Current CLI, GUI, and service surface inventory |
 | [BRANDING.md](BRANDING.md) | Canonical naming rules |
@@ -30,6 +31,7 @@ This index covers active documentation under `docs/`. Files under `docs/archive/
 | [autonomy.md](autonomy.md) | Autonomy mode behavior |
 | [policy.md](policy.md) | Policy engine configuration |
 | [tools.md](tools.md) | Tool registry and execution reference |
+| [SELF_MAINTENANCE.md](SELF_MAINTENANCE.md) | Controlled self-maintenance, GitHub maintainer, verification, privacy authority, and rollback architecture |
 
 ## Mobile API Gateway Planning
 

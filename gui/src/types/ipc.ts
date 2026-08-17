@@ -238,11 +238,40 @@ export interface VoiceSettings {
   wakeWordEmbeddingPath: string
 }
 
-export interface SmartSpeaker {
-  provider: string
+export interface AudioTargetInfo {
+  id: string
   name: string
-  ip: string
-  model: string
+  provider: string
+  kind: string
+  room: string | null
+  capabilities: string[]
+  online: boolean
+  health: string
+}
+
+export interface SpeakerGroupInfo {
+  id: string
+  name: string
+  member_ids: string[]
+  capabilities: string[]
+}
+
+export interface AudioTargetsResponse {
+  ok: boolean
+  targets?: AudioTargetInfo[]
+  error?: string
+}
+
+export interface SpeakerGroupsResponse {
+  ok: boolean
+  groups?: SpeakerGroupInfo[]
+  error?: string
+}
+
+export interface SpeakerGroupMutationResponse {
+  ok: boolean
+  group?: SpeakerGroupInfo
+  error?: string
 }
 
 export interface VoiceEnrollment {
@@ -883,7 +912,13 @@ export interface RexAPI {
   ) => Promise<{ ok: boolean; transcript?: string; error?: string }>
   getApiKeys: () => Promise<{ openai_key_set: boolean; openrouter_key_set: boolean; error?: string }>
   setApiKey: (name: string, value: string) => Promise<{ ok: boolean; error?: string }>
-  getSmartSpeakers: () => Promise<{ ok: boolean; speakers: SmartSpeaker[]; error?: string }>
+  getAudioTargets: () => Promise<AudioTargetsResponse>
+  refreshAudioTargets: () => Promise<AudioTargetsResponse>
+  listSpeakerGroups: () => Promise<SpeakerGroupsResponse>
+  createSpeakerGroup: (name: string, memberIds: string[]) => Promise<SpeakerGroupMutationResponse>
+  renameSpeakerGroup: (groupId: string, name: string) => Promise<SpeakerGroupMutationResponse>
+  setSpeakerGroupMembers: (groupId: string, memberIds: string[]) => Promise<SpeakerGroupMutationResponse>
+  deleteSpeakerGroup: (groupId: string) => Promise<{ ok: boolean; deleted?: boolean; error?: string }>
   restartRex: () => Promise<{ ok: boolean; error?: string }>
   resetToDefaults: () => Promise<{ ok: boolean; error?: string }>
   extractFileForChat: (params: {

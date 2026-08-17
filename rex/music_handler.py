@@ -161,104 +161,20 @@ def _match_volume(transcript: str) -> tuple[bool, int, str | None]:
 
 
 class MusicHandler:
-    """Handles music playback voice intents before they reach the LLM.
+    """Deprecated compatibility parser for legacy music phrases.
 
-    Parameters
-    ----------
-    client:
-        A ``MusicAssistantClient`` instance.  When the client is not
-        configured (raises ``IntegrationNotConfiguredError``), the handler
-        returns the friendly message "Music Assistant is not set up."
+    The optional client is retained only for construction compatibility.  It is
+    never called: all media execution belongs to the canonical tool lifecycle.
     """
 
-    def __init__(self, client) -> None:  # avoid circular import
+    def __init__(self, client=None) -> None:  # noqa: ANN001
         self._client = client
 
-    def handle(self, transcript: str) -> str | None:
-        """Return a response string if *transcript* is a music command, else None.
+    def handle(self, transcript: str):  # noqa: ANN201
+        """Parse a legacy music utterance without executing provider mutations."""
+        from rex.media.parser import parse_media_command
 
-        Parameters
-        ----------
-        transcript:
-            The user's spoken (transcribed) text.
-        """
-        from rex.assistant_errors import IntegrationNotConfiguredError
-
-        t = transcript.strip()
-
-        # --- play intent ---
-        matched, query, room = _match_play(t)
-        if matched:
-            try:
-                self._client.play(query, room=room)
-            except IntegrationNotConfiguredError:
-                return "Music Assistant is not set up."
-            except Exception as exc:
-                logger.warning("Music Assistant play failed: %s", exc)
-                return "Sorry, I couldn't play that right now."
-            if room:
-                return f"Playing {query} in the {room}."
-            return f"Playing {query}."
-
-        # --- pause intent ---
-        matched, room = _match_room_command(_PAUSE_PATTERNS, t)
-        if matched:
-            try:
-                self._client.pause(room=room)
-            except IntegrationNotConfiguredError:
-                return "Music Assistant is not set up."
-            except Exception as exc:
-                logger.warning("Music Assistant pause failed: %s", exc)
-                return "Sorry, I couldn't pause the music."
-            if room:
-                return f"Paused music in the {room}."
-            return "Music paused."
-
-        # --- resume intent ---
-        matched, room = _match_room_command(_RESUME_PATTERNS, t)
-        if matched:
-            try:
-                self._client.resume(room=room)
-            except IntegrationNotConfiguredError:
-                return "Music Assistant is not set up."
-            except Exception as exc:
-                logger.warning("Music Assistant resume failed: %s", exc)
-                return "Sorry, I couldn't resume the music."
-            if room:
-                return f"Resumed music in the {room}."
-            return "Music resumed."
-
-        # --- skip intent ---
-        matched, room = _match_room_command(_SKIP_PATTERNS, t)
-        if matched:
-            try:
-                self._client.skip(room=room)
-            except IntegrationNotConfiguredError:
-                return "Music Assistant is not set up."
-            except Exception as exc:
-                logger.warning("Music Assistant skip failed: %s", exc)
-                return "Sorry, I couldn't skip the track."
-            if room:
-                return f"Skipped to the next track in the {room}."
-            return "Skipped to the next track."
-
-        # --- volume intent ---
-        matched, level, room = _match_volume(t)
-        if matched:
-            try:
-                self._client.set_volume(level, room=room)
-            except IntegrationNotConfiguredError:
-                return "Music Assistant is not set up."
-            except ValueError as exc:
-                return f"Sorry, that volume level is invalid: {exc}"
-            except Exception as exc:
-                logger.warning("Music Assistant set_volume failed: %s", exc)
-                return "Sorry, I couldn't change the volume."
-            if room:
-                return f"Volume set to {level} in the {room}."
-            return f"Volume set to {level}."
-
-        return None
+        return parse_media_command(transcript)
 
 
 __all__ = ["MusicHandler"]
