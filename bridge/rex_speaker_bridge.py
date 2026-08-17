@@ -9,6 +9,7 @@ from typing import Any
 from uuid import uuid4
 
 from rex.actions.lifecycle import ActionLifecycle, ActionState
+from rex.bridge_utils import bridge_error_response
 from rex.identity import validate_user_id
 from rex.media.groups import SpeakerGroup, SpeakerGroupStore
 from rex.media.models import AudioTarget, TargetKind, TargetProviderAdapter
@@ -270,6 +271,37 @@ def _build_speaker_runtime() -> tuple[
     return registry, group_store, refresh
 
 
+def _legacy_list_speakers() -> dict[str, Any]:
+    """Preserve the pre-US-121 discovery-only bridge contract.
+
+    This path exposes only LAN discovery metadata and grants no canonical
+    target/group authority. Authenticated Electron callers use the private
+    canonical commands below.
+    """
+    try:
+        from rex.audio.speaker_discovery import SpeakerDiscoveryService
+
+        service = SpeakerDiscoveryService(
+            refresh_interval_seconds=60.0,
+            discovery_timeout_seconds=1.0,
+        )
+        speakers = service.discover_now()
+        return {
+            "ok": True,
+            "speakers": [
+                {
+                    "provider": speaker.provider,
+                    "name": speaker.name,
+                    "ip": speaker.ip,
+                    "model": speaker.model,
+                }
+                for speaker in speakers
+            ],
+        }
+    except Exception as exc:  # noqa: BLE001
+        return {**bridge_error_response(exc), "speakers": []}
+
+
 def main(
     *,
     runtime_factory: Callable[
@@ -280,6 +312,10 @@ def main(
         payload = json.loads(sys.stdin.read())
         if not isinstance(payload, dict):
             raise ValueError("request must be a JSON object")
+        command = str(payload.get("command") or payload.get("action") or "list").strip()
+        if command == "list" and payload.get("data_scope") != "private":
+            print(json.dumps(_legacy_list_speakers()))
+            return
         registry, group_store, refresh = runtime_factory()
         body, _code = handle_speaker_request(
             payload,
