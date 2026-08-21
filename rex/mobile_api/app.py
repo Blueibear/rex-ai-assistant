@@ -1,23 +1,8 @@
 """Flask application factory for the AskRex mobile API gateway (issue #323).
 
-``create_mobile_app`` builds an injectable app with:
-
-- request IDs and privacy-safe request/response logging (no bodies, no tokens);
-- ``X-Request-ID`` and ``X-AskRex-API-Version`` headers on every response;
-- the nested mobile error envelope (with ``retryable`` and ``request_id``);
-- a global JSON body limit (413 before full processing);
-- deny-by-default CORS (no origins unless explicitly configured, never ``*``);
-- route-specific rate limiting (login/refresh have their own limits);
-- only ``/mobile/*`` routes — the Electron GUI/admin server is a separate app;
-- fail-closed TLS resolution for non-loopback binds (S7): ``services.tls_material``
-  and ``app.extensions["mobile_api_tls"]`` are None on loopback dev binds and a
-  provisioned :class:`rex.mobile_api.tls.TlsMaterial` otherwise. Building the
-  app raises ``MobileTlsConfigurationError`` when a non-loopback bind cannot
-  get usable TLS material.
-
-Importing this module has no side effects; database migrations run when the
-factory is called.  In-memory rate-limit storage is suitable only for the
-single-process development server and is documented as such.
+``create_mobile_app`` builds an injectable app with request IDs, privacy-safe
+logging, mobile auth, scoped pairing grants, and deny-by-default transport
+security for ``/mobile/*`` routes.
 """
 
 from __future__ import annotations
@@ -37,6 +22,7 @@ from rex.mobile_api.routes import (
     build_home_blueprint,
     build_pairing_blueprint,
     build_scaffolds_blueprint,
+    build_settings_blueprint,
     build_status_blueprint,
     build_strong_auth_blueprint,
     build_voice_blueprint,
@@ -88,17 +74,14 @@ def _install_rate_limiter(app: Flask, config: MobileApiConfig):
         response.headers["Retry-After"] = str(retry_after)
         return response
 
-    limiter = Limiter(
+    return Limiter(
         key_func=get_remote_address,
         app=app,
         default_limits=[config.rate_limit_default],
-        # In-memory storage: single-process local development only.  A shared
-        # storage backend is required before any multi-process deployment.
         storage_uri="memory://",
         headers_enabled=True,
         on_breach=_on_breach,
     )
-    return limiter
 
 
 def _install_cors(app: Flask, config: MobileApiConfig) -> None:
@@ -118,20 +101,7 @@ def create_mobile_app(
     config: MobileApiConfig | None = None,
     services: MobileApiServices | None = None,
 ) -> Flask:
-    """Create a configured mobile API Flask application.
-
-    Args:
-        config: Typed mobile API configuration.  Defaults to the global
-            ``settings.mobile_api`` group, then safe library defaults.
-        services: Pre-built service container (tests inject temporary
-            database paths, fake clocks, and deterministic generators).
-
-    Raises:
-        MobileAuthConfigurationError: When ``REX_JWT_SECRET`` is missing or
-            too weak — the auth service fails closed before serving.
-        MobileTlsConfigurationError: When the configured bind requires TLS but
-            the injected/default service container has no usable TLS material.
-    """
+    """Create a configured mobile API Flask application."""
     if services is None:
         services = MobileApiServices.build(_resolve_config(config))
     cfg = services.config
@@ -140,22 +110,13 @@ def create_mobile_app(
             "Secure TLS material is required for this mobile gateway configuration."
         )
 
-    # Idempotent canonical users.db migration (sessions/refresh tables).
     migrate_users_db(services.db_path)
 
     app = Flask("rex_mobile_api")
-    # The transport-level cap must admit multipart voice uploads (15 MiB by
-    # default); JSON routes enforce the tighter ``max_json_bytes`` limit in
-    # ``parse_json_body`` before any parsing work.
     app.config["MAX_CONTENT_LENGTH"] = max(cfg.max_json_bytes, cfg.max_audio_bytes + 128 * 1024)
     app.extensions["mobile_api_services"] = services
-    # None on a loopback dev bind; a resolved TlsMaterial (S7) whenever cfg.host
-    # is non-loopback or cfg.require_tls opts a loopback bind into TLS too.
     app.extensions["mobile_api_tls"] = services.tls_material
 
-    # Reused canonical middleware: assigns g.request_id before authentication
-    # and logs method/path/status only — request and response bodies, tokens,
-    # and passwords are never logged.
     from rex.request_logging import install_request_logging  # noqa: PLC0415
 
     install_request_logging(app)
@@ -163,10 +124,6 @@ def create_mobile_app(
 
     @app.before_request
     def _enforce_owned_tls_transport() -> None:
-        # The supported LAN topology terminates TLS inside this process. If an
-        # operator accidentally serves the Flask app over plaintext through a
-        # different WSGI runner, fail closed rather than exposing authenticated
-        # mobile traffic on an unencrypted socket.
         if services.tls_material is not None and not request.is_secure:
             raise merr.MobileApiError(
                 merr.TLS_REQUIRED,
@@ -193,10 +150,9 @@ def create_mobile_app(
     app.register_blueprint(build_home_blueprint(services))
     app.register_blueprint(build_chat_blueprint(services, limiter))
     app.register_blueprint(build_voice_blueprint(services, limiter))
+    app.register_blueprint(build_settings_blueprint(services))
     app.register_blueprint(build_scaffolds_blueprint(services))
 
-    # WebSocket /mobile/chat/stream — registered only when the validated
-    # Flask-Sock stack is installed; the capability stays false otherwise.
     ws_registered = register_websocket(app, services)
     services.websocket_registered = ws_registered
 
