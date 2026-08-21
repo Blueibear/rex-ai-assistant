@@ -11,8 +11,10 @@ from pathlib import Path
 from typing import Any
 
 from rex.identity import validate_user_id
+from rex.media.accounts import MediaAccountRef, MediaAccountStore
 from rex.media.registry import AudioTargetRegistry
-from rex.runtime_paths import user_data_path
+from rex.runtime.turn import IdentityResolution
+from rex.runtime_paths import household_data_path, user_data_path
 
 from .models import (
     FallbackMode,
@@ -26,6 +28,23 @@ from .models import (
 _SCHEMA_VERSION = 1
 _POLICY_LOCKS_GUARD = threading.Lock()
 _POLICY_LOCKS: dict[Path, threading.RLock] = {}
+_ORDINARY_PLAYBACK_OPERATIONS = frozenset(
+    {
+        "play",
+        "pause",
+        "resume",
+        "stop",
+        "next",
+        "previous",
+        "query",
+        "state",
+        "volume",
+        "set_volume",
+        "mute",
+        "unmute",
+        "transfer",
+    }
+)
 
 
 def _path_lock(path: Path) -> threading.RLock:
@@ -230,9 +249,15 @@ class OutputRoutingService:
         registry: AudioTargetRegistry,
         *,
         root: Path | str | None = None,
+        media_accounts: MediaAccountStore | None = None,
+        household_media_path: Path | str | None = None,
     ) -> None:
         self._registry = registry
         self._root = Path(root) if root is not None else None
+        self._media_accounts = media_accounts or MediaAccountStore()
+        self._household_media_path_override = (
+            Path(household_media_path) if household_media_path is not None else None
+        )
 
     def _policy_path(self, user_id: str) -> Path:
         user_id = validate_user_id(user_id)
@@ -431,7 +456,9 @@ class OutputRoutingService:
     ) -> ResolvedRoute:
         policy_mode, policy_target = policy.fallback_for(kind)
         mode = override_mode if override_mode is not None else policy_mode
-        fallback_target = override_target if override_mode is not None else policy_target
+        fallback_target = (
+            override_target if override_mode is not None else policy_target
+        )
 
         if mode is FallbackMode.NONE:
             return ResolvedRoute(
@@ -484,6 +511,171 @@ class OutputRoutingService:
             rule_index=rule_index,
         )
 
+    def set_household_primary_media_account(
+        self,
+        *,
+        owner_user_id: str,
+        provider: str,
+        account_id: str,
+    ) -> MediaAccountRef:
+        """Configure the household ordinary-playback account by non-secret reference."""
+        owner_user_id = validate_user_id(owner_user_id)
+        account = self._media_accounts.get(owner_user_id, provider, account_id)
+        if account is None:
+            raise ValueError("Household primary media account must already be linked")
+        path = self._household_media_path()
+        payload = {
+            "version": _SCHEMA_VERSION,
+            "primary": {
+                "owner_user_id": owner_user_id,
+                "provider": account.provider,
+                "account_id": account.account_id,
+            },
+        }
+        with _path_lock(path):
+            self._atomic_write_json(path, payload)
+        return account
+
+    def clear_household_primary_media_account(self) -> None:
+        """Remove the household ordinary-playback fallback without touching accounts."""
+        path = self._household_media_path()
+        with _path_lock(path):
+            path.unlink(missing_ok=True)
+
+    def resolve_media_account(
+        self,
+        *,
+        active_user_id: str | None,
+        identity_resolution: IdentityResolution | str,
+        requested_account_id: str | None,
+        operation: str,
+    ) -> MediaAccountRef | None:
+        """Resolve a media account without widening private library authority.
+
+        Strong identity (explicit profile selection or accepted voice evidence)
+        may select only that user's accounts. Fallback/unknown identity may use
+        the configured household primary account only for ordinary playback.
+        Library/profile mutations fail closed.
+        """
+        identity = IdentityResolution(identity_resolution)
+        operation_key = operation.strip().casefold() if isinstance(operation, str) else ""
+        if not operation_key:
+            raise ValueError("media operation must be a non-empty string")
+        ordinary_playback = operation_key in _ORDINARY_PLAYBACK_OPERATIONS
+        strong_identity = identity in {
+            IdentityResolution.EXPLICIT,
+            IdentityResolution.VOICE_RECOGNIZED,
+            IdentityResolution.VOICE_REVIEW,
+        }
+
+        user_id = (
+            validate_user_id(active_user_id)
+            if active_user_id is not None
+            else None
+        )
+
+        if requested_account_id is not None:
+            if not requested_account_id.strip():
+                raise ValueError("requested_account_id must not be empty")
+            if not strong_identity or user_id is None:
+                raise PermissionError(
+                    "A trusted user identity is required to select a private media account"
+                )
+            account = self._find_user_account(user_id, requested_account_id)
+            if account is None:
+                raise PermissionError(
+                    "Requested media account is not owned by the active user"
+                )
+            return account
+
+        if strong_identity:
+            if user_id is None:
+                raise PermissionError("Trusted media identity has no active user")
+            policy = self.get_policy(user_id)
+            if (
+                policy.default_media_provider is not None
+                and policy.default_media_account_id is not None
+            ):
+                account = self._media_accounts.get(
+                    user_id,
+                    policy.default_media_provider,
+                    policy.default_media_account_id,
+                )
+                if account is None:
+                    raise ValueError(
+                        "Configured default media account is no longer linked"
+                    )
+                return account
+            accounts = self._media_accounts.list(user_id)
+            return accounts[0] if len(accounts) == 1 else None
+
+        if not ordinary_playback:
+            raise PermissionError(
+                "Unresolved speaker identity cannot use household media authority "
+                "for library or profile mutations"
+            )
+        return self._get_household_primary_media_account()
+
+    def _find_user_account(
+        self,
+        user_id: str,
+        requested_account_id: str,
+    ) -> MediaAccountRef | None:
+        accounts = self._media_accounts.list(user_id)
+        direct = [
+            account
+            for account in accounts
+            if account.account_id == requested_account_id
+        ]
+        if len(direct) == 1:
+            return direct[0]
+        if len(direct) > 1:
+            raise ValueError(
+                "Requested media account ID is ambiguous across providers"
+            )
+        qualified = [
+            account
+            for account in accounts
+            if f"{account.provider}:{account.account_id}" == requested_account_id
+        ]
+        if len(qualified) == 1:
+            return qualified[0]
+        return None
+
+    def _household_media_path(self) -> Path:
+        if self._household_media_path_override is not None:
+            return self._household_media_path_override
+        return household_data_path("output_routing", "household_media.json")
+
+    def _get_household_primary_media_account(self) -> MediaAccountRef | None:
+        path = self._household_media_path()
+        with _path_lock(path):
+            if not path.exists():
+                return None
+            try:
+                payload: Any = json.loads(path.read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError) as exc:
+                raise ValueError(f"Household media policy is unreadable: {exc}") from exc
+
+        if (
+            not isinstance(payload, dict)
+            or set(payload) != {"version", "primary"}
+            or payload.get("version") != _SCHEMA_VERSION
+            or not isinstance(payload.get("primary"), dict)
+            or set(payload["primary"])
+            != {"owner_user_id", "provider", "account_id"}
+        ):
+            raise ValueError("Household media policy has invalid schema")
+        primary = payload["primary"]
+        if not all(isinstance(value, str) for value in primary.values()):
+            raise ValueError("Household media policy has invalid account reference")
+        owner_user_id = validate_user_id(primary["owner_user_id"])
+        return self._media_accounts.get(
+            owner_user_id,
+            primary["provider"],
+            primary["account_id"],
+        )
+
     @staticmethod
     def _atomic_write_json(path: Path, payload: dict[str, Any]) -> None:
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -498,7 +690,13 @@ class OutputRoutingService:
                 delete=False,
             ) as handle:
                 temporary = Path(handle.name)
-                json.dump(payload, handle, indent=2, ensure_ascii=False, sort_keys=True)
+                json.dump(
+                    payload,
+                    handle,
+                    indent=2,
+                    ensure_ascii=False,
+                    sort_keys=True,
+                )
                 handle.write("\n")
                 handle.flush()
                 os.fsync(handle.fileno())
