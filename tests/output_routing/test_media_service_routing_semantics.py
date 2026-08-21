@@ -25,6 +25,7 @@ class VolumeAwareAdapter:
         self.target_id = target_id
         self.volume = volume
         self.playback = MediaState.PAUSED
+        self.current_item: str | None = None
         self.calls: list[tuple[MediaAction, object]] = []
         self.ignore_volume_updates = False
 
@@ -37,6 +38,7 @@ class VolumeAwareAdapter:
             self.volume = float(value)
         elif action is MediaAction.PLAY:
             self.playback = MediaState.PLAYING
+            self.current_item = str(value) if value is not None else None
         elif action is MediaAction.PAUSE:
             self.playback = MediaState.PAUSED
         return MediaActionAcknowledgement(accepted=True)
@@ -47,6 +49,7 @@ class VolumeAwareAdapter:
             playback=self.playback,
             observed_at=datetime.now(tz=UTC),
             volume_percent=self.volume,
+            current_item_title=self.current_item,
         )
 
 
