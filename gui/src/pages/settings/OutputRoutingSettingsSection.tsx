@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { useToast } from '../../components/ui/Toast'
-import type { AudioTargetInfo, SpeakerGroupInfo } from '../../types/ipc'
+import type { AudioTargetInfo, Settings, SpeakerGroupInfo } from '../../types/ipc'
 import type {
   MediaAccountInfo,
   OutputRoutingPolicy,
@@ -54,24 +54,45 @@ const OUTPUT_ROWS = [
   }
 ] as const
 
-type TargetField = (typeof OUTPUT_ROWS)[number]['target']
-type FallbackField = (typeof OUTPUT_ROWS)[number]['fallback']
-type FallbackTargetField = (typeof OUTPUT_ROWS)[number]['fallbackTarget']
-type VolumeField = (typeof OUTPUT_ROWS)[number]['volume']
+type OutputRow = (typeof OUTPUT_ROWS)[number]
+type TargetField = OutputRow['target']
+type FallbackField = OutputRow['fallback']
+type FallbackTargetField = OutputRow['fallbackTarget']
+type VolumeField = OutputRow['volume']
 
 interface GroupDraft {
   name: string
   memberIds: string[]
 }
 
-function routingInvoke(channel: string, ...args: unknown[]): Promise<OutputRoutingResponse> {
-  return window.electron.ipcRenderer.invoke(channel, ...args) as Promise<OutputRoutingResponse>
+async function getRoutingPolicy(): Promise<OutputRoutingResponse> {
+  return (await window.rex.getSettings('outputRouting')) as unknown as OutputRoutingResponse
+}
+
+async function getMediaAccounts(): Promise<OutputRoutingResponse> {
+  return (await window.rex.getSettings('outputRoutingAccounts')) as unknown as OutputRoutingResponse
+}
+
+async function saveRoutingPolicy(policy: OutputRoutingPolicy): Promise<OutputRoutingResponse> {
+  const result = await window.rex.setSettings('outputRouting', policy as unknown as Settings)
+  return result.ok ? { ok: true, policy } : { ok: false, error: result.error }
+}
+
+async function testRoutingTarget(targetId: string): Promise<OutputRoutingResponse> {
+  const result = await window.rex.setSettings('outputRoutingTest', {
+    target_id: targetId
+  } as Settings)
+  return result.ok ? { ok: true, target_id: targetId } : { ok: false, error: result.error }
 }
 
 function targetLabel(target: AudioTargetInfo): string {
   const location = target.room ?? target.kind
   const status = target.online ? target.health : 'offline'
   return `${target.name} · ${location} · ${status}`
+}
+
+function toggleDay(days: number[], day: number): number[] {
+  return days.includes(day) ? days.filter((value) => value !== day) : [...days, day].sort()
 }
 
 export function OutputRoutingSettingsSection(): React.ReactElement {
@@ -87,20 +108,27 @@ export function OutputRoutingSettingsSection(): React.ReactElement {
   const [saving, setSaving] = useState(false)
   const [testingTarget, setTestingTarget] = useState<string | null>(null)
 
-  const baseTargets = useMemo(() => targets.filter((target) => target.kind !== 'group'), [targets])
+  const baseTargets = useMemo(
+    () => targets.filter((target) => target.kind !== 'group'),
+    [targets]
+  )
 
   const load = useCallback(async (): Promise<void> => {
     setLoading(true)
     try {
       const [policyResult, targetResult, groupResult, accountResult] = await Promise.all([
-        routingInvoke('rex:getOutputRoutingPolicy'),
+        getRoutingPolicy(),
         window.rex.getAudioTargets(),
         window.rex.listSpeakerGroups(),
-        routingInvoke('rex:listMediaAccounts')
+        getMediaAccounts()
       ])
       if (!policyResult.ok || !policyResult.policy) {
         throw new Error(policyResult.error ?? 'Routing policy is unavailable')
       }
+      if (!targetResult.ok) throw new Error(targetResult.error ?? 'Audio targets are unavailable')
+      if (!groupResult.ok) throw new Error(groupResult.error ?? 'Speaker groups are unavailable')
+      if (!accountResult.ok) throw new Error(accountResult.error ?? 'Media accounts are unavailable')
+
       setPolicy(policyResult.policy)
       setTargets(targetResult.targets ?? [])
       setGroups(groupResult.groups ?? [])
@@ -131,40 +159,14 @@ export function OutputRoutingSettingsSection(): React.ReactElement {
     setPolicy((current) => (current ? { ...current, [field]: value } : current))
   }
 
-  async function savePolicy(): Promise<void> {
-    if (!policy) return
-    setSaving(true)
-    try {
-      const result = await routingInvoke('rex:updateOutputRoutingPolicy', policy)
-      if (!result.ok || !result.policy) throw new Error(result.error ?? 'Save failed')
-      setPolicy(result.policy)
-      addToast('Output routing saved', 'success')
-    } catch (error) {
-      addToast(`Failed to save output routing: ${String(error)}`, 'error')
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  async function testTarget(targetId: string): Promise<void> {
-    setTestingTarget(targetId)
-    try {
-      const result = await routingInvoke('rex:testOutputRoutingTarget', targetId)
-      if (!result.ok) throw new Error(result.error ?? 'Test playback failed')
-      addToast('Test playback sent', 'success')
-    } catch (error) {
-      addToast(String(error), 'error')
-    } finally {
-      setTestingTarget(null)
-    }
-  }
-
   function updateRule(index: number, patch: Partial<OutputRoutingRule>): void {
     if (!policy) return
-    const rules = policy.rules.map((rule, ruleIndex) =>
-      ruleIndex === index ? { ...rule, ...patch } : rule
+    setField(
+      'rules',
+      policy.rules.map((rule, ruleIndex) =>
+        ruleIndex === index ? { ...rule, ...patch } : rule
+      )
     )
-    setField('rules', rules)
   }
 
   function addRule(): void {
@@ -183,6 +185,34 @@ export function OutputRoutingSettingsSection(): React.ReactElement {
         fallback_target_id: null
       }
     ])
+  }
+
+  async function savePolicy(): Promise<void> {
+    if (!policy) return
+    setSaving(true)
+    try {
+      const result = await saveRoutingPolicy(policy)
+      if (!result.ok || !result.policy) throw new Error(result.error ?? 'Save failed')
+      setPolicy(result.policy)
+      addToast('Output routing saved', 'success')
+    } catch (error) {
+      addToast(`Failed to save output routing: ${String(error)}`, 'error')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function testTarget(targetId: string): Promise<void> {
+    setTestingTarget(targetId)
+    try {
+      const result = await testRoutingTarget(targetId)
+      if (!result.ok) throw new Error(result.error ?? 'Test playback failed')
+      addToast('Test playback sent', 'success')
+    } catch (error) {
+      addToast(String(error), 'error')
+    } finally {
+      setTestingTarget(null)
+    }
   }
 
   async function createGroup(): Promise<void> {
@@ -235,11 +265,11 @@ export function OutputRoutingSettingsSection(): React.ReactElement {
   return (
     <section className="px-6 pb-10 max-w-3xl">
       <div className="border-t border-border pt-6">
-        <div className="flex items-start justify-between gap-4 mb-5">
+        <div className="mb-5 flex items-start justify-between gap-4">
           <div>
             <h3 className="text-base font-semibold text-text-primary">Per-user routing</h3>
             <p className="mt-1 text-xs text-text-secondary">
-              These defaults belong to this Rex profile. Explicit requests such as “on the bedroom speaker” still win.
+              These defaults belong to this Rex profile. A target named in the request still wins.
             </p>
           </div>
           <button
@@ -260,7 +290,10 @@ export function OutputRoutingSettingsSection(): React.ReactElement {
             const volumeField = row.volume as VolumeField
             const fallbackMode = policy[fallbackField] as RoutingFallbackMode
             return (
-              <div key={row.kind} className="rounded-xl border border-border bg-surface-raised p-4">
+              <div
+                key={row.kind}
+                className="rounded-xl border border-border bg-surface-raised p-4"
+              >
                 <div className="mb-3 text-sm font-semibold text-text-primary">{row.label}</div>
                 <div className="grid gap-3 md:grid-cols-3">
                   <label className="text-xs text-text-secondary">
@@ -273,10 +306,13 @@ export function OutputRoutingSettingsSection(): React.ReactElement {
                     >
                       <option value="">No stored default</option>
                       {targets.map((target) => (
-                        <option key={target.id} value={target.id}>{targetLabel(target)}</option>
+                        <option key={target.id} value={target.id}>
+                          {targetLabel(target)}
+                        </option>
                       ))}
                     </select>
                   </label>
+
                   <label className="text-xs text-text-secondary">
                     If unavailable
                     <select
@@ -289,7 +325,8 @@ export function OutputRoutingSettingsSection(): React.ReactElement {
                             ? {
                                 ...current,
                                 [fallbackField]: mode,
-                                [fallbackTargetField]: mode === 'named' ? current[fallbackTargetField] : null
+                                [fallbackTargetField]:
+                                  mode === 'named' ? current[fallbackTargetField] : null
                               }
                             : current
                         )
@@ -301,6 +338,7 @@ export function OutputRoutingSettingsSection(): React.ReactElement {
                       <option value="named">Use another target</option>
                     </select>
                   </label>
+
                   <label className="text-xs text-text-secondary">
                     Target volume
                     <input
@@ -311,24 +349,32 @@ export function OutputRoutingSettingsSection(): React.ReactElement {
                       value={(policy[volumeField] as number | null) ?? ''}
                       placeholder="Keep current"
                       onChange={(event) =>
-                        setField(volumeField, event.target.value === '' ? null : Number(event.target.value))
+                        setField(
+                          volumeField,
+                          event.target.value === '' ? null : Number(event.target.value)
+                        )
                       }
                       className="mt-1 w-full rounded-lg border border-border bg-bg px-2 py-2 text-sm text-text-primary"
                     />
                   </label>
                 </div>
+
                 {fallbackMode === 'named' && (
                   <label className="mt-3 block text-xs text-text-secondary">
                     Fallback target
                     <select
                       aria-label={`${row.label} fallback target`}
                       value={(policy[fallbackTargetField] as string | null) ?? ''}
-                      onChange={(event) => setField(fallbackTargetField, event.target.value || null)}
+                      onChange={(event) =>
+                        setField(fallbackTargetField, event.target.value || null)
+                      }
                       className="mt-1 w-full rounded-lg border border-border bg-bg px-2 py-2 text-sm text-text-primary"
                     >
                       <option value="">Choose a target</option>
                       {targets.map((target) => (
-                        <option key={target.id} value={target.id}>{targetLabel(target)}</option>
+                        <option key={target.id} value={target.id}>
+                          {targetLabel(target)}
+                        </option>
                       ))}
                     </select>
                   </label>
@@ -338,7 +384,7 @@ export function OutputRoutingSettingsSection(): React.ReactElement {
           })}
         </div>
 
-        <div className="mt-5 rounded-xl border border-border bg-surface-raised p-4 space-y-4">
+        <div className="mt-5 space-y-4 rounded-xl border border-border bg-surface-raised p-4">
           <label className="flex items-center justify-between gap-3 text-sm text-text-primary">
             Prefer the endpoint that received an interactive media request
             <input
@@ -348,39 +394,40 @@ export function OutputRoutingSettingsSection(): React.ReactElement {
             />
           </label>
 
-          <div className="grid gap-3 md:grid-cols-2">
-            <label className="text-xs text-text-secondary">
-              Default media account
-              <select
-                aria-label="Default media account"
-                value={
-                  policy.default_media_provider && policy.default_media_account_id
-                    ? `${policy.default_media_provider}::${policy.default_media_account_id}`
-                    : ''
-                }
-                onChange={(event) => {
-                  const [provider, accountId] = event.target.value.split('::')
-                  setPolicy((current) =>
-                    current
-                      ? {
-                          ...current,
-                          default_media_provider: provider || null,
-                          default_media_account_id: accountId || null
-                        }
-                      : current
-                  )
-                }}
-                className="mt-1 w-full rounded-lg border border-border bg-bg px-2 py-2 text-sm text-text-primary"
-              >
-                <option value="">No account default</option>
-                {accounts.map((account) => (
-                  <option key={`${account.provider}:${account.account_id}`} value={`${account.provider}::${account.account_id}`}>
-                    {account.display_name} · {account.provider}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
+          <label className="block text-xs text-text-secondary">
+            Default media account
+            <select
+              aria-label="Default media account"
+              value={
+                policy.default_media_provider && policy.default_media_account_id
+                  ? `${policy.default_media_provider}::${policy.default_media_account_id}`
+                  : ''
+              }
+              onChange={(event) => {
+                const [provider, accountId] = event.target.value.split('::')
+                setPolicy((current) =>
+                  current
+                    ? {
+                        ...current,
+                        default_media_provider: provider || null,
+                        default_media_account_id: accountId || null
+                      }
+                    : current
+                )
+              }}
+              className="mt-1 w-full rounded-lg border border-border bg-bg px-2 py-2 text-sm text-text-primary"
+            >
+              <option value="">No account default</option>
+              {accounts.map((account) => (
+                <option
+                  key={`${account.provider}:${account.account_id}`}
+                  value={`${account.provider}::${account.account_id}`}
+                >
+                  {account.display_name} · {account.provider}
+                </option>
+              ))}
+            </select>
+          </label>
 
           <div>
             <label className="flex items-center gap-2 text-sm text-text-primary">
@@ -388,35 +435,66 @@ export function OutputRoutingSettingsSection(): React.ReactElement {
                 type="checkbox"
                 checked={policy.quiet_hours.enabled}
                 onChange={(event) =>
-                  setField('quiet_hours', { ...policy.quiet_hours, enabled: event.target.checked })
+                  setField('quiet_hours', {
+                    ...policy.quiet_hours,
+                    enabled: event.target.checked
+                  })
                 }
               />
               Quiet hours for optional spoken/media output
             </label>
             {policy.quiet_hours.enabled && (
-              <div className="mt-3 grid gap-3 md:grid-cols-2">
-                <label className="text-xs text-text-secondary">
-                  Start
-                  <input
-                    type="time"
-                    value={policy.quiet_hours.start_local_time.slice(0, 5)}
-                    onChange={(event) =>
-                      setField('quiet_hours', { ...policy.quiet_hours, start_local_time: event.target.value })
-                    }
-                    className="mt-1 w-full rounded-lg border border-border bg-bg px-2 py-2 text-sm text-text-primary"
-                  />
-                </label>
-                <label className="text-xs text-text-secondary">
-                  End
-                  <input
-                    type="time"
-                    value={policy.quiet_hours.end_local_time.slice(0, 5)}
-                    onChange={(event) =>
-                      setField('quiet_hours', { ...policy.quiet_hours, end_local_time: event.target.value })
-                    }
-                    className="mt-1 w-full rounded-lg border border-border bg-bg px-2 py-2 text-sm text-text-primary"
-                  />
-                </label>
+              <div className="mt-3 space-y-3">
+                <div className="grid gap-3 md:grid-cols-2">
+                  <label className="text-xs text-text-secondary">
+                    Start
+                    <input
+                      type="time"
+                      value={policy.quiet_hours.start_local_time.slice(0, 5)}
+                      onChange={(event) =>
+                        setField('quiet_hours', {
+                          ...policy.quiet_hours,
+                          start_local_time: event.target.value
+                        })
+                      }
+                      className="mt-1 w-full rounded-lg border border-border bg-bg px-2 py-2 text-sm text-text-primary"
+                    />
+                  </label>
+                  <label className="text-xs text-text-secondary">
+                    End
+                    <input
+                      type="time"
+                      value={policy.quiet_hours.end_local_time.slice(0, 5)}
+                      onChange={(event) =>
+                        setField('quiet_hours', {
+                          ...policy.quiet_hours,
+                          end_local_time: event.target.value
+                        })
+                      }
+                      className="mt-1 w-full rounded-lg border border-border bg-bg px-2 py-2 text-sm text-text-primary"
+                    />
+                  </label>
+                </div>
+                <div className="flex flex-wrap gap-3">
+                  {WEEKDAYS.map(([label, day], index) => (
+                    <label
+                      key={`${label}-${index}`}
+                      className="flex items-center gap-1 text-xs text-text-secondary"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={policy.quiet_hours.days_of_week.includes(day)}
+                        onChange={() =>
+                          setField('quiet_hours', {
+                            ...policy.quiet_hours,
+                            days_of_week: toggleDay(policy.quiet_hours.days_of_week, day)
+                          })
+                        }
+                      />
+                      {label}
+                    </label>
+                  ))}
+                </div>
               </div>
             )}
           </div>
@@ -426,7 +504,9 @@ export function OutputRoutingSettingsSection(): React.ReactElement {
           <div className="flex items-center justify-between gap-3">
             <div>
               <h4 className="text-sm font-semibold text-text-primary">Conditional routing</h4>
-              <p className="mt-1 text-xs text-text-secondary">Time/day rules are checked before the stored default.</p>
+              <p className="mt-1 text-xs text-text-secondary">
+                Matching day/time rules are checked before the stored default.
+              </p>
             </div>
             <button
               type="button"
@@ -437,14 +517,22 @@ export function OutputRoutingSettingsSection(): React.ReactElement {
               Add rule
             </button>
           </div>
+
           <div className="mt-4 space-y-3">
             {policy.rules.map((rule, index) => (
-              <div key={`${rule.output_kind}-${index}`} className="rounded-lg border border-border bg-bg p-3">
+              <div
+                key={`${rule.output_kind}-${index}`}
+                className="rounded-lg border border-border bg-bg p-3"
+              >
                 <div className="grid gap-2 md:grid-cols-2">
                   <select
                     aria-label={`Rule ${index + 1} output kind`}
                     value={rule.output_kind}
-                    onChange={(event) => updateRule(index, { output_kind: event.target.value as OutputRoutingRule['output_kind'] })}
+                    onChange={(event) =>
+                      updateRule(index, {
+                        output_kind: event.target.value as OutputRoutingRule['output_kind']
+                      })
+                    }
                     className="rounded-lg border border-border bg-surface-raised px-2 py-2 text-sm text-text-primary"
                   >
                     <option value="spoken_response">Spoken responses</option>
@@ -459,30 +547,29 @@ export function OutputRoutingSettingsSection(): React.ReactElement {
                     className="rounded-lg border border-border bg-surface-raised px-2 py-2 text-sm text-text-primary"
                   >
                     {targets.map((target) => (
-                      <option key={target.id} value={target.id}>{targetLabel(target)}</option>
+                      <option key={target.id} value={target.id}>
+                        {targetLabel(target)}
+                      </option>
                     ))}
                   </select>
                 </div>
+
                 <div className="mt-3 flex flex-wrap items-center gap-2">
-                  {WEEKDAYS.map(([label, day], dayIndex) => {
-                    const checked = rule.days_of_week.includes(day)
-                    return (
-                      <label key={`${label}-${dayIndex}`} className="flex items-center gap-1 text-xs text-text-secondary">
-                        <input
-                          type="checkbox"
-                          checked={checked}
-                          onChange={() =>
-                            updateRule(index, {
-                              days_of_week: checked
-                                ? rule.days_of_week.filter((value) => value !== day)
-                                : [...rule.days_of_week, day].sort()
-                            })
-                          }
-                        />
-                        {label}
-                      </label>
-                    )
-                  })}
+                  {WEEKDAYS.map(([label, day], dayIndex) => (
+                    <label
+                      key={`${label}-${dayIndex}`}
+                      className="flex items-center gap-1 text-xs text-text-secondary"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={rule.days_of_week.includes(day)}
+                        onChange={() =>
+                          updateRule(index, { days_of_week: toggleDay(rule.days_of_week, day) })
+                        }
+                      />
+                      {label}
+                    </label>
+                  ))}
                   <input
                     aria-label={`Rule ${index + 1} start time`}
                     type="time"
@@ -490,7 +577,9 @@ export function OutputRoutingSettingsSection(): React.ReactElement {
                     onChange={(event) =>
                       updateRule(index, {
                         start_local_time: event.target.value || null,
-                        end_local_time: event.target.value ? rule.end_local_time ?? '23:59' : null
+                        end_local_time: event.target.value
+                          ? rule.end_local_time ?? '23:59'
+                          : null
                       })
                     }
                     className="rounded border border-border bg-surface-raised px-2 py-1 text-xs text-text-primary"
@@ -502,14 +591,71 @@ export function OutputRoutingSettingsSection(): React.ReactElement {
                     onChange={(event) =>
                       updateRule(index, {
                         end_local_time: event.target.value || null,
-                        start_local_time: event.target.value ? rule.start_local_time ?? '00:00' : null
+                        start_local_time: event.target.value
+                          ? rule.start_local_time ?? '00:00'
+                          : null
                       })
                     }
                     className="rounded border border-border bg-surface-raised px-2 py-1 text-xs text-text-primary"
                   />
+                  <input
+                    aria-label={`Rule ${index + 1} volume`}
+                    type="number"
+                    min={0}
+                    max={100}
+                    value={rule.target_volume ?? ''}
+                    placeholder="Volume"
+                    onChange={(event) =>
+                      updateRule(index, {
+                        target_volume: event.target.value === '' ? null : Number(event.target.value)
+                      })
+                    }
+                    className="w-20 rounded border border-border bg-surface-raised px-2 py-1 text-xs text-text-primary"
+                  />
+                  <select
+                    aria-label={`Rule ${index + 1} fallback mode`}
+                    value={rule.fallback_mode ?? ''}
+                    onChange={(event) =>
+                      updateRule(index, {
+                        fallback_mode: event.target.value
+                          ? (event.target.value as RoutingFallbackMode)
+                          : null,
+                        fallback_target_id:
+                          event.target.value === 'named' ? rule.fallback_target_id : null
+                      })
+                    }
+                    className="rounded border border-border bg-surface-raised px-2 py-1 text-xs text-text-primary"
+                  >
+                    <option value="">Use default fallback</option>
+                    <option value="none">No fallback</option>
+                    <option value="ask">Ask</option>
+                    <option value="named">Named target</option>
+                  </select>
+                  {rule.fallback_mode === 'named' && (
+                    <select
+                      aria-label={`Rule ${index + 1} fallback target`}
+                      value={rule.fallback_target_id ?? ''}
+                      onChange={(event) =>
+                        updateRule(index, { fallback_target_id: event.target.value || null })
+                      }
+                      className="rounded border border-border bg-surface-raised px-2 py-1 text-xs text-text-primary"
+                    >
+                      <option value="">Choose fallback</option>
+                      {targets.map((target) => (
+                        <option key={target.id} value={target.id}>
+                          {target.name}
+                        </option>
+                      ))}
+                    </select>
+                  )}
                   <button
                     type="button"
-                    onClick={() => setField('rules', policy.rules.filter((_, ruleIndex) => ruleIndex !== index))}
+                    onClick={() =>
+                      setField(
+                        'rules',
+                        policy.rules.filter((_, ruleIndex) => ruleIndex !== index)
+                      )
+                    }
                     className="ml-auto text-xs text-danger"
                   >
                     Remove
@@ -527,10 +673,15 @@ export function OutputRoutingSettingsSection(): React.ReactElement {
           <h4 className="text-sm font-semibold text-text-primary">Targets and test playback</h4>
           <div className="mt-3 space-y-2">
             {targets.map((target) => (
-              <div key={target.id} className="flex items-center justify-between gap-3 rounded-lg border border-border bg-bg p-3">
+              <div
+                key={target.id}
+                className="flex items-center justify-between gap-3 rounded-lg border border-border bg-bg p-3"
+              >
                 <div className="min-w-0">
                   <div className="truncate text-sm text-text-primary">{target.name}</div>
-                  <div className="text-xs text-text-secondary">{target.provider} · {target.online ? target.health : 'offline'}</div>
+                  <div className="text-xs text-text-secondary">
+                    {target.provider} · {target.online ? target.health : 'offline'}
+                  </div>
                 </div>
                 <button
                   type="button"
@@ -556,7 +707,10 @@ export function OutputRoutingSettingsSection(): React.ReactElement {
             />
             <div className="mt-2 flex flex-wrap gap-3">
               {baseTargets.map((target) => (
-                <label key={target.id} className="flex items-center gap-1 text-xs text-text-secondary">
+                <label
+                  key={target.id}
+                  className="flex items-center gap-1 text-xs text-text-secondary"
+                >
                   <input
                     type="checkbox"
                     checked={newGroupMembers.includes(target.id)}
@@ -584,7 +738,10 @@ export function OutputRoutingSettingsSection(): React.ReactElement {
 
           <div className="mt-3 space-y-3">
             {groups.map((group) => {
-              const draft = groupDrafts[group.id] ?? { name: group.name, memberIds: [...group.member_ids] }
+              const draft = groupDrafts[group.id] ?? {
+                name: group.name,
+                memberIds: [...group.member_ids]
+              }
               return (
                 <div key={group.id} className="rounded-lg border border-border bg-bg p-3">
                   <input
@@ -600,7 +757,10 @@ export function OutputRoutingSettingsSection(): React.ReactElement {
                   />
                   <div className="mt-2 flex flex-wrap gap-3">
                     {baseTargets.map((target) => (
-                      <label key={target.id} className="flex items-center gap-1 text-xs text-text-secondary">
+                      <label
+                        key={target.id}
+                        className="flex items-center gap-1 text-xs text-text-secondary"
+                      >
                         <input
                           type="checkbox"
                           checked={draft.memberIds.includes(target.id)}
