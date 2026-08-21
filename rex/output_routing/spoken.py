@@ -42,6 +42,9 @@ async def deliver_spoken_response(
     if route.target_id is None:
         await _await_if_needed(local_speak(text))
         return DeliveryResult(True, None, "local_default", None)
+    if route.target_id.startswith("local:"):
+        await _await_if_needed(local_speak(text))
+        return DeliveryResult(True, route.target_id, route.reason, route.target_volume)
 
     try:
         delivered = bool(await _await_if_needed(remote_sender(route.target_id, text)))
