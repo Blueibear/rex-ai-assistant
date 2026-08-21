@@ -20,6 +20,26 @@ def set_media_service(service: MediaService | None) -> None:
     with _service_lock:
         _media_service = service
 
+    # Output routing consumes the same authorization-aware registry snapshot as
+    # media execution. Keep this adapter here so Assistant does not duplicate a
+    # second target-discovery stack merely to configure routing policy.
+    from rex.output_routing.runtime import set_output_registry_provider
+
+    if service is None:
+        set_output_registry_provider(None)
+        return
+
+    def current_registry():
+        refresher = getattr(service, "_refresh_registry", None)
+        if callable(refresher):
+            refresher()
+        registry = getattr(service, "_registry", None)
+        if registry is None:
+            raise RuntimeError("Canonical media registry is unavailable")
+        return registry
+
+    set_output_registry_provider(current_registry)
+
 
 def _get_media_service() -> MediaService:
     with _service_lock:
@@ -103,10 +123,7 @@ def media_read(
     result = _get_media_service().execute(command, user_id=owner, origin_device_id=origin_device_id)
     if result.outcome != "read" or result.state is None:
         raise ValueError(result.message or f"Media read failed: {result.outcome}")
-    return {
-        "target_id": result.requested_target_id,
-        "state": _state_payload(result.state),
-    }
+    return {"target_id": result.requested_target_id, "state": _state_payload(result.state)}
 
 
 def media_manage(
@@ -182,9 +199,4 @@ def verify_media_mutation(args: dict[str, Any], output: Any) -> bool:
         return False
 
 
-__all__ = [
-    "media_manage",
-    "media_read",
-    "set_media_service",
-    "verify_media_mutation",
-]
+__all__ = ["media_manage", "media_read", "set_media_service", "verify_media_mutation"]
