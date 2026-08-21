@@ -6,6 +6,8 @@ from threading import RLock
 from typing import Any
 
 from rex.identity import validate_user_id
+from rex.output_routing.execution import resolve_media_command
+from rex.output_routing.runtime import get_output_routing_service, user_local_now
 
 from .parser import MediaCommand, MediaCommandAction, parse_media_command
 from .service import MediaService, MediaServiceResult
@@ -20,9 +22,6 @@ def set_media_service(service: MediaService | None) -> None:
     with _service_lock:
         _media_service = service
 
-    # Output routing consumes the same authorization-aware registry snapshot as
-    # media execution. Keep this adapter here so Assistant does not duplicate a
-    # second target-discovery stack merely to configure routing policy.
     from rex.output_routing.runtime import set_output_registry_provider
 
     if service is None:
@@ -58,18 +57,38 @@ def _command_from_request(
     level: int | None,
 ) -> MediaCommand:
     if action:
-        command = MediaCommand(action=action, query=query, target_text=target_text, level=level)
-    else:
-        parsed = parse_media_command(transcript)
-        if parsed is None:
-            raise ValueError("I couldn't identify a supported media command")
-        command = MediaCommand(
-            action=parsed.action,
-            query=query if query is not None else parsed.query,
-            target_text=target_text if target_text is not None else parsed.target_text,
-            level=level if level is not None else parsed.level,
-        )
-    return command
+        return MediaCommand(action=action, query=query, target_text=target_text, level=level)
+    parsed = parse_media_command(transcript)
+    if parsed is None:
+        raise ValueError("I couldn't identify a supported media command")
+    return MediaCommand(
+        action=parsed.action,
+        query=query if query is not None else parsed.query,
+        target_text=target_text if target_text is not None else parsed.target_text,
+        level=level if level is not None else parsed.level,
+    )
+
+
+def _apply_output_route(
+    command: MediaCommand,
+    *,
+    owner: str,
+    origin_device_id: str | None,
+) -> MediaCommand:
+    """Apply current output policy only when the request omitted a target."""
+    if command.target_text is not None:
+        return command
+    try:
+        routing = get_output_routing_service()
+    except RuntimeError:
+        return command
+    return resolve_media_command(
+        routing,
+        command,
+        user_id=owner,
+        origin_device_id=origin_device_id,
+        at=user_local_now(owner),
+    )
 
 
 def _state_payload(state: Any) -> dict[str, Any] | None:
@@ -118,6 +137,7 @@ def media_read(
         target_text=target_text,
         level=level,
     )
+    command = _apply_output_route(command, owner=owner, origin_device_id=origin_device_id)
     if command.action is not MediaCommandAction.QUERY_STATE:
         raise ValueError("This media request changes playback; use media_manage")
     result = _get_media_service().execute(command, user_id=owner, origin_device_id=origin_device_id)
@@ -145,6 +165,7 @@ def media_manage(
         target_text=target_text,
         level=level,
     )
+    command = _apply_output_route(command, owner=owner, origin_device_id=origin_device_id)
     if command.action is MediaCommandAction.QUERY_STATE:
         raise ValueError("This media request is read-only; use media_read")
     result = _get_media_service().execute(command, user_id=owner, origin_device_id=origin_device_id)
