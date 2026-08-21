@@ -5,6 +5,7 @@ import { AudioOutputSettingsSection } from './settings/AudioOutputSettingsSectio
 import { GeneralSettingsSection } from './settings/GeneralSettingsSection'
 import { IntegrationsSettingsSection } from './settings/integrations/IntegrationsSettingsSection'
 import { NotificationsSettingsSection } from './settings/NotificationsSettingsSection'
+import { OutputRoutingSettingsSection } from './settings/OutputRoutingSettingsSection'
 import { SystemSettingsSection } from './settings/SystemSettingsSection'
 import { UsersSettingsSection } from './settings/UsersSettingsSection'
 import { VoiceSettingsSection } from './settings/voice/VoiceSettingsSection'
@@ -134,7 +135,12 @@ function renderPanel(categoryId: CategoryId): React.ReactElement {
     case 'users':
       return <UsersSettingsSection />
     case 'audio':
-      return <AudioOutputSettingsSection />
+      return (
+        <>
+          <AudioOutputSettingsSection />
+          <OutputRoutingSettingsSection />
+        </>
+      )
     case 'system':
       return <SystemSettingsSection />
     case 'about':
@@ -143,7 +149,9 @@ function renderPanel(categoryId: CategoryId): React.ReactElement {
 }
 
 export function SettingsPage(): React.ReactElement {
-  const [activeCategory, setActiveCategory] = useState<CategoryId>(() => settingsCategoryFromHash(window.location.hash))
+  const [activeCategory, setActiveCategory] = useState<CategoryId>(() =>
+    settingsCategoryFromHash(window.location.hash)
+  )
 
   return (
     <div className="flex h-full overflow-hidden">
