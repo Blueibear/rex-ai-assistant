@@ -1,0 +1,86 @@
+name: US-122 Python Diagnostics
+
+on:
+  pull_request:
+    branches: [master]
+
+permissions:
+  contents: read
+
+jobs:
+  python-diagnostics:
+    name: US-122 Python failure diagnostics
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/lib/android /usr/local/share/boost
+          sudo apt-get clean
+          pip cache purge || true
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            ffmpeg \
+            libsndfile1 \
+            libasound2-dev \
+            portaudio19-dev
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade "pip>=26.1" "setuptools>=78.1.1" wheel
+          pip install -e ".[dev]"
+
+      - name: Run focused Task 2 regression matrix
+        id: focused
+        continue-on-error: true
+        shell: bash
+        run: |
+          pytest -q \
+            tests/output_routing/test_account_resolution.py \
+            tests/test_voice_identity_fallback.py \
+            tests/rex2/test_turn_contracts.py \
+            tests/test_user_profile_service.py \
+            > us122-focused.txt 2>&1
+
+      - name: Run full Python gate and capture output
+        id: full
+        continue-on-error: true
+        shell: bash
+        env:
+          REX_FILE_LOGGING_ENABLED: "false"
+        run: |
+          pytest -m "not slow and not audio and not gpu" -rs \
+            --cov=rex --cov-fail-under=75 \
+            --cov-report=term-missing --cov-report=xml \
+            > us122-full.txt 2>&1
+
+      - name: Upload diagnostic logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: us122-python-diagnostics
+          path: |
+            us122-focused.txt
+            us122-full.txt
+            coverage.xml
+          if-no-files-found: ignore
+
+      - name: Preserve diagnostic failure state
+        if: always()
+        shell: bash
+        run: |
+          if [[ "${{ steps.focused.outcome }}" != "success" || "${{ steps.full.outcome }}" != "success" ]]; then
+            echo "US-122 diagnostics reproduced a Python test/coverage failure."
+            exit 1
+          fi
