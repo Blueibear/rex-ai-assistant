@@ -178,17 +178,22 @@ class OpenClawReconnectController:
 
     def _background_reconnect(self) -> None:
         successor: _DisconnectReservation | None = None
+        with self._lock:
+            starting_generation = self._generation
+        recovered = False
         try:
-            self.run_until_recovered()
+            recovered = self.run_until_recovered()
         finally:
             current = threading.current_thread()
             with self._lock:
+                generation_changed = self._generation != starting_generation
                 if self._worker is current:
                     self._worker = None
                     if (
                         self._auto_reconnect
                         and self._state is OpenClawReconnectState.DISCONNECTED
                         and not self._stop.is_set()
+                        and (recovered or generation_changed)
                     ):
                         successor = self._begin_disconnect_locked("reconnect_successor")
             if successor is not None:
