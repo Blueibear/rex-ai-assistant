@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from datetime import UTC, datetime
 from threading import RLock
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from rex.media.registry import AudioTargetRegistry
 
@@ -34,4 +36,34 @@ def get_output_routing_service() -> OutputRoutingService:
     return OutputRoutingService(registry)
 
 
-__all__ = ["get_output_routing_service", "set_output_registry_provider"]
+def user_local_now(user_id: str) -> datetime:
+    """Return current time in the user's configured timezone, or UTC safely."""
+    timezone_name: str | None = None
+    try:
+        from rex.user_profile_service import UserProfileService
+
+        profile = UserProfileService().get_profile(user_id)
+        candidate = profile.preferences.get("timezone")
+        if isinstance(candidate, str) and candidate.strip():
+            timezone_name = candidate.strip()
+    except Exception:
+        timezone_name = None
+    if not timezone_name:
+        try:
+            from rex.geolocation import get_cached_timezone
+
+            timezone_name = get_cached_timezone()
+        except Exception:
+            timezone_name = None
+    try:
+        zone = ZoneInfo(timezone_name or "UTC")
+    except ZoneInfoNotFoundError:
+        zone = ZoneInfo("UTC")
+    return datetime.now(UTC).astimezone(zone)
+
+
+__all__ = [
+    "get_output_routing_service",
+    "set_output_registry_provider",
+    "user_local_now",
+]
