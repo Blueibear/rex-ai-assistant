@@ -1,23 +1,40 @@
 from __future__ import annotations
 
+from types import SimpleNamespace
+
 import pytest
 
 from rex.audio.speaker_discovery import DiscoveredSpeaker
-from rex.voice.tts import TextToSpeech
 from rex.voice_loop import _direct_smart_speaker_speak
 
 
 @pytest.mark.asyncio
 async def test_direct_smart_speaker_route_reuses_existing_xtts_wav_path(monkeypatch) -> None:
-    tts = TextToSpeech.__new__(TextToSpeech)
-    tts._provider = "xtts"
-    tts._tts_output_device = None
-    observed: list[tuple[str, str | None]] = []
+    source_tts = SimpleNamespace(
+        _provider="xtts",
+        _language="en",
+        _default_speaker="voice.wav",
+    )
+    routed_devices: list[str | None] = []
 
     async def original_speak(text: str) -> None:
-        # Referencing tts keeps the canonical engine in the callback closure,
-        # matching rex.voice.builder's normal _speak_for_callback shape.
-        observed.append((text, tts._tts_output_device))
+        _ = (text, source_tts._provider)
+
+    class DedicatedTTS:
+        def __init__(self, *, language: str, default_speaker: str | None = None) -> None:
+            assert language == "en"
+            assert default_speaker == "voice.wav"
+            self._provider = "xtts"
+            self._tts_output_device: str | None = None
+
+        def _try_smart_speaker(self, _wav_path: str) -> bool:
+            routed_devices.append(self._tts_output_device)
+            return True
+
+        async def speak(self, _text: str, *, speaker_wav: str | None = None):
+            assert speaker_wav == "voice.wav"
+            self._try_smart_speaker("reply.wav")
+            return {"path_used": "xtts"}
 
     class Discovery:
         def get_cached_speakers(self):
@@ -30,6 +47,7 @@ async def test_direct_smart_speaker_route_reuses_existing_xtts_wav_path(monkeypa
                 )
             ]
 
+    monkeypatch.setattr("rex.voice_loop.TextToSpeech", DedicatedTTS)
     monkeypatch.setattr(
         "rex.audio.speaker_discovery.get_speaker_discovery",
         lambda: Discovery(),
@@ -42,20 +60,21 @@ async def test_direct_smart_speaker_route_reuses_existing_xtts_wav_path(monkeypa
     )
 
     assert delivered is True
-    assert observed == [("Hello from Rex", "Living Room")]
-    assert tts._tts_output_device is None
+    assert routed_devices == ["Living Room"]
 
 
 @pytest.mark.asyncio
 async def test_direct_smart_speaker_route_fails_closed_when_current_tts_cannot_emit_wav() -> None:
-    tts = TextToSpeech.__new__(TextToSpeech)
-    tts._provider = "edge"
-    tts._tts_output_device = None
+    source_tts = SimpleNamespace(
+        _provider="edge",
+        _language="en",
+        _default_speaker=None,
+    )
     spoken: list[str] = []
 
     async def original_speak(text: str) -> None:
         spoken.append(text)
-        _ = tts._provider
+        _ = source_tts._provider
 
     delivered = await _direct_smart_speaker_speak(
         "sonos:192.168.1.50",
