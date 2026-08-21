@@ -34,20 +34,12 @@ from rex.wake_acknowledgment import ensure_wake_acknowledgment_sound  # noqa: F4
 
 from .config import settings  # noqa: F401  (re-export: patched in tests)
 
-# Suppress torio FFmpeg extension warnings — FFmpeg is not required for audio
-# capture/playback (sounddevice handles that).  It is only used internally by
-# Coqui XTTS; the XTTS fallback path handles the case where it is absent.
 warnings.filterwarnings("ignore", message=".*FFmpeg extension.*")
 warnings.filterwarnings("ignore", message=".*libtorio.*")
 warnings.filterwarnings("ignore", category=RuntimeWarning, module="torio")
 
 logger = logging.getLogger(__name__)
 
-# ---------------------------------------------------------------------------
-# Re-exports (US-REM-028). Order matters: the voice modules below resolve
-# patchable names (settings, logger, sa, lazy importers, classes) through
-# this module at call time, so the bindings above must exist first.
-# ---------------------------------------------------------------------------
 from rex.voice._types import (  # noqa: E402,F401
     _USE_CONFIG_LANGUAGE,
     AudioArray,
@@ -72,7 +64,7 @@ from rex.voice.audio_utils import (  # noqa: E402,F401
 from rex.voice.builder import (  # noqa: E402,F401
     _build_voice_id_callback,
     _resolve_voice_reference,
-    build_voice_loop,
+    build_voice_loop as _build_voice_loop_impl,
 )
 from rex.voice.loop import VoiceLoop  # noqa: E402,F401
 from rex.voice.microphone import AsyncMicrophone  # noqa: E402,F401
@@ -105,15 +97,78 @@ from rex.voice.transcripts import (  # noqa: E402,F401
 )
 from rex.voice.tts import SynthesizedAudio, TextToSpeech  # noqa: E402,F401
 
-# Optional-dependency bindings live on this module (original behavior): tests
-# stub ``rex.voice_loop.sa`` / ``rex.voice_loop.sd``, and a fresh import of
-# this module with numpy blocked must fall back to ``Any`` for# ``_NDArray``.
 np = _lazy_import_numpy()
 sa = _lazy_import_simpleaudio()
 sd = None
-
-# Backwards-compatible runtime alias used by optional-import tests.
 _NDArray = np.ndarray if np is not None else Any
+
+
+def build_voice_loop(assistant, *args: Any, **kwargs: Any) -> VoiceLoop:
+    """Build the canonical loop and apply user-scoped spoken-output routing."""
+    origin_device_id = kwargs.pop("origin_device_id", None)
+    loop = _build_voice_loop_impl(assistant, *args, **kwargs)
+    user_id = getattr(assistant, "user_id", None)
+    if not isinstance(user_id, str) or not user_id:
+        return loop
+
+    original_speak = loop._speak
+    original_streaming = loop._speak_streaming
+
+    async def routed_speak(text: str) -> None:
+        from rex.output_routing.runtime import get_output_routing_service, user_local_now
+        from rex.output_routing.spoken import deliver_spoken_response, send_remote_spoken_text
+
+        try:
+            routing = get_output_routing_service()
+        except RuntimeError:
+            await original_speak(text)
+            return
+        result = await deliver_spoken_response(
+            text,
+            routing=routing,
+            user_id=user_id,
+            origin_device_id=origin_device_id,
+            at=user_local_now(user_id),
+            remote_sender=send_remote_spoken_text,
+            local_speak=original_speak,
+        )
+        if not result.delivered:
+            raise TextToSpeechError(
+                f"Spoken response target delivery failed: {result.reason}"
+            )
+
+    async def routed_streaming(sentences) -> None:  # noqa: ANN001
+        if original_streaming is None:
+            parts = [part async for part in sentences]
+            if parts:
+                await routed_speak(" ".join(parts))
+            return
+        from rex.output_routing.execution import resolve_spoken_response
+        from rex.output_routing.runtime import get_output_routing_service, user_local_now
+
+        try:
+            routing = get_output_routing_service()
+            route = resolve_spoken_response(
+                routing,
+                user_id=user_id,
+                origin_device_id=origin_device_id,
+                at=user_local_now(user_id),
+            )
+        except RuntimeError:
+            await original_streaming(sentences)
+            return
+        if route.target_id is None or route.suppressed:
+            await original_streaming(sentences)
+            return
+        parts = [part async for part in sentences]
+        if parts:
+            await routed_speak(" ".join(parts))
+
+    loop._speak = routed_speak
+    if original_streaming is not None:
+        loop._speak_streaming = routed_streaming
+    return loop
+
 
 __all__ = [
     "AsyncMicrophone",
