@@ -8,7 +8,7 @@ from rex.output_routing.service import OutputRoutingService
 from tests.mobile_api.conftest import auth_header, create_user, paired_login_tokens
 
 
-def _backend(tmp_path):
+def _backend(tmp_path, user_id: str, other_user_id: str | None = None):
     target = AudioTarget(
         id="ha:media_player.kitchen",
         native_id="media_player.kitchen",
@@ -21,14 +21,17 @@ def _backend(tmp_path):
         online=True,
         health="healthy",
     )
+    authorized = {user_id: {target.id}}
+    if other_user_id is not None:
+        authorized[other_user_id] = {target.id}
     registry = AudioTargetRegistry(
         (target,),
-        authorized_target_ids={"james": {target.id}, "cole": {target.id}},
+        authorized_target_ids=authorized,
     )
     routing = OutputRoutingService(registry, root=tmp_path / "routing")
     accounts = MediaAccountStore(tmp_path / "accounts")
     accounts.put(
-        "james",
+        user_id,
         "apple_music",
         "main",
         generate_credential_ref(),
@@ -40,14 +43,14 @@ def _backend(tmp_path):
 def test_mobile_output_policy_is_user_bound_and_shared_with_backend(
     client, monkeypatch, tmp_path
 ) -> None:
-    create_user("james", "pw-123456")
+    user_id = create_user("james", "pw-123456")
     tokens = paired_login_tokens(
         client,
         "james",
         "pw-123456",
         scopes=["settings.read", "settings.write"],
     )
-    backend = _backend(tmp_path)
+    backend = _backend(tmp_path, user_id)
     monkeypatch.setattr(
         "rex.mobile_api.routes.settings._build_routing_backend",
         lambda: backend,
@@ -60,7 +63,7 @@ def test_mobile_output_policy_is_user_bound_and_shared_with_backend(
     )
     assert response.status_code == 200, response.get_json()
     assert response.get_json()["policy"]["media_target_id"] == "ha:media_player.kitchen"
-    assert backend[1].get_policy("james").media_target_id == "ha:media_player.kitchen"
+    assert backend[1].get_policy(user_id).media_target_id == "ha:media_player.kitchen"
 
     loaded = client.get(
         "/mobile/settings/output-routing",
@@ -71,14 +74,15 @@ def test_mobile_output_policy_is_user_bound_and_shared_with_backend(
 
 
 def test_mobile_cannot_write_another_users_routing_policy(client, monkeypatch, tmp_path) -> None:
-    create_user("james", "pw-123456")
+    user_id = create_user("james", "pw-123456")
+    other_user_id = create_user("cole", "pw-123456")
     tokens = paired_login_tokens(
         client,
         "james",
         "pw-123456",
         scopes=["settings.read", "settings.write"],
     )
-    backend = _backend(tmp_path)
+    backend = _backend(tmp_path, user_id, other_user_id)
     monkeypatch.setattr(
         "rex.mobile_api.routes.settings._build_routing_backend",
         lambda: backend,
@@ -87,22 +91,22 @@ def test_mobile_cannot_write_another_users_routing_policy(client, monkeypatch, t
     response = client.put(
         "/mobile/settings/output-routing",
         headers=auth_header(tokens["access_token"]),
-        json={"user_id": "cole", "media_target_id": "ha:media_player.kitchen"},
+        json={"user_id": other_user_id, "media_target_id": "ha:media_player.kitchen"},
     )
     assert response.status_code == 403
-    assert backend[1].get_policy("james").media_target_id is None
-    assert backend[1].get_policy("cole").media_target_id is None
+    assert backend[1].get_policy(user_id).media_target_id is None
+    assert backend[1].get_policy(other_user_id).media_target_id is None
 
 
 def test_mobile_settings_write_scope_is_required(client, monkeypatch, tmp_path) -> None:
-    create_user("james", "pw-123456")
+    user_id = create_user("james", "pw-123456")
     tokens = paired_login_tokens(
         client,
         "james",
         "pw-123456",
         scopes=["settings.read"],
     )
-    backend = _backend(tmp_path)
+    backend = _backend(tmp_path, user_id)
     monkeypatch.setattr(
         "rex.mobile_api.routes.settings._build_routing_backend",
         lambda: backend,
@@ -117,14 +121,14 @@ def test_mobile_settings_write_scope_is_required(client, monkeypatch, tmp_path) 
 
 
 def test_mobile_media_accounts_expose_safe_metadata_only(client, monkeypatch, tmp_path) -> None:
-    create_user("james", "pw-123456")
+    user_id = create_user("james", "pw-123456")
     tokens = paired_login_tokens(
         client,
         "james",
         "pw-123456",
         scopes=["settings.read"],
     )
-    backend = _backend(tmp_path)
+    backend = _backend(tmp_path, user_id)
     monkeypatch.setattr(
         "rex.mobile_api.routes.settings._build_routing_backend",
         lambda: backend,
