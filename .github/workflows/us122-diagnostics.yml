@@ -50,6 +50,8 @@ jobs:
             tests/output_routing/test_account_resolution.py \
             tests/test_voice_identity_fallback.py \
             tests/rex2/test_turn_contracts.py \
+            tests/rex2/test_turn_interface_parity.py \
+            tests/media/test_media_turn_routing.py \
             tests/test_user_profile_service.py \
             > us122-focused.txt 2>&1
 
