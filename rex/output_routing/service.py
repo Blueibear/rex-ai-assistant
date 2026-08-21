@@ -93,9 +93,7 @@ def _rule_to_dict(rule: RoutingRule) -> dict[str, Any]:
             else None
         ),
         "target_volume": rule.target_volume,
-        "fallback_mode": (
-            rule.fallback_mode.value if rule.fallback_mode is not None else None
-        ),
+        "fallback_mode": (rule.fallback_mode.value if rule.fallback_mode is not None else None),
         "fallback_target_id": rule.fallback_target_id,
     }
 
@@ -202,9 +200,7 @@ def _policy_from_dict(payload: Any) -> UserOutputPolicy:
     }
     unknown = set(payload) - known
     if unknown:
-        raise ValueError(
-            f"Output-routing policy contains unknown fields: {sorted(unknown)!r}"
-        )
+        raise ValueError(f"Output-routing policy contains unknown fields: {sorted(unknown)!r}")
 
     return UserOutputPolicy(
         spoken_response_target_id=payload.get("spoken_response_target_id"),
@@ -214,18 +210,10 @@ def _policy_from_dict(payload: Any) -> UserOutputPolicy:
         spoken_response_fallback=FallbackMode(
             payload.get("spoken_response_fallback", FallbackMode.NONE.value)
         ),
-        timer_fallback=FallbackMode(
-            payload.get("timer_fallback", FallbackMode.NONE.value)
-        ),
-        alarm_fallback=FallbackMode(
-            payload.get("alarm_fallback", FallbackMode.NONE.value)
-        ),
-        media_fallback=FallbackMode(
-            payload.get("media_fallback", FallbackMode.NONE.value)
-        ),
-        spoken_response_fallback_target_id=payload.get(
-            "spoken_response_fallback_target_id"
-        ),
+        timer_fallback=FallbackMode(payload.get("timer_fallback", FallbackMode.NONE.value)),
+        alarm_fallback=FallbackMode(payload.get("alarm_fallback", FallbackMode.NONE.value)),
+        media_fallback=FallbackMode(payload.get("media_fallback", FallbackMode.NONE.value)),
+        spoken_response_fallback_target_id=payload.get("spoken_response_fallback_target_id"),
         timer_fallback_target_id=payload.get("timer_fallback_target_id"),
         alarm_fallback_target_id=payload.get("alarm_fallback_target_id"),
         media_fallback_target_id=payload.get("media_fallback_target_id"),
@@ -456,9 +444,7 @@ class OutputRoutingService:
     ) -> ResolvedRoute:
         policy_mode, policy_target = policy.fallback_for(kind)
         mode = override_mode if override_mode is not None else policy_mode
-        fallback_target = (
-            override_target if override_mode is not None else policy_target
-        )
+        fallback_target = override_target if override_mode is not None else policy_target
 
         if mode is FallbackMode.NONE:
             return ResolvedRoute(
@@ -568,11 +554,7 @@ class OutputRoutingService:
             IdentityResolution.VOICE_REVIEW,
         }
 
-        user_id = (
-            validate_user_id(active_user_id)
-            if active_user_id is not None
-            else None
-        )
+        user_id = validate_user_id(active_user_id) if active_user_id is not None else None
 
         if requested_account_id is not None:
             if not requested_account_id.strip():
@@ -583,9 +565,7 @@ class OutputRoutingService:
                 )
             account = self._find_user_account(user_id, requested_account_id)
             if account is None:
-                raise PermissionError(
-                    "Requested media account is not owned by the active user"
-                )
+                raise PermissionError("Requested media account is not owned by the active user")
             return account
 
         if strong_identity:
@@ -602,9 +582,7 @@ class OutputRoutingService:
                     policy.default_media_account_id,
                 )
                 if account is None:
-                    raise ValueError(
-                        "Configured default media account is no longer linked"
-                    )
+                    raise ValueError("Configured default media account is no longer linked")
                 return account
             accounts = self._media_accounts.list(user_id)
             return accounts[0] if len(accounts) == 1 else None
@@ -622,17 +600,11 @@ class OutputRoutingService:
         requested_account_id: str,
     ) -> MediaAccountRef | None:
         accounts = self._media_accounts.list(user_id)
-        direct = [
-            account
-            for account in accounts
-            if account.account_id == requested_account_id
-        ]
+        direct = [account for account in accounts if account.account_id == requested_account_id]
         if len(direct) == 1:
             return direct[0]
         if len(direct) > 1:
-            raise ValueError(
-                "Requested media account ID is ambiguous across providers"
-            )
+            raise ValueError("Requested media account ID is ambiguous across providers")
         qualified = [
             account
             for account in accounts
@@ -662,8 +634,7 @@ class OutputRoutingService:
             or set(payload) != {"version", "primary"}
             or payload.get("version") != _SCHEMA_VERSION
             or not isinstance(payload.get("primary"), dict)
-            or set(payload["primary"])
-            != {"owner_user_id", "provider", "account_id"}
+            or set(payload["primary"]) != {"owner_user_id", "provider", "account_id"}
         ):
             raise ValueError("Household media policy has invalid schema")
         primary = payload["primary"]

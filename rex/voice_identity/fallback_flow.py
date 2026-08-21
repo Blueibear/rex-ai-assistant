@@ -31,9 +31,7 @@ logger = logging.getLogger(__name__)
 
 def _stage_fallback_result(user_id: str | None) -> str | None:
     stage_identity_resolution(
-        IdentityResolution.FALLBACK
-        if user_id is not None
-        else IdentityResolution.UNKNOWN
+        IdentityResolution.FALLBACK if user_id is not None else IdentityResolution.UNKNOWN
     )
     return user_id
 
@@ -103,6 +101,4 @@ def resolve_speaker_identity(
         "Speaker unknown (score=%.3f); using existing identity chain.",
         result.score,
     )
-    return _stage_fallback_result(
-        resolve_active_user(explicit_user, config=config)
-    )
+    return _stage_fallback_result(resolve_active_user(explicit_user, config=config))

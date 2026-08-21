@@ -99,9 +99,7 @@ class TurnContext:
                 IdentityResolution(self.identity_resolution),
             )
         except (TypeError, ValueError) as exc:
-            raise ValueError(
-                f"invalid identity resolution: {self.identity_resolution!r}"
-            ) from exc
+            raise ValueError(f"invalid identity resolution: {self.identity_resolution!r}") from exc
         try:
             object.__setattr__(self, "response_mode", ResponseMode(self.response_mode))
         except (TypeError, ValueError) as exc:

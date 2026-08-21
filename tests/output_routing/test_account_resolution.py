@@ -126,9 +126,7 @@ def test_unresolved_speaker_cannot_mutate_household_primary_library(
 
     with pytest.raises(PermissionError, match="library or profile mutations"):
         service.resolve_media_account(
-            active_user_id=(
-                "james" if identity is IdentityResolution.FALLBACK else None
-            ),
+            active_user_id=("james" if identity is IdentityResolution.FALLBACK else None),
             identity_resolution=identity,
             requested_account_id=None,
             operation="favorite",

@@ -112,12 +112,8 @@ def test_policy_round_trips_in_user_private_partition(tmp_path) -> None:
 
     assert service.get_policy("james") == policy
     assert service.get_policy("cole") == UserOutputPolicy()
-    assert (
-        tmp_path / "users" / "james" / "output_routing" / "policy.json"
-    ).is_file()
-    assert not (
-        tmp_path / "users" / "cole" / "output_routing" / "policy.json"
-    ).exists()
+    assert (tmp_path / "users" / "james" / "output_routing" / "policy.json").is_file()
+    assert not (tmp_path / "users" / "cole" / "output_routing" / "policy.json").exists()
 
 
 def test_explicit_target_beats_request_origin_and_default(tmp_path) -> None:

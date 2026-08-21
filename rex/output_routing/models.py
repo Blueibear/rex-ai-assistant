@@ -43,8 +43,7 @@ def _validate_volume(value: int | None, *, field_name: str) -> int | None:
 def _validate_days(days: tuple[int, ...], *, field_name: str) -> tuple[int, ...]:
     normalized = tuple(days)
     if any(
-        isinstance(day, bool) or not isinstance(day, int) or not 0 <= day <= 6
-        for day in normalized
+        isinstance(day, bool) or not isinstance(day, int) or not 0 <= day <= 6 for day in normalized
     ):
         raise ValueError(f"{field_name} values must be weekday integers 0 through 6")
     if len(set(normalized)) != len(normalized):
@@ -130,15 +129,11 @@ class RoutingRule:
             ),
         )
         if (self.start_local_time is None) != (self.end_local_time is None):
-            raise ValueError(
-                "rule start_local_time and end_local_time must be set together"
-            )
+            raise ValueError("rule start_local_time and end_local_time must be set together")
         if self.fallback_mode is FallbackMode.NAMED and self.fallback_target_id is None:
             raise ValueError("named rule fallback requires fallback_target_id")
         if self.fallback_mode is not FallbackMode.NAMED and self.fallback_target_id is not None:
-            raise ValueError(
-                "rule fallback_target_id is only valid for named fallback"
-            )
+            raise ValueError("rule fallback_target_id is only valid for named fallback")
 
     def matches(self, output_kind: OutputKind, at: datetime) -> bool:
         if self.output_kind is not OutputKind(output_kind):
@@ -237,9 +232,7 @@ class UserOutputPolicy:
                 or self.default_media_account_id != self.default_media_account_id.strip()
             ):
                 raise ValueError("default_media_account_id must be a non-empty account ID")
-        if (self.default_media_provider is None) != (
-            self.default_media_account_id is None
-        ):
+        if (self.default_media_provider is None) != (self.default_media_account_id is None):
             raise ValueError(
                 "default_media_provider and default_media_account_id must be set together"
             )
@@ -247,9 +240,11 @@ class UserOutputPolicy:
         object.__setattr__(
             self,
             "quiet_hours",
-            self.quiet_hours
-            if isinstance(self.quiet_hours, QuietHours)
-            else QuietHours(**self.quiet_hours),
+            (
+                self.quiet_hours
+                if isinstance(self.quiet_hours, QuietHours)
+                else QuietHours(**self.quiet_hours)
+            ),
         )
         object.__setattr__(
             self,
@@ -265,9 +260,7 @@ class UserOutputPolicy:
             if mode is FallbackMode.NAMED and fallback_target is None:
                 raise ValueError(f"named {kind.value} fallback requires a target")
             if mode is not FallbackMode.NAMED and fallback_target is not None:
-                raise ValueError(
-                    f"{kind.value} fallback target is only valid for named fallback"
-                )
+                raise ValueError(f"{kind.value} fallback target is only valid for named fallback")
 
     def target_for(self, output_kind: OutputKind) -> str | None:
         return {
@@ -277,9 +270,7 @@ class UserOutputPolicy:
             OutputKind.MEDIA: self.media_target_id,
         }[OutputKind(output_kind)]
 
-    def fallback_for(
-        self, output_kind: OutputKind
-    ) -> tuple[FallbackMode, str | None]:
+    def fallback_for(self, output_kind: OutputKind) -> tuple[FallbackMode, str | None]:
         kind = OutputKind(output_kind)
         return {
             OutputKind.SPOKEN_RESPONSE: (
