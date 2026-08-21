@@ -1,10 +1,10 @@
-import { ipcMain } from 'electron'
 import { spawn } from 'child_process'
+import { ipcMain } from 'electron'
 import type { OutputRoutingPolicy, OutputRoutingResponse } from '../../types/outputRouting'
 import { bridgeSpawnOptions, resolveBridgePath, resolvePythonCommand } from '../bridgeResolver'
 import { privateSessionPayload, type ElectronSessionIdentity } from '../sessionIdentity'
 
-function callOutputRoutingBridge(
+export function callOutputRoutingBridge(
   session: ElectronSessionIdentity,
   payload: Record<string, unknown>
 ): Promise<OutputRoutingResponse> {
