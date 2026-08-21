@@ -17,6 +17,10 @@ through this module at call time).
 
 from __future__ import annotations
 
+# The facade intentionally binds settings/logger before late re-export imports so
+# voice submodules and tests can resolve the stable patch points at runtime.
+# ruff: noqa: E402, I001
+
 import asyncio  # noqa: F401  (re-export: tests patch rex.voice_loop.asyncio.*)
 import logging
 import os  # noqa: F401  (re-export: tests patch rex.voice_loop.os.*)
@@ -48,14 +52,14 @@ logger = logging.getLogger(__name__)
 # patchable names (settings, logger, sa, lazy importers, classes) through
 # this module at call time, so the bindings above must exist first.
 # ---------------------------------------------------------------------------
-from rex.voice._types import (  # noqa: E402,F401
+from rex.voice._types import (  # noqa: F401
     _USE_CONFIG_LANGUAGE,
     AudioArray,
     IdentifySpeakerCallable,
     RecorderCallable,
 )
-from rex.voice.acknowledgement import WakeAcknowledgement  # noqa: E402,F401
-from rex.voice.audio_utils import (  # noqa: E402,F401
+from rex.voice.acknowledgement import WakeAcknowledgement  # noqa: F401
+from rex.voice.audio_utils import (  # noqa: F401
     _VOICE_INTERACTION_ID,
     _apply_stt_auto_gain,
     _audio_level,
@@ -69,14 +73,14 @@ from rex.voice.audio_utils import (  # noqa: E402,F401
     _validate_input_device_index,
     _voice_log_extra,
 )
-from rex.voice.builder import (  # noqa: E402,F401
+from rex.voice.builder import (  # noqa: F401
     _build_voice_id_callback,
     _resolve_voice_reference,
     build_voice_loop as _build_voice_loop_impl,
 )
-from rex.voice.loop import VoiceLoop  # noqa: E402,F401
-from rex.voice.microphone import AsyncMicrophone  # noqa: E402,F401
-from rex.voice.optional_imports import (  # noqa: E402,F401
+from rex.voice.loop import VoiceLoop  # noqa: F401
+from rex.voice.microphone import AsyncMicrophone  # noqa: F401
+from rex.voice.optional_imports import (  # noqa: F401
     _import_optional,
     _lazy_import_numpy,
     _lazy_import_simpleaudio,
@@ -87,8 +91,8 @@ from rex.voice.optional_imports import (  # noqa: E402,F401
     _require_numpy,
     _require_sounddevice,
 )
-from rex.voice.stt import SpeechToText  # noqa: E402,F401
-from rex.voice.transcripts import (  # noqa: E402,F401
+from rex.voice.stt import SpeechToText  # noqa: F401
+from rex.voice.transcripts import (  # noqa: F401
     _WARMUP_PHRASE,
     _combine_followup_transcript,
     _extract_completed_sentences,
@@ -103,7 +107,7 @@ from rex.voice.transcripts import (  # noqa: E402,F401
     _split_into_sentences,
     _strip_wake_prefix,
 )
-from rex.voice.tts import SynthesizedAudio, TextToSpeech  # noqa: E402,F401
+from rex.voice.tts import SynthesizedAudio, TextToSpeech  # noqa: F401
 
 np = _lazy_import_numpy()
 sa = _lazy_import_simpleaudio()
@@ -185,7 +189,9 @@ async def _direct_smart_speaker_speak(
             raise AudioDeviceError(f"Smart-speaker output {target_id!r} is unavailable")
         return True
 
-    dedicated_tts._try_smart_speaker = strict_route
+    # TextToSpeech intentionally supports this runtime route hook. setattr keeps
+    # the dynamic override explicit for mypy; B010 is intentionally waived here.
+    setattr(dedicated_tts, "_try_smart_speaker", strict_route)  # noqa: B010
     try:
         metrics = await dedicated_tts.speak(
             text,
