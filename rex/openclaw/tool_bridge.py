@@ -7,11 +7,11 @@ This bridge presents the ``ToolRoutingProtocol`` interface so that callers
 do not need to import the internal tool executor directly.
 
 When ``use_openclaw_tools`` is True and the OpenClaw gateway is configured,
-:meth:`execute_tool` dispatches via HTTP POST to ``/tools/invoke``.  On a
-404 response (tool not registered in OpenClaw) or connection failure, it
-falls back to local execution transparently.  A 403 response raises
-:class:`~rex.openclaw.tool_executor.PolicyDeniedError` so callers can
-surface the denial to the user.
+:meth:`execute_tool` may use the legacy direct HTTP path only for read-only
+operations. Mutations always enter Rex's canonical executor/dispatcher so
+permissions, confirmation, action lifecycle, reconnect authority, and
+verification remain authoritative. Read failures may fall back locally; a
+403 response raises :class:`~rex.openclaw.tool_executor.PolicyDeniedError`.
 
 When the flag is False or no gateway URL is set, all calls go through the
 local :func:`~rex.openclaw.tool_executor.execute_tool` — identical
@@ -39,7 +39,13 @@ import logging
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
 
-from rex.openclaw.errors import OpenClawAPIError, OpenClawAuthError, OpenClawConnectionError
+from rex.openclaw.errors import (
+    OpenClawAPIError,
+    OpenClawAuthError,
+    OpenClawConnectionError,
+    OpenClawOutcomeUnknownError,
+    OpenClawUnavailableError,
+)
 from rex.openclaw.http_client import get_openclaw_client
 from rex.openclaw.tool_executor import (
     PolicyDeniedError,
@@ -58,6 +64,21 @@ if TYPE_CHECKING:
     from rex.config import AppConfig
 
 logger = logging.getLogger(__name__)
+
+_LEGACY_DIRECT_READ_TOOLS = frozenset({"time_now", "weather_now", "web_search"})
+
+
+def _legacy_http_operation(tool_name: str) -> str:
+    """Resolve operation authority; unknown legacy HTTP tools fail closed as mutations."""
+    try:
+        from rex.tools.registry import get_default_registry
+
+        tool = get_default_registry().get(tool_name)
+    except Exception:
+        tool = None
+    if tool is not None:
+        return tool.operation
+    return "read" if tool_name in _LEGACY_DIRECT_READ_TOOLS else "mutation"
 
 
 def _warn_gateway_fallback(tool_name: str, exc: Exception, *, failure: str | None = None) -> None:
@@ -83,8 +104,9 @@ class ToolBridge:
     functions in :mod:`rex.openclaw.tool_executor`.
 
     When ``config.use_openclaw_tools`` is True and the gateway is reachable,
-    :meth:`execute_tool` dispatches via HTTP instead of running locally.
-    All other methods always run locally.
+    :meth:`execute_tool` may use direct HTTP for read-only compatibility calls.
+    Mutations remain on Rex's canonical executor/dispatcher path. All other
+    methods always run locally.
 
     Args:
         config: Optional :class:`~rex.config.AppConfig`.  When *None*, the
@@ -125,16 +147,17 @@ class ToolBridge:
     ) -> dict[str, Any]:
         """Execute a decoded tool request and return a result dictionary.
 
-        Dispatches via OpenClaw HTTP when ``use_openclaw_tools`` is True and
-        the gateway is configured; otherwise runs locally.
+        Read-only compatibility calls may dispatch via OpenClaw HTTP when
+        ``use_openclaw_tools`` is True and the gateway is configured. Mutations
+        always use Rex's canonical executor/dispatcher instead of this direct path.
 
-        HTTP behaviour:
+        Read-only HTTP behaviour:
         - ``200`` → returns the response dict from OpenClaw.
         - ``403`` → raises :class:`~rex.openclaw.tool_executor.PolicyDeniedError`.
         - ``404`` → tool not registered in OpenClaw; falls back to local.
-        - ``429`` / ``5xx`` → retried by :class:`~rex.openclaw.http_client.OpenClawClient`;
-          after retries exhausted raises :class:`~rex.openclaw.errors.OpenClawAPIError`.
-        - Connection / auth errors → falls back to local execution.
+        - ``429`` / ``5xx`` → follow :class:`~rex.openclaw.http_client.OpenClawClient`
+          retry policy, then fall back locally when safe for the read operation.
+        - Connection / auth errors → fall back to local execution.
 
         Args:
             request: Dict with ``"tool"`` and ``"args"`` keys.
@@ -159,17 +182,40 @@ class ToolBridge:
             cfg = _load_config()
 
         client = get_openclaw_client(cfg)
+        tool_name = request.get("tool", "")
+        direct_operation = (
+            _legacy_http_operation(tool_name) if isinstance(tool_name, str) else "mutation"
+        )
 
-        if cfg.use_openclaw_tools and client is not None:
-            tool_name = request.get("tool", "")
+        if cfg.use_openclaw_tools and client is not None and direct_operation == "read":
             args = request.get("args", {}) or {}
             payload: dict[str, Any] = {
                 "tool": tool_name,
                 "args": args,
                 "sessionKey": default_context.get("session_key", "main"),
             }
+            from rex.openclaw.capability_sync import get_openclaw_reconnect_controller
+
+            reconnect = get_openclaw_reconnect_controller()
+
+            def _dispatch_read() -> dict[str, Any]:
+                return client.post("/tools/invoke", json=payload)
+
+            def _disconnect_on_error(exc: Exception) -> bool:
+                return (
+                    isinstance(exc, (OpenClawConnectionError, OpenClawOutcomeUnknownError))
+                    or isinstance(exc, OpenClawAPIError)
+                    and exc.status >= 500
+                )
+
             try:
-                result: dict[str, Any] = client.post("/tools/invoke", json=payload)
+                if reconnect is None:
+                    result = _dispatch_read()
+                else:
+                    result = reconnect.dispatch_if_ready(
+                        _dispatch_read,
+                        disconnect_on_error=_disconnect_on_error,
+                    )
                 logger.debug("OpenClaw tool dispatch succeeded: tool=%s", tool_name)
                 return result
             except OpenClawAPIError as exc:
@@ -191,7 +237,12 @@ class ToolBridge:
                     # fall through to local execution below
                 else:
                     raise
-            except (OpenClawConnectionError, OpenClawAuthError) as exc:
+            except (
+                OpenClawConnectionError,
+                OpenClawAuthError,
+                OpenClawOutcomeUnknownError,
+                OpenClawUnavailableError,
+            ) as exc:
                 _warn_gateway_fallback(tool_name, exc)
                 # fall through to local execution below
 

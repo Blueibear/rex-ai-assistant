@@ -2386,3 +2386,43 @@ TDD and local validation evidence:
 - `python scripts/security_audit.py --release-gate` -> passed; 1,400 files scanned, 0 actionable source/config findings, no exposed secrets.
 
 US-120 local behavioral/documentation acceptance criteria are complete. The final `All relevant GitHub checks pass on the exact implementation PR head` criterion remains intentionally unchecked until the implementation branch is published and all required remote checks complete successfully.
+
+2026-08-16 - US-114 local implementation and independent review complete
+
+Implemented fail-closed OpenClaw reconnect/trust restoration and remote mutation verification on branch `lead/us114-openclaw-reconnect-verification`, based on merged `master` `5c9e3b8b5898e70e465de6ac0cc28b0c261b7743`.
+
+Behavior and architecture:
+- Added `rex.openclaw.reconnect` as the canonical connectivity/trust-restoration coordinator with bounded exponential backoff, one reconnect worker, generation-aware recovery, and content-free health transitions.
+- Gateway connectivity alone cannot restore dispatch authority. An outage disables current OpenClaw bindings; a fresh authenticated US-113 capability resync must complete before the controller returns to `ready`.
+- Capability snapshot publication and unavailable-state projection serialize against remote dispatch. Hot/manual refresh cannot race a stale handler through a schema/removal change, and retained handlers must still be the current enabled ToolRegistry binding at dispatch time.
+- Newer disconnect generations invalidate stale recovery publication. Delayed outage projection cannot disable freshly recovered authority, and superseding disconnects preserve the reserved reconnect worker instead of stranding auto-recovery.
+- Dynamic `/tools/invoke` connection loss, 5xx, malformed JSON, or non-object post-dispatch responses become sanitized outcome-unknown evidence with no automatic mutation retry.
+- `ToolExecutionLifecycle` maps uncertain mutations to `attempted_unverified`; remote `completed`/`verified` claims cannot self-promote. Only an accepted Rex verifier/postcondition can produce `verified` mutation success.
+- Legacy `ToolBridge.execute_tool()` direct HTTP is now read-only compatibility behavior and shares the reconnect gate; mutations always route through Rex's canonical policy/lifecycle/verification executor.
+- Local Rex tools remain available while OpenClaw is disconnected or reconciling.
+
+TDD and independent review evidence:
+- US-114 behavior was introduced test-first. Missing reconnect/verification behavior and every subsequent race finding were reproduced with deterministic RED tests before implementation fixes.
+- Independent Codex review found and drove fixes for: dispatch check/use races; late disconnect projection; worker-exit successor races; failed refresh leaving authority ready; malformed post-dispatch success bodies; retained pre-outage handlers; legacy direct-HTTP mutation/read bypasses; hot-refresh publication races; stale resync publication after a newer outage; and superseding disconnects stranding a reserved reconnect worker.
+- Each accepted finding now has a regression test in `tests/rex2/test_openclaw_reconnect.py`, `tests/rex2/test_openclaw_verification.py`, or `tests/test_openclaw_tool_bridge_http.py`.
+- Claude Code was not used for a paid second review because the configured account had reached its monthly spend limit; no additional paid model usage was enabled. Codex remained the independent reviewer.
+
+Local gates before the final full-suite freeze:
+- Authoritative US-114 behavior matrix: 23 reconnect tests plus 9 verification tests are green on Python 3.11.
+- Broader OpenClaw/capability/tool/action compatibility matrix: 112 passed, 0 failed; only existing OpenClaw flat-config deprecation warnings remain.
+- Touched-file Ruff and Black: passed.
+- Touched-file mypy: 0 issues.
+- `python scripts/security_audit.py --release-gate`: passed with 0 actionable source/config findings and no exposed secrets.
+- `pre-commit run --all-files`: Ruff, Black, and detect-secrets passed.
+- `git diff --check`: passed.
+
+US-114's first five local acceptance criteria are complete. The final `All relevant GitHub checks pass` criterion remains intentionally unchecked until the exact implementation head is pushed and all required remote checks/review-thread gates complete successfully. Final repository-wide pytest evidence is appended below after the code/docs freeze.
+
+
+2026-08-17 - US-114 repaired-master rebase and remote-gate follow-up
+
+- During exact-head release verification, two structured-alarm tests on current `master` were found to hard-code August 17, 2026 at 07:00 America/Chicago as a future one-shot alarm. The same failures reproduced on clean `master`, independently of US-114.
+- The test-only wall-clock defect was fixed separately in PR #413 (`test(timekeeping): make alarm dates future-safe`) and squash-merged as `df08d89a287ca71b28be8ab8a0ead60d58d4f526` after exact GitHub CI, CodeFactor, and GitGuardian passed.
+- US-114 was rebased cleanly onto that repaired master. Post-rebase authoritative reconnect/verification matrix: 36 passed; capability-sync/HTTP/tool-bridge/action-lifecycle regression matrix: 98 passed; skip inventory: 127/127 current; pre-commit Ruff/Black/detect-secrets and `git diff --check`: passed.
+- Windows Electron Artifact on the pre-hotfix US-114 SHA passed on the single controlled retry; its first attempt had the known isolated installed-app OpenClaw settings read/write smoke symptom while all other packaged behavior passed.
+- On rebased head `4fb8b51cefb4f44ab125ecd83e3fe0e9448e6dc6`, GitHub-native fast checks began green, but CodeFactor returned an immediate external-analysis error (`Something went wrong`) with zero annotations rather than a code finding. The final GitHub acceptance criterion remains unchecked; this follow-up entry intentionally changes evidence/history only and triggers a fresh external analysis attempt.

@@ -20,9 +20,11 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Protocol
 
 from rex.capabilities.registry import Capability, CapabilityConflictError, CapabilityRegistry
+from rex.openclaw.errors import OpenClawStaleAuthorityError
 from rex.runtime_paths import household_data_path
 
 if TYPE_CHECKING:
+    from rex.openclaw.reconnect import OpenClawReconnectController
     from rex.tools.registry import ToolRegistry
 
 logger = logging.getLogger(__name__)
@@ -69,6 +71,7 @@ class OpenClawCapabilitySync:
         self._client = inventory_client
         self._tool_registry = tool_registry
         self._runtime_config = runtime_config
+        self._reconnect_controller: OpenClawReconnectController | None = None
         self._snapshot_path = (
             Path(snapshot_path)
             if snapshot_path is not None
@@ -78,13 +81,25 @@ class OpenClawCapabilitySync:
 
     def refresh(self) -> OpenClawSyncResult:
         """Fetch, validate, atomically apply, and persist a fresh remote snapshot."""
+        controller = self._reconnect_controller
+        expected_generation = controller.authority_generation if controller is not None else None
         try:
             inventory = self._client.fetch_capability_inventory(session_key=self._session_key)
             normalized = _normalize_inventory(inventory)
-            # Durable commit happens before publishing the in-memory registry snapshot.
-            # If persistence fails, the previously active safe snapshot is untouched.
-            self._persist_snapshot(normalized)
-            added, updated, removed = self._apply_snapshot(normalized)
+
+            def _commit_snapshot() -> tuple[tuple[str, ...], tuple[str, ...], tuple[str, ...]]:
+                # Durable commit happens before publishing the in-memory registry snapshot.
+                # If persistence fails, the previously active safe snapshot is untouched.
+                self._persist_snapshot(normalized)
+                return self._apply_snapshot(normalized)
+
+            if controller is not None:
+                added, updated, removed = controller.apply_authority_update(
+                    _commit_snapshot,
+                    expected_generation=expected_generation,
+                )
+            else:
+                added, updated, removed = _commit_snapshot()
             after = _remote_cards(self._registry)
             logger.info(
                 "OpenClaw capability snapshot synchronized: remote=%d added=%d updated=%d removed=%d",
@@ -102,12 +117,32 @@ class OpenClawCapabilitySync:
                 removed=removed,
                 message="OpenClaw capability snapshot synchronized.",
             )
+        except OpenClawStaleAuthorityError as exc:
+            error_code = type(exc).__name__
+            logger.info(
+                "Discarded obsolete OpenClaw capability refresh (%s)",
+                error_code,
+                extra={
+                    "event": "openclaw.capability_sync",
+                    "status": "stale_discarded",
+                    "failure": error_code,
+                },
+            )
+            return OpenClawSyncResult(
+                success=False,
+                stale=True,
+                error_code=error_code,
+                message="Obsolete OpenClaw capability refresh discarded.",
+            )
         except Exception as exc:
             # If this is a fresh process, recover only from our previously validated
             # normalized snapshot. A malformed local snapshot is ignored fail-closed.
             if not _remote_cards(self._registry):
                 self.restore_last_safe_snapshot()
-            self._mark_openclaw_unavailable()
+            if self._reconnect_controller is not None:
+                self._reconnect_controller.mark_disconnected("capability_refresh_failed")
+            else:
+                self._mark_openclaw_unavailable()
             error_code = type(exc).__name__
             logger.warning(
                 "OpenClaw capability synchronization failed; last safe snapshot marked stale (%s)",
@@ -140,16 +175,33 @@ class OpenClawCapabilitySync:
         except (OSError, ValueError, TypeError, json.JSONDecodeError):
             return ()
 
+    def attach_reconnect_controller(self, controller: OpenClawReconnectController) -> None:
+        """Attach the process reconnect gate used by remote executable handlers."""
+        self._reconnect_controller = controller
+
+    def mark_unavailable(self) -> tuple[str, ...]:
+        """Atomically disable current OpenClaw metadata and executable bindings."""
+        return self._mark_openclaw_unavailable()
+
     def _remote_handler_factory(self, tool_name: str) -> Any:
         config = self._runtime_config
         default_session_key = self._session_key or "agent:main:main"
 
         def _handler(**kwargs: Any) -> dict[str, Any]:
-            from rex.openclaw.errors import OpenClawConfigError
+            from rex.openclaw.errors import OpenClawConfigError, OpenClawUnavailableError
             from rex.openclaw.http_client import get_openclaw_client
 
             if config is None:
                 raise OpenClawConfigError("OpenClaw runtime config is unavailable")
+
+            def _assert_current_binding() -> None:
+                if self._tool_registry is None:
+                    return
+                current = self._tool_registry.get(tool_name)
+                if current is None or current.handler is not _handler or not current.enabled:
+                    raise OpenClawUnavailableError()
+
+            _assert_current_binding()
             client = get_openclaw_client(config)
             if client is None:
                 raise OpenClawConfigError("OpenClaw gateway is not configured")
@@ -161,9 +213,43 @@ class OpenClawCapabilitySync:
                 "args": kwargs,
                 "sessionKey": default_session_key,
             }
-            result = client.post("/tools/invoke", json=payload)
-            if not isinstance(result, dict):
-                raise OpenClawConfigError("OpenClaw tool response was not an object")
+            from rex.openclaw.errors import (
+                OpenClawAPIError,
+                OpenClawConnectionError,
+                OpenClawOutcomeUnknownError,
+            )
+
+            def _dispatch() -> dict[str, Any]:
+                _assert_current_binding()
+                response = client.post("/tools/invoke", json=payload)
+                if not isinstance(response, dict):
+                    raise OpenClawOutcomeUnknownError()
+                return response
+
+            def _disconnect_on_error(exc: Exception) -> bool:
+                return (
+                    isinstance(exc, (OpenClawConnectionError, OpenClawOutcomeUnknownError))
+                    or isinstance(exc, OpenClawAPIError)
+                    and exc.status >= 500
+                )
+
+            try:
+                if self._reconnect_controller is None:
+                    result = _dispatch()
+                else:
+                    result = self._reconnect_controller.dispatch_if_ready(
+                        _dispatch,
+                        disconnect_on_error=_disconnect_on_error,
+                    )
+            except OpenClawOutcomeUnknownError:
+                raise
+            except Exception as exc:
+                transport_failure = isinstance(exc, OpenClawConnectionError) or (
+                    isinstance(exc, OpenClawAPIError) and exc.status >= 500
+                )
+                if transport_failure:
+                    raise OpenClawOutcomeUnknownError() from exc
+                raise
             return result
 
         return _handler
@@ -171,18 +257,28 @@ class OpenClawCapabilitySync:
     def _apply_snapshot(
         self, capabilities: list[Capability] | tuple[Capability, ...]
     ) -> tuple[tuple[str, ...], tuple[str, ...], tuple[str, ...]]:
-        if self._tool_registry is not None:
-            return self._tool_registry.apply_openclaw_snapshot(
-                capabilities, handler_factory=self._remote_handler_factory
-            )
-        return self._registry.apply_openclaw_snapshot(capabilities)
+        def _apply() -> tuple[tuple[str, ...], tuple[str, ...], tuple[str, ...]]:
+            if self._tool_registry is not None:
+                return self._tool_registry.apply_openclaw_snapshot(
+                    capabilities, handler_factory=self._remote_handler_factory
+                )
+            return self._registry.apply_openclaw_snapshot(capabilities)
+
+        if self._reconnect_controller is not None:
+            return self._reconnect_controller.apply_authority_update(_apply)
+        return _apply()
 
     def _mark_openclaw_unavailable(self) -> tuple[str, ...]:
-        if self._tool_registry is not None:
-            return self._tool_registry.mark_openclaw_unavailable(
-                handler_factory=self._remote_handler_factory
-            )
-        return self._registry.mark_openclaw_unavailable()
+        def _mark() -> tuple[str, ...]:
+            if self._tool_registry is not None:
+                return self._tool_registry.mark_openclaw_unavailable(
+                    handler_factory=self._remote_handler_factory
+                )
+            return self._registry.mark_openclaw_unavailable()
+
+        if self._reconnect_controller is not None:
+            return self._reconnect_controller.apply_authority_update(_mark)
+        return _mark()
 
     def _persist_snapshot(self, capabilities: list[Capability]) -> None:
         payload = {
@@ -588,6 +684,7 @@ def _disabled_remote_handler(tool_name: str) -> Any:
 _CONTROLLER_LOCK = threading.RLock()
 _CONTROLLER: OpenClawCapabilitySyncController | None = None
 _CONTROLLER_KEY: tuple[object, ...] | None = None
+_RECONNECT_CONTROLLER: Any = None
 
 
 def _openclaw_config(config: Any) -> tuple[bool, str, str, float]:
@@ -625,6 +722,7 @@ def initialize_openclaw_capability_sync(
     event_bus: Any = None,
     snapshot_path: Path | str | None = None,
     session_key: str | None = None,
+    reconnect_auto: bool = True,
 ) -> OpenClawSyncResult | None:
     """Initialize one process-wide OpenClaw capability lifecycle.
 
@@ -642,9 +740,12 @@ def initialize_openclaw_capability_sync(
         resolved_registry = registry if registry is not None else get_capability_registry(config)
     enabled, gateway_url, token, timeout = _openclaw_config(config)
 
-    global _CONTROLLER, _CONTROLLER_KEY
+    global _CONTROLLER, _CONTROLLER_KEY, _RECONNECT_CONTROLLER
     if not enabled:
         with _CONTROLLER_LOCK:
+            if _RECONNECT_CONTROLLER is not None:
+                _RECONNECT_CONTROLLER.close()
+            _RECONNECT_CONTROLLER = None
             if _CONTROLLER is not None:
                 _CONTROLLER.close()
             _CONTROLLER = None
@@ -674,10 +775,14 @@ def initialize_openclaw_capability_sync(
         str(Path(snapshot_path)) if snapshot_path is not None else None,
         injected_client_id,
         id(event_bus),
+        bool(reconnect_auto),
     )
     with _CONTROLLER_LOCK:
         if _CONTROLLER is not None and _CONTROLLER_KEY == key:
             return _CONTROLLER.last_result
+        if _RECONNECT_CONTROLLER is not None:
+            _RECONNECT_CONTROLLER.close()
+            _RECONNECT_CONTROLLER = None
         if _CONTROLLER is not None:
             _CONTROLLER.close()
 
@@ -705,7 +810,31 @@ def initialize_openclaw_capability_sync(
         result = controller.start()
         _CONTROLLER = controller
         _CONTROLLER_KEY = key
+
+        if inventory_client is None and tool_registry is not None:
+            from rex.openclaw.http_client import get_openclaw_client
+            from rex.openclaw.reconnect import OpenClawReconnectController
+
+            health_client = get_openclaw_client(config)
+            if health_client is not None:
+                reconnect = OpenClawReconnectController(
+                    health_probe=health_client.health,
+                    resync=lambda: controller.refresh(reason="reconnect"),
+                    mark_unavailable=sync.mark_unavailable,
+                    event_bus=event_bus,
+                    auto_reconnect=reconnect_auto,
+                )
+                sync.attach_reconnect_controller(reconnect)
+                _RECONNECT_CONTROLLER = reconnect
+                if not result.success or result.stale:
+                    reconnect.mark_disconnected("startup_sync_failed")
         return result
+
+
+def get_openclaw_reconnect_controller() -> Any:
+    """Return the current process-wide reconnect coordinator, if configured."""
+    with _CONTROLLER_LOCK:
+        return _RECONNECT_CONTROLLER
 
 
 def refresh_openclaw_capabilities() -> OpenClawSyncResult | None:
@@ -719,8 +848,11 @@ def refresh_openclaw_capabilities() -> OpenClawSyncResult | None:
 
 def reset_openclaw_capability_sync() -> None:
     """Reset process-wide lifecycle state for tests and controlled reconfiguration."""
-    global _CONTROLLER, _CONTROLLER_KEY
+    global _CONTROLLER, _CONTROLLER_KEY, _RECONNECT_CONTROLLER
     with _CONTROLLER_LOCK:
+        if _RECONNECT_CONTROLLER is not None:
+            _RECONNECT_CONTROLLER.close()
+        _RECONNECT_CONTROLLER = None
         if _CONTROLLER is not None:
             _CONTROLLER.close()
         _CONTROLLER = None
@@ -734,6 +866,7 @@ __all__ = [
     "OpenClawCapabilitySync",
     "OpenClawCapabilitySyncController",
     "OpenClawSyncResult",
+    "get_openclaw_reconnect_controller",
     "initialize_openclaw_capability_sync",
     "refresh_openclaw_capabilities",
     "reset_openclaw_capability_sync",

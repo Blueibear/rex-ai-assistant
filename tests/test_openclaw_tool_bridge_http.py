@@ -83,9 +83,9 @@ class TestExecuteToolHTTPPath:
 
         with patch("rex.openclaw.tool_bridge.get_openclaw_client", return_value=client):
             with pytest.raises(PolicyDeniedError) as exc_info:
-                bridge.execute_tool({"tool": "send_email", "args": {}}, {})
+                bridge.execute_tool({"tool": "time_now", "args": {}}, {})
 
-        assert exc_info.value.tool == "send_email"
+        assert exc_info.value.tool == "time_now"
 
     def test_404_falls_back_to_local(self):
         cfg = _make_config()
@@ -228,3 +228,80 @@ class TestExecuteToolStandaloneMode:
                 assert kwargs["task_id"] == "t-123"
                 assert kwargs["requested_by"] == "bot"
                 assert kwargs["skip_audit_log"] is True
+
+
+def test_mutation_uses_canonical_executor_instead_of_legacy_direct_http() -> None:
+    cfg = _make_config()
+    client = _make_client(post_return={"status": "verified"})
+    local_result = {
+        "status": "attempted_unverified",
+        "success": False,
+        "result": None,
+    }
+    bridge = ToolBridge(config=cfg)
+    request = {"tool": "send_email", "args": {"to": "a@example.com", "body": "hi"}}
+
+    with patch("rex.openclaw.tool_bridge.get_openclaw_client", return_value=client):
+        with patch(
+            "rex.openclaw.tool_bridge._execute_tool", return_value=local_result
+        ) as canonical:
+            result = bridge.execute_tool(request, {"user_id": "james"})
+
+    client.post.assert_not_called()
+    canonical.assert_called_once()
+    assert result == local_result
+
+
+def test_legacy_read_respects_disconnected_reconnect_gate() -> None:
+    from rex.openclaw.reconnect import OpenClawReconnectController
+
+    cfg = _make_config()
+    client = _make_client(post_return={"status": "success"})
+    local_result = {"status": "ok", "result": "local"}
+    controller = OpenClawReconnectController(
+        health_probe=lambda: {"available": False},
+        resync=lambda: None,
+        mark_unavailable=lambda: None,
+        auto_reconnect=False,
+    )
+    controller.mark_disconnected("transport_failure")
+    bridge = ToolBridge(config=cfg)
+
+    with patch("rex.openclaw.tool_bridge.get_openclaw_client", return_value=client):
+        with patch(
+            "rex.openclaw.capability_sync.get_openclaw_reconnect_controller",
+            return_value=controller,
+        ):
+            with patch("rex.openclaw.tool_bridge._execute_tool", return_value=local_result):
+                result = bridge.execute_tool({"tool": "time_now", "args": {}}, {})
+
+    client.post.assert_not_called()
+    assert result == local_result
+
+
+def test_legacy_read_transport_failure_disconnects_gate_before_local_fallback() -> None:
+    from rex.openclaw.reconnect import OpenClawReconnectController, OpenClawReconnectState
+
+    cfg = _make_config()
+    client = _make_client(
+        post_side_effect=OpenClawConnectionError("http://127.0.0.1:18789", Exception("lost"))
+    )
+    local_result = {"status": "ok", "result": "local"}
+    controller = OpenClawReconnectController(
+        health_probe=lambda: {"available": False},
+        resync=lambda: None,
+        mark_unavailable=lambda: None,
+        auto_reconnect=False,
+    )
+    bridge = ToolBridge(config=cfg)
+
+    with patch("rex.openclaw.tool_bridge.get_openclaw_client", return_value=client):
+        with patch(
+            "rex.openclaw.capability_sync.get_openclaw_reconnect_controller",
+            return_value=controller,
+        ):
+            with patch("rex.openclaw.tool_bridge._execute_tool", return_value=local_result):
+                result = bridge.execute_tool({"tool": "time_now", "args": {}}, {})
+
+    assert result == local_result
+    assert controller.state is OpenClawReconnectState.DISCONNECTED
