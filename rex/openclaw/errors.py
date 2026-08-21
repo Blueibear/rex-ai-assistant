@@ -61,6 +61,31 @@ class OpenClawProtocolError(AssistantError):
         self.detail = detail
 
 
+class OpenClawStaleAuthorityError(RuntimeError):
+    """Internal signal that an obsolete refresh tried to publish authority."""
+
+
+class OpenClawUnavailableError(AssistantError):
+    """Raised before dispatch when current OpenClaw authority is unavailable."""
+
+    def __init__(self) -> None:
+        super().__init__(
+            "OpenClaw capabilities are temporarily unavailable while connectivity and authority are being reconciled"
+        )
+
+
+class OpenClawOutcomeUnknownError(AssistantError):
+    """Raised when transport fails after a remote action may have been dispatched."""
+
+    outcome_unknown = True
+    is_transient = True
+
+    def __init__(self) -> None:
+        super().__init__(
+            "OpenClaw action outcome is unknown after a transport failure; independent verification is required"
+        )
+
+
 class OpenClawConfigError(AssistantError):
     """Raised when an OpenClaw feature is enabled but the required API is not available.
 
@@ -80,5 +105,8 @@ __all__ = [
     "OpenClawAuthError",
     "OpenClawAPIError",
     "OpenClawConfigError",
+    "OpenClawOutcomeUnknownError",
     "OpenClawProtocolError",
+    "OpenClawStaleAuthorityError",
+    "OpenClawUnavailableError",
 ]

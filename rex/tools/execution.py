@@ -376,6 +376,36 @@ class ToolExecutionLifecycle:
                     if operation == ToolOperation.MUTATION:
                         return cancelled_mutation_result()
                     cancellation.raise_if_cancelled()
+                if operation == ToolOperation.MUTATION and bool(
+                    getattr(exc, "outcome_unknown", False)
+                ):
+                    stages.extend(("normalized_result", "independent_verification"))
+                    verified = False
+                    unknown_detail = (
+                        "The remote mutation may have been dispatched, but its outcome is "
+                        "unknown after a transport failure."
+                    )
+                    if tool.verifier is not None:
+                        try:
+                            verified = bool(tool.verifier(args, None))
+                        except Exception as verify_exc:
+                            unknown_detail = (
+                                "Verification failed after an uncertain remote outcome: "
+                                f"{verify_exc}"
+                            )
+                    outcome = ToolOutcome.VERIFIED if verified else ToolOutcome.ATTEMPTED_UNVERIFIED
+                    stages.append("truthful_response")
+                    result = self._finish(
+                        request,
+                        outcome,
+                        risk,
+                        stages,
+                        started,
+                        detail=None if verified else unknown_detail,
+                    )
+                    with _dedupe_lock:
+                        _dedupe_results[dedupe_key] = (args_fingerprint, result)
+                    return result
                 if (
                     operation == ToolOperation.READ
                     and attempt == 0
