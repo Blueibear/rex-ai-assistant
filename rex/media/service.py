@@ -156,6 +156,7 @@ class MediaService:
         original_volume: float | None = None
         volume_changed = False
         if temporary_volume:
+            assert route_volume is not None
             before = self._read_state(adapter, target)
             if before is None or before.volume_percent is None:
                 return MediaServiceResult(

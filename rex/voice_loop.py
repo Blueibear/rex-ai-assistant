@@ -34,12 +34,20 @@ from rex.wake_acknowledgment import ensure_wake_acknowledgment_sound  # noqa: F4
 
 from .config import settings  # noqa: F401  (re-export: patched in tests)
 
+# Suppress torio FFmpeg extension warnings — FFmpeg is not required for audio
+# capture/playback (sounddevice handles that). It is only used internally by
+# Coqui XTTS; the XTTS fallback path handles the case where it is absent.
 warnings.filterwarnings("ignore", message=".*FFmpeg extension.*")
 warnings.filterwarnings("ignore", message=".*libtorio.*")
 warnings.filterwarnings("ignore", category=RuntimeWarning, module="torio")
 
 logger = logging.getLogger(__name__)
 
+# ---------------------------------------------------------------------------
+# Re-exports (US-REM-028). Order matters: the voice modules below resolve
+# patchable names (settings, logger, sa, lazy importers, classes) through
+# this module at call time, so the bindings above must exist first.
+# ---------------------------------------------------------------------------
 from rex.voice._types import (  # noqa: E402,F401
     _USE_CONFIG_LANGUAGE,
     AudioArray,
@@ -177,7 +185,7 @@ async def _direct_smart_speaker_speak(
             raise AudioDeviceError(f"Smart-speaker output {target_id!r} is unavailable")
         return True
 
-    setattr(dedicated_tts, "_try_smart_speaker", strict_route)
+    dedicated_tts._try_smart_speaker = strict_route
     try:
         metrics = await dedicated_tts.speak(
             text,

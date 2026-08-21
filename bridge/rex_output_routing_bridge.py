@@ -5,8 +5,9 @@ from __future__ import annotations
 import asyncio
 import json
 import sys
+from collections.abc import Mapping
 from dataclasses import replace
-from typing import Any, Mapping
+from typing import Any
 
 from rex.identity import validate_user_id
 from rex.media.accounts import MediaAccountStore

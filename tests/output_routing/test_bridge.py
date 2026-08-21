@@ -1,13 +1,12 @@
 from __future__ import annotations
 
+from bridge.rex_output_routing_bridge import handle_output_routing_request
 from rex.credential_vault import generate_credential_ref
 from rex.media.accounts import MediaAccountStore
 from rex.media.models import AudioTarget, MediaCapability, TargetKind
 from rex.media.registry import AudioTargetRegistry
 from rex.output_routing.models import UserOutputPolicy
 from rex.output_routing.service import OutputRoutingService
-
-from bridge.rex_output_routing_bridge import handle_output_routing_request
 
 
 def _target(target_id: str, name: str, *, online: bool = True) -> AudioTarget:
