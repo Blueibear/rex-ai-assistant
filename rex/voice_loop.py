@@ -103,6 +103,94 @@ sd = None
 _NDArray = np.ndarray if np is not None else Any
 
 
+def _tts_engine_from_callback(callback: Any) -> Any | None:
+    """Find the TTS engine captured by the canonical builder speak callback."""
+    for cell in getattr(callback, "__closure__", None) or ():
+        try:
+            candidate = cell.cell_contents
+        except ValueError:
+            continue
+        if isinstance(getattr(candidate, "_provider", None), str) and isinstance(
+            getattr(candidate, "_language", None), str
+        ):
+            return candidate
+    return None
+
+
+async def _direct_smart_speaker_speak(
+    target_id: str,
+    text: str,
+    local_speak: Any,
+) -> bool:
+    """Use the existing XTTS->WAV smart-speaker path without shared mutation.
+
+    A dedicated TextToSpeech facade shares Rex's warm XTTS runtime/model but
+    owns its route override for this call. The route hook is strict: if Sonos
+    or Bose delivery fails, AudioDeviceError prevents the TTS implementation
+    from silently falling back to the computer speaker.
+    """
+    provider, separator, ip = target_id.partition(":")
+    if separator != ":" or provider not in {"sonos", "bose"} or not ip:
+        return False
+
+    source_tts = _tts_engine_from_callback(local_speak)
+    if source_tts is None or getattr(source_tts, "_provider", None) != "xtts":
+        return False
+
+    try:
+        from rex.audio.speaker_discovery import get_speaker_discovery
+
+        speakers = get_speaker_discovery().get_cached_speakers()
+        speaker = next(
+            (
+                item
+                for item in speakers
+                if getattr(item, "provider", None) == provider and getattr(item, "ip", None) == ip
+            ),
+            None,
+        )
+    except Exception as exc:
+        logger.warning("Direct smart-speaker route discovery failed: %s", exc)
+        return False
+    if speaker is None:
+        return False
+
+    try:
+        dedicated_tts = TextToSpeech(
+            language=source_tts._language,
+            default_speaker=getattr(source_tts, "_default_speaker", None),
+        )
+    except Exception as exc:
+        logger.warning("Direct smart-speaker TTS setup failed: %s", exc)
+        return False
+    if getattr(dedicated_tts, "_provider", None) != "xtts":
+        return False
+
+    dedicated_tts._tts_output_device = speaker.name
+    original_route = dedicated_tts._try_smart_speaker
+    route_attempts: list[bool] = []
+
+    def strict_route(wav_path: str) -> bool:
+        routed = bool(original_route(wav_path))
+        route_attempts.append(routed)
+        if not routed:
+            raise AudioDeviceError(f"Smart-speaker output {target_id!r} is unavailable")
+        return True
+
+    setattr(dedicated_tts, "_try_smart_speaker", strict_route)
+    try:
+        metrics = await dedicated_tts.speak(
+            text,
+            speaker_wav=getattr(source_tts, "_default_speaker", None),
+        )
+    except Exception as exc:
+        logger.warning("Direct smart-speaker spoken delivery failed: %s", exc)
+        return False
+
+    path_used = metrics.get("path_used") if isinstance(metrics, dict) else None
+    return bool(route_attempts) and all(route_attempts) and path_used != "stdout_fallback"
+
+
 def build_voice_loop(assistant, *args: Any, **kwargs: Any) -> VoiceLoop:
     """Build the canonical loop and apply user-scoped spoken-output routing."""
     origin_device_id = kwargs.pop("origin_device_id", None)
@@ -123,19 +211,23 @@ def build_voice_loop(assistant, *args: Any, **kwargs: Any) -> VoiceLoop:
         except RuntimeError:
             await original_speak(text)
             return
+
+        async def remote_sender(target_id: str, spoken_text: str) -> bool:
+            if target_id.startswith("ha:"):
+                return await send_remote_spoken_text(target_id, spoken_text)
+            return await _direct_smart_speaker_speak(target_id, spoken_text, original_speak)
+
         result = await deliver_spoken_response(
             text,
             routing=routing,
             user_id=user_id,
             origin_device_id=origin_device_id,
             at=user_local_now(user_id),
-            remote_sender=send_remote_spoken_text,
+            remote_sender=remote_sender,
             local_speak=original_speak,
         )
         if not result.delivered:
-            raise TextToSpeechError(
-                f"Spoken response target delivery failed: {result.reason}"
-            )
+            raise TextToSpeechError(f"Spoken response target delivery failed: {result.reason}")
 
     async def routed_streaming(sentences) -> None:  # noqa: ANN001
         if original_streaming is None:
@@ -157,7 +249,7 @@ def build_voice_loop(assistant, *args: Any, **kwargs: Any) -> VoiceLoop:
         except RuntimeError:
             await original_streaming(sentences)
             return
-        if route.target_id is None or route.suppressed:
+        if route.target_id is None or route.suppressed or route.target_id.startswith("local:"):
             await original_streaming(sentences)
             return
         parts = [part async for part in sentences]
