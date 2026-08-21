@@ -65,6 +65,15 @@ jobs:
             --cov-report=term-missing --cov-report=xml \
             > us122-full.txt 2>&1
 
+      - name: Print bounded diagnostic output
+        if: always()
+        shell: bash
+        run: |
+          echo "===== focused Task 2 tail ====="
+          tail -n 120 us122-focused.txt || true
+          echo "===== full Python gate tail ====="
+          tail -n 240 us122-full.txt || true
+
       - name: Upload diagnostic logs
         if: always()
         uses: actions/upload-artifact@v4
