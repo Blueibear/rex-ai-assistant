@@ -1,60 +1,67 @@
 from __future__ import annotations
 
-from pathlib import Path
+import pytest
 
-import numpy as np
+from rex.audio.speaker_discovery import DiscoveredSpeaker
+from rex.voice.tts import TextToSpeech
+from rex.voice_loop import _direct_smart_speaker_speak
 
-from rex.voice.tts import TextToSpeech, routed_output_target
 
-
-def _bare_tts() -> TextToSpeech:
+@pytest.mark.asyncio
+async def test_direct_smart_speaker_route_reuses_existing_xtts_wav_path(monkeypatch) -> None:
     tts = TextToSpeech.__new__(TextToSpeech)
+    tts._provider = "xtts"
     tts._tts_output_device = None
-    return tts
+    observed: list[tuple[str, str | None]] = []
 
+    async def original_speak(text: str) -> None:
+        # Referencing tts keeps the canonical engine in the callback closure,
+        # matching rex.voice.builder's normal _speak_for_callback shape.
+        observed.append((text, tts._tts_output_device))
 
-def test_canonical_sonos_target_routes_existing_wav_by_provider_and_ip(monkeypatch) -> None:
-    calls: list[tuple[str, str, str]] = []
-
-    class Output:
-        def play_wav(self, wav_path: str, *, provider: str, ip: str) -> bool:
-            calls.append((wav_path, provider, ip))
-            return True
+    class Discovery:
+        def get_cached_speakers(self):
+            return [
+                DiscoveredSpeaker(
+                    provider="sonos",
+                    name="Living Room",
+                    ip="192.168.1.50",
+                    model="Play:1",
+                )
+            ]
 
     monkeypatch.setattr(
-        "rex.audio.smart_speaker_output.get_smart_speaker_output",
-        lambda: Output(),
+        "rex.audio.speaker_discovery.get_speaker_discovery",
+        lambda: Discovery(),
     )
-    tts = _bare_tts()
 
-    with routed_output_target("sonos:192.168.1.50"):
-        assert tts._try_smart_speaker("reply.wav") is True
+    delivered = await _direct_smart_speaker_speak(
+        "sonos:192.168.1.50",
+        "Hello from Rex",
+        original_speak,
+    )
 
-    assert calls == [("reply.wav", "sonos", "192.168.1.50")]
-
-
-def test_routed_pcm_is_written_to_wav_and_sent_to_smart_speaker(monkeypatch, tmp_path) -> None:
-    observed: list[tuple[str, bytes]] = []
-    tts = _bare_tts()
-
-    def route_wav(path: str) -> bool:
-        observed.append((Path(path).suffix, Path(path).read_bytes()))
-        return True
-
-    monkeypatch.setattr(tts, "_try_smart_speaker", route_wav)
-    pcm = np.zeros((160, 1), dtype=np.int16)
-
-    with routed_output_target("bose:192.168.1.60"):
-        assert tts._route_pcm_to_smart_speaker(pcm, 16000, 1) is True
-
-    assert observed
-    assert observed[0][0] == ".wav"
-    assert observed[0][1].startswith(b"RIFF")
+    assert delivered is True
+    assert observed == [("Hello from Rex", "Living Room")]
+    assert tts._tts_output_device is None
 
 
-def test_output_target_context_is_scoped() -> None:
-    tts = _bare_tts()
-    assert tts._current_routed_output_target() is None
-    with routed_output_target("sonos:192.168.1.50"):
-        assert tts._current_routed_output_target() == "sonos:192.168.1.50"
-    assert tts._current_routed_output_target() is None
+@pytest.mark.asyncio
+async def test_direct_smart_speaker_route_fails_closed_when_current_tts_cannot_emit_wav() -> None:
+    tts = TextToSpeech.__new__(TextToSpeech)
+    tts._provider = "edge"
+    tts._tts_output_device = None
+    spoken: list[str] = []
+
+    async def original_speak(text: str) -> None:
+        spoken.append(text)
+        _ = tts._provider
+
+    delivered = await _direct_smart_speaker_speak(
+        "sonos:192.168.1.50",
+        "Do not duplicate locally",
+        original_speak,
+    )
+
+    assert delivered is False
+    assert spoken == []
