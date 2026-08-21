@@ -13,9 +13,8 @@ from .service import TimekeepingService
 logger = logging.getLogger(__name__)
 
 
-def deliver_due_event_notification(event: DueEvent) -> None:
-    """Deliver a due timer/alarm through Rex's existing notification layer."""
-    from rex.notification import NotificationRequest, get_notifier
+def _notification_request(event: DueEvent, *, target_id: str | None = None):
+    from rex.notification import NotificationRequest
 
     if event.kind == "timer":
         title = "Timer"
@@ -25,13 +24,64 @@ def deliver_due_event_notification(event: DueEvent) -> None:
         title = "Alarm"
         body = f"{event.name or 'Alarm'} is ringing."
         record_key = "alarm_id"
-    request = NotificationRequest(
+    metadata = {record_key: event.record_id, "user_id": event.user_id}
+    if target_id and target_id.startswith("ha:"):
+        metadata["ha_entity_id"] = target_id.split(":", 1)[1]
+    return NotificationRequest(
         priority="normal",
         title=title,
         body=body,
         channel_preferences=["dashboard", "ha_tts"],
-        metadata={record_key: event.record_id, "user_id": event.user_id},
+        metadata=metadata,
     )
+
+
+def _send_due_event_to_target(target_id: str, event: DueEvent) -> bool:
+    """Attempt a currently supported targeted due-event delivery."""
+    from rex.notification import get_notifier
+
+    # HA targets have a first-class entity selector in the existing TTS client.
+    # Other provider-specific target delivery is added by the shared voice/media
+    # output adapter; never pretend a generic notification reached that speaker.
+    if not target_id.startswith("ha:"):
+        return False
+    request = _notification_request(event, target_id=target_id)
+    get_notifier().send_to_channel("ha_tts", request)
+    return True
+
+
+def deliver_due_event_notification(event: DueEvent) -> None:
+    """Resolve current output policy and attempt a due timer/alarm announcement."""
+    from rex.notification import get_notifier
+    from rex.output_routing.delivery import OutputDeliveryService
+    from rex.output_routing.runtime import get_output_routing_service
+
+    try:
+        routing = get_output_routing_service()
+    except RuntimeError:
+        # During very early startup the media registry may not yet be installed.
+        # Preserve the legacy dashboard/default-HA notification rather than lose
+        # an overdue alarm, but do not label that fallback as targeted delivery.
+        get_notifier().send(_notification_request(event))
+        return
+
+    result = OutputDeliveryService(
+        routing,
+        sender=_send_due_event_to_target,
+    ).deliver_due_event(event)
+    if result.delivered:
+        return
+
+    logger.warning(
+        "timekeeping due event was not target-delivered kind=%s record_id=%s user_id=%s reason=%s",
+        event.kind,
+        event.record_id,
+        event.user_id,
+        result.reason,
+    )
+    # Keep a non-audio dashboard record when target delivery is unavailable.
+    request = _notification_request(event)
+    request.channel_preferences = ["dashboard"]
     get_notifier().send(request)
 
 
@@ -87,11 +137,7 @@ class TimekeepingRuntime:
             self._running = True
         self._service.set_change_callback(self.wake)
         self.process_due_once()
-        thread = threading.Thread(
-            target=self._run,
-            name="askrex-timekeeping",
-            daemon=True,
-        )
+        thread = threading.Thread(target=self._run, name="askrex-timekeeping", daemon=True)
         self._thread = thread
         thread.start()
 
@@ -115,7 +161,6 @@ class TimekeepingRuntime:
                 if not self._running:
                     return
                 observed_generation = self._generation
-
             self.process_due_once()
             deadline = self._service.next_deadline()
             if deadline is None:
@@ -125,7 +170,6 @@ class TimekeepingRuntime:
                     if observed_generation == self._generation:
                         self._condition.wait()
                 continue
-
             delay = max(0.0, (deadline - self._now_utc()).total_seconds())
             if delay <= 0:
                 continue
