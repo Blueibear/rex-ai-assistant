@@ -142,7 +142,9 @@ def handle_output_routing_request(
             raw_policy = payload.get("policy")
             if not isinstance(raw_policy, dict):
                 raise ValueError("policy must be an object")
-            policy = _policy_from_dict(raw_policy)
+            normalized_policy = dict(raw_policy)
+            normalized_policy.setdefault("rules", [])
+            policy = _policy_from_dict(normalized_policy)
             _validate_policy_targets(policy, registry=registry, user_id=user_id)
             _validate_default_account(policy, media_accounts=media_accounts, user_id=user_id)
             saved = routing.save_policy(user_id, policy)
