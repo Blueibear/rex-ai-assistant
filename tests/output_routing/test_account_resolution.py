@@ -34,7 +34,7 @@ def _service(tmp_path) -> tuple[OutputRoutingService, MediaAccountStore]:
         "Cole Spotify",
     )
     service = OutputRoutingService(
-        AudioTargetRegistry(()),
+        AudioTargetRegistry((), authorized_target_ids={}),
         root=tmp_path / "routing",
         media_accounts=accounts,
         household_media_path=tmp_path / "household-media.json",
