@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
-from datetime import date, time
+from datetime import UTC, date, datetime, time
 from typing import Any, cast
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from rex.identity import validate_user_id
+from rex.output_routing.models import OutputKind, ResolvedRoute
+from rex.output_routing.runtime import get_output_routing_service
 
 from .models import AlarmRecord, TimerRecord
 from .parser import Action, TimekeepingCommand, parse_timekeeping_command
@@ -27,7 +29,7 @@ _MUTATION_ACTIONS = {
     "disable_alarm",
     "cancel_alarm",
 }
-_READ_ACTIONS = {"list_timers", "query_timer", "list_alarms"}
+_READ_ACTIONS = {"list_timers", "query_timer", "list_alarms", "query_alarm_route"}
 
 
 def resolve_user_timezone(user_id: str) -> str:
@@ -68,6 +70,8 @@ def _structured_command(
     alarm_time: str | time | None = None,
     alarm_date: str | date | None = None,
     weekdays: list[int] | tuple[int, ...] | None = None,
+    target_text: str | None = None,
+    target_volume: int | None = None,
 ) -> TimekeepingCommand:
     if action not in _MUTATION_ACTIONS | _READ_ACTIONS:
         raise ValueError(f"unsupported timekeeping action: {action}")
@@ -82,15 +86,13 @@ def _structured_command(
         alarm_time=parsed_time,
         alarm_date=parsed_date,
         weekdays=tuple(weekdays or ()),
+        target_text=target_text,
+        target_volume=target_volume,
     )
 
 
 def _command_from_request(
-    *,
-    transcript: str,
-    user_timezone: str,
-    action: str | None = None,
-    **kwargs: Any,
+    *, transcript: str, user_timezone: str, action: str | None = None, **kwargs: Any
 ) -> TimekeepingCommand:
     if action:
         return _structured_command(action=action, **kwargs)
@@ -108,6 +110,7 @@ def _timer_payload(record: TimerRecord) -> dict[str, Any]:
         "status": record.status,
         "remaining_seconds": service.remaining_seconds(record.timer_id, record.user_id),
         "deadline_at": record.deadline_at.isoformat() if record.deadline_at else None,
+        "output_target_id": record.output_target_id,
     }
 
 
@@ -123,6 +126,20 @@ def _alarm_payload(record: AlarmRecord) -> dict[str, Any]:
         "weekdays": list(record.weekdays),
         "next_fire_at": record.next_fire_at.isoformat() if record.next_fire_at else None,
         "snooze_count": record.snooze_count,
+        "output_target_id": record.output_target_id,
+    }
+
+
+def _route_payload(route: ResolvedRoute) -> dict[str, Any]:
+    return {
+        "target_id": route.target_id,
+        "reason": route.reason,
+        "fallback_mode": route.fallback_mode.value if route.fallback_mode is not None else None,
+        "fallback_from": route.fallback_from,
+        "rule_index": route.rule_index,
+        "target_volume": route.target_volume,
+        "suppressed": route.suppressed,
+        "requires_confirmation": route.requires_confirmation,
     }
 
 
@@ -190,15 +207,11 @@ def timekeeping_read(
     owner = validate_user_id(_user_id)
     zone = timezone_name or resolve_user_timezone(owner)
     command = _command_from_request(
-        transcript=transcript,
-        user_timezone=zone,
-        action=action,
-        reference=reference,
+        transcript=transcript, user_timezone=zone, action=action, reference=reference
     )
     if command.action not in _READ_ACTIONS:
         raise ValueError("This request changes a timer or alarm; use timekeeping_manage")
     service = get_timekeeping_service()
-
     if command.action == "list_timers":
         return {"timers": [_timer_payload(record) for record in service.list_timers(owner)]}
     if command.action == "list_alarms":
@@ -208,7 +221,17 @@ def timekeeping_read(
             if record.status not in {"dismissed", "canceled"}
         ]
         return {"alarms": [_alarm_payload(record) for record in records]}
-
+    if command.action == "query_alarm_route":
+        alarm = _require_one_alarm(owner, command.reference, {"active", "ringing"})
+        route_at = (alarm.next_fire_at or datetime.now(UTC)).astimezone(ZoneInfo(zone))
+        route = get_output_routing_service().resolve(
+            user_id=owner,
+            output_kind=OutputKind.ALARM,
+            explicit_target_text=alarm.output_target_id,
+            origin_device_id=None,
+            at=route_at,
+        )
+        return {"alarm": _alarm_payload(alarm), "route": _route_payload(route)}
     matches = _matching_timers(owner, command.reference, {"active", "paused"})
     if not matches:
         return {"found": False, "details": "No matching active timer was found."}
@@ -222,9 +245,7 @@ def timekeeping_read(
 
 
 def _mutation_output(
-    record_type: str,
-    record: TimerRecord | AlarmRecord,
-    *field_names: str,
+    record_type: str, record: TimerRecord | AlarmRecord, *field_names: str
 ) -> dict[str, Any]:
     dumped = record.model_dump(mode="json")
     record_id = record.timer_id if isinstance(record, TimerRecord) else record.alarm_id
@@ -244,6 +265,22 @@ def _mutation_output(
     }
 
 
+def _explicit_output_target(owner: str, command: TimekeepingCommand, zone: str) -> str | None:
+    if command.target_text is None:
+        return None
+    kind = OutputKind.TIMER if command.action == "create_timer" else OutputKind.ALARM
+    route = get_output_routing_service().resolve(
+        user_id=owner,
+        output_kind=kind,
+        explicit_target_text=command.target_text,
+        origin_device_id=None,
+        at=datetime.now(UTC).astimezone(ZoneInfo(zone)),
+    )
+    if route.target_id is None:
+        raise ValueError(f"Output target is unavailable: {route.reason}")
+    return route.target_id
+
+
 def timekeeping_manage(
     *,
     transcript: str = "",
@@ -255,6 +292,8 @@ def timekeeping_manage(
     alarm_time: str | time | None = None,
     alarm_date: str | date | None = None,
     weekdays: list[int] | tuple[int, ...] | None = None,
+    target_text: str | None = None,
+    target_volume: int | None = None,
     _user_id: str = "",
     timezone_name: str | None = None,
     **kwargs: Any,
@@ -272,22 +311,27 @@ def timekeeping_manage(
         alarm_time=alarm_time,
         alarm_date=alarm_date,
         weekdays=weekdays,
+        target_text=target_text,
+        target_volume=target_volume,
     )
     if command.action not in _MUTATION_ACTIONS:
         raise ValueError("This request only reads timer/alarm state; use timekeeping_read")
-
     ensure_timekeeping_runtime()
     service = get_timekeeping_service()
 
     if command.action == "create_timer":
         if command.duration_seconds is None:
             raise ValueError("timer duration is required")
+        output_target_id = _explicit_output_target(owner, command, zone)
         record = service.create_timer(
             owner,
             command.duration_seconds,
             name=command.reference,
+            output_target_id=output_target_id,
         )
-        return _mutation_output("timer", record, "status", "name", "deadline_at")
+        return _mutation_output(
+            "timer", record, "status", "name", "deadline_at", "output_target_id"
+        )
 
     if command.action in {
         "pause_timer",
@@ -322,17 +366,13 @@ def timekeeping_manage(
         if updated is None:
             raise RuntimeError("timer mutation did not produce updated state")
         return _mutation_output(
-            "timer",
-            updated,
-            "status",
-            "name",
-            "deadline_at",
-            "paused_remaining_seconds",
+            "timer", updated, "status", "name", "deadline_at", "paused_remaining_seconds"
         )
 
     if command.action == "create_alarm":
         if command.alarm_time is None:
             raise ValueError("alarm time is required")
+        output_target_id = _explicit_output_target(owner, command, zone)
         alarm_record = service.create_alarm(
             owner,
             local_time=command.alarm_time,
@@ -340,14 +380,10 @@ def timekeeping_manage(
             local_date=command.alarm_date,
             weekdays=command.weekdays,
             name=command.reference,
+            output_target_id=output_target_id,
         )
         return _mutation_output(
-            "alarm",
-            alarm_record,
-            "status",
-            "enabled",
-            "name",
-            "next_fire_at",
+            "alarm", alarm_record, "status", "enabled", "name", "next_fire_at", "output_target_id"
         )
 
     alarm_statuses = {
@@ -358,11 +394,7 @@ def timekeeping_manage(
         "disable_alarm": {"active", "ringing"},
         "cancel_alarm": {"active", "ringing"},
     }
-    alarm_record = _require_one_alarm(
-        owner,
-        command.reference,
-        alarm_statuses[command.action],
-    )
+    alarm_record = _require_one_alarm(owner, command.reference, alarm_statuses[command.action])
     if command.action == "edit_alarm":
         updated_alarm = service.edit_alarm(
             alarm_record.alarm_id,
@@ -375,9 +407,7 @@ def timekeeping_manage(
         )
     elif command.action == "snooze_alarm":
         updated_alarm = service.snooze_alarm(
-            alarm_record.alarm_id,
-            owner,
-            command.duration_seconds or 600,
+            alarm_record.alarm_id, owner, command.duration_seconds or 600
         )
     elif command.action == "dismiss_alarm":
         updated_alarm = service.dismiss_alarm(alarm_record.alarm_id, owner)

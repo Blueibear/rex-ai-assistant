@@ -108,25 +108,27 @@ Examples that must work after implementation:
 
 **Description:** As a user, I want to decide where Rex sends alarms, timers, spoken responses, and media by default, with per-event and time-of-day rules that can be overridden in a command.
 
+**Implementation status (2026-08-21):** The US-122 product behavior is implemented and locally validated: shared per-user policy persistence/resolution, Electron and authenticated-mobile settings surfaces, timer/alarm explicit targets and due-event routing, request-origin media routing, media-account isolation/fallback policy, conditional rules, quiet hours, target volume/fallback handling, route explanation, privacy-safe decision audit, and Settings speaker-group/test-playback controls. Media-account linking itself is the canonical US-121 `MediaAccountStore.put()` registration seam backed by a per-user credential-vault reference; US-122 lists and selects those already-linked accounts and intentionally does not invent a fake Apple Music token/OAuth flow before real provider credentials exist. Physical-speaker/provider production verification remains governed by the release-gate requirement below.
+
 ### Acceptance criteria
 
-- [ ] Settings exposes audio outputs, rooms, and speaker groups using the canonical audio target registry.
-- [ ] Users can set a default spoken-response target, default timer target, default alarm target, and default media target.
-- [ ] Each profile can link/select its own media-provider account(s) and default provider/account without exposing another user's credentials or library authority.
-- [ ] High-confidence voice identity selects that user's linked/default media account; unresolved identity may use a configured household primary playback account for ordinary playback only under policy.
-- [ ] For interactive media, the authorized request-origin/listening endpoint is the normal default target when no room/device/group is named.
-- [ ] Defaults can be configured per user rather than globally only.
-- [ ] A timer or alarm may store an explicit output target that overrides defaults, for example "only sound this alarm on the bedroom speaker."
-- [ ] Routing policies can include time/day conditions, for example morning alarms on the bedroom speaker and evening timers on the kitchen speaker.
-- [ ] Users can configure fallback behavior for unavailable targets: no fallback, named fallback target/group, or ask before rerouting.
-- [ ] Quiet-hours behavior is configurable and does not silently suppress safety-critical or explicitly overridden events.
-- [ ] Timer/alarm routes can specify target volume where supported without permanently changing a device's normal volume unless configured to do so.
-- [ ] Speaker-group management is available from Settings with create, rename, membership edit, test playback, and delete operations.
-- [ ] A one-off natural-language target always overrides a stored default for that action.
-- [ ] Rex can answer "where will my morning alarm play?" and explain the resolved route and policy that produced it.
-- [ ] Routing decisions and fallbacks are recorded in structured logs without exposing sensitive user content.
-- [ ] Electron and mobile/PWA surfaces use the same routing/policy backend and do not maintain separate conflicting settings.
-- [ ] Tests cover per-user provider-account isolation, unresolved-speaker primary-account fallback, request-origin media defaulting, per-user outputs, time-of-day routing, explicit overrides, target outage fallback, quiet hours, group routing, and concurrent James/Cole policies.
+- [x] Settings exposes audio outputs, rooms, and speaker groups using the canonical audio target registry.
+- [x] Users can set a default spoken-response target, default timer target, default alarm target, and default media target.
+- [x] Each profile can link/select its own media-provider account(s) and default provider/account without exposing another user's credentials or library authority.
+- [x] High-confidence voice identity selects that user's linked/default media account; unresolved identity may use a configured household primary playback account for ordinary playback only under policy.
+- [x] For interactive media, the authorized request-origin/listening endpoint is the normal default target when no room/device/group is named.
+- [x] Defaults can be configured per user rather than globally only.
+- [x] A timer or alarm may store an explicit output target that overrides defaults, for example "only sound this alarm on the bedroom speaker."
+- [x] Routing policies can include time/day conditions, for example morning alarms on the bedroom speaker and evening timers on the kitchen speaker.
+- [x] Users can configure fallback behavior for unavailable targets: no fallback, named fallback target/group, or ask before rerouting.
+- [x] Quiet-hours behavior is configurable and does not silently suppress safety-critical or explicitly overridden events.
+- [x] Timer/alarm routes can specify target volume where supported without permanently changing a device's normal volume unless configured to do so.
+- [x] Speaker-group management is available from Settings with create, rename, membership edit, test playback, and delete operations.
+- [x] A one-off natural-language target always overrides a stored default for that action.
+- [x] Rex can answer "where will my morning alarm play?" and explain the resolved route and policy that produced it.
+- [x] Routing decisions and fallbacks are recorded in structured logs without exposing sensitive user content.
+- [x] Electron and mobile/PWA surfaces use the same routing/policy backend and do not maintain separate conflicting settings.
+- [x] Tests cover per-user provider-account isolation, unresolved-speaker primary-account fallback, request-origin media defaulting, per-user outputs, time-of-day routing, explicit overrides, target outage fallback, quiet hours, group routing, and concurrent James/Cole policies.
 
 ---
 

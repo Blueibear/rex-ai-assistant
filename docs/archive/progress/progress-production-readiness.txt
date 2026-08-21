@@ -2426,3 +2426,39 @@ US-114's first five local acceptance criteria are complete. The final `All relev
 - US-114 was rebased cleanly onto that repaired master. Post-rebase authoritative reconnect/verification matrix: 36 passed; capability-sync/HTTP/tool-bridge/action-lifecycle regression matrix: 98 passed; skip inventory: 127/127 current; pre-commit Ruff/Black/detect-secrets and `git diff --check`: passed.
 - Windows Electron Artifact on the pre-hotfix US-114 SHA passed on the single controlled retry; its first attempt had the known isolated installed-app OpenClaw settings read/write smoke symptom while all other packaged behavior passed.
 - On rebased head `4fb8b51cefb4f44ab125ecd83e3fe0e9448e6dc6`, GitHub-native fast checks began green, but CodeFactor returned an immediate external-analysis error (`Something went wrong`) with zero annotations rather than a code finding. The final GitHub acceptance criterion remains unchecked; this follow-up entry intentionally changes evidence/history only and triggers a fresh external analysis attempt.
+
+2026-08-21 - US-122 clean implementation branch local verification
+
+Rebuilt the US-122 implementation as a clean replacement branch from current `origin/master` after PR #414 accumulated temporary CI-diagnostic commits and a non-Conventional-Commit merge subject. The replacement preserves the intended output-routing product changes while excluding the temporary US-122 diagnostic workflows and the unrelated OpenClaw reconnect patch.
+
+Behavior and architecture:
+- Added `rex.output_routing` as the canonical per-user policy layer for spoken responses, timers, alarms, and media. Policy persistence covers per-kind defaults, conditional day/time rules, quiet hours for optional output, target volume, and explicit no-fallback/ask/named-fallback behavior.
+- Every stored or explicit output target is re-resolved against the current canonical `AudioTargetRegistry`; routing policy never grants target authority and unavailable targets never silently widen policy.
+- Timer/alarm records can persist explicit output targets; due-event delivery resolves them through the canonical routing service. `timekeeping_read` now supports route explanation such as `where will my morning alarm play?` and evaluates the policy for the event's scheduled local time.
+- Interactive media can prefer the authorized request-origin endpoint when no target is named, while an explicit natural-language target wins. Media-account selection remains separate from output-target routing and preserves per-user/private-library authority boundaries.
+- Trusted identity may use only the resolved user's linked/default media accounts. Unresolved identity may use the explicitly configured household primary account for ordinary playback only and cannot inherit private library/profile mutation authority.
+- Electron Settings exposes per-user defaults, conditional rules, quiet hours, volume/fallback controls, media-account selection, canonical targets, supported test playback, and speaker-group create/rename/member-edit/delete controls.
+- The authenticated mobile settings backend uses the same routing policy service and requires explicit user-bound settings scopes; James/Cole cross-user access is rejected by the tested authorization path.
+- Routing-decision audit evidence is structured/content-free and records target/reason/fallback metadata without raw prompts, user content, credentials, or private media results.
+- The stable `rex.voice_loop` facade continues to delegate construction to `rex.voice.builder`; the TTS prewarm source audit now inspects the canonical builder instead of mistaking the output-routing wrapper for the constructor implementation.
+
+Local validation on clean replacement branch `lead/us122-output-routing-final`:
+- Focused Python US-122/compatibility matrix: 70 passed, 0 failed.
+- Repository Ruff over `rex tests bridge`: passed.
+- Repository Black check over `rex tests bridge *.py`: 1,108 files unchanged.
+- Full `mypy rex --ignore-missing-imports`: 0 issues in 425 source files.
+- Electron TypeScript typecheck: passed.
+- Electron Vitest suite: 39 files / 191 tests passed, including output-routing handler and Settings-surface tests.
+- Electron production build: passed for main, preload, and renderer bundles.
+- `git diff --check`: passed.
+
+The US-122 specification/tracker acceptance boxes remain intentionally unchecked until the exact replacement PR head completes all required GitHub checks. Physical-speaker/provider production verification remains a separate release-gate requirement and is not claimed by this local implementation evidence.
+
+2026-08-21 - US-122 final acceptance audit and CI flake isolation
+
+- Audited the remaining US-122 media-account criterion against the approved US-121/US-122 plans. Canonical account linking/registration is the US-121 `MediaAccountStore.put()` seam backed by a user-scoped credential-vault reference; US-122 lists/selects only that user's linked safe metadata and sets the routing default. No fake Apple Music token/OAuth flow was added because the approved US-121 design explicitly forbids claiming live Apple Music connectivity before real provider credentials exist.
+- Marked US-122 product/behavior/test acceptance criteria complete in the canonical routing spec and production-readiness PRD. The explicit GitHub-check criterion remains open until the exact rebased PR head passes all remote gates.
+- Root-caused PR #415's sole full-Python failure to the pre-existing `test_outage_after_ready_before_worker_exit_reserves_successor_worker` fixture. The test supplied a fake wait function that returned stop=true without setting the controller stop event, allowing the production code to correctly schedule another successor worker and intermittently produce a third probe.
+- Reproduced the failure locally on the unchanged reconnect implementation, then fixed only the contradictory test fixture on a clean master-based branch. The corrected test passed 40 consecutive focused runs plus all 26 reconnect tests, Ruff, Black, pre-commit/detect-secrets, and diff-check.
+- PR #416 (`test(openclaw): stabilize successor reconnect race`) merged to master as `f805547` with no production reconnect changes.
+- Rebased `lead/us122-output-routing-final` onto `f805547`; US-122 is now being revalidated from the corrected master baseline.

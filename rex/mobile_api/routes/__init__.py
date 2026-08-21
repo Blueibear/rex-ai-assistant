@@ -9,6 +9,7 @@ from rex.mobile_api.routes.chat import build_chat_blueprint
 from rex.mobile_api.routes.home import build_home_blueprint
 from rex.mobile_api.routes.pairing import build_pairing_blueprint
 from rex.mobile_api.routes.scaffolds import build_scaffolds_blueprint
+from rex.mobile_api.routes.settings import build_settings_blueprint
 from rex.mobile_api.routes.status import build_status_blueprint
 from rex.mobile_api.routes.strong_auth import build_strong_auth_blueprint
 from rex.mobile_api.routes.voice import build_voice_blueprint
@@ -19,6 +20,7 @@ __all__ = [
     "build_home_blueprint",
     "build_pairing_blueprint",
     "build_scaffolds_blueprint",
+    "build_settings_blueprint",
     "build_status_blueprint",
     "build_strong_auth_blueprint",
     "build_voice_blueprint",

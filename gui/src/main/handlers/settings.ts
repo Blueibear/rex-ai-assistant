@@ -1,7 +1,7 @@
-import { ipcMain } from 'electron'
-import { join } from 'path'
-import { homedir } from 'os'
 import { existsSync, readFileSync } from 'fs'
+import { homedir } from 'os'
+import { join } from 'path'
+import { ipcMain } from 'electron'
 import type {
   ModelDiscoveryProvider,
   ModelDiscoveryResponse,
@@ -9,18 +9,28 @@ import type {
   Settings,
   WakeWordStatus
 } from '../../types/ipc'
-import { readGuiSettings, readRexConfigStrict, writeGuiSettings, writeRexConfig } from '../configStore'
 import { buildAiSettings, buildAiSettingsForSave } from '../aiSettings'
 import { migrateLegacyAutonomySettings, stripLegacyAutonomyMode } from '../autonomySettings'
-import { buildVoiceSettings, buildWakeWordStatus } from '../voiceSettings'
+import { getVaultReference, putVaultReference } from '../credentialReferences'
+import {
+  vaultDeleteSecret,
+  vaultHasSecret,
+  vaultSetSecret,
+  type VaultContext
+} from '../credentialVault'
+import { readGuiSettings, readRexConfigStrict, writeGuiSettings, writeRexConfig } from '../configStore'
+import { safeIpcErrorMessage, SafeValidationError } from '../ipcErrors'
+import {
+  loadIntegrationSettings,
+  persistSettingsSection,
+  removeEmailAccount
+} from '../integrationSettingsStorage'
+import { discoverAiModelsAtEndpoint } from '../modelDiscovery'
 import { defaultSettingsMap } from '../settingsDefaults'
 import { mirrorToRexConfig } from '../settingsMirror'
-import { vaultDeleteSecret, vaultHasSecret, vaultSetSecret, type VaultContext } from '../credentialVault'
-import { getVaultReference, putVaultReference } from '../credentialReferences'
 import type { ElectronSessionIdentity } from '../sessionIdentity'
-import { safeIpcErrorMessage, SafeValidationError } from '../ipcErrors'
-import { loadIntegrationSettings, persistSettingsSection, removeEmailAccount } from '../integrationSettingsStorage'
-import { discoverAiModelsAtEndpoint } from '../modelDiscovery'
+import { buildVoiceSettings, buildWakeWordStatus } from '../voiceSettings'
+import { callOutputRoutingBridge } from './outputRouting'
 
 const ALLOWED_API_KEYS = [
   'OPENAI_API_KEY',
@@ -46,15 +56,35 @@ function apiKeyContext(key: string): VaultContext {
   if (key === 'OPENCLAW_GATEWAY_TOKEN') {
     return { scope: 'household', integration: 'openclaw_gateway', account: null, slot: 'token' }
   }
-  return { scope: 'household', integration: integrationNameForKey(key), account: null, slot: 'api_key' }
+  return {
+    scope: 'household',
+    integration: integrationNameForKey(key),
+    account: null,
+    slot: 'api_key'
+  }
 }
 
 function objectSection(value: unknown): Record<string, unknown> {
   return value && typeof value === 'object' ? (value as Record<string, unknown>) : {}
 }
 
+function outputRoutingError(error: string | undefined): Error {
+  return new Error(error ?? 'Output routing service is unavailable')
+}
+
 export function registerSettingsHandlers(session: ElectronSessionIdentity): void {
   ipcMain.handle('rex:getSettings', async (_event, section: string): Promise<Settings> => {
+    if (section === 'outputRouting') {
+      const response = await callOutputRoutingBridge(session, { command: 'get_policy' })
+      if (!response.ok) throw outputRoutingError(response.error)
+      return response as unknown as Settings
+    }
+    if (section === 'outputRoutingAccounts') {
+      const response = await callOutputRoutingBridge(session, { command: 'list_media_accounts' })
+      if (!response.ok) throw outputRoutingError(response.error)
+      return response as unknown as Settings
+    }
+
     const stored = section === 'ai' ? migrateLegacyAutonomySettings() : readGuiSettings()
     if (section === 'ai') {
       return buildAiSettings((stored[section] ?? {}) as Settings) as unknown as Settings
@@ -98,6 +128,25 @@ export function registerSettingsHandlers(session: ElectronSessionIdentity): void
   ipcMain.handle(
     'rex:setSettings',
     async (_event, section: string, values: Settings): Promise<{ ok: boolean; error?: string }> => {
+      if (section === 'outputRouting') {
+        const response = await callOutputRoutingBridge(session, {
+          command: 'update_policy',
+          policy: values
+        })
+        return { ok: response.ok, error: response.error }
+      }
+      if (section === 'outputRoutingTest') {
+        const targetId = values.target_id
+        if (typeof targetId !== 'string' || !targetId) {
+          return { ok: false, error: 'A routing target is required' }
+        }
+        const response = await callOutputRoutingBridge(session, {
+          command: 'test_playback',
+          target_id: targetId
+        })
+        return { ok: response.ok, error: response.error }
+      }
+
       const normalizedValues =
         section === 'ai'
           ? (buildAiSettingsForSave(values) as unknown as Settings)
@@ -134,13 +183,16 @@ export function registerSettingsHandlers(session: ElectronSessionIdentity): void
     }
 
     const stored = readGuiSettings()
-    const aiSettings = buildAiSettings((stored['ai'] ?? defaultSettingsMap['ai'] ?? {}) as Settings)
+    const aiSettings = buildAiSettings(
+      (stored['ai'] ?? defaultSettingsMap['ai'] ?? {}) as Settings
+    )
 
     const suggestions: PreferenceSuggestion[] = []
 
-    // Autonomy mode - highest impact
     const preferredMode =
-      typeof profile.preferred_autonomy_mode === 'string' ? profile.preferred_autonomy_mode : null
+      typeof profile.preferred_autonomy_mode === 'string'
+        ? profile.preferred_autonomy_mode
+        : null
     if (preferredMode && preferredMode !== aiSettings.autonomyMode) {
       suggestions.push({
         field: 'autonomyMode',
@@ -150,7 +202,6 @@ export function registerSettingsHandlers(session: ElectronSessionIdentity): void
       })
     }
 
-    // Model
     const preferredModel =
       typeof profile.preferred_model === 'string' && profile.preferred_model
         ? profile.preferred_model
@@ -164,9 +215,7 @@ export function registerSettingsHandlers(session: ElectronSessionIdentity): void
       })
     }
 
-    // Budget - suggest 2x avg if no budget is set
-    const avgBudget =
-      typeof profile.avg_budget_usd === 'number' ? profile.avg_budget_usd : 0
+    const avgBudget = typeof profile.avg_budget_usd === 'number' ? profile.avg_budget_usd : 0
     if (avgBudget > 0 && aiSettings.budgetPerPlan === 0) {
       const suggested = Math.round(avgBudget * 2 * 100) / 100
       suggestions.push({
@@ -185,20 +234,30 @@ export function registerSettingsHandlers(session: ElectronSessionIdentity): void
     (_event, field: string, value: string | number) => {
       const stored = readGuiSettings()
       const originalStored = JSON.parse(JSON.stringify(stored)) as Record<string, Settings>
-      const aiSection = buildAiSettings((stored['ai'] ?? defaultSettingsMap['ai'] ?? {}) as Settings) as unknown as Record<string, unknown>
+      const aiSection = buildAiSettings(
+        (stored['ai'] ?? defaultSettingsMap['ai'] ?? {}) as Settings
+      ) as unknown as Record<string, unknown>
       aiSection[field] = value
       stored['ai'] = stripLegacyAutonomyMode(aiSection as Settings)
       writeGuiSettings(stored)
       const result = mirrorToRexConfig('ai', aiSection as Settings)
       if (result.ok) return { ok: true }
-      try { writeGuiSettings(originalStored) } catch { /* preserve mirror error */ }
+      try {
+        writeGuiSettings(originalStored)
+      } catch {
+        // preserve mirror error
+      }
       return { ok: false, error: result.error }
     }
   )
 
   ipcMain.handle(
     'rex:getApiKeys',
-    async (): Promise<{ openai_key_set: boolean; openrouter_key_set: boolean; error?: string }> => {
+    async (): Promise<{
+      openai_key_set: boolean
+      openrouter_key_set: boolean
+      error?: string
+    }> => {
       try {
         const config = readRexConfigStrict()
         const hasKey = async (name: 'OPENAI_API_KEY' | 'OPENROUTER_API_KEY'): Promise<boolean> => {
@@ -212,8 +271,6 @@ export function registerSettingsHandlers(session: ElectronSessionIdentity): void
         ])
         return { openai_key_set: openaiKeySet, openrouter_key_set: openrouterKeySet }
       } catch {
-        // Vault unavailable: fail closed and report "not configured" rather
-        // than reading any legacy plaintext credential location (S4).
         return {
           openai_key_set: false,
           openrouter_key_set: false,
@@ -226,7 +283,6 @@ export function registerSettingsHandlers(session: ElectronSessionIdentity): void
   ipcMain.handle(
     'rex:setApiKey',
     async (_event, name: string, value: string): Promise<{ ok: boolean; error?: string }> => {
-      // Validate key name to prevent arbitrary vault writes
       if (!ALLOWED_API_KEYS.includes(name)) {
         return { ok: false, error: `Key "${name}" is not allowed` }
       }
@@ -244,9 +300,14 @@ export function registerSettingsHandlers(session: ElectronSessionIdentity): void
         writeRexConfig(nextConfig)
         configWritten = true
         const readback = getVaultReference(
-          readRexConfigStrict(), name, context, session.userId
+          readRexConfigStrict(),
+          name,
+          context,
+          session.userId
         )
-        if (readback?.ref !== newRef) throw new SafeValidationError('Credential reference readback failed')
+        if (readback?.ref !== newRef) {
+          throw new SafeValidationError('Credential reference readback failed')
+        }
         if (oldRecord) {
           await vaultDeleteSecret(session, oldRecord.ref, context).catch(() => false)
         }
@@ -254,7 +315,11 @@ export function registerSettingsHandlers(session: ElectronSessionIdentity): void
       } catch (err) {
         let restored = true
         if (configWritten && originalConfig) {
-          try { writeRexConfig(originalConfig) } catch { restored = false }
+          try {
+            writeRexConfig(originalConfig)
+          } catch {
+            restored = false
+          }
         }
         if (newRef && restored) {
           await vaultDeleteSecret(session, newRef, context).catch(() => false)

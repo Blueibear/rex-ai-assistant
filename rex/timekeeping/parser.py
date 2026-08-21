@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import UTC, date, datetime, time, timedelta
 from typing import Literal
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
@@ -20,6 +20,7 @@ Action = Literal[
     "create_alarm",
     "edit_alarm",
     "list_alarms",
+    "query_alarm_route",
     "snooze_alarm",
     "dismiss_alarm",
     "enable_alarm",
@@ -38,6 +39,8 @@ class TimekeepingCommand:
     alarm_time: time | None = None
     alarm_date: date | None = None
     weekdays: tuple[int, ...] = ()
+    target_text: str | None = None
+    target_volume: int | None = None
 
 
 _NUMBER_WORDS = {
@@ -81,6 +84,28 @@ _WEEKDAYS = {
 
 def _normalize(text: str) -> str:
     return re.sub(r"\s+", " ", text.strip().lower().rstrip(".?!"))
+
+
+def _extract_target_clause(text: str) -> tuple[str, str | None]:
+    """Remove a trailing output-target clause without resolving device authority."""
+    patterns = (
+        re.compile(r"\s+and\s+play\s+it\s+on\s+(?:the\s+)?(?P<target>.+)$"),
+        re.compile(r"(?P<prefix>\btimer)\s+(?:on|in)\s+(?:the\s+)?(?P<target>.+)$"),
+        re.compile(r"(?P<prefix>\balarm)\s+on\s+(?:the\s+)?(?P<target>.+)$"),
+    )
+    for pattern in patterns:
+        match = pattern.search(text)
+        if match is None:
+            continue
+        target = match.group("target").strip(" ,")
+        if not target:
+            continue
+        if "prefix" in match.groupdict() and match.group("prefix"):
+            cleaned = text[: match.start()] + match.group("prefix")
+        else:
+            cleaned = text[: match.start()]
+        return cleaned.strip(), target
+    return text, None
 
 
 def _number(value: str) -> float:
@@ -147,8 +172,7 @@ def _alarm_recurrence(text: str) -> tuple[int, ...]:
         return (0, 1, 2, 3, 4, 5, 6)
     if "every " not in text:
         return ()
-    days = tuple(sorted(day for name, day in _WEEKDAYS.items() if name in text))
-    return days
+    return tuple(sorted(day for name, day in _WEEKDAYS.items() if name in text))
 
 
 def _relative_alarm_date(text: str, *, user_timezone: str, now: datetime) -> date | None:
@@ -182,11 +206,7 @@ def _parse_timer_create(text: str) -> TimekeepingCommand | None:
     else:
         between = text[match.end() : timer_pos].strip(" -")
         name = _clean_reference(between)
-    return TimekeepingCommand(
-        action="create_timer",
-        reference=name,
-        duration_seconds=seconds,
-    )
+    return TimekeepingCommand(action="create_timer", reference=name, duration_seconds=seconds)
 
 
 def _parse_timer_management(text: str) -> TimekeepingCommand | None:
@@ -220,6 +240,19 @@ def _parse_timer_management(text: str) -> TimekeepingCommand | None:
     return None
 
 
+def _parse_alarm_query(text: str) -> TimekeepingCommand | None:
+    route = re.match(
+        r"^where\s+(?:will|does)\s+(?:the\s+|my\s+)?(?:(.+?)\s+)?alarm\s+(?:play|ring|sound)$",
+        text,
+    )
+    if route:
+        return TimekeepingCommand(
+            action="query_alarm_route",
+            reference=_clean_reference(route.group(1)),
+        )
+    return None
+
+
 def _parse_alarm_management(text: str) -> TimekeepingCommand | None:
     rename = re.match(r"^rename\s+(?:the\s+|my\s+)?(.+?)\s+alarm\s+to\s+(.+)$", text)
     if rename:
@@ -228,21 +261,16 @@ def _parse_alarm_management(text: str) -> TimekeepingCommand | None:
             reference=_clean_reference(rename.group(1)),
             new_name=rename.group(2).strip(),
         )
-
     move = re.match(r"^(?:change|move)\s+(?:the\s+|my\s+)?(.+?)\s+alarm\s+to\s+.+$", text)
     if move:
         alarm_time = _parse_alarm_time(text)
         if alarm_time is None:
             return None
         return TimekeepingCommand(
-            action="edit_alarm",
-            reference=_clean_reference(move.group(1)),
-            alarm_time=alarm_time,
+            action="edit_alarm", reference=_clean_reference(move.group(1)), alarm_time=alarm_time
         )
-
     if re.match(r"^(?:list|show)\s+(?:my\s+)?alarms$", text) or re.match(r"^what\s+alarms\b", text):
         return TimekeepingCommand(action="list_alarms")
-
     snooze = re.match(
         r"^snooze\s+(?:(?:the|my|that|this)\s+)?(?:(.*?)\s+)?alarm(?:\s+for\s+(.+))?$", text
     )
@@ -255,13 +283,10 @@ def _parse_alarm_management(text: str) -> TimekeepingCommand | None:
             reference=_clean_reference(snooze.group(1)),
             duration_seconds=duration[0],
         )
-
     match = re.match(
-        r"^(dismiss|enable|disable|cancel|stop)\s+(?:the\s+|my\s+)?(.+?)\s+alarm$",
-        text,
+        r"^(dismiss|enable|disable|cancel|stop)\s+(?:the\s+|my\s+)?(.+?)\s+alarm$", text
     )
     if match:
-        verb = match.group(1)
         action_map: dict[str, Action] = {
             "dismiss": "dismiss_alarm",
             "enable": "enable_alarm",
@@ -270,8 +295,7 @@ def _parse_alarm_management(text: str) -> TimekeepingCommand | None:
             "stop": "cancel_alarm",
         }
         return TimekeepingCommand(
-            action=action_map[verb],
-            reference=_clean_reference(match.group(2)),
+            action=action_map[match.group(1)], reference=_clean_reference(match.group(2))
         )
     return None
 
@@ -290,7 +314,6 @@ def _parse_alarm_create(
     alarm_date = (
         None if weekdays else _relative_alarm_date(text, user_timezone=user_timezone, now=now)
     )
-
     name: str | None = None
     named = re.match(r"^(?:set|create)\s+(?:an?\s+|my\s+)?(.+?)\s+alarm\b", text)
     if named:
@@ -318,10 +341,7 @@ def _parse_timer_query(text: str) -> TimekeepingCommand | None:
         return TimekeepingCommand(action="list_timers")
     named = re.search(r"(?:the|my)\s+(.+?)\s+timer", text)
     if named:
-        return TimekeepingCommand(
-            action="query_timer",
-            reference=_clean_reference(named.group(1)),
-        )
+        return TimekeepingCommand(action="query_timer", reference=_clean_reference(named.group(1)))
     return TimekeepingCommand(action="list_timers")
 
 
@@ -335,19 +355,28 @@ def parse_timekeeping_command(
     text = _normalize(transcript)
     if not text:
         return None
+    text, target_text = _extract_target_clause(text)
     current = now or datetime.now(UTC)
     if current.tzinfo is None:
         raise ValueError("now must be timezone-aware")
 
-    for parser in (_parse_alarm_management, _parse_timer_management, _parse_timer_query):
+    command: TimekeepingCommand | None = None
+    for parser in (
+        _parse_alarm_query,
+        _parse_alarm_management,
+        _parse_timer_management,
+        _parse_timer_query,
+    ):
         command = parser(text)
         if command is not None:
-            return command
-
-    alarm = _parse_alarm_create(text, user_timezone=user_timezone, now=current)
-    if alarm is not None:
-        return alarm
-    return _parse_timer_create(text)
+            break
+    if command is None:
+        command = _parse_alarm_create(text, user_timezone=user_timezone, now=current)
+    if command is None:
+        command = _parse_timer_create(text)
+    if command is not None and target_text is not None:
+        command = replace(command, target_text=target_text)
+    return command
 
 
 __all__ = ["TimekeepingCommand", "parse_timekeeping_command"]

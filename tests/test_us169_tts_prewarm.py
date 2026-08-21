@@ -56,16 +56,21 @@ class TestSourcePrewarm:
     def test_voice_loop_exposes_warmup_coroutine(self):
         src = _src()
         idx = src.index("class VoiceLoop")
-        # There should be an async def warmup within VoiceLoop
+        # There should be an async def warmup within VoiceLoop.
         warmup_idx = src.index("async def warmup", idx)
-        # Confirm it's inside VoiceLoop (before build_voice_loop)
-        build_idx = src.index("def build_voice_loop(")
+        # Confirm it is inside VoiceLoop, before the canonical builder that
+        # follows loop.py in the decomposed source ordering.  The stable
+        # rex.voice_loop facade itself also defines build_voice_loop earlier,
+        # so search only after VoiceLoop rather than matching that wrapper.
+        build_idx = src.index("def build_voice_loop(", idx)
         assert warmup_idx < build_idx
 
     def test_build_voice_loop_passes_warmup(self):
-        src = _src()
+        # The stable rex.voice_loop facade now wraps the canonical builder for
+        # output routing. Inspect the implementation that constructs VoiceLoop.
+        src = (REPO_ROOT / "rex" / "voice" / "builder.py").read_text(encoding="utf-8")
         idx = src.index("def build_voice_loop(")
-        fn_end = src.index("\n\n\n", idx)
+        fn_end = src.index("\n\n\ndef _resolve_voice_reference", idx)
         fn_body = src[idx:fn_end]
         assert "warmup" in fn_body
 
