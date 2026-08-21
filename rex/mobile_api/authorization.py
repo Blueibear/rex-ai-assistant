@@ -26,13 +26,12 @@ ROUTE_SCOPES = MappingProxyType(
         "home.control": "home.control",
         "tasks.read": "tasks.read",
         "tasks.write": "tasks.write",
+        "settings.read": "settings.read",
+        "settings.write": "settings.write",
         "approvals.respond": "approvals.respond",
     }
 )
 
-# Device scopes are an additional restriction, never a replacement for Rex's
-# live per-user permissions.  Scopes omitted here are user-owned/non-privileged
-# surfaces and require only an active user plus an active device grant.
 SCOPE_USER_PERMISSIONS = MappingProxyType(
     {
         "home.read": frozenset({"ha_control", "admin"}),
@@ -164,7 +163,7 @@ def resolve_session_grant(
         return None
     if any(value is None for value in fields):
         raise GrantAuthorizationError("Session grant binding is incomplete.")
-    grant = load_active_grant(
+    return load_active_grant(
         conn,
         device_id=str(session["paired_device_id"]),
         grant_id=str(session["grant_id"]),
@@ -173,7 +172,6 @@ def resolve_session_grant(
         expected_version=int(session["grant_version"]),
         now=now,
     )
-    return grant
 
 
 def require_scope(
