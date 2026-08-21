@@ -86,10 +86,17 @@ class MediaService:
         user_id: str,
         origin_device_id: str | None = None,
         account_ref: MediaAccountRef | None = None,
+        route_volume: int | None = None,
     ) -> MediaServiceResult:
         user_id = validate_user_id(user_id)
         if not isinstance(command, MediaCommand):
             raise TypeError("command must be a MediaCommand")
+        if route_volume is not None and (
+            isinstance(route_volume, bool)
+            or not isinstance(route_volume, int)
+            or not 0 <= route_volume <= 100
+        ):
+            raise ValueError("route_volume must be an integer from 0 through 100")
 
         self._refresh_registry()
         query = command.target_text
@@ -141,13 +148,53 @@ class MediaService:
                 return MediaServiceResult("failed", target.id, message="volume level required")
             value = command.level
 
+        temporary_volume = (
+            route_volume is not None
+            and action is not MediaAction.SET_VOLUME
+            and MediaCapability.SET_VOLUME in target.capabilities
+        )
+        original_volume: float | None = None
+        volume_changed = False
+        if temporary_volume:
+            before = self._read_state(adapter, target)
+            if before is None or before.volume_percent is None:
+                return MediaServiceResult(
+                    "failed",
+                    target.id,
+                    state=before,
+                    message="temporary route volume requires a verifiable current volume",
+                )
+            original_volume = before.volume_percent
+            if abs(original_volume - float(route_volume)) > 0.5:
+                volume_changed = True
+                if not self._set_and_verify_volume(adapter, target, route_volume):
+                    self._restore_volume(adapter, target, original_volume)
+                    return MediaServiceResult(
+                        "failed",
+                        target.id,
+                        state=self._read_state(adapter, target),
+                        message="temporary route volume could not be verified",
+                    )
+
         try:
             acknowledgement = adapter.execute_action(target, action, value=value)
         except Exception as exc:
-            return MediaServiceResult("failed", target.id, message=str(exc))
-        if not acknowledgement.accepted:
+            if volume_changed and original_volume is not None:
+                self._restore_volume(adapter, target, original_volume)
             return MediaServiceResult(
-                "failed", target.id, message=acknowledgement.detail or "provider rejected"
+                "failed",
+                target.id,
+                state=self._read_state(adapter, target),
+                message=str(exc),
+            )
+        if not acknowledgement.accepted:
+            if volume_changed and original_volume is not None:
+                self._restore_volume(adapter, target, original_volume)
+            return MediaServiceResult(
+                "failed",
+                target.id,
+                state=self._read_state(adapter, target),
+                message=acknowledgement.detail or "provider rejected",
             )
 
         expected = self._expected_state(action, value)
@@ -158,8 +205,16 @@ class MediaService:
             and bool(expected)
             and self._matches(observed, expected)
         )
+        final_observed = observed
+        restoration_verified = True
+        if volume_changed and original_volume is not None:
+            restoration_verified = self._restore_volume(adapter, target, original_volume)
+            final_observed = self._read_state(adapter, target)
+
         mutation_outcome = (
-            MediaMutationOutcome.VERIFIED if verified else MediaMutationOutcome.ATTEMPTED_UNVERIFIED
+            MediaMutationOutcome.VERIFIED
+            if verified and restoration_verified
+            else MediaMutationOutcome.ATTEMPTED_UNVERIFIED
         )
         mutation = MediaMutationResult(
             target_id=target.id,
@@ -171,13 +226,17 @@ class MediaService:
             verification_evidence=tuple(sorted(expected)),
         )
         outcome = mutation_outcome.value
-        if verified:
+        if verified and restoration_verified:
             self._update_session(user_id, target, command, observed)
+        message = None
+        if verified and not restoration_verified:
+            message = "temporary route volume restoration could not be verified"
         return MediaServiceResult(
             outcome,
             requested_target_id=target.id,
             mutation=mutation,
-            state=observed,
+            state=final_observed,
+            message=message,
             verification_expected=expected,
         )
 
@@ -216,12 +275,15 @@ class MediaService:
         if account_ref is not None:
             if not isinstance(account_ref, MediaAccountRef):
                 return "account_not_authorized"
-            if account_ref.user_id != user_id or account_ref.provider != target.provider:
+            if account_ref.user_id != user_id:
                 return "account_not_authorized"
             stored = self._account_store.get(user_id, account_ref.provider, account_ref.account_id)
             if stored != account_ref:
                 return "account_not_authorized"
             return None
+        # Legacy inference remains target-provider-scoped. Canonical routing
+        # supplies an explicit media account, keeping content-provider account
+        # authority separate from output-target authorization.
         accounts = tuple(
             account
             for account in self._account_store.list(user_id)
@@ -230,6 +292,38 @@ class MediaService:
         if len(accounts) > 1:
             return "account_ambiguous"
         return None
+
+    @classmethod
+    def _set_and_verify_volume(
+        cls,
+        adapter: TargetProviderAdapter,
+        target: AudioTarget,
+        volume: int | float,
+    ) -> bool:
+        try:
+            acknowledgement = adapter.execute_action(
+                target,
+                MediaAction.SET_VOLUME,
+                value=volume,
+            )
+        except Exception:
+            return False
+        if not acknowledgement.accepted:
+            return False
+        observed = cls._read_state(adapter, target)
+        return observed is not None and cls._matches(
+            observed,
+            {"volume_percent": float(volume)},
+        )
+
+    @classmethod
+    def _restore_volume(
+        cls,
+        adapter: TargetProviderAdapter,
+        target: AudioTarget,
+        volume: int | float,
+    ) -> bool:
+        return cls._set_and_verify_volume(adapter, target, volume)
 
     def _refresh_registry(self) -> None:
         """Refresh dynamic target discovery before resolving a media command."""
