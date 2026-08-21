@@ -55,12 +55,3 @@ export interface OutputRoutingResponse {
   target_id?: string
   error?: string
 }
-
-declare module './ipc' {
-  interface RexAPI {
-    getOutputRoutingPolicy: () => Promise<OutputRoutingResponse>
-    updateOutputRoutingPolicy: (policy: OutputRoutingPolicy) => Promise<OutputRoutingResponse>
-    listMediaAccounts: () => Promise<OutputRoutingResponse>
-    testOutputRoutingTarget: (targetId: string) => Promise<OutputRoutingResponse>
-  }
-}
