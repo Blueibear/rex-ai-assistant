@@ -75,9 +75,7 @@ class _FakeHABridge:
 
 def test_spoken_delivery_uses_remote_target_without_local_duplicate(tmp_path) -> None:
     kitchen = _target("ha:media_player.kitchen", "Kitchen")
-    registry = AudioTargetRegistry(
-        (kitchen,), authorized_target_ids={"james": {kitchen.id}}
-    )
+    registry = AudioTargetRegistry((kitchen,), authorized_target_ids={"james": {kitchen.id}})
     routing = OutputRoutingService(registry, root=tmp_path)
     routing.save_policy("james", UserOutputPolicy(spoken_response_target_id=kitchen.id))
     remote: list[tuple[str, str]] = []
@@ -103,9 +101,7 @@ def test_spoken_delivery_uses_remote_target_without_local_duplicate(tmp_path) ->
 
 def test_spoken_delivery_applies_and_restores_verified_route_volume(tmp_path) -> None:
     kitchen = _target("ha:media_player.kitchen", "Kitchen")
-    registry = AudioTargetRegistry(
-        (kitchen,), authorized_target_ids={"james": {kitchen.id}}
-    )
+    registry = AudioTargetRegistry((kitchen,), authorized_target_ids={"james": {kitchen.id}})
     routing = OutputRoutingService(registry, root=tmp_path)
     routing.save_policy(
         "james",
@@ -143,9 +139,7 @@ def test_spoken_delivery_applies_and_restores_verified_route_volume(tmp_path) ->
 
 def test_spoken_delivery_reports_unverified_volume_restoration(tmp_path) -> None:
     kitchen = _target("ha:media_player.kitchen", "Kitchen")
-    registry = AudioTargetRegistry(
-        (kitchen,), authorized_target_ids={"james": {kitchen.id}}
-    )
+    registry = AudioTargetRegistry((kitchen,), authorized_target_ids={"james": {kitchen.id}})
     routing = OutputRoutingService(registry, root=tmp_path)
     routing.save_policy(
         "james",

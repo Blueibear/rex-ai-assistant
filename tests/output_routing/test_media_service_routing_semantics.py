@@ -127,7 +127,9 @@ def test_routed_volume_is_temporary_and_restored_after_verified_media_action(tmp
     assert result.state.playback is MediaState.PLAYING
 
 
-def test_unverified_temporary_volume_prevents_media_dispatch_and_restores_if_possible(tmp_path) -> None:
+def test_unverified_temporary_volume_prevents_media_dispatch_and_restores_if_possible(
+    tmp_path,
+) -> None:
     accounts = MediaAccountStore(tmp_path / "accounts")
     adapter = VolumeAwareAdapter(_target().id, volume=20.0)
     adapter.ignore_volume_updates = True

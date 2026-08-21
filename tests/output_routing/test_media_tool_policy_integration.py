@@ -86,7 +86,9 @@ def _target() -> AudioTarget:
     )
 
 
-def test_media_tool_carries_trusted_identity_account_and_route_volume(monkeypatch, tmp_path) -> None:
+def test_media_tool_carries_trusted_identity_account_and_route_volume(
+    monkeypatch, tmp_path
+) -> None:
     target = _target()
     accounts = MediaAccountStore(tmp_path / "accounts")
     apple = accounts.put(

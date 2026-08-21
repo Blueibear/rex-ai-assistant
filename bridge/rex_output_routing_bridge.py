@@ -38,7 +38,9 @@ def _authorized_target(registry: AudioTargetRegistry, target: AudioTarget, user_
 
 
 def _visible_targets(registry: AudioTargetRegistry, user_id: str) -> tuple[AudioTarget, ...]:
-    return tuple(target for target in registry.targets if _authorized_target(registry, target, user_id))
+    return tuple(
+        target for target in registry.targets if _authorized_target(registry, target, user_id)
+    )
 
 
 def _serialize_target(target: AudioTarget) -> dict[str, Any]:
@@ -67,7 +69,9 @@ def _bound_user(payload: Mapping[str, Any], bound_user_id: str | None) -> str:
         owner = validate_user_id(bound_user_id)
         requested = payload.get("user_id") or payload.get("user")
         if requested is not None and str(requested) != owner:
-            raise PermissionError("Routing policy is user-bound and cannot be edited for another user")
+            raise PermissionError(
+                "Routing policy is user-bound and cannot be edited for another user"
+            )
         return owner
     if payload.get("data_scope") != "private":
         raise PermissionError("private data scope is required")
@@ -85,7 +89,9 @@ def _validate_policy_targets(
     for rule in policy.rules:
         target_ids.append(rule.target_id)
         target_ids.append(rule.fallback_target_id)
-    unauthorized = sorted({target_id for target_id in target_ids if target_id and target_id not in visible_ids})
+    unauthorized = sorted(
+        {target_id for target_id in target_ids if target_id and target_id not in visible_ids}
+    )
     if unauthorized:
         raise PermissionError("Routing policy contains an unauthorized audio target")
 
@@ -156,7 +162,10 @@ def handle_output_routing_request(
 
         if command == "list_media_accounts":
             accounts = media_accounts.list(user_id)
-            return {"ok": True, "accounts": [_serialize_account(account) for account in accounts]}, 0
+            return {
+                "ok": True,
+                "accounts": [_serialize_account(account) for account in accounts],
+            }, 0
 
         if command == "set_default_media_account":
             provider = payload.get("provider")
