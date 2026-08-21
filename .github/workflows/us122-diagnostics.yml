@@ -60,7 +60,7 @@ jobs:
         env:
           REX_FILE_LOGGING_ENABLED: "false"
         run: |
-          pytest -m "not slow and not audio and not gpu" -rs \
+          pytest -x -m "not slow and not audio and not gpu" -rs \
             --cov=rex --cov-fail-under=75 \
             --cov-report=term-missing --cov-report=xml \
             > us122-full.txt 2>&1
