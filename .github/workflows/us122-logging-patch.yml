@@ -1,0 +1,217 @@
+name: US-122 Logging Patch
+
+on:
+  pull_request:
+    types: [synchronize]
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'lead/us122-output-routing-recovery'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Apply privacy-safe routing decision logging
+        shell: python
+        run: |
+          from pathlib import Path
+
+          path = Path('rex/output_routing/service.py')
+          text = path.read_text(encoding='utf-8')
+          text = text.replace('import json\nimport os\n', 'import json\nimport logging\nimport os\n', 1)
+          text = text.replace(
+              '_SCHEMA_VERSION = 1\n',
+              'logger = logging.getLogger(__name__)\n\n_SCHEMA_VERSION = 1\n',
+              1,
+          )
+          start = text.index('    def resolve(\n')
+          end = text.index('    @staticmethod\n    def _quiet_hours_suppress', start)
+          replacement = '''    def resolve(
+              self,
+              *,
+              user_id: str,
+              output_kind: OutputKind,
+              explicit_target_text: str | None,
+              origin_device_id: str | None,
+              at: datetime,
+          ) -> ResolvedRoute:
+              """Resolve target precedence against current registry authorization/health."""
+              user_id = validate_user_id(user_id)
+              kind = OutputKind(output_kind)
+              if not isinstance(at, datetime):
+                  raise TypeError("at must be a datetime")
+              policy = self.get_policy(user_id)
+
+              explicit_text = explicit_target_text.strip() if explicit_target_text else None
+              if explicit_text:
+                  resolution = self._registry.resolve(
+                      explicit_text,
+                      user_id=user_id,
+                      origin_device_id=origin_device_id,
+                  )
+                  if resolution.target is not None:
+                      return self._record_decision(
+                          ResolvedRoute(
+                              output_kind=kind,
+                              target_id=resolution.target.id,
+                              reason="explicit_target",
+                              target_volume=policy.volume_for(kind),
+                          )
+                      )
+                  return self._record_decision(
+                      self._fallback(
+                          user_id=user_id,
+                          kind=kind,
+                          policy=policy,
+                          preferred_reason=f"explicit_target_{resolution.reason}",
+                          preferred_target=explicit_text,
+                          target_volume=policy.volume_for(kind),
+                      )
+                  )
+
+              if self._quiet_hours_suppress(policy, kind, at):
+                  return self._record_decision(
+                      ResolvedRoute(
+                          output_kind=kind,
+                          target_id=None,
+                          reason="quiet_hours",
+                          target_volume=None,
+                          suppressed=True,
+                      )
+                  )
+
+              if kind is OutputKind.MEDIA and policy.prefer_media_request_origin:
+                  origin = self._registry.resolve(
+                      None,
+                      user_id=user_id,
+                      origin_device_id=origin_device_id,
+                  )
+                  if origin.target is not None:
+                      return self._record_decision(
+                          ResolvedRoute(
+                              output_kind=kind,
+                              target_id=origin.target.id,
+                              reason="request_origin",
+                              target_volume=policy.volume_for(kind),
+                          )
+                      )
+
+              for index, rule in enumerate(policy.rules):
+                  if not rule.matches(kind, at):
+                      continue
+                  resolution = self._registry.resolve(rule.target_id, user_id=user_id)
+                  if resolution.target is not None:
+                      return self._record_decision(
+                          ResolvedRoute(
+                              output_kind=kind,
+                              target_id=resolution.target.id,
+                              reason="conditional_rule",
+                              target_volume=(
+                                  rule.target_volume
+                                  if rule.target_volume is not None
+                                  else policy.volume_for(kind)
+                              ),
+                              rule_index=index,
+                          )
+                      )
+                  return self._record_decision(
+                      self._fallback(
+                          user_id=user_id,
+                          kind=kind,
+                          policy=policy,
+                          preferred_reason=f"rule_target_{resolution.reason}",
+                          preferred_target=rule.target_id,
+                          target_volume=(
+                              rule.target_volume
+                              if rule.target_volume is not None
+                              else policy.volume_for(kind)
+                          ),
+                          override_mode=rule.fallback_mode,
+                          override_target=rule.fallback_target_id,
+                          rule_index=index,
+                      )
+                  )
+
+              configured_target = policy.target_for(kind)
+              if configured_target is not None:
+                  resolution = self._registry.resolve(configured_target, user_id=user_id)
+                  if resolution.target is not None:
+                      return self._record_decision(
+                          ResolvedRoute(
+                              output_kind=kind,
+                              target_id=resolution.target.id,
+                              reason="configured_default",
+                              target_volume=policy.volume_for(kind),
+                          )
+                      )
+                  return self._record_decision(
+                      self._fallback(
+                          user_id=user_id,
+                          kind=kind,
+                          policy=policy,
+                          preferred_reason="configured_target_unavailable",
+                          preferred_target=configured_target,
+                          target_volume=policy.volume_for(kind),
+                      )
+                  )
+
+              return self._record_decision(
+                  self._fallback(
+                      user_id=user_id,
+                      kind=kind,
+                      policy=policy,
+                      preferred_reason="target_required",
+                      preferred_target=None,
+                      target_volume=policy.volume_for(kind),
+                  )
+              )
+
+          @staticmethod
+          def _record_decision(route: ResolvedRoute) -> ResolvedRoute:
+              """Emit content-free routing metadata and return the unchanged decision."""
+              logger.info(
+                  "Output routing decision",
+                  extra={
+                      "event": "output_routing_decision",
+                      "output_kind": route.output_kind.value,
+                      "reason": route.reason,
+                      "has_target": route.target_id is not None,
+                      "fallback_mode": (
+                          route.fallback_mode.value if route.fallback_mode is not None else None
+                      ),
+                      "rule_index": route.rule_index,
+                      "suppressed": route.suppressed,
+                      "requires_confirmation": route.requires_confirmation,
+                      "volume_configured": route.target_volume is not None,
+                  },
+              )
+              return route
+
+'''
+          text = text[:start] + replacement + text[end:]
+          path.write_text(text, encoding='utf-8')
+      - name: Install focused test dependencies
+        run: pip install -e '.[dev]'
+      - name: Verify focused logging contract
+        run: pytest -q tests/output_routing/test_privacy_safe_logging.py tests/output_routing/test_policy_service.py
+      - name: Format changed Python
+        run: |
+          black rex/output_routing/service.py tests/output_routing/test_privacy_safe_logging.py
+          ruff check rex/output_routing/service.py tests/output_routing/test_privacy_safe_logging.py
+      - name: Commit verified patch
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add rex/output_routing/service.py tests/output_routing/test_privacy_safe_logging.py
+          git commit -m 'feat(routing): add privacy-safe decision logging'
+          git push origin HEAD:${{ github.event.pull_request.head.ref }}
