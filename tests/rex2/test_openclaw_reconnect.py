@@ -762,7 +762,6 @@ def test_outage_after_ready_before_worker_exit_reserves_successor_worker() -> No
         resync=_fresh_success,
         mark_unavailable=lambda: None,
         auto_reconnect=True,
-        wait_fn=lambda _delay: True,
     )
     controller.mark_disconnected("first_outage")
     assert recovered.wait(timeout=5)
