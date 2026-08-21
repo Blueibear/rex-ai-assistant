@@ -33,6 +33,16 @@ class TurnSource(StrEnum):
     MQTT = "mqtt"
 
 
+class IdentityResolution(StrEnum):
+    """Trusted provenance for how the turn's user identity was resolved."""
+
+    EXPLICIT = "explicit"
+    VOICE_RECOGNIZED = "voice_recognized"
+    VOICE_REVIEW = "voice_review"
+    FALLBACK = "fallback"
+    UNKNOWN = "unknown"
+
+
 class ResponseMode(StrEnum):
     """Delivery mode requested by the originating surface."""
 
@@ -70,6 +80,7 @@ class TurnContext:
     cancellation: TurnCancellation
     started_monotonic_ns: int
     deadline_monotonic_ns: int | None = None
+    identity_resolution: IdentityResolution = IdentityResolution.EXPLICIT
 
     def __post_init__(self) -> None:
         validate_user_id(self.user_id)
@@ -81,6 +92,14 @@ class TurnContext:
             object.__setattr__(self, "source", TurnSource(self.source))
         except (TypeError, ValueError) as exc:
             raise ValueError(f"invalid turn source: {self.source!r}") from exc
+        try:
+            object.__setattr__(
+                self,
+                "identity_resolution",
+                IdentityResolution(self.identity_resolution),
+            )
+        except (TypeError, ValueError) as exc:
+            raise ValueError(f"invalid identity resolution: {self.identity_resolution!r}") from exc
         try:
             object.__setattr__(self, "response_mode", ResponseMode(self.response_mode))
         except (TypeError, ValueError) as exc:
@@ -109,13 +128,25 @@ class TurnContext:
         device_id: str | None,
         response_mode: ResponseMode | str,
         authorization: AuthorizationSnapshotRef,
+        identity_resolution: IdentityResolution | str | None = None,
         timeout_seconds: float | None = None,
         clock: Callable[[], int] = time.monotonic_ns,
     ) -> TurnContext:
-        """Create a validated context using a monotonic deadline."""
+        """Create a validated context using a monotonic deadline.
+
+        When trusted edge provenance is active and no explicit resolution is
+        supplied, inherit it from ``rex.runtime.invocation``. Direct library
+        construction remains explicitly identified by default.
+        """
         validated_user = validate_user_id(user_id)
         if timeout_seconds is not None and timeout_seconds < 0:
             raise ValueError("timeout_seconds must be non-negative")
+        if identity_resolution is None:
+            # Lazy import avoids a module-load cycle: invocation imports the
+            # enums defined in this module.
+            from rex.runtime.invocation import current_turn_invocation
+
+            identity_resolution = current_turn_invocation().identity_resolution
         turn_id = uuid.uuid4().hex
         started_ns = clock()
         deadline_ns = None
@@ -132,4 +163,5 @@ class TurnContext:
             cancellation=TurnCancellation(turn_id),
             started_monotonic_ns=started_ns,
             deadline_monotonic_ns=deadline_ns,
+            identity_resolution=IdentityResolution(identity_resolution),
         )

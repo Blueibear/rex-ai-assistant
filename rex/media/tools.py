@@ -2,10 +2,15 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from threading import RLock
 from typing import Any
 
 from rex.identity import validate_user_id
+from rex.media.accounts import MediaAccountRef
+from rex.output_routing.models import OutputKind
+from rex.output_routing.runtime import get_output_routing_service, user_local_now
+from rex.runtime.invocation import current_turn_invocation
 
 from .parser import MediaCommand, MediaCommandAction, parse_media_command
 from .service import MediaService, MediaServiceResult
@@ -14,11 +19,36 @@ _service_lock = RLock()
 _media_service: MediaService | None = None
 
 
+@dataclass(frozen=True, slots=True)
+class _MediaPolicyDecision:
+    command: MediaCommand
+    origin_device_id: str | None
+    account_ref: MediaAccountRef | None
+    route_volume: int | None
+
+
 def set_media_service(service: MediaService | None) -> None:
     """Install the process-local canonical media service used by tool handlers."""
     global _media_service
     with _service_lock:
         _media_service = service
+
+    from rex.output_routing.runtime import set_output_registry_provider
+
+    if service is None:
+        set_output_registry_provider(None)
+        return
+
+    def current_registry():
+        refresher = getattr(service, "_refresh_registry", None)
+        if callable(refresher):
+            refresher()
+        registry = getattr(service, "_registry", None)
+        if registry is None:
+            raise RuntimeError("Canonical media registry is unavailable")
+        return registry
+
+    set_output_registry_provider(current_registry)
 
 
 def _get_media_service() -> MediaService:
@@ -38,18 +68,64 @@ def _command_from_request(
     level: int | None,
 ) -> MediaCommand:
     if action:
-        command = MediaCommand(action=action, query=query, target_text=target_text, level=level)
-    else:
-        parsed = parse_media_command(transcript)
-        if parsed is None:
-            raise ValueError("I couldn't identify a supported media command")
-        command = MediaCommand(
-            action=parsed.action,
-            query=query if query is not None else parsed.query,
-            target_text=target_text if target_text is not None else parsed.target_text,
-            level=level if level is not None else parsed.level,
-        )
-    return command
+        return MediaCommand(action=action, query=query, target_text=target_text, level=level)
+    parsed = parse_media_command(transcript)
+    if parsed is None:
+        raise ValueError("I couldn't identify a supported media command")
+    return MediaCommand(
+        action=parsed.action,
+        query=query if query is not None else parsed.query,
+        target_text=target_text if target_text is not None else parsed.target_text,
+        level=level if level is not None else parsed.level,
+    )
+
+
+def _apply_output_policy(
+    command: MediaCommand,
+    *,
+    owner: str,
+    origin_device_id: str | None,
+) -> _MediaPolicyDecision:
+    """Resolve one media route/account from trusted turn provenance."""
+    invocation = current_turn_invocation()
+    trusted_origin = invocation.device_id if invocation.device_id is not None else origin_device_id
+    try:
+        routing = get_output_routing_service()
+    except RuntimeError:
+        return _MediaPolicyDecision(command, trusted_origin, None, None)
+
+    route = routing.resolve(
+        user_id=owner,
+        output_kind=OutputKind.MEDIA,
+        explicit_target_text=command.target_text,
+        origin_device_id=trusted_origin,
+        at=user_local_now(owner),
+    )
+    if route.suppressed:
+        raise ValueError("Media output is suppressed by the current quiet-hours policy")
+    if route.requires_confirmation:
+        raise ValueError("Media rerouting requires confirmation before playback continues")
+    if route.target_id is None:
+        raise ValueError(f"Media route is unavailable: {route.reason}")
+
+    routed_command = MediaCommand(
+        action=command.action,
+        query=command.query,
+        target_text=route.target_id,
+        level=command.level,
+    )
+    account_ref = routing.resolve_media_account(
+        active_user_id=owner,
+        identity_resolution=invocation.identity_resolution,
+        requested_account_id=None,
+        operation=MediaCommandAction(command.action).value,
+    )
+    return _MediaPolicyDecision(
+        routed_command,
+        trusted_origin,
+        account_ref,
+        route.target_volume,
+    )
 
 
 def _state_payload(state: Any) -> dict[str, Any] | None:
@@ -100,13 +176,21 @@ def media_read(
     )
     if command.action is not MediaCommandAction.QUERY_STATE:
         raise ValueError("This media request changes playback; use media_manage")
-    result = _get_media_service().execute(command, user_id=owner, origin_device_id=origin_device_id)
+    decision = _apply_output_policy(
+        command,
+        owner=owner,
+        origin_device_id=origin_device_id,
+    )
+    result = _get_media_service().execute(
+        decision.command,
+        user_id=owner,
+        origin_device_id=decision.origin_device_id,
+        account_ref=decision.account_ref,
+        route_volume=decision.route_volume,
+    )
     if result.outcome != "read" or result.state is None:
         raise ValueError(result.message or f"Media read failed: {result.outcome}")
-    return {
-        "target_id": result.requested_target_id,
-        "state": _state_payload(result.state),
-    }
+    return {"target_id": result.requested_target_id, "state": _state_payload(result.state)}
 
 
 def media_manage(
@@ -130,7 +214,18 @@ def media_manage(
     )
     if command.action is MediaCommandAction.QUERY_STATE:
         raise ValueError("This media request is read-only; use media_read")
-    result = _get_media_service().execute(command, user_id=owner, origin_device_id=origin_device_id)
+    decision = _apply_output_policy(
+        command,
+        owner=owner,
+        origin_device_id=origin_device_id,
+    )
+    result = _get_media_service().execute(
+        decision.command,
+        user_id=owner,
+        origin_device_id=decision.origin_device_id,
+        account_ref=decision.account_ref,
+        route_volume=decision.route_volume,
+    )
     if result.outcome not in {"verified", "attempted_unverified"}:
         return {
             "status": "failed",
@@ -147,6 +242,8 @@ def media_manage(
         "state": _state_payload(result.state),
         "verification": verification,
     }
+    if result.message:
+        payload["message"] = result.message
     if result.outcome == "verified":
         payload["success"] = True
     return payload
@@ -182,9 +279,4 @@ def verify_media_mutation(args: dict[str, Any], output: Any) -> bool:
         return False
 
 
-__all__ = [
-    "media_manage",
-    "media_read",
-    "set_media_service",
-    "verify_media_mutation",
-]
+__all__ = ["media_manage", "media_read", "set_media_service", "verify_media_mutation"]

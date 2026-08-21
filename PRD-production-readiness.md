@@ -3787,18 +3787,20 @@ grep -n "askrex.app\|Cloudflare\|CORS\|rate limit\|revocation" docs/deployment.m
 **Description:** Let each user choose default and conditional targets and media-account behavior for spoken responses, timers, alarms, and media, with request-origin convenience, explicit one-off overrides, and safe fallbacks.
 
 **Acceptance Criteria:**
-- [ ] Electron Settings exposes canonical outputs/rooms/groups and per-user defaults for spoken response, timer, alarm, and media targets.
-- [ ] Each profile can link/select its own media provider account(s) and default provider/account without exposing another user's credentials.
-- [ ] When voice identity is confidently resolved, media uses that user's linked/default provider account. When identity is unresolved, policy may use a configured household primary playback account for ordinary playback without granting another user's private library mutation authority.
-- [ ] Interactive media defaults to the authorized request-origin/listening endpoint when no target is named; an explicit natural-language room/device/group always overrides that preference.
-- [ ] Timer/alarm records may carry an explicit target overriding defaults.
-- [ ] Policies support time/day conditions, quiet hours, target volume where supported, and explicit fallback behavior.
-- [ ] One-off natural-language targets override stored defaults and Rex can explain the resolved route/policy.
-- [ ] Speaker-group management is available from Settings, including test playback where supported.
-- [ ] Electron and mobile/PWA use the same backend policy state with James/Cole isolation.
-- [ ] Routing/fallback decisions are structured and privacy-safe; unavailable targets never silently reroute against policy.
-- [ ] Tests cover per-user media-account isolation, unresolved-speaker primary-account fallback, request-origin default, defaults, conditions, explicit overrides, outages/fallbacks, quiet hours, groups, and concurrent per-user policies.
+- [x] Electron Settings exposes canonical outputs/rooms/groups and per-user defaults for spoken response, timer, alarm, and media targets.
+- [x] Each profile can link/select its own media provider account(s) and default provider/account without exposing another user's credentials.
+- [x] When voice identity is confidently resolved, media uses that user's linked/default provider account. When identity is unresolved, policy may use a configured household primary playback account for ordinary playback without granting another user's private library mutation authority.
+- [x] Interactive media defaults to the authorized request-origin/listening endpoint when no target is named; an explicit natural-language room/device/group always overrides that preference.
+- [x] Timer/alarm records may carry an explicit target overriding defaults.
+- [x] Policies support time/day conditions, quiet hours, target volume where supported, and explicit fallback behavior.
+- [x] One-off natural-language targets override stored defaults and Rex can explain the resolved route/policy.
+- [x] Speaker-group management is available from Settings, including test playback where supported.
+- [x] Electron and mobile/PWA use the same backend policy state with James/Cole isolation.
+- [x] Routing/fallback decisions are structured and privacy-safe; unavailable targets never silently reroute against policy.
+- [x] Tests cover per-user media-account isolation, unresolved-speaker primary-account fallback, request-origin default, defaults, conditions, explicit overrides, outages/fallbacks, quiet hours, groups, and concurrent per-user policies.
 - [ ] All relevant GitHub checks pass.
+
+**Local acceptance evidence (2026-08-21):** US-122's product criteria pass focused routing/timekeeping/mobile/TTS tests and the Electron typecheck/Vitest/build matrix. Account linking is the US-121 `MediaAccountStore.put()` registration seam backed by a user-scoped credential-vault reference; US-122 safely lists/selects those linked accounts and does not fabricate an Apple Music OAuth/token flow before real provider credentials exist. The earlier full-Python failure was independently reproduced as a pre-existing OpenClaw reconnect test-fixture race and corrected on `master` by PR #416 before this branch was rebased. The final GitHub-check criterion remains open until the exact rebased US-122 head completes all remote gates.
 
 **Risk notes:** Output/account routing is policy, not authority. It cannot widen device permissions, borrow another user's private library authority, or silently suppress explicitly required events.
 

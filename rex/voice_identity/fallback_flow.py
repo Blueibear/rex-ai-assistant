@@ -10,9 +10,11 @@ Design notes
 * No new identity system is created; this delegates to
   :func:`rex.identity.resolve_active_user` and
   :func:`rex.identity.set_session_user`.
+* Trusted identity provenance is staged separately from the user ID so
+  output/media policy can distinguish recognized voice evidence from a
+  fallback session/profile without treating either as permission.
 * Audio-based confirmation (voice PIN, re-enrollment) is deferred to a
-  future PR.  The current implementation is a callable hook that the
-  voice loop can invoke.
+  future PR.
 """
 
 from __future__ import annotations
@@ -20,9 +22,18 @@ from __future__ import annotations
 import logging
 
 from rex.identity import resolve_active_user, set_session_user, validate_user_id
+from rex.runtime.invocation import stage_identity_resolution
+from rex.runtime.turn import IdentityResolution
 from rex.voice_identity.types import RecognitionDecision, RecognitionResult
 
 logger = logging.getLogger(__name__)
+
+
+def _stage_fallback_result(user_id: str | None) -> str | None:
+    stage_identity_resolution(
+        IdentityResolution.FALLBACK if user_id is not None else IdentityResolution.UNKNOWN
+    )
+    return user_id
 
 
 def resolve_speaker_identity(
@@ -31,22 +42,26 @@ def resolve_speaker_identity(
     explicit_user: str | None = None,
     config: dict | None = None,
 ) -> str | None:
-    """Determine the active user from a recognition result.
+    """Determine the active user and stage trusted resolution provenance.
 
     Decision logic:
 
-    * **recognized** -- accept ``result.best_user_id`` and update the
-      session so downstream commands see the correct user.
-    * **review** -- if the existing session/config already resolves to
-      the same user as the best match, accept it silently.  Otherwise
-      fall back to the existing identity resolution chain (which may
-      prompt interactively in a future PR).
-    * **unknown** -- fall through to the existing identity chain without
-      setting a new session user.
+    * **recognized** -- accept ``result.best_user_id``, update the session,
+      and stage ``voice_recognized``.
+    * **review** -- if the existing session/config already resolves to the
+      same user as the best match, accept it and stage ``voice_review``.
+      Otherwise use the existing identity chain and stage ``fallback`` (or
+      ``unknown`` when no user resolves).
+    * **unknown** -- use the existing identity chain and stage ``fallback``
+      or ``unknown`` without setting a new session user.
 
     Returns:
         The resolved user ID, or ``None`` if no user could be determined.
     """
+    # Fail safe before interpreting any result so malformed/exceptional paths
+    # cannot retain a previous interaction's strong voice provenance.
+    stage_identity_resolution(IdentityResolution.UNKNOWN)
+
     if result.decision == RecognitionDecision.RECOGNIZED and result.best_user_id:
         try:
             user_id = validate_user_id(result.best_user_id)
@@ -59,10 +74,10 @@ def resolve_speaker_identity(
             result.score,
         )
         set_session_user(user_id)
+        stage_identity_resolution(IdentityResolution.VOICE_RECOGNIZED)
         return user_id
 
     if result.decision == RecognitionDecision.REVIEW and result.best_user_id:
-        # Check whether the existing identity chain already agrees
         current = resolve_active_user(explicit_user, config=config)
         if current == result.best_user_id:
             logger.info(
@@ -71,6 +86,7 @@ def resolve_speaker_identity(
                 result.best_user_id,
                 result.score,
             )
+            stage_identity_resolution(IdentityResolution.VOICE_REVIEW)
             return current
         logger.info(
             "Speaker review: score=%.3f for %s but session user is %s; "
@@ -79,12 +95,10 @@ def resolve_speaker_identity(
             result.best_user_id,
             current,
         )
-        # Fall through to existing identity resolution
-        return resolve_active_user(explicit_user, config=config)
+        return _stage_fallback_result(current)
 
-    # Unknown speaker -- use existing identity chain
     logger.info(
         "Speaker unknown (score=%.3f); using existing identity chain.",
         result.score,
     )
-    return resolve_active_user(explicit_user, config=config)
+    return _stage_fallback_result(resolve_active_user(explicit_user, config=config))
