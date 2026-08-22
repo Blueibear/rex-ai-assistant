@@ -13,6 +13,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
 
+from rex.context.active import ActiveContextStore
 from rex.context.cache import ContextArtifactCache, ContextCacheKey, ContextCacheMetrics
 from rex.context.revisions import ContextCacheRequest, build_context_cache_versions
 from rex.context.source_policy import ContextSourcePolicyStore
@@ -116,6 +117,7 @@ class ContextBuilder:
         context_cache: ContextArtifactCache[PrivateContextArtifacts] | None = None,
         capability_registry: Any = None,
         source_policy_store: ContextSourcePolicyStore | None = None,
+        active_context_store: ActiveContextStore | None = None,
     ) -> None:
         self._settings = settings
         self._history = history
@@ -125,6 +127,7 @@ class ContextBuilder:
         self._context_cache = context_cache or ContextArtifactCache(max_entries=128)
         self._capability_registry = capability_registry
         self._source_policy_store = source_policy_store
+        self._active_context_store = active_context_store
 
     def _current_history(self, user_id: str | None = None) -> list:
         """Return the live history list (provider-backed when configured).
@@ -156,6 +159,9 @@ class ContextBuilder:
         """Build and return a :class:`ContextPackage` for LLM input."""
         system_prompt = self.build_system_context()
         session_id = active_user_id or self._user_id or ""
+        active_context = self._format_active_context(session_id)
+        if active_context:
+            system_prompt = f"{system_prompt}\n\n{active_context}"
         private_artifacts = self._resolve_private_artifacts(active_user_id, cache_request)
 
         messages = self._build_messages(
@@ -185,6 +191,37 @@ class ContextBuilder:
     # ------------------------------------------------------------------
     # Public helpers
     # ------------------------------------------------------------------
+
+    def _format_active_context(self, user_id: str) -> str:
+        """Render bounded same-user follow-up state; never include source/provider content."""
+        store = self._active_context_store
+        if store is None or not user_id:
+            return ""
+        try:
+            refs = store.list_for_user(user_id, domains=("media", "timekeeping"))[:5]
+        except (TypeError, ValueError):
+            return ""
+        lines: list[str] = []
+        for ref in refs:
+            if ref.domain == "media":
+                target_id = ref.payload.get("target_id")
+                if isinstance(target_id, str) and target_id:
+                    lines.append(f"- media target={target_id}")
+                continue
+            record_type = ref.payload.get("record_type")
+            if record_type not in {"timer", "alarm"}:
+                continue
+            fields = [f"- {record_type} id={ref.key}"]
+            name = ref.payload.get("name")
+            status = ref.payload.get("status")
+            if isinstance(name, str) and name:
+                fields.append(f"name={name[:80]}")
+            if isinstance(status, str) and status:
+                fields.append(f"status={status[:40]}")
+            lines.append(" ".join(fields))
+        if not lines:
+            return ""
+        return "Active conversation context (user-owned, temporary):\n" + "\n".join(lines)
 
     @staticmethod
     def format_context_documents(documents: list[Any] | tuple[Any, ...]) -> str:

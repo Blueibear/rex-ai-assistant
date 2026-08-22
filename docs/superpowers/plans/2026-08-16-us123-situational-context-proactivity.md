@@ -175,7 +175,7 @@ Expected: PASS.
 - `ActiveContextStore.put(ref)`, `get(user_id, domain, key)`, `resolve(user_id, utterance, candidate_domains)`, `invalidate_source(source_id)`.
 - Domain adapters publish bounded IDs/state only; they never store whole prompts, transcripts, credentials, or private provider payloads.
 
-- [ ] **Step 1: Write failing expiry/ambiguity/cross-user tests**
+- [x] **Step 1: Write failing expiry/ambiguity/cross-user tests**
 
 ```python
 def test_it_resolves_to_recent_media_for_same_user(store):
@@ -192,17 +192,17 @@ def test_two_equally_relevant_refs_require_clarification(store):
     assert result.reason == "ambiguous"
 ```
 
-- [ ] **Step 2: Run active-context tests and verify red state**
+- [x] **Step 2: Run active-context tests and verify red state**
 Run: `pytest -q tests/context/test_active_context.py tests/context/test_conversational_resolution.py`
 Expected: FAIL because there is no canonical active-reference store.
 
-- [ ] **Step 3: Implement bounded references and source-revision invalidation**
+- [x] **Step 3: Implement bounded references and source-revision invalidation**
 Every read checks validated user ownership, expiry, and current source/policy revision. Revoked source policy clears matching refs immediately; stale refs are ignored rather than refreshed from unauthorized data.
 
-- [ ] **Step 4: Publish media/timekeeping references and expose them to TurnEngine routing**
+- [x] **Step 4: Publish media/timekeeping references and expose them to TurnEngine routing**
 US-121 media sessions publish `domain="media"`; timekeeping mutations/queries publish the exact record ID they just touched. Deterministic parsers may consume a resolved ref, while ContextBuilder may include a minimal active-state summary for LLM interpretation.
 
-- [ ] **Step 5: Run conversational regressions and commit**
+- [x] **Step 5: Run conversational regressions and commit**
 Run: `pytest -q tests/context/test_active_context.py tests/context/test_conversational_resolution.py tests/media tests/timekeeping tests/test_assistant.py`
 Expected: PASS.
 `git add rex/context/active.py rex/context/builder.py rex/actions/dispatcher.py rex/media/sessions.py rex/timekeeping/tools.py tests/context && git commit -m "feat(context): add bounded conversational references"`

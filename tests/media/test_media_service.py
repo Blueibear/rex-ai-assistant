@@ -6,6 +6,7 @@ from pathlib import Path
 
 import pytest
 
+from rex.context.active import ActiveContextStore
 from rex.credential_vault import generate_credential_ref
 from rex.media.accounts import MediaAccountStore
 from rex.media.models import (
@@ -684,3 +685,44 @@ def test_mute_commands_use_verified_canonical_lifecycle(
     assert result.outcome == "verified"
     assert result.mutation is not None
     assert getattr(result.mutation.observed_state, "muted", None) is expected_muted
+
+
+def test_verified_media_session_publishes_active_context(kitchen) -> None:
+    def clock() -> float:
+        return 1000.0
+
+    active = ActiveContextStore(clock=clock)
+    sessions = ActiveMediaSessionStore(
+        ttl_seconds=300,
+        clock=clock,
+        active_context_store=active,
+    )
+    adapter = FakeAdapter("ha")
+    adapter.seed(
+        kitchen.id,
+        MediaStateSnapshot(
+            target_id=kitchen.id,
+            playback=MediaState.IDLE,
+            observed_at=datetime.now(tz=UTC),
+        ),
+    )
+    service = _service(
+        [kitchen],
+        adapter=adapter,
+        authorized_target_ids={"james": {kitchen.id}},
+        session_store=sessions,
+        clock=clock,
+    )
+
+    result = service.execute(
+        MediaCommand(action="play", query="Miles Davis", target_text=kitchen.id),
+        user_id="james",
+    )
+
+    assert result.outcome == "verified"
+    ref = active.get("james", "media", kitchen.id)
+    assert ref is not None
+    assert ref.payload["target_id"] == kitchen.id
+    assert ref.payload["provider"] == "ha"
+    assert str(ref.payload["media_ref"]).startswith("query:")
+    assert ref.expires_at == 1300.0

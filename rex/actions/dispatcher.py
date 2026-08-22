@@ -18,6 +18,7 @@ from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from typing import Any
 
+from rex.context.active import ActiveContextRef, ActiveContextStore
 from rex.latency import LatencyTrace
 from rex.runtime.cancellation import await_with_cancellation, current_turn_cancellation
 from rex.runtime.events import EventKind, TurnEventStream
@@ -43,6 +44,172 @@ class ActionResult:
     error: str | None = None
     model_generated: bool = False
     recovery_actions: list[dict[str, object]] = field(default_factory=list)
+
+
+@dataclass(frozen=True, slots=True)
+class _ActiveFollowup:
+    tool_name: str | None = None
+    args: dict[str, object] = field(default_factory=dict)
+    clarification: str | None = None
+
+
+def _active_clarification(candidates: tuple[ActiveContextRef, ...]) -> str:
+    domains = {ref.domain for ref in candidates}
+    if domains == {"timekeeping"}:
+        record_types = {ref.payload.get("record_type") for ref in candidates}
+        if record_types == {"timer"}:
+            return "Which timer do you mean?"
+        if record_types == {"alarm"}:
+            return "Which alarm do you mean?"
+        return "Which timer or alarm do you mean?"
+    if domains == {"media"}:
+        return "Which media session do you mean?"
+    return "Which one do you mean?"
+
+
+def _timekeeping_active_followup(
+    ref: ActiveContextRef,
+    transcript: str,
+) -> _ActiveFollowup | None:
+    text = " ".join(transcript.casefold().strip().rstrip(".?!").split())
+    record_type = ref.payload.get("record_type")
+    verb = text.split(" ", 1)[0] if text else ""
+    action: str | None = None
+    if record_type == "timer":
+        action = {
+            "pause": "pause_timer",
+            "resume": "resume_timer",
+            "cancel": "cancel_timer",
+            "stop": "cancel_timer",
+        }.get(verb)
+        if action is None and any(
+            phrase in text for phrase in ("how much time", "time left", "remaining", "how long")
+        ):
+            action = "query_timer"
+    elif record_type == "alarm":
+        action = {
+            "snooze": "snooze_alarm",
+            "dismiss": "dismiss_alarm",
+            "enable": "enable_alarm",
+            "disable": "disable_alarm",
+            "cancel": "cancel_alarm",
+            "stop": "cancel_alarm",
+        }.get(verb)
+    if action is None:
+        return None
+    tool_name = "timekeeping_read" if action == "query_timer" else "timekeeping_manage"
+    return _ActiveFollowup(
+        tool_name=tool_name,
+        args={"action": action, "reference": ref.key},
+    )
+
+
+def _media_active_followup(
+    ref: ActiveContextRef,
+    transcript: str,
+) -> _ActiveFollowup | None:
+    from rex.media.parser import MediaCommandAction, parse_media_command  # noqa: PLC0415
+
+    command = parse_media_command(transcript)
+    if command is None:
+        return None
+    action = MediaCommandAction(command.action)
+    contextual_actions = {
+        MediaCommandAction.PAUSE,
+        MediaCommandAction.RESUME,
+        MediaCommandAction.STOP,
+        MediaCommandAction.NEXT,
+        MediaCommandAction.PREVIOUS,
+        MediaCommandAction.SET_VOLUME,
+        MediaCommandAction.MUTE,
+        MediaCommandAction.UNMUTE,
+        MediaCommandAction.QUERY_STATE,
+    }
+    if action not in contextual_actions:
+        return None
+    target_id = ref.payload.get("target_id")
+    if not isinstance(target_id, str) or not target_id:
+        return None
+    args: dict[str, object] = {
+        "action": action.value,
+        "target_text": target_id,
+    }
+    if command.query is not None:
+        args["query"] = command.query
+    if command.level is not None:
+        args["level"] = command.level
+    tool_name = "media_read" if action is MediaCommandAction.QUERY_STATE else "media_manage"
+    return _ActiveFollowup(tool_name=tool_name, args=args)
+
+
+def _resolve_active_followup(
+    store: ActiveContextStore | None,
+    user_id: str,
+    transcript: str,
+) -> _ActiveFollowup | None:
+    if store is None:
+        return None
+    resolution = store.resolve(
+        user_id,
+        transcript,
+        candidate_domains=("media", "timekeeping"),
+    )
+    if resolution.reason == "ambiguous":
+        return _ActiveFollowup(clarification=_active_clarification(resolution.candidates))
+    ref = resolution.ref
+    if ref is None:
+        return None
+    if ref.domain == "timekeeping":
+        return _timekeeping_active_followup(ref, transcript)
+    if ref.domain == "media":
+        return _media_active_followup(ref, transcript)
+    return None
+
+
+def _parsed_timekeeping_route(transcript: str) -> _ActiveFollowup | None:
+    from rex.timekeeping.parser import parse_timekeeping_command  # noqa: PLC0415
+
+    command = parse_timekeeping_command(transcript, user_timezone="UTC")
+    if command is None:
+        return None
+    read_actions = {"list_timers", "query_timer", "list_alarms"}
+    tool_name = "timekeeping_read" if command.action in read_actions else "timekeeping_manage"
+    return _ActiveFollowup(tool_name=tool_name, args={"transcript": transcript})
+
+
+def _parsed_media_route(transcript: str, origin_device_id: str | None) -> _ActiveFollowup | None:
+    from rex.media.parser import MediaCommandAction, parse_media_command  # noqa: PLC0415
+
+    command = parse_media_command(transcript)
+    if command is None:
+        return None
+    tool_name = "media_read" if command.action is MediaCommandAction.QUERY_STATE else "media_manage"
+    return _ActiveFollowup(
+        tool_name=tool_name,
+        args={"transcript": transcript, "origin_device_id": origin_device_id},
+    )
+
+
+def _select_exact_route(
+    store: ActiveContextStore | None,
+    user_id: str,
+    transcript: str,
+    origin_device_id: str | None,
+) -> _ActiveFollowup | None:
+    active = _resolve_active_followup(store, user_id, transcript)
+    if active is not None:
+        if active.tool_name in {"media_read", "media_manage"}:
+            args = dict(active.args)
+            args["origin_device_id"] = origin_device_id
+            return _ActiveFollowup(
+                tool_name=active.tool_name,
+                args=args,
+                clarification=active.clarification,
+            )
+        return active
+    return _parsed_timekeeping_route(transcript) or _parsed_media_route(
+        transcript, origin_device_id
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -101,6 +268,7 @@ class ActionDispatcher:
         device_state_handler: Any = None,
         suggestion_engine: Any = None,
         pattern_entries: dict | None = None,
+        active_context_store: ActiveContextStore | None = None,
         build_tool_context_fn: Callable[..., dict] | None = None,
         model_call_fn_builder: Callable[..., Any] | None = None,
         run_plugins_fn: Callable[..., Awaitable[list[str]]] | None = None,
@@ -119,6 +287,7 @@ class ActionDispatcher:
         self._suggestion_engine = suggestion_engine
         # Per-user command log for pattern detection, keyed by user_id (#303)
         self._pattern_entries: dict = pattern_entries if pattern_entries is not None else {}
+        self._active_context_store = active_context_store
         self._build_tool_context_fn = build_tool_context_fn
         self._model_call_fn_builder = model_call_fn_builder
         self._run_plugins_fn = run_plugins_fn
@@ -303,34 +472,37 @@ class ActionDispatcher:
         current_info_requested = getattr(intent, "intent_type", None) == "current_info"
         selection_text = f"web search {transcript}" if current_info_requested else transcript
         if self._tool_dispatcher is not None:
-            # Timers and alarms have deterministic grammar and stateful mutation
-            # semantics. Route them to exactly one canonical tool before fuzzy
-            # capability retrieval so a single command cannot fan out to both
-            # read and mutation tools. Mobile free-form mutations intentionally
-            # remain post-LLM so S8 can bind strong auth to the exact action.
-            from rex.timekeeping.parser import parse_timekeeping_command  # noqa: PLC0415
-
-            timekeeping_command = parse_timekeeping_command(
+            exact_route = _select_exact_route(
+                self._active_context_store,
+                effective_user,
                 transcript,
-                user_timezone="UTC",
+                current_turn_invocation().device_id,
             )
-            timekeeping_read_actions = {"list_timers", "query_timer", "list_alarms"}
-            if timekeeping_command is not None:
-                timekeeping_tool = (
-                    "timekeeping_read"
-                    if timekeeping_command.action in timekeeping_read_actions
-                    else "timekeeping_manage"
+            if exact_route is not None and exact_route.clarification is not None:
+                return ActionResult(
+                    success=True,
+                    response=exact_route.clarification,
+                    actions_taken=["context_clarification"],
                 )
+
+            if exact_route is not None and exact_route.tool_name is not None:
+                exact_tool = exact_route.tool_name
+                exact_args = dict(exact_route.args)
+                is_media_route = exact_tool.startswith("media_")
                 can_pre_dispatch = not (
-                    mobile_action_context_active() and timekeeping_tool == "timekeeping_manage"
+                    mobile_action_context_active() and exact_tool.endswith("_manage")
                 )
                 dispatch_fn = getattr(self._tool_dispatcher, "dispatch", None)
+                if is_media_route:
+                    _tool_candidates_found = True
+                    _media_handled = True
                 if can_pre_dispatch and callable(dispatch_fn):
                     _tool_candidates_found = True
-                    _timekeeping_handled = True
+                    if not is_media_route:
+                        _timekeeping_handled = True
                     emit(
                         EventKind.CAPABILITY_PROGRESS,
-                        {"stage": "tool_selection", "capabilities": [timekeeping_tool]},
+                        {"stage": "tool_selection", "capabilities": [exact_tool]},
                     )
                     if latency_trace is not None:
                         latency_trace.start("tool")
@@ -338,8 +510,8 @@ class ActionDispatcher:
                         exact_result = await run_blocking(
                             functools.partial(
                                 dispatch_fn,
-                                timekeeping_tool,
-                                {"transcript": transcript},
+                                exact_tool,
+                                exact_args,
                                 {"user_id": effective_user},
                             )
                         )
@@ -347,83 +519,21 @@ class ActionDispatcher:
                         if latency_trace is not None:
                             latency_trace.end("tool")
                     if getattr(exact_result, "success", False):
-                        _tool_results[timekeeping_tool] = getattr(exact_result, "output", None)
+                        _tool_results[exact_tool] = getattr(exact_result, "output", None)
                     elif getattr(exact_result, "error", None) == "Execution timed out":
-                        _tool_results[timekeeping_tool] = (
-                            f"I couldn't reach {timekeeping_tool} in time"
-                        )
+                        _tool_results[exact_tool] = f"I couldn't reach {exact_tool} in time"
                     else:
                         detail = (
                             getattr(exact_result, "detail", None)
                             or getattr(exact_result, "error", None)
                             or "unknown error"
                         )
-                        _tool_results[timekeeping_tool] = f"[tool error: {detail}]"
+                        _tool_results[exact_tool] = f"[tool error: {detail}]"
                     _tool_context = self._tool_dispatcher.format_tool_context(_tool_results) or None
                     emit(
                         EventKind.ACTION_PROGRESS,
                         {"stage": "tool_execution", "status": "returned", "count": 1},
                     )
-
-            if timekeeping_command is None:
-                from rex.media.parser import (  # noqa: PLC0415
-                    MediaCommandAction,
-                    parse_media_command,
-                )
-
-                media_command = parse_media_command(transcript)
-                if media_command is not None:
-                    media_tool = (
-                        "media_read"
-                        if media_command.action is MediaCommandAction.QUERY_STATE
-                        else "media_manage"
-                    )
-                    _tool_candidates_found = True
-                    _media_handled = True
-                    can_pre_dispatch = not (
-                        mobile_action_context_active() and media_tool == "media_manage"
-                    )
-                    dispatch_fn = getattr(self._tool_dispatcher, "dispatch", None)
-                    if can_pre_dispatch and callable(dispatch_fn):
-                        emit(
-                            EventKind.CAPABILITY_PROGRESS,
-                            {"stage": "tool_selection", "capabilities": [media_tool]},
-                        )
-                        if latency_trace is not None:
-                            latency_trace.start("tool")
-                        try:
-                            exact_result = await run_blocking(
-                                functools.partial(
-                                    dispatch_fn,
-                                    media_tool,
-                                    {
-                                        "transcript": transcript,
-                                        "origin_device_id": current_turn_invocation().device_id,
-                                    },
-                                    {"user_id": effective_user},
-                                )
-                            )
-                        finally:
-                            if latency_trace is not None:
-                                latency_trace.end("tool")
-                        if getattr(exact_result, "success", False):
-                            _tool_results[media_tool] = getattr(exact_result, "output", None)
-                        elif getattr(exact_result, "error", None) == "Execution timed out":
-                            _tool_results[media_tool] = f"I couldn't reach {media_tool} in time"
-                        else:
-                            detail = (
-                                getattr(exact_result, "detail", None)
-                                or getattr(exact_result, "error", None)
-                                or "unknown error"
-                            )
-                            _tool_results[media_tool] = f"[tool error: {detail}]"
-                        _tool_context = (
-                            self._tool_dispatcher.format_tool_context(_tool_results) or None
-                        )
-                        emit(
-                            EventKind.ACTION_PROGRESS,
-                            {"stage": "tool_execution", "status": "returned", "count": 1},
-                        )
 
             if not _timekeeping_handled and not _media_handled:
                 defined_select_for_user = inspect.getattr_static(

@@ -6,6 +6,7 @@ from zoneinfo import ZoneInfo
 import pytest
 
 from rex.capabilities.registry import CapabilityRegistry
+from rex.context.active import ActiveContextStore
 from rex.timekeeping.runtime import set_timekeeping_service, shutdown_timekeeping_runtime
 from rex.timekeeping.service import TimekeepingService
 from rex.tools.dispatcher import ToolDispatcher
@@ -201,3 +202,88 @@ def test_structured_alarm_edit_can_change_recurrence_and_timezone(service) -> No
     assert edited.weekdays == (0, 2, 4)
     assert edited.local_date is None
     assert edited.timezone_name == "America/New_York"
+
+
+def test_timekeeping_mutation_and_query_publish_exact_active_reference(
+    service, monkeypatch
+) -> None:
+    import rex.timekeeping.tools as timekeeping_tools
+
+    active = ActiveContextStore()
+    monkeypatch.setattr(
+        timekeeping_tools,
+        "get_active_context_store",
+        lambda: active,
+        raising=False,
+    )
+    registry = _build_default_registry(capability_registry=CapabilityRegistry())
+    dispatcher = ToolDispatcher(registry)
+
+    created = dispatcher.dispatch(
+        "timekeeping_manage",
+        {"transcript": "set a 10-minute pasta timer"},
+        {"user_id": "james", "request_id": "active-pasta"},
+    )
+    assert created.success is True
+    timer_id = created.output["record_id"]
+    created_ref = active.get("james", "timekeeping", timer_id)
+    assert created_ref is not None
+    assert created_ref.payload["record_type"] == "timer"
+    assert created_ref.payload["name"] == "pasta"
+
+    queried = dispatcher.dispatch(
+        "timekeeping_read",
+        {"transcript": "how much time is left on the pasta timer"},
+        {"user_id": "james"},
+    )
+    assert queried.success is True
+    queried_ref = active.get("james", "timekeeping", timer_id)
+    assert queried_ref is not None
+    assert queried_ref.key == timer_id
+
+
+def test_ambiguous_timekeeping_query_does_not_publish_reference(service, monkeypatch) -> None:
+    import rex.timekeeping.tools as timekeeping_tools
+
+    active = ActiveContextStore()
+    monkeypatch.setattr(
+        timekeeping_tools,
+        "get_active_context_store",
+        lambda: active,
+        raising=False,
+    )
+    service.create_timer("james", 300, name="pasta")
+    service.create_timer("james", 600, name="pasta")
+    registry = _build_default_registry(capability_registry=CapabilityRegistry())
+    dispatcher = ToolDispatcher(registry)
+
+    result = dispatcher.dispatch(
+        "timekeeping_read",
+        {"transcript": "how much time is left on the pasta timer"},
+        {"user_id": "james"},
+    )
+
+    assert result.success is True
+    assert result.output["ambiguous"] is True
+    assert active.list_for_user("james", domains=("timekeeping",)) == ()
+
+
+def test_timekeeping_mutation_reference_is_published_only_after_verification(
+    service, monkeypatch
+) -> None:
+    import rex.timekeeping.tools as timekeeping_tools
+
+    active = ActiveContextStore()
+    monkeypatch.setattr(timekeeping_tools, "get_active_context_store", lambda: active)
+
+    output = timekeeping_tools.timekeeping_manage(
+        transcript="set a 5-minute tea timer",
+        _user_id="james",
+    )
+    timer_id = output["record_id"]
+
+    assert active.get("james", "timekeeping", timer_id) is None
+    assert timekeeping_tools.verify_timekeeping_mutation({}, output) is True
+    ref = active.get("james", "timekeeping", timer_id)
+    assert ref is not None
+    assert ref.payload["name"] == "tea"

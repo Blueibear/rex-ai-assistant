@@ -286,10 +286,12 @@ class Assistant:
 
         # Context builder: assembles system prompt, messages, and user facts (US-014)
         # while US-123 source policy supplies content-free cache invalidation.
+        from .context.active import get_active_context_store
         from .context.builder import ContextBuilder
         from .context.source_policy import ContextSourcePolicyStore
 
         self._context_source_policy = ContextSourcePolicyStore()
+        self._active_context_store = get_active_context_store()
         self._context_builder = ContextBuilder(
             settings=self._settings,
             history=[],
@@ -302,6 +304,7 @@ class Assistant:
                 user_id if user_id is not None else self._require_user_id()
             ),
             source_policy_store=self._context_source_policy,
+            active_context_store=self._active_context_store,
         )
 
         # Intent router: handles direct-reply shortcuts without LLM (US-015)
@@ -351,6 +354,7 @@ class Assistant:
             device_state_handler=self._device_state_handler,
             suggestion_engine=self._suggestion_engine,
             pattern_entries=self._pattern_entries,
+            active_context_store=self._active_context_store,
             build_tool_context_fn=self._build_tool_context,
             model_call_fn_builder=self._build_tool_model_call,
             run_plugins_fn=self._run_plugins,
@@ -1507,6 +1511,7 @@ class Assistant:
                 device_state_handler=getattr(self, "_device_state_handler", None),
                 suggestion_engine=getattr(self, "_suggestion_engine", None),
                 pattern_entries=getattr(self, "_pattern_entries", None),
+                active_context_store=self._get_or_create_active_context_store(),
                 build_tool_context_fn=self._build_tool_context,
                 model_call_fn_builder=self._build_tool_model_call,
                 run_plugins_fn=self._run_plugins,
@@ -1523,6 +1528,16 @@ class Assistant:
             ir = IntentRouter(tool_context_fn=self._build_tool_context)
             self._intent_router = ir
         return ir
+
+    def _get_or_create_active_context_store(self):
+        """Return the canonical short-lived active-reference store."""
+        store = getattr(self, "_active_context_store", None)
+        if store is None:
+            from .context.active import get_active_context_store
+
+            store = get_active_context_store()
+            self._active_context_store = store
+        return store
 
     def _get_or_create_context_source_policy(self):
         """Return the canonical source-policy store, creating it lazily."""
@@ -1549,6 +1564,7 @@ class Assistant:
                     user_id if user_id is not None else self._require_user_id()
                 ),
                 source_policy_store=self._get_or_create_context_source_policy(),
+                active_context_store=self._get_or_create_active_context_store(),
             )
             self._context_builder = cb
         return cb

@@ -434,3 +434,58 @@ def test_mismatched_cache_request_identity_bypasses_cache() -> None:
         builder.build("two", active_user_id="cole", cache_request=request)
 
     assert personality.call_count == 2
+
+
+def test_active_context_summary_is_bounded_and_user_scoped():
+    from rex.context.active import ActiveContextRef, ActiveContextStore
+    from rex.context.builder import ContextBuilder, PrivateContextArtifacts
+
+    store = ActiveContextStore(clock=lambda: 100.0)
+    store.put(
+        ActiveContextRef(
+            domain="media",
+            key="ha:media_player.living_room",
+            owner_user_id="james",
+            payload={
+                "target_id": "ha:media_player.living_room",
+                "provider": "ha",
+                "media_ref": "provider-private-item-ref",
+            },
+            source_ids=(),
+            revision="media:1",
+            expires_at=200.0,
+        )
+    )
+    store.put(
+        ActiveContextRef(
+            domain="timekeeping",
+            key="cole-private-timer",
+            owner_user_id="cole",
+            payload={"record_type": "timer", "name": "private", "status": "active"},
+            source_ids=(),
+            revision="timekeeping:1",
+            expires_at=200.0,
+        )
+    )
+    settings = MagicMock()
+    settings.default_timezone = "UTC"
+    settings.default_location = None
+    settings.personality = None
+    builder = ContextBuilder(
+        settings=settings,
+        history=[],
+        user_id="james",
+        active_context_store=store,
+    )
+    with patch.object(
+        builder,
+        "_build_private_artifacts",
+        return_value=PrivateContextArtifacts(None, None, None),
+    ):
+        package = builder.build("pause it")
+
+    assert "Active conversation context" in package.system_prompt
+    assert "ha:media_player.living_room" in package.system_prompt
+    assert "provider-private-item-ref" not in package.system_prompt
+    assert "cole-private-timer" not in package.system_prompt
+    assert "private" not in package.system_prompt
