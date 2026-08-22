@@ -8,6 +8,7 @@ as a thin orchestration spec.
 
 from __future__ import annotations
 
+import inspect
 import logging
 import re
 from dataclasses import dataclass, field
@@ -153,7 +154,11 @@ class ResponseBuilder:
         Returns:
             A fully populated :class:`FinalResponse`.
         """
-        text = action_result.response
+        base_text = action_result.response
+        text = base_text
+        contextual = self._get_contextual_suggestion(user_id)
+        if contextual and "?" not in text:
+            text = f"{text.rstrip()} By the way, {contextual}"
         tts_text = _clean_for_tts(text)
         suggestions = self._get_suggestions(user_id)
         followups = self._get_followups(user_id)
@@ -161,9 +166,9 @@ class ResponseBuilder:
         # Cache PUT: store result so identical future queries skip the LLM.
         if self._cache is not None and transcript:
             if user_id is None:
-                self._cache.put(transcript, text)
+                self._cache.put(transcript, base_text)
             else:
-                self._cache.put(transcript, text, user_id=user_id)
+                self._cache.put(transcript, base_text, user_id=user_id)
 
         return FinalResponse(
             text=text,
@@ -177,6 +182,22 @@ class ResponseBuilder:
     # Private helpers
     # ------------------------------------------------------------------
 
+    def _get_contextual_suggestion(self, user_id: str | None = None) -> str | None:
+        engine = self._suggestion_engine
+        if engine is None or not user_id:
+            return None
+        if inspect.getattr_static(engine, "pending_contextual_text", None) is None:
+            return None
+        getter = getattr(engine, "pending_contextual_text", None)
+        if not callable(getter):
+            return None
+        try:
+            spoken = getter(user_id)
+        except Exception as exc:
+            logger.debug("Failed to get contextual suggestion: %s", exc)
+            return None
+        return str(spoken) if spoken else None
+
     def _get_suggestions(self, user_id: str | None = None) -> list[str]:
         """Return *user_id*'s pending suggestion text from the suggestion engine.
 
@@ -185,6 +206,8 @@ class ResponseBuilder:
         """
         engine = self._suggestion_engine
         if engine is None or not user_id:
+            return []
+        if self._get_contextual_suggestion(user_id):
             return []
         try:
             spoken = engine.pending_spoken_text(user_id)

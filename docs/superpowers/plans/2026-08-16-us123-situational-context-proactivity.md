@@ -226,7 +226,7 @@ Expected: PASS.
 - `ProactiveCandidate` fields: `key`, `user_id`, `spoken_text`, `source_ids`, `freshness_seconds`, `confidence`, `benefit`, `urgency`, `suggested_action`.
 - Evaluator returns candidates sorted by deterministic score; `SuggestionEngine` still owns per-user pending/dismissal/session suppression.
 
-- [ ] **Step 1: Write failing cross-source and suppression tests**
+- [x] **Step 1: Write failing cross-source and suppression tests**
 
 ```python
 def test_commute_weather_candidate_combines_authorized_sources(evaluator):
@@ -241,20 +241,20 @@ def test_private_upload_for_other_user_never_seeds_candidate(assembler):
     assert "upload:james-private" not in snapshot.source_ids
 ```
 
-- [ ] **Step 2: Run proactive tests and verify red state**
+- [x] **Step 2: Run proactive tests and verify red state**
 Run: `pytest -q tests/proactivity/test_situational_assembler.py tests/proactivity/test_evaluator.py tests/test_us036_suggestions.py`
 Expected: FAIL because situational/proactive services do not exist.
 
-- [ ] **Step 3: Implement authorized snapshot assembly**
+- [x] **Step 3: Implement authorized snapshot assembly**
 Source readers receive the current user and policy store. Initial readers: calendar events, relevant user memory/preferences, authorized contextual uploads, active capability/media/timekeeping state, and current-info adapters invoked only when a candidate rule materially needs fresh weather/traffic/search data. Preserve each fact's source ID/freshness.
 
-- [ ] **Step 4: Implement deterministic opportunity scoring and threshold**
+- [x] **Step 4: Implement deterministic opportunity scoring and threshold**
 Normalize `confidence`, `benefit`, and `urgency` to 0..1; compute `score = 0.45*benefit + 0.35*urgency + 0.20*confidence`; require `score >= 0.70` for ordinary conversational surfacing. Expired/stale critical inputs disqualify the candidate instead of lowering truth standards.
 
-- [ ] **Step 5: Reuse SuggestionEngine for delivery/dismissal rather than adding a second suggestion state machine**
+- [x] **Step 5: Reuse SuggestionEngine for delivery/dismissal rather than adding a second suggestion state machine**
 Add `get_contextual_suggestion(candidates, *, user_id)` that applies existing one-per-session and dismissal rules. `ResponseBuilder` appends one natural “by the way” style suggestion only when the current response has not already asked a conflicting question; urgent out-of-turn delivery remains unavailable unless a separately authorized notification route exists.
 
-- [ ] **Step 6: Run proactivity/suggestion regressions and commit**
+- [x] **Step 6: Run proactivity/suggestion regressions and commit**
 Run: `pytest -q tests/proactivity tests/test_us036_suggestions.py tests/test_suggestion_isolation.py tests/test_assistant.py`
 Expected: PASS.
 `git add rex/context/situational.py rex/proactivity rex/suggestions/engine.py rex/response/builder.py rex/assistant.py tests/proactivity tests/test_us036_suggestions.py && git commit -m "feat(context): add high-signal proactive assistance"`

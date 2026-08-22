@@ -1284,6 +1284,10 @@ class Assistant:
             )
             latency_trace.start("completion")
             if model_failure_reason is None:
+                self._prepare_contextual_suggestion(
+                    effective_user_id,
+                    response_text=str(result.response),
+                )
                 final = self._get_or_create_response_builder().build(
                     result, context, transcript=transcript, user_id=effective_user_id
                 )
@@ -1475,6 +1479,59 @@ class Assistant:
         from .context.builder import _VOICE_CONCISE_INSTRUCTION
 
         return _VOICE_CONCISE_INSTRUCTION
+
+    def _get_or_create_situational_assembler(self):
+        """Return the privacy-bound situational assembler for proactive evaluation."""
+        assembler = getattr(self, "_situational_assembler", None)
+        if assembler is not None:
+            return assembler
+        from .context.situational import SituationalAssembler
+        from .knowledge_base import get_knowledge_base
+        from .user_facts import recall_all
+
+        calendar = getattr(self, "_calendar_service", None)
+        if calendar is None:
+            try:
+                calendar = get_calendar_service()
+            except Exception:
+                calendar = None
+        assembler = SituationalAssembler(
+            source_policy_store=self._get_or_create_context_source_policy(),
+            calendar_service=calendar,
+            knowledge_base=get_knowledge_base(),
+            active_context_store=self._get_or_create_active_context_store(),
+            memory_reader=recall_all,
+            current_info_readers=getattr(self, "_situational_current_info_readers", None),
+        )
+        self._situational_assembler = assembler
+        return assembler
+
+    def _get_or_create_proactive_evaluator(self):
+        evaluator = getattr(self, "_proactive_evaluator", None)
+        if evaluator is None:
+            from .proactivity.evaluator import ProactiveOpportunityEvaluator
+
+            evaluator = ProactiveOpportunityEvaluator()
+            self._proactive_evaluator = evaluator
+        return evaluator
+
+    def _prepare_contextual_suggestion(self, user_id: str, *, response_text: str) -> None:
+        """Queue one high-signal contextual suggestion without widening authority."""
+        engine = getattr(self, "_suggestion_engine", None)
+        if engine is None or "?" in response_text:
+            return
+        try:
+            assembler = self._get_or_create_situational_assembler()
+            evaluator = self._get_or_create_proactive_evaluator()
+            snapshot = assembler.build(user_id=user_id)
+            required = evaluator.required_current_info(snapshot)
+            if required:
+                snapshot = assembler.enrich_current_info(snapshot, required=required)
+            candidates = evaluator.evaluate(snapshot)
+            if candidates:
+                engine.get_contextual_suggestion(candidates, user_id=user_id)
+        except Exception as exc:
+            logger.debug("Contextual suggestion evaluation skipped: %s", type(exc).__name__)
 
     def _get_or_create_response_builder(self):
         """Return self._response_builder, creating one lazily for __new__-based tests."""

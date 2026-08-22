@@ -306,3 +306,58 @@ class TestPatternDetectorIntegration:
         _, spoken = result
         assert "kitchen ceiling" in spoken
         assert "7am" in spoken
+
+
+# ---------------------------------------------------------------------------
+# Contextual proactive candidates (US-123)
+# ---------------------------------------------------------------------------
+
+
+def _make_contextual_candidate(user_id: str = "alice"):
+    from rex.proactivity.models import ProactiveCandidate
+
+    return ProactiveCandidate(
+        key="commute:weather-delay",
+        user_id=user_id,
+        spoken_text="Traffic and storms could slow you down. Leaving 20 minutes early would help.",
+        source_ids=("integration:calendar", "integration:traffic", "integration:weather"),
+        freshness_seconds=60.0,
+        confidence=0.9,
+        benefit=0.9,
+        urgency=0.85,
+        suggested_action="show_route",
+    )
+
+
+def test_contextual_suggestion_reuses_session_and_pending_state(tmp_path: Path) -> None:
+    engine = _make_engine(tmp_path)
+    candidate = _make_contextual_candidate()
+
+    result = engine.get_contextual_suggestion([candidate], user_id="alice")
+
+    assert result == (candidate.key, candidate.spoken_text)
+    assert engine.has_pending("alice")
+    assert engine.get_contextual_suggestion([candidate], user_id="alice") is None
+
+
+def test_contextual_suggestion_rejects_foreign_candidate(tmp_path: Path) -> None:
+    engine = _make_engine(tmp_path)
+
+    assert (
+        engine.get_contextual_suggestion(
+            [_make_contextual_candidate(user_id="bob")], user_id="alice"
+        )
+        is None
+    )
+
+
+def test_contextual_acceptance_does_not_create_automation(tmp_path: Path) -> None:
+    engine = _make_engine(tmp_path)
+    candidate = _make_contextual_candidate()
+    engine.get_contextual_suggestion([candidate], user_id="alice")
+
+    reply = engine.handle_yes("alice")
+
+    assert "noted" in reply.lower() or "okay" in reply.lower()
+    assert not (tmp_path / "automations.json").exists()
+    assert not engine.has_pending("alice")

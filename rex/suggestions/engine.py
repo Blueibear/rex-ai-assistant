@@ -35,6 +35,8 @@ import time
 from pathlib import Path
 from typing import Any
 
+from rex.proactivity.models import ProactiveCandidate
+
 logger = logging.getLogger(__name__)
 
 _DISMISS_WINDOW_DAYS: int = 30
@@ -127,6 +129,17 @@ class SuggestionEngine:
         spoken = pending.get("spoken_text")
         return str(spoken) if spoken else None
 
+    def pending_contextual_text(self, user_id: str | None) -> str | None:
+        """Return pending contextual proactive text only for its owning user."""
+        uid = self._valid_user(user_id)
+        if uid is None:
+            return None
+        pending = self._pending.get(uid)
+        if pending is None or pending.get("kind") != "contextual":
+            return None
+        spoken = pending.get("spoken_text")
+        return str(spoken) if spoken else None
+
     def is_dismissed(
         self,
         key: str,
@@ -192,12 +205,37 @@ class SuggestionEngine:
             spoken = _build_spoken_text(pattern)
             self._suggested_this_session[uid] = True
             self._pending[uid] = {
+                "kind": "automation",
                 "key": key,
                 "spoken_text": spoken,
                 "automation": pattern.get("suggested_automation", ""),
             }
             return key, spoken
 
+        return None
+
+    def get_contextual_suggestion(
+        self,
+        candidates: list[ProactiveCandidate] | tuple[ProactiveCandidate, ...],
+        *,
+        user_id: str | None,
+    ) -> tuple[str, str] | None:
+        """Surface one eligible contextual candidate using existing suppression state."""
+        uid = self._valid_user(user_id)
+        if uid is None or self._suggested_this_session.get(uid):
+            return None
+        ordered = sorted(candidates, key=lambda item: (-item.score, item.key))
+        for candidate in ordered:
+            if candidate.user_id != uid or self.is_dismissed(candidate.key, uid):
+                continue
+            self._suggested_this_session[uid] = True
+            self._pending[uid] = {
+                "kind": "contextual",
+                "key": candidate.key,
+                "spoken_text": candidate.spoken_text,
+                "suggested_action": candidate.suggested_action,
+            }
+            return candidate.key, candidate.spoken_text
         return None
 
     def handle_yes(self, user_id: str | None) -> str:
@@ -213,6 +251,8 @@ class SuggestionEngine:
         pending = self._pending.pop(uid, None)
         if pending is None:
             return "No pending suggestion to accept."
+        if pending.get("kind") == "contextual":
+            return "Okay, noted."
 
         key = pending["key"]
         automation = pending["automation"]
