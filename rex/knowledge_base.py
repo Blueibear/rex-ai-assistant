@@ -38,6 +38,14 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
+from rex.context.source_policy import (
+    AudienceScope,
+    ContextSourcePolicyStore,
+    ContextSourceType,
+    DisclosurePolicy,
+)
+from rex.identity import validate_user_id
+
 logger = logging.getLogger(__name__)
 
 # Default data directory
@@ -101,12 +109,56 @@ class KnowledgeDocument(BaseModel):
         default=0,
         description="Number of words in the document",
     )
+    owner_user_id: str | None = Field(
+        default=None,
+        description="Validated Rex user who owns this upload",
+    )
+    audience_scope: str = Field(
+        default="legacy_unassigned",
+        description="private, household, or non-selectable legacy_unassigned",
+    )
+    context_enabled: bool = Field(
+        default=False,
+        description="Whether this document may enter broad/background context",
+    )
+    disclosure_policy: str = Field(
+        default=DisclosurePolicy.OWNER_ONLY.value,
+        description="Separate disclosure boundary for document-derived information",
+    )
+    policy_revision: str = Field(
+        default="legacy-0",
+        description="Content-free document-policy revision token",
+    )
 
     def __init__(self, **data: Any) -> None:
-        """Initialize and compute word count if not provided."""
+        """Initialize, validate policy metadata, and compute word count."""
         super().__init__(**data)
         if self.word_count == 0 and self.content:
             self.word_count = len(self.content.split())
+        if self.owner_user_id is not None:
+            self.owner_user_id = validate_user_id(self.owner_user_id)
+        if self.audience_scope not in {
+            AudienceScope.PRIVATE.value,
+            AudienceScope.HOUSEHOLD.value,
+            "legacy_unassigned",
+        }:
+            raise ValueError("Invalid knowledge-document audience scope")
+        if self.audience_scope == "legacy_unassigned":
+            if self.owner_user_id is not None or self.context_enabled:
+                raise ValueError(
+                    "Legacy-unassigned documents cannot have an owner or context access"
+                )
+        elif self.owner_user_id is None:
+            raise ValueError("Scoped knowledge documents require an owner")
+        if self.disclosure_policy not in {item.value for item in DisclosurePolicy}:
+            raise ValueError("Invalid knowledge-document disclosure policy")
+        if not isinstance(self.policy_revision, str) or not self.policy_revision.strip():
+            raise ValueError("Knowledge-document policy_revision must be non-empty")
+
+    @property
+    def source_id(self) -> str:
+        """Stable provenance identifier used by context policy and citations."""
+        return f"upload:{self.doc_id}"
 
     model_config = {
         "json_schema_extra": {
@@ -277,6 +329,8 @@ class KnowledgeBase:
         self,
         docs_path: Path | str | None = None,
         index_path: Path | str | None = None,
+        *,
+        source_policy_store: ContextSourcePolicyStore | None = None,
     ) -> None:
         """Initialize the knowledge base.
 
@@ -291,6 +345,7 @@ class KnowledgeBase:
 
         self.docs_path = Path(docs_path) if docs_path else _DATA_DIR / "docs.json"
         self.index_path = Path(index_path) if index_path else _DATA_DIR / "index.json"
+        self._source_policy_store = source_policy_store
 
         self._documents: dict[str, KnowledgeDocument] = {}
         self._index: dict[str, set[str]] = defaultdict(set)
@@ -298,13 +353,23 @@ class KnowledgeBase:
         self._load()
 
     def _load(self) -> None:
-        """Load documents and index from disk."""
+        """Load documents/index and persist safe policy defaults for legacy rows."""
+        migrated_legacy_policy = False
+        policy_fields = {
+            "owner_user_id",
+            "audience_scope",
+            "context_enabled",
+            "disclosure_policy",
+            "policy_revision",
+        }
         # Load documents
         if self.docs_path.exists():
             try:
                 with open(self.docs_path, encoding="utf-8") as f:
                     data = json.load(f)
                     for doc_data in data.get("documents", []):
+                        if isinstance(doc_data, dict) and not policy_fields.issubset(doc_data):
+                            migrated_legacy_policy = True
                         doc = KnowledgeDocument.model_validate(doc_data)
                         self._documents[doc.doc_id] = doc
                     logger.debug(f"Loaded {len(self._documents)} documents")
@@ -326,6 +391,11 @@ class KnowledgeBase:
                 # Rebuild index from documents
                 self._rebuild_index()
 
+        if migrated_legacy_policy:
+            # Persist fail-closed legacy defaults so later runs do not have to
+            # infer whether an unscoped row is safe for background context.
+            self._save()
+
     def _save(self) -> None:
         """Save documents and index to disk."""
         self.docs_path.parent.mkdir(parents=True, exist_ok=True)
@@ -345,6 +415,77 @@ class KnowledgeBase:
                 json.dump({"index": index_data}, f, indent=2)
         except OSError as e:
             logger.error(f"Failed to save index: {e}")
+
+    @staticmethod
+    def _upload_policy_fields(
+        *,
+        owner_user_id: str | None,
+        audience_scope: str | AudienceScope | None,
+        context_enabled: bool | None,
+        disclosure_policy: str | DisclosurePolicy | None,
+    ) -> dict[str, Any]:
+        supplied = any(
+            value is not None
+            for value in (owner_user_id, audience_scope, context_enabled, disclosure_policy)
+        )
+        if not supplied:
+            # Compatibility path for existing explicit-query callers. These
+            # rows are deliberately ineligible for user/background context.
+            return {}
+        if owner_user_id is None or audience_scope is None or context_enabled is None:
+            raise ValueError(
+                "New upload policy requires owner_user_id, audience_scope, and context_enabled"
+            )
+        owner = validate_user_id(owner_user_id)
+        audience = AudienceScope(audience_scope)
+        if not isinstance(context_enabled, bool):
+            raise ValueError("context_enabled must be boolean")
+        disclosure = (
+            DisclosurePolicy(disclosure_policy)
+            if disclosure_policy is not None
+            else (
+                DisclosurePolicy.HOUSEHOLD
+                if audience is AudienceScope.HOUSEHOLD
+                else DisclosurePolicy.OWNER_ONLY
+            )
+        )
+        return {
+            "owner_user_id": owner,
+            "audience_scope": audience.value,
+            "context_enabled": context_enabled,
+            "disclosure_policy": disclosure.value,
+            "policy_revision": f"policy-{uuid.uuid4().hex}",
+        }
+
+    def _sync_upload_source_policy(self, doc: KnowledgeDocument) -> KnowledgeDocument:
+        store = self._source_policy_store
+        if store is None or doc.owner_user_id is None or doc.audience_scope == "legacy_unassigned":
+            return doc
+        saved = store.register_source(
+            doc.source_id,
+            ContextSourceType.UPLOAD,
+            owner_user_id=doc.owner_user_id,
+            audience_scope=AudienceScope(doc.audience_scope),
+            context_enabled=doc.context_enabled,
+            disclosure_policy=DisclosurePolicy(doc.disclosure_policy),
+        )
+        revision = f"{saved.audience_scope.value}:{saved.policy_revision}"
+        return doc.model_copy(update={"policy_revision": revision})
+
+    @staticmethod
+    def _document_visible_to_user(
+        doc: KnowledgeDocument,
+        requester_user_id: str,
+        *,
+        context_only: bool,
+    ) -> bool:
+        if doc.audience_scope == "legacy_unassigned" or doc.owner_user_id is None:
+            return False
+        if context_only and not doc.context_enabled:
+            return False
+        if doc.audience_scope == AudienceScope.PRIVATE.value:
+            return doc.owner_user_id == requester_user_id
+        return doc.audience_scope == AudienceScope.HOUSEHOLD.value
 
     def _tokenize(self, text: str) -> list[str]:
         """Tokenize text into lowercase words, excluding stop words.
@@ -408,6 +549,11 @@ class KnowledgeBase:
         path: str | Path,
         title: str | None = None,
         tags: list[str] | None = None,
+        *,
+        owner_user_id: str | None = None,
+        audience_scope: str | AudienceScope | None = None,
+        context_enabled: bool | None = None,
+        disclosure_policy: str | DisclosurePolicy | None = None,
     ) -> KnowledgeDocument:
         """Ingest a text file into the knowledge base.
 
@@ -437,12 +583,20 @@ class KnowledgeBase:
             except Exception as e:
                 raise ValueError(f"Cannot read file as text: {path}") from e
 
+        policy_fields = self._upload_policy_fields(
+            owner_user_id=owner_user_id,
+            audience_scope=audience_scope,
+            context_enabled=context_enabled,
+            disclosure_policy=disclosure_policy,
+        )
         doc = KnowledgeDocument(
             title=title or path.stem,
             content=content,
             source_path=str(path.resolve()),
             tags=tags or [],
+            **policy_fields,
         )
+        doc = self._sync_upload_source_policy(doc)
 
         self._documents[doc.doc_id] = doc
         self._index_document(doc)
@@ -457,6 +611,11 @@ class KnowledgeBase:
         title: str,
         tags: list[str] | None = None,
         source_path: str | None = None,
+        *,
+        owner_user_id: str | None = None,
+        audience_scope: str | AudienceScope | None = None,
+        context_enabled: bool | None = None,
+        disclosure_policy: str | DisclosurePolicy | None = None,
     ) -> KnowledgeDocument:
         """Ingest text content directly into the knowledge base.
 
@@ -469,12 +628,20 @@ class KnowledgeBase:
         Returns:
             The created KnowledgeDocument.
         """
+        policy_fields = self._upload_policy_fields(
+            owner_user_id=owner_user_id,
+            audience_scope=audience_scope,
+            context_enabled=context_enabled,
+            disclosure_policy=disclosure_policy,
+        )
         doc = KnowledgeDocument(
             title=title,
             content=content,
             source_path=source_path,
             tags=tags or [],
+            **policy_fields,
         )
+        doc = self._sync_upload_source_policy(doc)
 
         self._documents[doc.doc_id] = doc
         self._index_document(doc)
@@ -484,27 +651,99 @@ class KnowledgeBase:
         return doc
 
     def get_document(self, doc_id: str) -> KnowledgeDocument | None:
-        """Get a document by ID.
+        """Compatibility read for legacy-unassigned explicit-query rows only."""
+        doc = self._documents.get(doc_id)
+        if doc is None or doc.audience_scope != "legacy_unassigned":
+            return None
+        return doc
 
-        Args:
-            doc_id: The document ID.
+    def get_document_for_user(
+        self,
+        doc_id: str,
+        *,
+        requester_user_id: str,
+        context_only: bool = False,
+    ) -> KnowledgeDocument | None:
+        """Return one document only after owner/audience/context authorization."""
+        requester = validate_user_id(requester_user_id)
+        doc = self._documents.get(doc_id)
+        if doc is None or not self._document_visible_to_user(
+            doc, requester, context_only=context_only
+        ):
+            return None
+        return doc
 
-        Returns:
-            The KnowledgeDocument if found, else None.
-        """
-        return self._documents.get(doc_id)
+    def assign_document_policy(
+        self,
+        doc_id: str,
+        *,
+        owner_user_id: str,
+        actor_user_id: str,
+        audience_scope: str | AudienceScope,
+        context_enabled: bool,
+        disclosure_policy: str | DisclosurePolicy | None = None,
+    ) -> KnowledgeDocument:
+        """Assign or update policy; only the asserted owner may authorize it."""
+        owner = validate_user_id(owner_user_id)
+        actor = validate_user_id(actor_user_id)
+        if actor != owner:
+            raise PermissionError("owner authorization required")
+        doc = self._documents.get(doc_id)
+        if doc is None:
+            raise KeyError("Knowledge document was not found")
+        if doc.owner_user_id is not None and doc.owner_user_id != owner:
+            raise PermissionError("owner authorization required")
+        fields = self._upload_policy_fields(
+            owner_user_id=owner,
+            audience_scope=audience_scope,
+            context_enabled=context_enabled,
+            disclosure_policy=disclosure_policy,
+        )
+        updated = doc.model_copy(update=fields)
+        updated = self._sync_upload_source_policy(updated)
+        self._documents[doc_id] = updated
+        self._save()
+        return updated
 
-    def delete_document(self, doc_id: str) -> bool:
-        """Delete a document from the knowledge base.
-
-        Args:
-            doc_id: The document ID to delete.
-
-        Returns:
-            True if deleted, False if not found.
-        """
-        if doc_id not in self._documents:
+    def delete_document(
+        self,
+        doc_id: str,
+        *,
+        requester_user_id: str | None = None,
+    ) -> bool:
+        """Delete legacy rows directly; scoped uploads require their owner."""
+        doc = self._documents.get(doc_id)
+        if doc is None:
             return False
+        if doc.audience_scope != "legacy_unassigned":
+            if requester_user_id is None or doc.owner_user_id is None:
+                return False
+            requester = validate_user_id(requester_user_id)
+            if requester != doc.owner_user_id:
+                return False
+
+        if (
+            self._source_policy_store is not None
+            and doc.owner_user_id is not None
+            and doc.audience_scope != "legacy_unassigned"
+        ):
+            try:
+                self._source_policy_store.set_context_enabled(
+                    doc.owner_user_id,
+                    doc.source_id,
+                    False,
+                )
+            except KeyError:
+                # Repair a missing policy record as explicitly disabled so the
+                # relevant private/household cache revision still changes.
+                self._source_policy_store.register_source(
+                    doc.source_id,
+                    ContextSourceType.UPLOAD,
+                    owner_user_id=doc.owner_user_id,
+                    audience_scope=AudienceScope(doc.audience_scope),
+                    context_enabled=False,
+                    disclosure_policy=DisclosurePolicy(doc.disclosure_policy),
+                )
 
         self._unindex_document(doc_id)
         del self._documents[doc_id]
@@ -513,72 +752,115 @@ class KnowledgeBase:
         logger.info(f"Deleted document: {doc_id}")
         return True
 
+    def _score_index_matches(
+        self,
+        query_terms: list[str],
+        allowed_ids: set[str],
+    ) -> dict[str, int]:
+        scores: dict[str, int] = defaultdict(int)
+        for term in query_terms:
+            for doc_id in self._index.get(term, set()).intersection(allowed_ids):
+                scores[doc_id] += 2
+            for indexed_term, doc_ids in self._index.items():
+                if indexed_term != term and indexed_term.startswith(term):
+                    for doc_id in doc_ids.intersection(allowed_ids):
+                        scores[doc_id] += 1
+        return scores
+
+    def _add_substring_scores(
+        self,
+        query: str,
+        allowed_ids: set[str],
+        scores: dict[str, int],
+    ) -> None:
+        query_lower = query.lower()
+        for doc_id in allowed_ids:
+            doc = self._documents.get(doc_id)
+            if doc is None:
+                continue
+            if query_lower in doc.content.lower():
+                scores[doc_id] += 3
+            if query_lower in doc.title.lower():
+                scores[doc_id] += 5
+
+    def _filter_scores_by_tags(
+        self,
+        scores: dict[str, int],
+        tags: list[str] | None,
+    ) -> dict[str, int]:
+        if not tags:
+            return scores
+        tag_set = {tag.lower() for tag in tags}
+        return {
+            doc_id: score
+            for doc_id, score in scores.items()
+            if doc_id in self._documents
+            and tag_set.issubset({tag.lower() for tag in self._documents[doc_id].tags})
+        }
+
+    def _search_with_allowed_ids(
+        self,
+        query: str,
+        *,
+        allowed_ids: set[str],
+        max_results: int,
+        tags: list[str] | None,
+    ) -> list[KnowledgeDocument]:
+        """Score only pre-authorized document IDs; never inspect other content."""
+        query_terms = self._tokenize(query)
+        if not query_terms or not allowed_ids:
+            return []
+        doc_scores = self._score_index_matches(query_terms, allowed_ids)
+        self._add_substring_scores(query, allowed_ids, doc_scores)
+        doc_scores = self._filter_scores_by_tags(doc_scores, tags)
+        sorted_docs = sorted(doc_scores.items(), key=lambda item: item[1], reverse=True)
+        return [
+            self._documents[doc_id]
+            for doc_id, _score in sorted_docs[:max_results]
+            if doc_id in self._documents
+        ]
+
     def search(
         self,
         query: str,
         max_results: int = 5,
         tags: list[str] | None = None,
     ) -> list[KnowledgeDocument]:
-        """Search for documents matching the query.
+        """Compatibility search limited to legacy-unassigned explicit-query rows."""
+        allowed_ids = {
+            doc.doc_id
+            for doc in self._documents.values()
+            if doc.audience_scope == "legacy_unassigned"
+        }
+        return self._search_with_allowed_ids(
+            query,
+            allowed_ids=allowed_ids,
+            max_results=max_results,
+            tags=tags,
+        )
 
-        Searches document titles, content, and tags. Results are ranked by
-        the number of query terms found in each document.
-
-        Args:
-            query: Search query string.
-            max_results: Maximum number of results to return.
-            tags: Optional tag filter (documents must have all specified tags).
-
-        Returns:
-            List of matching KnowledgeDocument objects, ordered by relevance.
-        """
-        query_terms = self._tokenize(query)
-        if not query_terms:
-            return []
-
-        # Count matches per document
-        doc_scores: dict[str, int] = defaultdict(int)
-
-        for term in query_terms:
-            # Exact match
-            if term in self._index:
-                for doc_id in self._index[term]:
-                    doc_scores[doc_id] += 2
-
-            # Prefix match
-            for indexed_term, doc_ids in self._index.items():
-                if indexed_term.startswith(term) and indexed_term != term:
-                    for doc_id in doc_ids:
-                        doc_scores[doc_id] += 1
-
-        # Also search for substring matches in content and title
-        query_lower = query.lower()
-        for doc_id, doc in self._documents.items():
-            # Substring match bonus
-            if query_lower in doc.content.lower():
-                doc_scores[doc_id] += 3
-            if query_lower in doc.title.lower():
-                doc_scores[doc_id] += 5
-
-        # Apply tag filter if specified (after all scoring so substring bonuses are included)
-        if tags:
-            tag_set = {t.lower() for t in tags}
-            doc_scores = {
-                doc_id: score
-                for doc_id, score in doc_scores.items()
-                if doc_id in self._documents
-                and tag_set.issubset({t.lower() for t in self._documents[doc_id].tags})
-            }
-
-        # Sort by score (descending) and return top results
-        sorted_docs = sorted(doc_scores.items(), key=lambda x: x[1], reverse=True)
-
-        results = []
-        for doc_id, _score in sorted_docs[:max_results]:
-            if doc_id in self._documents:
-                results.append(self._documents[doc_id])
-
-        return results
+    def search_for_user(
+        self,
+        query: str,
+        *,
+        requester_user_id: str,
+        context_only: bool,
+        max_results: int = 5,
+        tags: list[str] | None = None,
+    ) -> list[KnowledgeDocument]:
+        """Search only documents authorized for one validated user."""
+        requester = validate_user_id(requester_user_id)
+        allowed_ids = {
+            doc.doc_id
+            for doc in self._documents.values()
+            if self._document_visible_to_user(doc, requester, context_only=context_only)
+        }
+        return self._search_with_allowed_ids(
+            query,
+            allowed_ids=allowed_ids,
+            max_results=max_results,
+            tags=tags,
+        )
 
     def get_citations(self, query: str) -> list[str]:
         """Get document IDs that can be cited for a query.
@@ -597,10 +879,29 @@ class KnowledgeBase:
         citations = []
 
         for doc_id, doc in self._documents.items():
+            if doc.audience_scope != "legacy_unassigned":
+                continue
             if query_lower in doc.content.lower() or query_lower in doc.title.lower():
                 citations.append(doc_id)
 
         return citations
+
+    def list_documents_for_user(
+        self,
+        requester_user_id: str,
+        *,
+        context_only: bool = False,
+        limit: int | None = None,
+    ) -> list[KnowledgeDocument]:
+        """List only documents visible to one user before exposing metadata."""
+        requester = validate_user_id(requester_user_id)
+        docs = [
+            doc
+            for doc in self._documents.values()
+            if self._document_visible_to_user(doc, requester, context_only=context_only)
+        ]
+        docs.sort(key=lambda doc: doc.created_at, reverse=True)
+        return docs[:limit] if limit is not None else docs
 
     def list_documents(
         self,
@@ -616,7 +917,9 @@ class KnowledgeBase:
         Returns:
             List of KnowledgeDocument objects.
         """
-        docs = list(self._documents.values())
+        docs = [
+            doc for doc in self._documents.values() if doc.audience_scope == "legacy_unassigned"
+        ]
 
         if tags:
             tag_set = {t.lower() for t in tags}
@@ -630,8 +933,13 @@ class KnowledgeBase:
 
         return docs
 
-    def refresh_document(self, doc_id: str) -> KnowledgeDocument | None:
-        """Refresh a document by re-reading its source file.
+    def refresh_document(
+        self,
+        doc_id: str,
+        *,
+        requester_user_id: str | None = None,
+    ) -> KnowledgeDocument | None:
+        """Refresh legacy rows directly; scoped uploads require their owner.
 
         Reads the current content of the document's source file, updates the
         stored content, and rebuilds the index entries for that document.
@@ -651,6 +959,12 @@ class KnowledgeBase:
         if doc is None:
             logger.warning(f"refresh_document: document not found: {doc_id}")
             return None
+        if doc.audience_scope != "legacy_unassigned":
+            if requester_user_id is None or doc.owner_user_id is None:
+                return None
+            requester = validate_user_id(requester_user_id)
+            if requester != doc.owner_user_id:
+                return None
 
         if not doc.source_path:
             logger.warning(f"refresh_document: no source path for document: {doc_id}")
@@ -697,6 +1011,8 @@ class KnowledgeBase:
         """
         results: dict[str, str] = {}
         for doc_id, doc in list(self._documents.items()):
+            if doc.audience_scope != "legacy_unassigned":
+                continue
             if not doc.source_path:
                 results[doc_id] = "skipped"
                 continue
@@ -719,12 +1035,15 @@ class KnowledgeBase:
         """
         tags = set()
         for doc in self._documents.values():
-            tags.update(doc.tags)
+            if doc.audience_scope == "legacy_unassigned":
+                tags.update(doc.tags)
         return sorted(tags)
 
     def __len__(self) -> int:
-        """Return the number of documents."""
-        return len(self._documents)
+        """Return the number of legacy documents visible to compatibility callers."""
+        return sum(
+            1 for doc in self._documents.values() if doc.audience_scope == "legacy_unassigned"
+        )
 
 
 # =============================================================================
@@ -743,7 +1062,7 @@ def get_knowledge_base() -> KnowledgeBase:
     """
     global _knowledge_base
     if _knowledge_base is None:
-        _knowledge_base = KnowledgeBase()
+        _knowledge_base = KnowledgeBase(source_policy_store=ContextSourcePolicyStore())
     return _knowledge_base
 
 

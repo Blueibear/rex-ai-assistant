@@ -186,6 +186,21 @@ class ContextBuilder:
     # Public helpers
     # ------------------------------------------------------------------
 
+    @staticmethod
+    def format_context_documents(documents: list[Any] | tuple[Any, ...]) -> str:
+        """Render bounded document context with stable provenance markers."""
+        sections: list[str] = []
+        for doc in list(documents)[:5]:
+            source_id = str(getattr(doc, "source_id", "")).strip()
+            title = str(getattr(doc, "title", "")).strip()
+            content = str(getattr(doc, "content", "")).strip()
+            if not source_id or not content:
+                continue
+            if len(content) > 2000:
+                content = content[:2000].rstrip() + "…"
+            sections.append(f"[Context source: {source_id} | {title}]\n{content}")
+        return "\n\n".join(sections)
+
     def build_system_context(self) -> str:
         """Return a system context string with current date/time and user location."""
         _settings = self._settings

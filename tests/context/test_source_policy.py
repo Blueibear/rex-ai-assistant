@@ -178,3 +178,25 @@ def test_concurrent_same_user_registration_does_not_lose_updates(tmp_path) -> No
     loaded = ContextSourcePolicyStore(tmp_path)
     assert loaded.get("calendar:main", subject_user_id="james") is not None
     assert loaded.get("weather:main", subject_user_id="james") is not None
+
+
+def test_owned_household_source_changes_every_users_revision(tmp_path) -> None:
+    store = ContextSourcePolicyStore(tmp_path)
+    james_before = store.revision_for_user("james")
+    cole_before = store.revision_for_user("cole")
+
+    store.register_source(
+        "upload:house-manual",
+        ContextSourceType.UPLOAD,
+        owner_user_id="james",
+        audience_scope=AudienceScope.HOUSEHOLD,
+        context_enabled=True,
+    )
+
+    assert store.revision_for_user("james") != james_before
+    assert store.revision_for_user("cole") != cole_before
+    assert store.is_context_eligible(
+        "upload:house-manual",
+        subject_user_id="james",
+        requester_user_id="cole",
+    )
