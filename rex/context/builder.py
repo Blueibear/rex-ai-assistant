@@ -205,10 +205,6 @@ class ContextBuilder:
         """Return a system context string with current date/time and user location."""
         _settings = self._settings
         tz_name: str | None = getattr(_settings, "default_timezone", None)
-        if not tz_name:
-            from rex.geolocation import get_cached_timezone
-
-            tz_name = get_cached_timezone()
 
         try:
             if tz_name:
@@ -226,10 +222,6 @@ class ContextBuilder:
         lines = [f"Current date and time: {now.strftime('%Y-%m-%d %H:%M')} {tz_name}"]
 
         location: str | None = getattr(_settings, "default_location", None)
-        if not location:
-            from rex.geolocation import get_cached_city
-
-            location = get_cached_city()
         if location:
             lines.append(f"User location: {location}")
 

@@ -101,7 +101,7 @@ class ActionDispatcher:
         device_state_handler: Any = None,
         suggestion_engine: Any = None,
         pattern_entries: dict | None = None,
-        build_tool_context_fn: Callable[[], dict] | None = None,
+        build_tool_context_fn: Callable[..., dict] | None = None,
         model_call_fn_builder: Callable[..., Any] | None = None,
         run_plugins_fn: Callable[..., Awaitable[list[str]]] | None = None,
     ) -> None:
@@ -122,6 +122,14 @@ class ActionDispatcher:
         self._build_tool_context_fn = build_tool_context_fn
         self._model_call_fn_builder = model_call_fn_builder
         self._run_plugins_fn = run_plugins_fn
+
+    def _tool_context_for_user(self, user_id: str) -> dict:
+        if self._build_tool_context_fn is None:
+            return {}
+        try:
+            return self._build_tool_context_fn(user_id)
+        except TypeError:
+            return self._build_tool_context_fn()
 
     # ------------------------------------------------------------------
     # Primary entry point
@@ -643,9 +651,7 @@ class ActionDispatcher:
             if self._run_plugins_fn is not None and not mobile_action_context_active():
                 plugin_enrichments = await await_with_cancellation(self._run_plugins_fn(transcript))
 
-            tool_context_dict: dict = (
-                self._build_tool_context_fn() if self._build_tool_context_fn else {}
-            )
+            tool_context_dict = self._tool_context_for_user(effective_user)
             model_call_fn = None
             if self._model_call_fn_builder is not None:
                 try:

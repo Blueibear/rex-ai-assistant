@@ -812,7 +812,7 @@ class Assistant:
         return await self._result_handler.process(
             transcript,
             completion,
-            tool_context=self._build_tool_context(),
+            tool_context=self._build_tool_context(user_id),
             model_call_fn=self._build_tool_model_call(transcript, user_id=user_id),
             plugin_enrichments=plugin_enrichments,
         )
@@ -1597,26 +1597,41 @@ class Assistant:
             .messages
         )
 
-    def _build_tool_context(self) -> dict[str, str]:
-        """Return default_context dict for tool execution with location/timezone."""
+    def _get_or_create_location_context_service(self):
+        """Return the canonical per-user location service, creating it lazily."""
+        service = getattr(self, "_location_context_service", None)
+        if service is None:
+            from .context.location_policy import LocationContextService, LocationGrantStore
+
+            grants = LocationGrantStore(
+                source_policy_store=self._get_or_create_context_source_policy()
+            )
+            service = LocationContextService(grant_store=grants)
+            self._location_context_service = service
+        return service
+
+    def _build_tool_context(self, user_id: str | None = None) -> dict[str, str]:
+        """Return static defaults plus authorized user-specific location context."""
         ctx: dict[str, str] = {}
-        _settings = getattr(self, "_settings", None)
+        settings = getattr(self, "_settings", None)
 
-        location: str | None = getattr(_settings, "default_location", None)
-        if not location:
-            from rex.geolocation import get_cached_city
-
-            location = get_cached_city()
+        location: str | None = getattr(settings, "default_location", None)
+        timezone: str | None = getattr(settings, "default_timezone", None)
         if location:
             ctx["location"] = location
+        if timezone:
+            ctx["timezone"] = timezone
 
-        tz_name: str | None = getattr(_settings, "default_timezone", None)
-        if not tz_name:
-            from rex.geolocation import get_cached_timezone
+        if user_id is not None:
+            from .context.location_policy import LocationUsePurpose
 
-            tz_name = get_cached_timezone()
-        if tz_name:
-            ctx["timezone"] = tz_name
+            service = self._get_or_create_location_context_service()
+            personal = service.get_for_assistance(user_id, LocationUsePurpose.TOOL_CONTEXT)
+            if personal is not None:
+                if personal.city:
+                    ctx["location"] = personal.city
+                if personal.timezone:
+                    ctx["timezone"] = personal.timezone
 
         return ctx
 

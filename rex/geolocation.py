@@ -1,8 +1,9 @@
 """IP geolocation fallback for default location detection.
 
-Uses the free ip-api.com service to detect the user's approximate location
-when no default_location is configured. Results are cached in memory for
-the session to avoid repeated network calls.
+Uses the free ip-api.com service as an approximate setup/default-location hint.
+Results are cached in memory for the session to avoid repeated network calls.
+This cache is not authenticated personal-location authority and must not be
+used for per-user assistance or disclosure.
 """
 
 from __future__ import annotations

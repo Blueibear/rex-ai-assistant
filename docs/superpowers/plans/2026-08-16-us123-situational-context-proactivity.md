@@ -38,7 +38,7 @@
 - `ContextSourcePolicyStore.is_context_eligible(source_id: str, *, subject_user_id: str, requester_user_id: str) -> bool` is called before source retrieval.
 - `ContextSourcePolicyStore.revision_for_user(user_id: str) -> str` is content-free and feeds `ContextCacheVersions`.
 
-- [ ] **Step 1: Write failing eligibility/revision tests**
+- [x] **Step 1: Write failing eligibility/revision tests**
 
 ```python
 def test_private_source_is_filtered_before_retrieval(tmp_path):
@@ -54,17 +54,17 @@ def test_policy_change_changes_content_free_revision(tmp_path):
     assert store.revision_for_user("james") != before
 ```
 
-- [ ] **Step 2: Run focused tests and verify red state**
+- [x] **Step 2: Run focused tests and verify red state**
 Run: `pytest -q tests/context/test_source_policy.py tests/rex2/test_context_cache_identity.py`
 Expected: FAIL because canonical source policy does not exist.
 
-- [ ] **Step 3: Implement atomic policy storage and safe defaults**
+- [x] **Step 3: Implement atomic policy storage and safe defaults**
 Each record stores `source_id`, `source_type`, private owner if applicable, audience scope, `context_enabled`, disclosure policy, and monotonic/content-free revision metadata. Connected integrations registered by their owner default to `context_enabled=True`; uploads and location use their stricter task-specific defaults below.
 
-- [ ] **Step 4: Add policy revision to context cache versions**
+- [x] **Step 4: Add policy revision to context cache versions**
 `build_context_cache_versions()` hashes the policy revision, not raw policy/source content. `ContextBuilder` receives a source-policy service and never loads private source content before eligibility filtering.
 
-- [ ] **Step 5: Run context/cache tests and commit**
+- [x] **Step 5: Run context/cache tests and commit**
 Run: `pytest -q tests/context/test_source_policy.py tests/rex2/test_context_cache.py tests/rex2/test_context_cache_identity.py tests/test_us014_context_builder.py`
 Expected: PASS.
 `git add rex/context tests/context/test_source_policy.py tests/rex2/test_context_cache_identity.py && git commit -m "feat(context): add canonical source policy"`
@@ -84,7 +84,7 @@ Expected: PASS.
 - Add `KnowledgeBase.search_for_user(query: str, *, requester_user_id: str, context_only: bool) -> list[KnowledgeDocument]`; filtering occurs before scoring/ranking.
 - Explicit file operations may retrieve `context_enabled=False` documents only after normal file/document authorization.
 
-- [ ] **Step 1: Write failing cross-user/context-disabled/legacy tests**
+- [x] **Step 1: Write failing cross-user/context-disabled/legacy tests**
 
 ```python
 def test_context_disabled_upload_is_explicit_query_only(kb):
@@ -97,17 +97,17 @@ def test_legacy_unscoped_document_never_enters_background_context(kb_with_legacy
     assert kb_with_legacy_doc.search_for_user("legacy", requester_user_id="james", context_only=True) == []
 ```
 
-- [ ] **Step 2: Run upload tests and verify red state**
+- [x] **Step 2: Run upload tests and verify red state**
 Run: `pytest -q tests/context/test_upload_policy.py tests/test_knowledge_base.py tests/test_us074_document_indexing.py`
 Expected: FAIL because documents do not carry owner/context/audience policy.
 
-- [ ] **Step 3: Implement persisted document policy and migration**
+- [x] **Step 3: Implement persisted document policy and migration**
 New uploads require explicit private/household audience plus explicit context on/off. Existing unscoped documents migrate to a non-user-selectable `legacy_unassigned` state with `context_enabled=False`; they stay out of broad context until an authenticated owner assigns policy.
 
-- [ ] **Step 4: Filter before ranking and retain provenance**
+- [x] **Step 4: Filter before ranking and retain provenance**
 Do not score/index-return a private document for an unauthorized requester. ContextBuilder includes citations/source IDs with derived facts so later summaries/proactive candidates retain enough provenance to recheck policy after revocation.
 
-- [ ] **Step 5: Run upload/KB regressions and commit**
+- [x] **Step 5: Run upload/KB regressions and commit**
 Run: `pytest -q tests/context/test_upload_policy.py tests/test_knowledge_base.py tests/test_us074_document_indexing.py tests/test_memory_isolation.py`
 Expected: PASS.
 `git add rex/knowledge_base.py bridge/rex_memories_bridge.py rex/context/builder.py tests/context/test_upload_policy.py tests/test_knowledge_base.py tests/test_us074_document_indexing.py && git commit -m "feat(context): enforce upload context and audience policy"`
@@ -128,7 +128,7 @@ Expected: PASS.
 - `LocationGrantStore.set_share(*, owner_user_id: str, recipient_user_id: str, enabled: bool, actor_user_id: str)` is likewise owner-bound.
 - `LocationContextService.get_for_assistance(user_id, purpose)` returns private location only when `location_assist` is enabled; `get_for_disclosure(subject_user_id, requester_user_id)` returns a generic denial when sharing is absent.
 
-- [ ] **Step 1: Write failing owner-only/admin-nonoverride/non-disclosure tests**
+- [x] **Step 1: Write failing owner-only/admin-nonoverride/non-disclosure tests**
 
 ```python
 def test_admin_cannot_enable_another_users_location(tmp_path):
@@ -144,17 +144,17 @@ def test_denied_disclosure_does_not_confirm_location_presence(service):
     assert "Dallas" not in result.message
 ```
 
-- [ ] **Step 2: Run tests and verify red state**
+- [x] **Step 2: Run tests and verify red state**
 Run: `pytest -q tests/context/test_location_policy.py tests/test_geolocation.py`
 Expected: FAIL because current geolocation is process-global and has no per-user authority layer.
 
-- [ ] **Step 3: Put personal location behind `LocationContextService`**
+- [x] **Step 3: Put personal location behind `LocationContextService`**
 Keep static configured household location/timezone separate from tracked/current user location. Existing IP-derived caching must never be interpreted as permission to track or disclose a user. Fetch current/recent personal location only for a materially relevant request/proactive rule and only after `location_assist`.
 
-- [ ] **Step 4: Remove ambient personal-location injection from Assistant**
+- [x] **Step 4: Remove ambient personal-location injection from Assistant**
 Change `_build_tool_context` to accept the effective user and obtain any personal location through `LocationContextService`; denied/missing permission yields no personal location key. Explicit user-entered destination text remains usable without granting background tracking.
 
-- [ ] **Step 5: Run privacy/location regressions and commit**
+- [x] **Step 5: Run privacy/location regressions and commit**
 Run: `pytest -q tests/context/test_location_policy.py tests/test_geolocation.py tests/test_assistant.py tests/test_memory_isolation.py`
 Expected: PASS.
 `git add rex/context/location_policy.py rex/geolocation.py rex/assistant.py rex/context/source_policy.py tests/context/test_location_policy.py tests/test_geolocation.py && git commit -m "feat(context): gate location assistance and sharing"`
