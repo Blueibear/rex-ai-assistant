@@ -218,6 +218,28 @@ def test_assistant_build_system_context_delegates():
     assert "Current date and time:" in result
 
 
+def test_assistant_context_builder_has_canonical_source_policy_store():
+    from unittest.mock import patch
+
+    import rex.assistant as mod
+    from rex.context.source_policy import ContextSourcePolicyStore
+
+    class DummyLLM:
+        def __init__(self, *a, **kw):
+            pass
+
+        def generate(self, *a, **kw):
+            return "ok"
+
+    with patch.object(mod, "LanguageModel", DummyLLM):
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmp:
+            asst = mod.Assistant(transcripts_dir=tmp, user_id="default")
+
+    assert isinstance(asst._context_builder._source_policy_store, ContextSourcePolicyStore)
+
+
 def test_assistant_build_prompt_delegates():
     """Assistant._build_prompt() returns same prompt as ContextBuilder.build()."""
     from unittest.mock import patch
@@ -366,6 +388,32 @@ def test_cached_hit_matches_uncached_output_with_dynamic_context() -> None:
     assert cached.session_id == uncached.session_id
     assert cached.user_facts == uncached.user_facts
     assert cached.prompt == uncached.prompt
+
+
+def test_source_policy_revision_participates_in_private_cache_key() -> None:
+    from rex.context.builder import ContextBuilder
+
+    source_policy = MagicMock()
+    source_policy.revision_for_user.return_value = "source-policy-revision"
+    builder = ContextBuilder(
+        settings=MagicMock(),
+        history=[],
+        user_id="default",
+        source_policy_store=source_policy,
+    )
+    request = _context_cache_request("alice")
+
+    with (
+        patch(
+            "rex.context.builder.build_context_cache_versions",
+            return_value=_context_cache_versions(),
+        ) as versions,
+        patch.object(type(builder), "build_system_context", return_value="[sys]"),
+    ):
+        builder.build("hello", active_user_id="alice", cache_request=request)
+
+    source_policy.revision_for_user.assert_called_once_with("alice")
+    assert versions.call_args.kwargs["source_policy_revision"] == "source-policy-revision"
 
 
 def test_mismatched_cache_request_identity_bypasses_cache() -> None:

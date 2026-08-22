@@ -285,8 +285,11 @@ class Assistant:
         )
 
         # Context builder: assembles system prompt, messages, and user facts (US-014)
+        # while US-123 source policy supplies content-free cache invalidation.
         from .context.builder import ContextBuilder
+        from .context.source_policy import ContextSourcePolicyStore
 
+        self._context_source_policy = ContextSourcePolicyStore()
         self._context_builder = ContextBuilder(
             settings=self._settings,
             history=[],
@@ -298,6 +301,7 @@ class Assistant:
             history_provider=lambda user_id=None: self._history_for(
                 user_id if user_id is not None else self._require_user_id()
             ),
+            source_policy_store=self._context_source_policy,
         )
 
         # Intent router: handles direct-reply shortcuts without LLM (US-015)
@@ -1520,6 +1524,16 @@ class Assistant:
             self._intent_router = ir
         return ir
 
+    def _get_or_create_context_source_policy(self):
+        """Return the canonical source-policy store, creating it lazily."""
+        store = getattr(self, "_context_source_policy", None)
+        if store is None:
+            from .context.source_policy import ContextSourcePolicyStore
+
+            store = ContextSourcePolicyStore()
+            self._context_source_policy = store
+        return store
+
     def _get_or_create_context_builder(self):
         """Return self._context_builder, creating one lazily for __new__-based tests."""
         cb = getattr(self, "_context_builder", None)
@@ -1534,6 +1548,7 @@ class Assistant:
                 history_provider=lambda user_id=None: self._history_for(
                     user_id if user_id is not None else self._require_user_id()
                 ),
+                source_policy_store=self._get_or_create_context_source_policy(),
             )
             self._context_builder = cb
         return cb

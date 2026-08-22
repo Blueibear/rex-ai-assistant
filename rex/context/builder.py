@@ -15,6 +15,7 @@ from typing import Any
 
 from rex.context.cache import ContextArtifactCache, ContextCacheKey, ContextCacheMetrics
 from rex.context.revisions import ContextCacheRequest, build_context_cache_versions
+from rex.context.source_policy import ContextSourcePolicyStore
 from rex.runtime.turn import TurnScope
 
 logger = logging.getLogger(__name__)
@@ -114,6 +115,7 @@ class ContextBuilder:
         history_provider: Callable[..., list] | None = None,
         context_cache: ContextArtifactCache[PrivateContextArtifacts] | None = None,
         capability_registry: Any = None,
+        source_policy_store: ContextSourcePolicyStore | None = None,
     ) -> None:
         self._settings = settings
         self._history = history
@@ -122,6 +124,7 @@ class ContextBuilder:
         self._history_provider = history_provider
         self._context_cache = context_cache or ContextArtifactCache(max_entries=128)
         self._capability_registry = capability_registry
+        self._source_policy_store = source_policy_store
 
     def _current_history(self, user_id: str | None = None) -> list:
         """Return the live history list (provider-backed when configured).
@@ -277,10 +280,16 @@ class ContextBuilder:
         ):
             return build()
         try:
+            source_policy_revision = (
+                self._source_policy_store.revision_for_user(effective_user)
+                if self._source_policy_store is not None
+                else None
+            )
             versions = build_context_cache_versions(
                 cache_request,
                 self._settings,
                 self._capability_registry,
+                source_policy_revision=source_policy_revision,
             )
             key = ContextCacheKey.private(effective_user, versions)
         except Exception as exc:
