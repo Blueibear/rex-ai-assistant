@@ -55,7 +55,8 @@ import type {
   PairingResponse,
   ProfileOperationResponse,
   ModelDiscoveryProvider,
-  ModelDiscoveryResponse
+  ModelDiscoveryResponse,
+  ContextPrivacyResponse
 } from '../types/ipc'
 
 function makeSendChatStream(
@@ -250,6 +251,12 @@ const rexAPI = {
   },
   getSettings: (section: string): Promise<Settings> =>
     ipcRenderer.invoke('rex:getSettings', section),
+  getContextPrivacy: (): Promise<ContextPrivacyResponse> =>
+    ipcRenderer.invoke('rex:getContextPrivacy'),
+  updateContextPrivacy: (
+    command: string,
+    payload: Record<string, unknown>
+  ): Promise<ContextPrivacyResponse> => ipcRenderer.invoke('rex:updateContextPrivacy', command, payload),
   discoverAiModels: (provider: ModelDiscoveryProvider): Promise<ModelDiscoveryResponse> =>
     ipcRenderer.invoke('rex:discoverAiModels', provider),
   setSettings: (section: string, values: Settings): Promise<SetSettingsResponse> =>

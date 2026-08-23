@@ -1515,12 +1515,25 @@ class Assistant:
             self._proactive_evaluator = evaluator
         return evaluator
 
+    def _get_or_create_context_privacy_service(self):
+        service = getattr(self, "_context_privacy_service", None)
+        if service is None:
+            from .context.privacy import get_context_privacy_service
+
+            service = get_context_privacy_service()
+            self._context_privacy_service = service
+        return service
+
     def _prepare_contextual_suggestion(self, user_id: str, *, response_text: str) -> None:
         """Queue one high-signal contextual suggestion without widening authority."""
         engine = getattr(self, "_suggestion_engine", None)
         if engine is None or "?" in response_text:
             return
         try:
+            privacy = self._get_or_create_context_privacy_service()
+            preferences = privacy.preference_store.get(user_id)
+            if not preferences.proactive_assistance:
+                return
             assembler = self._get_or_create_situational_assembler()
             evaluator = self._get_or_create_proactive_evaluator()
             snapshot = assembler.build(user_id=user_id)

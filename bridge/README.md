@@ -14,6 +14,7 @@ bridge filenames are never hardcoded inline in handler files.
 | `rex_calendar_bridge.py` | Calendar read/write via configured backend |
 | `rex_chat_bridge.py` | Single-turn LLM chat |
 | `rex_chat_stream_bridge.py` | Streaming LLM chat |
+| `rex_context_policy_bridge.py` | Owner-bound context/privacy settings and safe metadata |
 | `rex_email_bridge.py` | Email read/send via configured backend |
 | `rex_file_extract_bridge.py` | File content extraction |
 | `rex_history_bridge.py` | Per-user command history read |

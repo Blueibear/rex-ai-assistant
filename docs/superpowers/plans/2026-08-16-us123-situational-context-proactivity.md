@@ -269,16 +269,16 @@ Expected: PASS.
 - Modify: `gui/src/preload/index.ts`
 - Modify: `gui/src/types/ipc.ts`
 - Modify: `rex/mobile_api/routes/settings.py` from US-122
-- Modify: `rex/mobile_api/authorization.py`
+- Review: `rex/mobile_api/authorization.py` (existing `settings.read` / `settings.write` scopes are sufficient; privacy authority remains service-side)
 - Test: `tests/context/test_policy_bridge.py`
 - Test: `tests/mobile_api/test_context_privacy_settings.py`
-- Test: `gui/tests/contextPrivacySettings.test.tsx`
+- Test: `gui/tests/contextPrivacySettings.test.ts`
 
 **Interfaces:**
 - Operations: list/toggle connected contextual sources; inspect/change owned upload context/scope; set own `location_assist`; grant/revoke own location sharing for a named recipient; configure proactive-assistance preference.
 - The service layer, not the renderer/mobile route, enforces owner-only privacy-authority mutations.
 
-- [ ] **Step 1: Write failing owner-bound bridge/mobile tests**
+- [x] **Step 1: Write failing owner-bound bridge/mobile tests**
 
 ```python
 def test_admin_cannot_change_cole_location_assist(client, james_admin_token):
@@ -291,25 +291,25 @@ def test_uploader_can_promote_owned_upload_to_household(bridge):
     assert result["ok"] is True
 ```
 
-- [ ] **Step 2: Run bridge/mobile/GUI tests and verify red state**
+- [x] **Step 2: Run bridge/mobile/GUI tests and verify red state**
 Run: `pytest -q tests/context/test_policy_bridge.py tests/mobile_api/test_context_privacy_settings.py`
-Run: `cd gui && npm.cmd test -- --run tests/contextPrivacySettings.test.tsx`
+Run: `cd gui && npm.cmd test -- --run tests/contextPrivacySettings.test.ts`
 Expected: FAIL because the settings surface does not exist.
 
-- [ ] **Step 3: Implement service-first owner checks and safe renderer/mobile adapters**
+- [x] **Step 3: Implement service-first owner checks and safe renderer/mobile adapters**
 The uploader/owner may change an owned document's contextual-use and audience. Only the tracked user may change their `location_assist` or recipient-specific `location_share`; admin permission is intentionally irrelevant to that mutation. Denials use generic messages that reveal no private current-location state.
 
-- [ ] **Step 4: Build Settings controls without technical leakage**
+- [x] **Step 4: Build Settings controls without technical leakage**
 Use clear labels such as “Use this in future conversations,” “Private to me / Shared household,” “Use my location to help me,” and per-person “Share my location with …”. Show proactive-assistance controls separately from source/disclosure authority.
 
-- [ ] **Step 5: Add constitutional regression tests**
+- [x] **Step 5: Add constitutional regression tests**
 Exercise the same mutation service through direct Python, Electron bridge, mobile route, OpenClaw/developer-agent-shaped caller contexts, and assert no caller can self-widen privacy authority without the affected user/data-owner authorization.
 
-- [ ] **Step 6: Run Settings/privacy regressions and commit**
+- [x] **Step 6: Run Settings/privacy regressions and commit**
 Run: `pytest -q tests/context/test_policy_bridge.py tests/context/test_location_policy.py tests/context/test_upload_policy.py tests/mobile_api/test_context_privacy_settings.py tests/test_memory_isolation.py`
-Run: `cd gui && npm.cmd test -- --run tests/contextPrivacySettings.test.tsx && npm.cmd run typecheck && npm.cmd run build`
+Run: `cd gui && npm.cmd test -- --run tests/contextPrivacySettings.test.ts && npm.cmd run typecheck && npm.cmd run build`
 Expected: PASS.
-`git add bridge/rex_context_policy_bridge.py gui/src rex/mobile_api/routes/settings.py rex/mobile_api/authorization.py tests/context tests/mobile_api/test_context_privacy_settings.py && git commit -m "feat(context): expose constitutional privacy controls"`
+`git add CLAUDE.md bridge/README.md bridge/rex_context_policy_bridge.py gui/src gui/tests/contextPrivacySettings.test.ts rex/assistant.py rex/context/privacy.py rex/context/source_policy.py rex/mobile_api/routes/settings.py tests/context/test_policy_bridge.py tests/mobile_api/test_context_privacy_settings.py tests/proactivity/test_assistant_integration.py && git commit -m "feat(context): expose constitutional privacy controls"`
 
 ### Task 7: US-123 full validation, documentation, and release evidence
 
@@ -326,7 +326,7 @@ Run: `pytest -q tests/context tests/proactivity tests/media tests/output_routing
 Expected: PASS.
 
 - [ ] **Step 2: Run GUI validation**
-Run: `cd gui && npm.cmd test -- --run tests/contextPrivacySettings.test.tsx tests/outputRoutingSettings.test.tsx && npm.cmd run typecheck && npm.cmd run build`
+Run: `cd gui && npm.cmd test -- --run tests/contextPrivacySettings.test.ts tests/outputRoutingSettings.test.tsx && npm.cmd run typecheck && npm.cmd run build`
 Expected: PASS.
 
 - [ ] **Step 3: Run static/security/repository integrity gates**

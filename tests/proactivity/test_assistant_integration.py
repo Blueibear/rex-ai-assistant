@@ -70,3 +70,30 @@ def test_assistant_does_not_queue_contextual_candidate_while_asking_question(tmp
     assistant._prepare_contextual_suggestion("james", response_text="Which timer did you mean?")
 
     assert not engine.has_pending("james")
+
+
+def test_disabled_proactive_preference_prevents_context_reads():
+    from types import SimpleNamespace
+
+    assistant = Assistant.__new__(Assistant)
+    assistant._suggestion_engine = SuggestionEngine()
+    assistant._context_privacy_service = SimpleNamespace(
+        preference_store=SimpleNamespace(
+            get=lambda user_id: SimpleNamespace(proactive_assistance=False)
+        )
+    )
+
+    reads: list[str] = []
+
+    class ForbiddenAssembler:
+        def build(self, *, user_id):
+            reads.append(user_id)
+            raise AssertionError("disabled proactivity must short-circuit before context reads")
+
+    assistant._situational_assembler = ForbiddenAssembler()
+    assistant._proactive_evaluator = ProactiveOpportunityEvaluator()
+
+    assistant._prepare_contextual_suggestion("james", response_text="Done.")
+
+    assert reads == []
+    assert not assistant._suggestion_engine.has_pending("james")

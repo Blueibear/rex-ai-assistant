@@ -348,6 +348,23 @@ class ContextSourcePolicyStore:
             return policy
         return self._get_from_partition(source_id, None)
 
+    def list_for_user(self, user_id: str) -> tuple[ContextSourcePolicy, ...]:
+        """Return content-free private and household policy metadata visible to one user."""
+        user = validate_user_id(user_id)
+        _private_revision, private = self._read_partition(user)
+        _household_revision, household = self._read_partition(None)
+        policies = tuple(private) + tuple(household)
+        return tuple(
+            sorted(
+                policies,
+                key=lambda policy: (
+                    policy.source_id,
+                    policy.owner_user_id or "",
+                    policy.audience_scope.value,
+                ),
+            )
+        )
+
     def _set_context_enabled_in_partition(
         self,
         partition_user_id: str | None,
