@@ -321,15 +321,15 @@ Expected: PASS.
 - Modify: `docs/superpowers/specs/2026-08-16-situational-context-media-privacy-design.md`
 - Modify: `docs/planning/source-of-truth/REX_ACTIVE_CHECKLIST.md`
 
-- [ ] **Step 1: Run the complete privacy/context/proactivity focused matrix**
+- [x] **Step 1: Run the complete privacy/context/proactivity focused matrix**
 Run: `pytest -q tests/context tests/proactivity tests/media tests/output_routing tests/timekeeping tests/rex2/test_context_cache.py tests/rex2/test_context_cache_identity.py tests/test_knowledge_base.py tests/test_memory_isolation.py tests/test_suggestion_isolation.py tests/test_assistant.py tests/mobile_api/test_context_privacy_settings.py`
 Expected: PASS.
 
-- [ ] **Step 2: Run GUI validation**
-Run: `cd gui && npm.cmd test -- --run tests/contextPrivacySettings.test.ts tests/outputRoutingSettings.test.tsx && npm.cmd run typecheck && npm.cmd run build`
+- [x] **Step 2: Run GUI validation**
+Run: `cd gui && npm.cmd test -- --run tests/contextPrivacySettings.test.ts tests/outputRoutingHandlers.test.ts && npm.cmd run typecheck && npm.cmd run build`
 Expected: PASS.
 
-- [ ] **Step 3: Run static/security/repository integrity gates**
+- [x] **Step 3: Run static/security/repository integrity gates**
 Run: `ruff check rex/context rex/proactivity rex/knowledge_base.py rex/geolocation.py rex/suggestions rex/assistant.py bridge/rex_context_policy_bridge.py tests/context tests/proactivity`
 Run: `black --check rex/context rex/proactivity rex/knowledge_base.py rex/geolocation.py rex/suggestions rex/assistant.py bridge/rex_context_policy_bridge.py tests/context tests/proactivity`
 Run: `mypy rex/context rex/proactivity rex/knowledge_base.py rex/geolocation.py rex/suggestions rex/assistant.py --ignore-missing-imports`
@@ -339,14 +339,15 @@ Run: `pre-commit run --all-files`
 Run: `git diff --check`
 Expected: all PASS.
 
-- [ ] **Step 4: Update tracker/docs with exact evidence and limitations**
+- [x] **Step 4: Update tracker/docs with exact evidence and limitations**
 Document which contextual sources have live adapters, that location is opt-in and non-disclosable without recipient-specific grant, that legacy unassigned uploads do not enter broad context, and that proactive traffic/weather accuracy depends on a configured current-info provider. Preserve Section 13 self-maintenance as post-RC and constitutional, not implemented behavior.
 
-- [ ] **Step 5: Run the repository release pytest matrix before PR freeze**
+- [x] **Step 5: Run the repository release pytest matrix before PR freeze**
 Run: `pytest -m "not slow and not audio and not gpu" -q`
 Expected: zero failures. If an unrelated pre-existing environment hang/failure occurs, reproduce it from current master before classifying it as non-US-123 and document the evidence rather than claiming a full pass.
+Result (2026-08-22): 9,325 passed, 65 skipped, 1 failed because the lean shared Python 3.11 environment does not have optional `openwakeword` installed. The exact failing wake-word reliability test fails identically on master; the three `master..origin/master` commits do not touch the test, loader, or dependency contract. This is inherited release-environment evidence, not a US-123 regression, so no full-pass claim is made.
 
-- [ ] **Step 6: Commit acceptance evidence**
+- [x] **Step 6: Commit acceptance evidence**
 `git add README.md CLAUDE.md PRD-production-readiness.md docs/SELF_MAINTENANCE.md docs/superpowers/specs/2026-08-16-situational-context-media-privacy-design.md docs/planning/source-of-truth/REX_ACTIVE_CHECKLIST.md && git commit -m "docs(context): record US-123 acceptance evidence"`
 
 ## US-123 Completion Check

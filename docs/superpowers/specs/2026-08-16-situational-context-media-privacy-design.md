@@ -188,6 +188,14 @@ US-123 intentionally composes existing calendar, context builder/cache, suggesti
 - Claiming Apple Music live integration until Apple developer credentials, user authorization, and real-device verification exist.
 - Making proactive suggestions execute sensitive actions without normal action authorization/confirmation.
 
+## Implementation status (2026-08-22)
+
+US-123 Tasks 1–6 are implemented on the feature branch through commits `fafeb99`, `bfb0e14`, `54f1b3e`, `265d227`, `692b22d`, and `97ef72d`. The implementation now includes canonical source-policy revisions, upload context/audience policy, owner-controlled `location_assist` and recipient-specific `location_share`, bounded active-context references, deterministic situational/proactive evaluation, and shared Electron/mobile Context & Privacy controls.
+
+Live current-information enrichment is deliberately adapter-driven and fail-closed. The repository does not currently contain a production traffic reader; a proactive rule that needs traffic data produces no candidate until an authorized reader is configured. Personal location remains demand-driven rather than continuously polled. Mobile OS permissions are capability prerequisites, not Rex contextual/disclosure grants, and sensitive OS permissions should be requested just in time for an intentional feature use.
+
+Local acceptance evidence: the focused US-123 matrix passed 596/596 tests; Electron Context & Privacy plus Output Routing validation passed 8/8 tests, TypeScript typecheck, and production build; Ruff/Black/mypy passed; the release security audit passed with no actionable placeholders or exposed secrets across 1,473 scanned files; repository truth/integrity tests passed 14/14; and full pre-commit plus whitespace checks passed. The repository `not slow and not audio and not gpu` matrix executed 9,389 collected tests with 9,325 passed, 65 skipped, and one inherited environment failure because optional `openwakeword` is absent; the exact test fails on master and the three newer `origin/master` commits do not touch the test/loader/dependency contract. No full release-matrix pass is claimed. Exact-head GitHub checks remain pending until publication.
+
 ## Acceptance definition
 
 The design is successful when a user can speak naturally, Rex can use the right authorized context without cross-user leakage, media follows the speaker/account/output rules above, follow-up references work without needless repetition, and Rex can offer timely assistance from connected information while preserving explicit location and upload privacy controls.
