@@ -218,6 +218,28 @@ def test_assistant_build_system_context_delegates():
     assert "Current date and time:" in result
 
 
+def test_assistant_context_builder_has_canonical_source_policy_store():
+    from unittest.mock import patch
+
+    import rex.assistant as mod
+    from rex.context.source_policy import ContextSourcePolicyStore
+
+    class DummyLLM:
+        def __init__(self, *a, **kw):
+            pass
+
+        def generate(self, *a, **kw):
+            return "ok"
+
+    with patch.object(mod, "LanguageModel", DummyLLM):
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmp:
+            asst = mod.Assistant(transcripts_dir=tmp, user_id="default")
+
+    assert isinstance(asst._context_builder._source_policy_store, ContextSourcePolicyStore)
+
+
 def test_assistant_build_prompt_delegates():
     """Assistant._build_prompt() returns same prompt as ContextBuilder.build()."""
     from unittest.mock import patch
@@ -368,6 +390,32 @@ def test_cached_hit_matches_uncached_output_with_dynamic_context() -> None:
     assert cached.prompt == uncached.prompt
 
 
+def test_source_policy_revision_participates_in_private_cache_key() -> None:
+    from rex.context.builder import ContextBuilder
+
+    source_policy = MagicMock()
+    source_policy.revision_for_user.return_value = "source-policy-revision"
+    builder = ContextBuilder(
+        settings=MagicMock(),
+        history=[],
+        user_id="default",
+        source_policy_store=source_policy,
+    )
+    request = _context_cache_request("alice")
+
+    with (
+        patch(
+            "rex.context.builder.build_context_cache_versions",
+            return_value=_context_cache_versions(),
+        ) as versions,
+        patch.object(type(builder), "build_system_context", return_value="[sys]"),
+    ):
+        builder.build("hello", active_user_id="alice", cache_request=request)
+
+    source_policy.revision_for_user.assert_called_once_with("alice")
+    assert versions.call_args.kwargs["source_policy_revision"] == "source-policy-revision"
+
+
 def test_mismatched_cache_request_identity_bypasses_cache() -> None:
     builder = _make_builder(user_id="default")
     request = _context_cache_request("alice")
@@ -386,3 +434,58 @@ def test_mismatched_cache_request_identity_bypasses_cache() -> None:
         builder.build("two", active_user_id="cole", cache_request=request)
 
     assert personality.call_count == 2
+
+
+def test_active_context_summary_is_bounded_and_user_scoped():
+    from rex.context.active import ActiveContextRef, ActiveContextStore
+    from rex.context.builder import ContextBuilder, PrivateContextArtifacts
+
+    store = ActiveContextStore(clock=lambda: 100.0)
+    store.put(
+        ActiveContextRef(
+            domain="media",
+            key="ha:media_player.living_room",
+            owner_user_id="james",
+            payload={
+                "target_id": "ha:media_player.living_room",
+                "provider": "ha",
+                "media_ref": "provider-private-item-ref",
+            },
+            source_ids=(),
+            revision="media:1",
+            expires_at=200.0,
+        )
+    )
+    store.put(
+        ActiveContextRef(
+            domain="timekeeping",
+            key="cole-private-timer",
+            owner_user_id="cole",
+            payload={"record_type": "timer", "name": "private", "status": "active"},
+            source_ids=(),
+            revision="timekeeping:1",
+            expires_at=200.0,
+        )
+    )
+    settings = MagicMock()
+    settings.default_timezone = "UTC"
+    settings.default_location = None
+    settings.personality = None
+    builder = ContextBuilder(
+        settings=settings,
+        history=[],
+        user_id="james",
+        active_context_store=store,
+    )
+    with patch.object(
+        builder,
+        "_build_private_artifacts",
+        return_value=PrivateContextArtifacts(None, None, None),
+    ):
+        package = builder.build("pause it")
+
+    assert "Active conversation context" in package.system_prompt
+    assert "ha:media_player.living_room" in package.system_prompt
+    assert "provider-private-item-ref" not in package.system_prompt
+    assert "cole-private-timer" not in package.system_prompt
+    assert "private" not in package.system_prompt

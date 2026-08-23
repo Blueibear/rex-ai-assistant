@@ -285,8 +285,13 @@ class Assistant:
         )
 
         # Context builder: assembles system prompt, messages, and user facts (US-014)
+        # while US-123 source policy supplies content-free cache invalidation.
+        from .context.active import get_active_context_store
         from .context.builder import ContextBuilder
+        from .context.source_policy import ContextSourcePolicyStore
 
+        self._context_source_policy = ContextSourcePolicyStore()
+        self._active_context_store = get_active_context_store()
         self._context_builder = ContextBuilder(
             settings=self._settings,
             history=[],
@@ -298,6 +303,8 @@ class Assistant:
             history_provider=lambda user_id=None: self._history_for(
                 user_id if user_id is not None else self._require_user_id()
             ),
+            source_policy_store=self._context_source_policy,
+            active_context_store=self._active_context_store,
         )
 
         # Intent router: handles direct-reply shortcuts without LLM (US-015)
@@ -347,6 +354,7 @@ class Assistant:
             device_state_handler=self._device_state_handler,
             suggestion_engine=self._suggestion_engine,
             pattern_entries=self._pattern_entries,
+            active_context_store=self._active_context_store,
             build_tool_context_fn=self._build_tool_context,
             model_call_fn_builder=self._build_tool_model_call,
             run_plugins_fn=self._run_plugins,
@@ -808,7 +816,7 @@ class Assistant:
         return await self._result_handler.process(
             transcript,
             completion,
-            tool_context=self._build_tool_context(),
+            tool_context=self._build_tool_context(user_id),
             model_call_fn=self._build_tool_model_call(transcript, user_id=user_id),
             plugin_enrichments=plugin_enrichments,
         )
@@ -1276,6 +1284,10 @@ class Assistant:
             )
             latency_trace.start("completion")
             if model_failure_reason is None:
+                self._prepare_contextual_suggestion(
+                    effective_user_id,
+                    response_text=str(result.response),
+                )
                 final = self._get_or_create_response_builder().build(
                     result, context, transcript=transcript, user_id=effective_user_id
                 )
@@ -1468,6 +1480,72 @@ class Assistant:
 
         return _VOICE_CONCISE_INSTRUCTION
 
+    def _get_or_create_situational_assembler(self):
+        """Return the privacy-bound situational assembler for proactive evaluation."""
+        assembler = getattr(self, "_situational_assembler", None)
+        if assembler is not None:
+            return assembler
+        from .context.situational import SituationalAssembler
+        from .knowledge_base import get_knowledge_base
+        from .user_facts import recall_all
+
+        calendar = getattr(self, "_calendar_service", None)
+        if calendar is None:
+            try:
+                calendar = get_calendar_service()
+            except Exception:
+                calendar = None
+        assembler = SituationalAssembler(
+            source_policy_store=self._get_or_create_context_source_policy(),
+            calendar_service=calendar,
+            knowledge_base=get_knowledge_base(),
+            active_context_store=self._get_or_create_active_context_store(),
+            memory_reader=recall_all,
+            current_info_readers=getattr(self, "_situational_current_info_readers", None),
+        )
+        self._situational_assembler = assembler
+        return assembler
+
+    def _get_or_create_proactive_evaluator(self):
+        evaluator = getattr(self, "_proactive_evaluator", None)
+        if evaluator is None:
+            from .proactivity.evaluator import ProactiveOpportunityEvaluator
+
+            evaluator = ProactiveOpportunityEvaluator()
+            self._proactive_evaluator = evaluator
+        return evaluator
+
+    def _get_or_create_context_privacy_service(self):
+        service = getattr(self, "_context_privacy_service", None)
+        if service is None:
+            from .context.privacy import get_context_privacy_service
+
+            service = get_context_privacy_service()
+            self._context_privacy_service = service
+        return service
+
+    def _prepare_contextual_suggestion(self, user_id: str, *, response_text: str) -> None:
+        """Queue one high-signal contextual suggestion without widening authority."""
+        engine = getattr(self, "_suggestion_engine", None)
+        if engine is None or "?" in response_text:
+            return
+        try:
+            privacy = self._get_or_create_context_privacy_service()
+            preferences = privacy.preference_store.get(user_id)
+            if not preferences.proactive_assistance:
+                return
+            assembler = self._get_or_create_situational_assembler()
+            evaluator = self._get_or_create_proactive_evaluator()
+            snapshot = assembler.build(user_id=user_id)
+            required = evaluator.required_current_info(snapshot)
+            if required:
+                snapshot = assembler.enrich_current_info(snapshot, required=required)
+            candidates = evaluator.evaluate(snapshot)
+            if candidates:
+                engine.get_contextual_suggestion(candidates, user_id=user_id)
+        except Exception as exc:
+            logger.debug("Contextual suggestion evaluation skipped: %s", type(exc).__name__)
+
     def _get_or_create_response_builder(self):
         """Return self._response_builder, creating one lazily for __new__-based tests."""
         rb = getattr(self, "_response_builder", None)
@@ -1503,6 +1581,7 @@ class Assistant:
                 device_state_handler=getattr(self, "_device_state_handler", None),
                 suggestion_engine=getattr(self, "_suggestion_engine", None),
                 pattern_entries=getattr(self, "_pattern_entries", None),
+                active_context_store=self._get_or_create_active_context_store(),
                 build_tool_context_fn=self._build_tool_context,
                 model_call_fn_builder=self._build_tool_model_call,
                 run_plugins_fn=self._run_plugins,
@@ -1520,6 +1599,26 @@ class Assistant:
             self._intent_router = ir
         return ir
 
+    def _get_or_create_active_context_store(self):
+        """Return the canonical short-lived active-reference store."""
+        store = getattr(self, "_active_context_store", None)
+        if store is None:
+            from .context.active import get_active_context_store
+
+            store = get_active_context_store()
+            self._active_context_store = store
+        return store
+
+    def _get_or_create_context_source_policy(self):
+        """Return the canonical source-policy store, creating it lazily."""
+        store = getattr(self, "_context_source_policy", None)
+        if store is None:
+            from .context.source_policy import ContextSourcePolicyStore
+
+            store = ContextSourcePolicyStore()
+            self._context_source_policy = store
+        return store
+
     def _get_or_create_context_builder(self):
         """Return self._context_builder, creating one lazily for __new__-based tests."""
         cb = getattr(self, "_context_builder", None)
@@ -1534,6 +1633,8 @@ class Assistant:
                 history_provider=lambda user_id=None: self._history_for(
                     user_id if user_id is not None else self._require_user_id()
                 ),
+                source_policy_store=self._get_or_create_context_source_policy(),
+                active_context_store=self._get_or_create_active_context_store(),
             )
             self._context_builder = cb
         return cb
@@ -1582,26 +1683,41 @@ class Assistant:
             .messages
         )
 
-    def _build_tool_context(self) -> dict[str, str]:
-        """Return default_context dict for tool execution with location/timezone."""
+    def _get_or_create_location_context_service(self):
+        """Return the canonical per-user location service, creating it lazily."""
+        service = getattr(self, "_location_context_service", None)
+        if service is None:
+            from .context.location_policy import LocationContextService, LocationGrantStore
+
+            grants = LocationGrantStore(
+                source_policy_store=self._get_or_create_context_source_policy()
+            )
+            service = LocationContextService(grant_store=grants)
+            self._location_context_service = service
+        return service
+
+    def _build_tool_context(self, user_id: str | None = None) -> dict[str, str]:
+        """Return static defaults plus authorized user-specific location context."""
         ctx: dict[str, str] = {}
-        _settings = getattr(self, "_settings", None)
+        settings = getattr(self, "_settings", None)
 
-        location: str | None = getattr(_settings, "default_location", None)
-        if not location:
-            from rex.geolocation import get_cached_city
-
-            location = get_cached_city()
+        location: str | None = getattr(settings, "default_location", None)
+        timezone: str | None = getattr(settings, "default_timezone", None)
         if location:
             ctx["location"] = location
+        if timezone:
+            ctx["timezone"] = timezone
 
-        tz_name: str | None = getattr(_settings, "default_timezone", None)
-        if not tz_name:
-            from rex.geolocation import get_cached_timezone
+        if user_id is not None:
+            from .context.location_policy import LocationUsePurpose
 
-            tz_name = get_cached_timezone()
-        if tz_name:
-            ctx["timezone"] = tz_name
+            service = self._get_or_create_location_context_service()
+            personal = service.get_for_assistance(user_id, LocationUsePurpose.TOOL_CONTEXT)
+            if personal is not None:
+                if personal.city:
+                    ctx["location"] = personal.city
+                if personal.timezone:
+                    ctx["timezone"] = personal.timezone
 
         return ctx
 

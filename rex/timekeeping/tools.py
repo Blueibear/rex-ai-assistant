@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import time as time_module
 from datetime import UTC, date, datetime, time
 from typing import Any, cast
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
+from rex.context.active import ActiveContextRef, get_active_context_store
 from rex.identity import validate_user_id
 from rex.output_routing.models import OutputKind, ResolvedRoute
 from rex.output_routing.runtime import get_output_routing_service
@@ -30,6 +32,7 @@ _MUTATION_ACTIONS = {
     "cancel_alarm",
 }
 _READ_ACTIONS = {"list_timers", "query_timer", "list_alarms", "query_alarm_route"}
+_ACTIVE_REF_TTL_SECONDS = 300.0
 
 
 def resolve_user_timezone(user_id: str) -> str:
@@ -128,6 +131,38 @@ def _alarm_payload(record: AlarmRecord) -> dict[str, Any]:
         "snooze_count": record.snooze_count,
         "output_target_id": record.output_target_id,
     }
+
+
+def _publish_timekeeping_ref(record: TimerRecord | AlarmRecord) -> None:
+    """Publish bounded follow-up state without changing the action's truth status."""
+    now = time_module.monotonic()
+    if isinstance(record, TimerRecord):
+        record_type = "timer"
+        record_id = record.timer_id
+    else:
+        record_type = "alarm"
+        record_id = record.alarm_id
+    payload: dict[str, str | bool | None] = {
+        "record_type": record_type,
+        "name": record.name,
+        "status": record.status,
+    }
+    if isinstance(record, AlarmRecord):
+        payload["enabled"] = record.enabled
+    try:
+        get_active_context_store().put(
+            ActiveContextRef(
+                domain="timekeeping",
+                key=record_id,
+                owner_user_id=record.user_id,
+                payload=payload,
+                source_ids=(),
+                revision="timekeeping:1",
+                expires_at=now + _ACTIVE_REF_TTL_SECONDS,
+            )
+        )
+    except (PermissionError, TypeError, ValueError):
+        return
 
 
 def _route_payload(route: ResolvedRoute) -> dict[str, Any]:
@@ -231,6 +266,7 @@ def timekeeping_read(
             origin_device_id=None,
             at=route_at,
         )
+        _publish_timekeeping_ref(alarm)
         return {"alarm": _alarm_payload(alarm), "route": _route_payload(route)}
     matches = _matching_timers(owner, command.reference, {"active", "paused"})
     if not matches:
@@ -241,6 +277,7 @@ def timekeeping_read(
             "message": "Multiple timers match. Choose one by name or ID.",
             "matches": [_timer_payload(record) for record in matches],
         }
+    _publish_timekeeping_ref(matches[0])
     return {"found": True, "timer": _timer_payload(matches[0])}
 
 
@@ -434,6 +471,19 @@ def timekeeping_manage(
     )
 
 
+def _verification_record(
+    record_type: str,
+    record_id: str,
+    user_id: str,
+) -> TimerRecord | AlarmRecord | None:
+    service = get_timekeeping_service()
+    if record_type == "timer":
+        return service.get_timer(record_id, user_id)
+    if record_type == "alarm":
+        return service.get_alarm(record_id, user_id)
+    return None
+
+
 def verify_timekeeping_mutation(args: dict[str, Any], output: Any) -> bool:
     """Re-read persisted state before allowing a mutation to be called verified."""
     if not isinstance(output, dict):
@@ -453,18 +503,14 @@ def verify_timekeeping_mutation(args: dict[str, Any], output: Any) -> bool:
         return False
     if not isinstance(expected, dict):
         return False
-    service = get_timekeeping_service()
-    record: TimerRecord | AlarmRecord | None
-    if record_type == "timer":
-        record = service.get_timer(record_id, user_id)
-    elif record_type == "alarm":
-        record = service.get_alarm(record_id, user_id)
-    else:
-        return False
+    record = _verification_record(record_type, record_id, user_id)
     if record is None:
         return False
     persisted = record.model_dump(mode="json")
-    return all(persisted.get(name) == value for name, value in expected.items())
+    verified = all(persisted.get(name) == value for name, value in expected.items())
+    if verified:
+        _publish_timekeeping_ref(record)
+    return verified
 
 
 __all__ = [

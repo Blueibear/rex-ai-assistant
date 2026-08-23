@@ -201,3 +201,44 @@ def test_action_dispatcher_records_tool_and_llm_segments() -> None:
     assert "llm_ms" in summary
     assert summary["tool_ms"] >= 0
     assert summary["llm_ms"] >= 0
+
+
+def test_action_dispatcher_builds_tool_context_for_effective_user() -> None:
+    seen_users: list[str] = []
+    seen_contexts: list[dict[str, str]] = []
+
+    class CapturingResultHandler:
+        async def process(self, transcript, completion, **kwargs):
+            seen_contexts.append(kwargs["tool_context"])
+            return completion
+
+    def build_tool_context(user_id: str) -> dict[str, str]:
+        seen_users.append(user_id)
+        return {"location": "authorized-location"}
+
+    dispatcher = ActionDispatcher(
+        context_builder=SimpleNamespace(
+            build=lambda *args, **kwargs: SimpleNamespace(
+                messages=[{"role": "user", "content": "benchmark"}],
+                prompt="benchmark",
+            )
+        ),
+        llm=_LLM(),
+        result_handler=CapturingResultHandler(),
+        build_tool_context_fn=build_tool_context,
+    )
+
+    context = SimpleNamespace(
+        messages=[{"role": "user", "content": "benchmark"}], prompt="benchmark"
+    )
+    asyncio.run(
+        dispatcher.dispatch(
+            SimpleNamespace(handled=False),
+            context,
+            "benchmark request",
+            user_id="benchmark",
+        )
+    )
+
+    assert seen_users == ["benchmark"]
+    assert seen_contexts == [{"location": "authorized-location"}]

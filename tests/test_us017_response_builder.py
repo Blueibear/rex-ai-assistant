@@ -376,3 +376,79 @@ class TestAssistantUsesResponseBuilder:
 
         assert reply == "cached reply"
         ad.dispatch.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
+# Contextual suggestion composition (US-123)
+# ---------------------------------------------------------------------------
+
+
+def _contextual_engine(tmp_path):
+    from rex.proactivity.models import ProactiveCandidate
+    from rex.suggestions.engine import SuggestionEngine
+
+    engine = SuggestionEngine(
+        dismissed_path=tmp_path / "dismissed.json",
+        automations_path=tmp_path / "automations.json",
+    )
+    candidate = ProactiveCandidate(
+        key="commute:weather-delay",
+        user_id="alice",
+        spoken_text="Traffic and storms could slow you down. Leaving 20 minutes early would help.",
+        source_ids=("integration:calendar", "integration:traffic", "integration:weather"),
+        freshness_seconds=60.0,
+        confidence=0.9,
+        benefit=0.9,
+        urgency=0.85,
+        suggested_action="show_route",
+    )
+    engine.get_contextual_suggestion([candidate], user_id="alice")
+    return engine, candidate
+
+
+def test_contextual_suggestion_appends_naturally(tmp_path):
+    engine, candidate = _contextual_engine(tmp_path)
+    builder = _make_builder(suggestion_engine=engine)
+
+    result = builder.build(
+        _make_action_result("Your package arrives tomorrow."),
+        _make_context(),
+        user_id="alice",
+    )
+
+    assert result.text.endswith(f"By the way, {candidate.spoken_text}")
+    assert result.tts_text.endswith(f"By the way, {candidate.spoken_text}")
+
+
+def test_contextual_suggestion_does_not_interrupt_question(tmp_path):
+    engine, candidate = _contextual_engine(tmp_path)
+    builder = _make_builder(suggestion_engine=engine)
+
+    result = builder.build(
+        _make_action_result("Which timer did you mean?"),
+        _make_context(),
+        user_id="alice",
+    )
+
+    assert result.text == "Which timer did you mean?"
+    assert candidate.spoken_text not in result.text
+
+
+def test_contextual_suggestion_is_not_persisted_in_response_cache(tmp_path):
+    engine, candidate = _contextual_engine(tmp_path)
+    cache = MagicMock()
+    builder = _make_builder(suggestion_engine=engine, response_cache=cache)
+
+    result = builder.build(
+        _make_action_result("Your package arrives tomorrow."),
+        _make_context(),
+        transcript="package status",
+        user_id="alice",
+    )
+
+    assert candidate.spoken_text in result.text
+    cache.put.assert_called_once_with(
+        "package status",
+        "Your package arrives tomorrow.",
+        user_id="alice",
+    )

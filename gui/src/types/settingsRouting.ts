@@ -4,6 +4,7 @@ export const SETTINGS_CATEGORY_IDS = [
   'ai',
   'integrations',
   'notifications',
+  'privacy',
   'users',
   'audio',
   'system',

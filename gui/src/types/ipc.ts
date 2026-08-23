@@ -34,6 +34,38 @@ export interface SetSettingsResponse {
   error?: string
 }
 
+export interface ContextSourceSetting {
+  source_id: string
+  source_type: string
+  audience_scope: 'private' | 'household'
+  context_enabled: boolean
+  disclosure_policy: string
+  mutable: boolean
+}
+
+export interface ContextUploadSetting {
+  doc_id: string
+  title: string
+  audience_scope: 'private' | 'household'
+  context_enabled: boolean
+}
+
+export interface ContextLocationSetting {
+  location_assist: boolean
+  shared_with: string[]
+}
+
+export interface ContextPrivacyResponse {
+  ok: boolean
+  sources?: ContextSourceSetting[]
+  uploads?: ContextUploadSetting[]
+  location?: ContextLocationSetting
+  proactive_assistance?: boolean
+  source?: ContextSourceSetting
+  upload?: ContextUploadSetting
+  error?: string
+}
+
 export type ModelDiscoveryProvider = 'ollama' | 'lmstudio'
 
 export interface ModelDiscoveryResponse {
@@ -794,6 +826,11 @@ export interface RexAPI {
   onStatusChange: (cb: (status: string) => void) => (() => void)
   onTurnStatus: (cb: (update: TurnStatusUpdate) => void) => (() => void)
   getSettings: (section: string) => Promise<Settings>
+  getContextPrivacy: () => Promise<ContextPrivacyResponse>
+  updateContextPrivacy: (
+    command: string,
+    payload: Record<string, unknown>
+  ) => Promise<ContextPrivacyResponse>
   discoverAiModels: (provider: ModelDiscoveryProvider) => Promise<ModelDiscoveryResponse>
   setSettings: (section: string, values: Settings) => Promise<SetSettingsResponse>
   removeEmailAccount: (id: string, confirmed: boolean) => Promise<SetSettingsResponse>

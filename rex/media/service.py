@@ -7,6 +7,7 @@ import time
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 
+from rex.context.active import get_active_context_store
 from rex.identity import validate_user_id
 
 from .accounts import MediaAccountRef, MediaAccountStore
@@ -75,7 +76,10 @@ class MediaService:
         self._registry = registry
         self._adapters = dict(adapters)
         self._account_store = account_store or MediaAccountStore()
-        self._session_store = session_store or ActiveMediaSessionStore(clock=clock)
+        self._session_store = session_store or ActiveMediaSessionStore(
+            clock=clock,
+            active_context_store=get_active_context_store(),
+        )
         self._registry_refresher = registry_refresher
         self._clock = clock
 

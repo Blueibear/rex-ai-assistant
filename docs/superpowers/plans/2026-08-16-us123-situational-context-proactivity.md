@@ -38,7 +38,7 @@
 - `ContextSourcePolicyStore.is_context_eligible(source_id: str, *, subject_user_id: str, requester_user_id: str) -> bool` is called before source retrieval.
 - `ContextSourcePolicyStore.revision_for_user(user_id: str) -> str` is content-free and feeds `ContextCacheVersions`.
 
-- [ ] **Step 1: Write failing eligibility/revision tests**
+- [x] **Step 1: Write failing eligibility/revision tests**
 
 ```python
 def test_private_source_is_filtered_before_retrieval(tmp_path):
@@ -54,17 +54,17 @@ def test_policy_change_changes_content_free_revision(tmp_path):
     assert store.revision_for_user("james") != before
 ```
 
-- [ ] **Step 2: Run focused tests and verify red state**
+- [x] **Step 2: Run focused tests and verify red state**
 Run: `pytest -q tests/context/test_source_policy.py tests/rex2/test_context_cache_identity.py`
 Expected: FAIL because canonical source policy does not exist.
 
-- [ ] **Step 3: Implement atomic policy storage and safe defaults**
+- [x] **Step 3: Implement atomic policy storage and safe defaults**
 Each record stores `source_id`, `source_type`, private owner if applicable, audience scope, `context_enabled`, disclosure policy, and monotonic/content-free revision metadata. Connected integrations registered by their owner default to `context_enabled=True`; uploads and location use their stricter task-specific defaults below.
 
-- [ ] **Step 4: Add policy revision to context cache versions**
+- [x] **Step 4: Add policy revision to context cache versions**
 `build_context_cache_versions()` hashes the policy revision, not raw policy/source content. `ContextBuilder` receives a source-policy service and never loads private source content before eligibility filtering.
 
-- [ ] **Step 5: Run context/cache tests and commit**
+- [x] **Step 5: Run context/cache tests and commit**
 Run: `pytest -q tests/context/test_source_policy.py tests/rex2/test_context_cache.py tests/rex2/test_context_cache_identity.py tests/test_us014_context_builder.py`
 Expected: PASS.
 `git add rex/context tests/context/test_source_policy.py tests/rex2/test_context_cache_identity.py && git commit -m "feat(context): add canonical source policy"`
@@ -84,7 +84,7 @@ Expected: PASS.
 - Add `KnowledgeBase.search_for_user(query: str, *, requester_user_id: str, context_only: bool) -> list[KnowledgeDocument]`; filtering occurs before scoring/ranking.
 - Explicit file operations may retrieve `context_enabled=False` documents only after normal file/document authorization.
 
-- [ ] **Step 1: Write failing cross-user/context-disabled/legacy tests**
+- [x] **Step 1: Write failing cross-user/context-disabled/legacy tests**
 
 ```python
 def test_context_disabled_upload_is_explicit_query_only(kb):
@@ -97,17 +97,17 @@ def test_legacy_unscoped_document_never_enters_background_context(kb_with_legacy
     assert kb_with_legacy_doc.search_for_user("legacy", requester_user_id="james", context_only=True) == []
 ```
 
-- [ ] **Step 2: Run upload tests and verify red state**
+- [x] **Step 2: Run upload tests and verify red state**
 Run: `pytest -q tests/context/test_upload_policy.py tests/test_knowledge_base.py tests/test_us074_document_indexing.py`
 Expected: FAIL because documents do not carry owner/context/audience policy.
 
-- [ ] **Step 3: Implement persisted document policy and migration**
+- [x] **Step 3: Implement persisted document policy and migration**
 New uploads require explicit private/household audience plus explicit context on/off. Existing unscoped documents migrate to a non-user-selectable `legacy_unassigned` state with `context_enabled=False`; they stay out of broad context until an authenticated owner assigns policy.
 
-- [ ] **Step 4: Filter before ranking and retain provenance**
+- [x] **Step 4: Filter before ranking and retain provenance**
 Do not score/index-return a private document for an unauthorized requester. ContextBuilder includes citations/source IDs with derived facts so later summaries/proactive candidates retain enough provenance to recheck policy after revocation.
 
-- [ ] **Step 5: Run upload/KB regressions and commit**
+- [x] **Step 5: Run upload/KB regressions and commit**
 Run: `pytest -q tests/context/test_upload_policy.py tests/test_knowledge_base.py tests/test_us074_document_indexing.py tests/test_memory_isolation.py`
 Expected: PASS.
 `git add rex/knowledge_base.py bridge/rex_memories_bridge.py rex/context/builder.py tests/context/test_upload_policy.py tests/test_knowledge_base.py tests/test_us074_document_indexing.py && git commit -m "feat(context): enforce upload context and audience policy"`
@@ -128,7 +128,7 @@ Expected: PASS.
 - `LocationGrantStore.set_share(*, owner_user_id: str, recipient_user_id: str, enabled: bool, actor_user_id: str)` is likewise owner-bound.
 - `LocationContextService.get_for_assistance(user_id, purpose)` returns private location only when `location_assist` is enabled; `get_for_disclosure(subject_user_id, requester_user_id)` returns a generic denial when sharing is absent.
 
-- [ ] **Step 1: Write failing owner-only/admin-nonoverride/non-disclosure tests**
+- [x] **Step 1: Write failing owner-only/admin-nonoverride/non-disclosure tests**
 
 ```python
 def test_admin_cannot_enable_another_users_location(tmp_path):
@@ -144,17 +144,17 @@ def test_denied_disclosure_does_not_confirm_location_presence(service):
     assert "Dallas" not in result.message
 ```
 
-- [ ] **Step 2: Run tests and verify red state**
+- [x] **Step 2: Run tests and verify red state**
 Run: `pytest -q tests/context/test_location_policy.py tests/test_geolocation.py`
 Expected: FAIL because current geolocation is process-global and has no per-user authority layer.
 
-- [ ] **Step 3: Put personal location behind `LocationContextService`**
+- [x] **Step 3: Put personal location behind `LocationContextService`**
 Keep static configured household location/timezone separate from tracked/current user location. Existing IP-derived caching must never be interpreted as permission to track or disclose a user. Fetch current/recent personal location only for a materially relevant request/proactive rule and only after `location_assist`.
 
-- [ ] **Step 4: Remove ambient personal-location injection from Assistant**
+- [x] **Step 4: Remove ambient personal-location injection from Assistant**
 Change `_build_tool_context` to accept the effective user and obtain any personal location through `LocationContextService`; denied/missing permission yields no personal location key. Explicit user-entered destination text remains usable without granting background tracking.
 
-- [ ] **Step 5: Run privacy/location regressions and commit**
+- [x] **Step 5: Run privacy/location regressions and commit**
 Run: `pytest -q tests/context/test_location_policy.py tests/test_geolocation.py tests/test_assistant.py tests/test_memory_isolation.py`
 Expected: PASS.
 `git add rex/context/location_policy.py rex/geolocation.py rex/assistant.py rex/context/source_policy.py tests/context/test_location_policy.py tests/test_geolocation.py && git commit -m "feat(context): gate location assistance and sharing"`
@@ -175,7 +175,7 @@ Expected: PASS.
 - `ActiveContextStore.put(ref)`, `get(user_id, domain, key)`, `resolve(user_id, utterance, candidate_domains)`, `invalidate_source(source_id)`.
 - Domain adapters publish bounded IDs/state only; they never store whole prompts, transcripts, credentials, or private provider payloads.
 
-- [ ] **Step 1: Write failing expiry/ambiguity/cross-user tests**
+- [x] **Step 1: Write failing expiry/ambiguity/cross-user tests**
 
 ```python
 def test_it_resolves_to_recent_media_for_same_user(store):
@@ -192,17 +192,17 @@ def test_two_equally_relevant_refs_require_clarification(store):
     assert result.reason == "ambiguous"
 ```
 
-- [ ] **Step 2: Run active-context tests and verify red state**
+- [x] **Step 2: Run active-context tests and verify red state**
 Run: `pytest -q tests/context/test_active_context.py tests/context/test_conversational_resolution.py`
 Expected: FAIL because there is no canonical active-reference store.
 
-- [ ] **Step 3: Implement bounded references and source-revision invalidation**
+- [x] **Step 3: Implement bounded references and source-revision invalidation**
 Every read checks validated user ownership, expiry, and current source/policy revision. Revoked source policy clears matching refs immediately; stale refs are ignored rather than refreshed from unauthorized data.
 
-- [ ] **Step 4: Publish media/timekeeping references and expose them to TurnEngine routing**
+- [x] **Step 4: Publish media/timekeeping references and expose them to TurnEngine routing**
 US-121 media sessions publish `domain="media"`; timekeeping mutations/queries publish the exact record ID they just touched. Deterministic parsers may consume a resolved ref, while ContextBuilder may include a minimal active-state summary for LLM interpretation.
 
-- [ ] **Step 5: Run conversational regressions and commit**
+- [x] **Step 5: Run conversational regressions and commit**
 Run: `pytest -q tests/context/test_active_context.py tests/context/test_conversational_resolution.py tests/media tests/timekeeping tests/test_assistant.py`
 Expected: PASS.
 `git add rex/context/active.py rex/context/builder.py rex/actions/dispatcher.py rex/media/sessions.py rex/timekeeping/tools.py tests/context && git commit -m "feat(context): add bounded conversational references"`
@@ -226,7 +226,7 @@ Expected: PASS.
 - `ProactiveCandidate` fields: `key`, `user_id`, `spoken_text`, `source_ids`, `freshness_seconds`, `confidence`, `benefit`, `urgency`, `suggested_action`.
 - Evaluator returns candidates sorted by deterministic score; `SuggestionEngine` still owns per-user pending/dismissal/session suppression.
 
-- [ ] **Step 1: Write failing cross-source and suppression tests**
+- [x] **Step 1: Write failing cross-source and suppression tests**
 
 ```python
 def test_commute_weather_candidate_combines_authorized_sources(evaluator):
@@ -241,20 +241,20 @@ def test_private_upload_for_other_user_never_seeds_candidate(assembler):
     assert "upload:james-private" not in snapshot.source_ids
 ```
 
-- [ ] **Step 2: Run proactive tests and verify red state**
+- [x] **Step 2: Run proactive tests and verify red state**
 Run: `pytest -q tests/proactivity/test_situational_assembler.py tests/proactivity/test_evaluator.py tests/test_us036_suggestions.py`
 Expected: FAIL because situational/proactive services do not exist.
 
-- [ ] **Step 3: Implement authorized snapshot assembly**
+- [x] **Step 3: Implement authorized snapshot assembly**
 Source readers receive the current user and policy store. Initial readers: calendar events, relevant user memory/preferences, authorized contextual uploads, active capability/media/timekeeping state, and current-info adapters invoked only when a candidate rule materially needs fresh weather/traffic/search data. Preserve each fact's source ID/freshness.
 
-- [ ] **Step 4: Implement deterministic opportunity scoring and threshold**
+- [x] **Step 4: Implement deterministic opportunity scoring and threshold**
 Normalize `confidence`, `benefit`, and `urgency` to 0..1; compute `score = 0.45*benefit + 0.35*urgency + 0.20*confidence`; require `score >= 0.70` for ordinary conversational surfacing. Expired/stale critical inputs disqualify the candidate instead of lowering truth standards.
 
-- [ ] **Step 5: Reuse SuggestionEngine for delivery/dismissal rather than adding a second suggestion state machine**
+- [x] **Step 5: Reuse SuggestionEngine for delivery/dismissal rather than adding a second suggestion state machine**
 Add `get_contextual_suggestion(candidates, *, user_id)` that applies existing one-per-session and dismissal rules. `ResponseBuilder` appends one natural “by the way” style suggestion only when the current response has not already asked a conflicting question; urgent out-of-turn delivery remains unavailable unless a separately authorized notification route exists.
 
-- [ ] **Step 6: Run proactivity/suggestion regressions and commit**
+- [x] **Step 6: Run proactivity/suggestion regressions and commit**
 Run: `pytest -q tests/proactivity tests/test_us036_suggestions.py tests/test_suggestion_isolation.py tests/test_assistant.py`
 Expected: PASS.
 `git add rex/context/situational.py rex/proactivity rex/suggestions/engine.py rex/response/builder.py rex/assistant.py tests/proactivity tests/test_us036_suggestions.py && git commit -m "feat(context): add high-signal proactive assistance"`
@@ -269,16 +269,16 @@ Expected: PASS.
 - Modify: `gui/src/preload/index.ts`
 - Modify: `gui/src/types/ipc.ts`
 - Modify: `rex/mobile_api/routes/settings.py` from US-122
-- Modify: `rex/mobile_api/authorization.py`
+- Review: `rex/mobile_api/authorization.py` (existing `settings.read` / `settings.write` scopes are sufficient; privacy authority remains service-side)
 - Test: `tests/context/test_policy_bridge.py`
 - Test: `tests/mobile_api/test_context_privacy_settings.py`
-- Test: `gui/tests/contextPrivacySettings.test.tsx`
+- Test: `gui/tests/contextPrivacySettings.test.ts`
 
 **Interfaces:**
 - Operations: list/toggle connected contextual sources; inspect/change owned upload context/scope; set own `location_assist`; grant/revoke own location sharing for a named recipient; configure proactive-assistance preference.
 - The service layer, not the renderer/mobile route, enforces owner-only privacy-authority mutations.
 
-- [ ] **Step 1: Write failing owner-bound bridge/mobile tests**
+- [x] **Step 1: Write failing owner-bound bridge/mobile tests**
 
 ```python
 def test_admin_cannot_change_cole_location_assist(client, james_admin_token):
@@ -291,25 +291,25 @@ def test_uploader_can_promote_owned_upload_to_household(bridge):
     assert result["ok"] is True
 ```
 
-- [ ] **Step 2: Run bridge/mobile/GUI tests and verify red state**
+- [x] **Step 2: Run bridge/mobile/GUI tests and verify red state**
 Run: `pytest -q tests/context/test_policy_bridge.py tests/mobile_api/test_context_privacy_settings.py`
-Run: `cd gui && npm.cmd test -- --run tests/contextPrivacySettings.test.tsx`
+Run: `cd gui && npm.cmd test -- --run tests/contextPrivacySettings.test.ts`
 Expected: FAIL because the settings surface does not exist.
 
-- [ ] **Step 3: Implement service-first owner checks and safe renderer/mobile adapters**
+- [x] **Step 3: Implement service-first owner checks and safe renderer/mobile adapters**
 The uploader/owner may change an owned document's contextual-use and audience. Only the tracked user may change their `location_assist` or recipient-specific `location_share`; admin permission is intentionally irrelevant to that mutation. Denials use generic messages that reveal no private current-location state.
 
-- [ ] **Step 4: Build Settings controls without technical leakage**
+- [x] **Step 4: Build Settings controls without technical leakage**
 Use clear labels such as “Use this in future conversations,” “Private to me / Shared household,” “Use my location to help me,” and per-person “Share my location with …”. Show proactive-assistance controls separately from source/disclosure authority.
 
-- [ ] **Step 5: Add constitutional regression tests**
+- [x] **Step 5: Add constitutional regression tests**
 Exercise the same mutation service through direct Python, Electron bridge, mobile route, OpenClaw/developer-agent-shaped caller contexts, and assert no caller can self-widen privacy authority without the affected user/data-owner authorization.
 
-- [ ] **Step 6: Run Settings/privacy regressions and commit**
+- [x] **Step 6: Run Settings/privacy regressions and commit**
 Run: `pytest -q tests/context/test_policy_bridge.py tests/context/test_location_policy.py tests/context/test_upload_policy.py tests/mobile_api/test_context_privacy_settings.py tests/test_memory_isolation.py`
-Run: `cd gui && npm.cmd test -- --run tests/contextPrivacySettings.test.tsx && npm.cmd run typecheck && npm.cmd run build`
+Run: `cd gui && npm.cmd test -- --run tests/contextPrivacySettings.test.ts && npm.cmd run typecheck && npm.cmd run build`
 Expected: PASS.
-`git add bridge/rex_context_policy_bridge.py gui/src rex/mobile_api/routes/settings.py rex/mobile_api/authorization.py tests/context tests/mobile_api/test_context_privacy_settings.py && git commit -m "feat(context): expose constitutional privacy controls"`
+`git add CLAUDE.md bridge/README.md bridge/rex_context_policy_bridge.py gui/src gui/tests/contextPrivacySettings.test.ts rex/assistant.py rex/context/privacy.py rex/context/source_policy.py rex/mobile_api/routes/settings.py tests/context/test_policy_bridge.py tests/mobile_api/test_context_privacy_settings.py tests/proactivity/test_assistant_integration.py && git commit -m "feat(context): expose constitutional privacy controls"`
 
 ### Task 7: US-123 full validation, documentation, and release evidence
 
@@ -321,15 +321,15 @@ Expected: PASS.
 - Modify: `docs/superpowers/specs/2026-08-16-situational-context-media-privacy-design.md`
 - Modify: `docs/planning/source-of-truth/REX_ACTIVE_CHECKLIST.md`
 
-- [ ] **Step 1: Run the complete privacy/context/proactivity focused matrix**
+- [x] **Step 1: Run the complete privacy/context/proactivity focused matrix**
 Run: `pytest -q tests/context tests/proactivity tests/media tests/output_routing tests/timekeeping tests/rex2/test_context_cache.py tests/rex2/test_context_cache_identity.py tests/test_knowledge_base.py tests/test_memory_isolation.py tests/test_suggestion_isolation.py tests/test_assistant.py tests/mobile_api/test_context_privacy_settings.py`
 Expected: PASS.
 
-- [ ] **Step 2: Run GUI validation**
-Run: `cd gui && npm.cmd test -- --run tests/contextPrivacySettings.test.tsx tests/outputRoutingSettings.test.tsx && npm.cmd run typecheck && npm.cmd run build`
+- [x] **Step 2: Run GUI validation**
+Run: `cd gui && npm.cmd test -- --run tests/contextPrivacySettings.test.ts tests/outputRoutingHandlers.test.ts && npm.cmd run typecheck && npm.cmd run build`
 Expected: PASS.
 
-- [ ] **Step 3: Run static/security/repository integrity gates**
+- [x] **Step 3: Run static/security/repository integrity gates**
 Run: `ruff check rex/context rex/proactivity rex/knowledge_base.py rex/geolocation.py rex/suggestions rex/assistant.py bridge/rex_context_policy_bridge.py tests/context tests/proactivity`
 Run: `black --check rex/context rex/proactivity rex/knowledge_base.py rex/geolocation.py rex/suggestions rex/assistant.py bridge/rex_context_policy_bridge.py tests/context tests/proactivity`
 Run: `mypy rex/context rex/proactivity rex/knowledge_base.py rex/geolocation.py rex/suggestions rex/assistant.py --ignore-missing-imports`
@@ -339,14 +339,15 @@ Run: `pre-commit run --all-files`
 Run: `git diff --check`
 Expected: all PASS.
 
-- [ ] **Step 4: Update tracker/docs with exact evidence and limitations**
+- [x] **Step 4: Update tracker/docs with exact evidence and limitations**
 Document which contextual sources have live adapters, that location is opt-in and non-disclosable without recipient-specific grant, that legacy unassigned uploads do not enter broad context, and that proactive traffic/weather accuracy depends on a configured current-info provider. Preserve Section 13 self-maintenance as post-RC and constitutional, not implemented behavior.
 
-- [ ] **Step 5: Run the repository release pytest matrix before PR freeze**
+- [x] **Step 5: Run the repository release pytest matrix before PR freeze**
 Run: `pytest -m "not slow and not audio and not gpu" -q`
 Expected: zero failures. If an unrelated pre-existing environment hang/failure occurs, reproduce it from current master before classifying it as non-US-123 and document the evidence rather than claiming a full pass.
+Result (2026-08-22): 9,325 passed, 65 skipped, 1 failed because the lean shared Python 3.11 environment does not have optional `openwakeword` installed. The exact failing wake-word reliability test fails identically on master; the three `master..origin/master` commits do not touch the test, loader, or dependency contract. This is inherited release-environment evidence, not a US-123 regression, so no full-pass claim is made.
 
-- [ ] **Step 6: Commit acceptance evidence**
+- [x] **Step 6: Commit acceptance evidence**
 `git add README.md CLAUDE.md PRD-production-readiness.md docs/SELF_MAINTENANCE.md docs/superpowers/specs/2026-08-16-situational-context-media-privacy-design.md docs/planning/source-of-truth/REX_ACTIVE_CHECKLIST.md && git commit -m "docs(context): record US-123 acceptance evidence"`
 
 ## US-123 Completion Check

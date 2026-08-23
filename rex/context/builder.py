@@ -13,8 +13,10 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
 
+from rex.context.active import ActiveContextStore
 from rex.context.cache import ContextArtifactCache, ContextCacheKey, ContextCacheMetrics
 from rex.context.revisions import ContextCacheRequest, build_context_cache_versions
+from rex.context.source_policy import ContextSourcePolicyStore
 from rex.runtime.turn import TurnScope
 
 logger = logging.getLogger(__name__)
@@ -114,6 +116,8 @@ class ContextBuilder:
         history_provider: Callable[..., list] | None = None,
         context_cache: ContextArtifactCache[PrivateContextArtifacts] | None = None,
         capability_registry: Any = None,
+        source_policy_store: ContextSourcePolicyStore | None = None,
+        active_context_store: ActiveContextStore | None = None,
     ) -> None:
         self._settings = settings
         self._history = history
@@ -122,6 +126,8 @@ class ContextBuilder:
         self._history_provider = history_provider
         self._context_cache = context_cache or ContextArtifactCache(max_entries=128)
         self._capability_registry = capability_registry
+        self._source_policy_store = source_policy_store
+        self._active_context_store = active_context_store
 
     def _current_history(self, user_id: str | None = None) -> list:
         """Return the live history list (provider-backed when configured).
@@ -153,6 +159,9 @@ class ContextBuilder:
         """Build and return a :class:`ContextPackage` for LLM input."""
         system_prompt = self.build_system_context()
         session_id = active_user_id or self._user_id or ""
+        active_context = self._format_active_context(session_id)
+        if active_context:
+            system_prompt = f"{system_prompt}\n\n{active_context}"
         private_artifacts = self._resolve_private_artifacts(active_user_id, cache_request)
 
         messages = self._build_messages(
@@ -183,14 +192,56 @@ class ContextBuilder:
     # Public helpers
     # ------------------------------------------------------------------
 
+    def _format_active_context(self, user_id: str) -> str:
+        """Render bounded same-user follow-up state; never include source/provider content."""
+        store = self._active_context_store
+        if store is None or not user_id:
+            return ""
+        try:
+            refs = store.list_for_user(user_id, domains=("media", "timekeeping"))[:5]
+        except (TypeError, ValueError):
+            return ""
+        lines: list[str] = []
+        for ref in refs:
+            if ref.domain == "media":
+                target_id = ref.payload.get("target_id")
+                if isinstance(target_id, str) and target_id:
+                    lines.append(f"- media target={target_id}")
+                continue
+            record_type = ref.payload.get("record_type")
+            if record_type not in {"timer", "alarm"}:
+                continue
+            fields = [f"- {record_type} id={ref.key}"]
+            name = ref.payload.get("name")
+            status = ref.payload.get("status")
+            if isinstance(name, str) and name:
+                fields.append(f"name={name[:80]}")
+            if isinstance(status, str) and status:
+                fields.append(f"status={status[:40]}")
+            lines.append(" ".join(fields))
+        if not lines:
+            return ""
+        return "Active conversation context (user-owned, temporary):\n" + "\n".join(lines)
+
+    @staticmethod
+    def format_context_documents(documents: list[Any] | tuple[Any, ...]) -> str:
+        """Render bounded document context with stable provenance markers."""
+        sections: list[str] = []
+        for doc in list(documents)[:5]:
+            source_id = str(getattr(doc, "source_id", "")).strip()
+            title = str(getattr(doc, "title", "")).strip()
+            content = str(getattr(doc, "content", "")).strip()
+            if not source_id or not content:
+                continue
+            if len(content) > 2000:
+                content = content[:2000].rstrip() + "…"
+            sections.append(f"[Context source: {source_id} | {title}]\n{content}")
+        return "\n\n".join(sections)
+
     def build_system_context(self) -> str:
         """Return a system context string with current date/time and user location."""
         _settings = self._settings
         tz_name: str | None = getattr(_settings, "default_timezone", None)
-        if not tz_name:
-            from rex.geolocation import get_cached_timezone
-
-            tz_name = get_cached_timezone()
 
         try:
             if tz_name:
@@ -208,10 +259,6 @@ class ContextBuilder:
         lines = [f"Current date and time: {now.strftime('%Y-%m-%d %H:%M')} {tz_name}"]
 
         location: str | None = getattr(_settings, "default_location", None)
-        if not location:
-            from rex.geolocation import get_cached_city
-
-            location = get_cached_city()
         if location:
             lines.append(f"User location: {location}")
 
@@ -277,10 +324,16 @@ class ContextBuilder:
         ):
             return build()
         try:
+            source_policy_revision = (
+                self._source_policy_store.revision_for_user(effective_user)
+                if self._source_policy_store is not None
+                else None
+            )
             versions = build_context_cache_versions(
                 cache_request,
                 self._settings,
                 self._capability_registry,
+                source_policy_revision=source_policy_revision,
             )
             key = ContextCacheKey.private(effective_user, versions)
         except Exception as exc:

@@ -97,6 +97,26 @@ def _entry_to_gui(entry: Any) -> dict[str, Any]:
     }
 
 
+def _knowledge_doc_to_gui(doc: Any) -> dict[str, Any]:
+    """Return renderer-safe upload policy metadata without content or paths."""
+    created_at = (
+        doc.created_at.isoformat() if hasattr(doc.created_at, "isoformat") else str(doc.created_at)
+    )
+    return {
+        "id": doc.doc_id,
+        "title": doc.title,
+        "tags": list(doc.tags),
+        "createdAt": created_at,
+        "wordCount": doc.word_count,
+        "sourceId": doc.source_id,
+        "ownerUserId": doc.owner_user_id,
+        "audienceScope": doc.audience_scope,
+        "contextEnabled": doc.context_enabled,
+        "disclosurePolicy": doc.disclosure_policy,
+        "policyRevision": doc.policy_revision,
+    }
+
+
 def _procedure_to_gui(record: Any) -> dict[str, Any]:
     """Convert a guarded procedure record to a renderer-safe metadata view."""
     return {
@@ -198,6 +218,43 @@ def _handle_delete(user_id: str, entry_id: str) -> dict[str, Any]:
     return {"ok": True}
 
 
+def _handle_documents_list(user_id: str) -> dict[str, Any]:
+    from rex.knowledge_base import get_knowledge_base
+
+    docs = get_knowledge_base().list_documents_for_user(user_id)
+    return {"ok": True, "documents": [_knowledge_doc_to_gui(doc) for doc in docs]}
+
+
+def _handle_document_policy(
+    user_id: str,
+    doc_id: str,
+    data: dict[str, Any],
+) -> dict[str, Any]:
+    from rex.knowledge_base import get_knowledge_base
+
+    if not doc_id:
+        return {"ok": False, "error": "Document id is required"}
+    audience_scope = data.get("audience_scope")
+    context_enabled = data.get("context_enabled")
+    if not isinstance(audience_scope, str) or not isinstance(context_enabled, bool):
+        return {
+            "ok": False,
+            "error": "audience_scope and context_enabled are required",
+        }
+    disclosure_policy = data.get("disclosure_policy")
+    if disclosure_policy is not None and not isinstance(disclosure_policy, str):
+        return {"ok": False, "error": "disclosure_policy must be a string"}
+    updated = get_knowledge_base().assign_document_policy(
+        doc_id,
+        owner_user_id=user_id,
+        actor_user_id=user_id,
+        audience_scope=audience_scope,
+        context_enabled=context_enabled,
+        disclosure_policy=disclosure_policy,
+    )
+    return {"ok": True, "document": _knowledge_doc_to_gui(updated)}
+
+
 def _handle_procedures_list(user_id: str) -> dict[str, Any]:
     from rex.procedural_memory import ProceduralMemory
 
@@ -237,6 +294,54 @@ def _handle_procedure_action(
     return {"ok": True, "procedure": _procedure_to_gui(record)}
 
 
+_SUPPORTED_COMMANDS = frozenset(
+    {
+        "list",
+        "add",
+        "update",
+        "delete",
+        "documents-list",
+        "document-policy",
+        "procedures-list",
+        "procedures-approve",
+        "procedures-disable",
+        "procedures-revoke",
+        "procedures-delete",
+    }
+)
+
+
+def _dispatch_user_command(
+    command: str,
+    user_id: str,
+    payload: dict[str, Any],
+) -> dict[str, Any]:
+    data = dict(payload.get("data") or {})
+    entry_id = str(payload.get("id") or "")
+    no_data_handlers = {
+        "list": _handle_list,
+        "documents-list": _handle_documents_list,
+        "procedures-list": _handle_procedures_list,
+    }
+    handler = no_data_handlers.get(command)
+    if handler is not None:
+        return handler(user_id)
+    if command == "add":
+        return _handle_add(user_id, data)
+    if command == "update":
+        return _handle_update(user_id, entry_id, data)
+    if command == "delete":
+        return _handle_delete(user_id, entry_id)
+    if command == "document-policy":
+        return _handle_document_policy(user_id, entry_id, data)
+    return _handle_procedure_action(
+        user_id,
+        entry_id,
+        command,
+        confirmed=payload.get("confirmed") is True,
+    )
+
+
 def main() -> None:
     try:
         payload: dict[str, Any] = json.loads(sys.stdin.read())
@@ -246,42 +351,15 @@ def main() -> None:
         sys.exit(1)
 
     try:
-        supported = (
-            "list",
-            "add",
-            "update",
-            "delete",
-            "procedures-list",
-            "procedures-approve",
-            "procedures-disable",
-            "procedures-revoke",
-            "procedures-delete",
-        )
-        if command in supported:
-            user_id = _resolve_user(payload)
-            if user_id is None:
-                result: dict[str, Any] = {"ok": False, "error": _NO_USER_ERROR}
-            elif command == "list":
-                result = _handle_list(user_id)
-            elif command == "add":
-                result = _handle_add(user_id, dict(payload.get("data") or {}))
-            elif command == "update":
-                result = _handle_update(
-                    user_id, str(payload.get("id") or ""), dict(payload.get("data") or {})
-                )
-            elif command == "delete":
-                result = _handle_delete(user_id, str(payload.get("id") or ""))
-            elif command == "procedures-list":
-                result = _handle_procedures_list(user_id)
-            else:
-                result = _handle_procedure_action(
-                    user_id,
-                    str(payload.get("id") or ""),
-                    command,
-                    confirmed=payload.get("confirmed") is True,
-                )
+        if command not in _SUPPORTED_COMMANDS:
+            result: dict[str, Any] = {"ok": False, "error": f"Unknown command: {command!r}"}
         else:
-            result = {"ok": False, "error": f"Unknown command: {command!r}"}
+            user_id = _resolve_user(payload)
+            result = (
+                {"ok": False, "error": _NO_USER_ERROR}
+                if user_id is None
+                else _dispatch_user_command(command, user_id, payload)
+            )
     except Exception as exc:
         result = bridge_error_response(exc)
 

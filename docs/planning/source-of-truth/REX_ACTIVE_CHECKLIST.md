@@ -247,6 +247,26 @@
 - [ ] Keep authority-changing operations permanently owner-gated
 - [ ] Keep per-user privacy/context authority changes permanently affected-user/data-owner-gated
 
+## US-123 Situational Context / Privacy / Proactivity Acceptance
+
+- [x] Canonical source-policy metadata and content-free revision invalidation implemented.
+- [x] Connected-source contextual use remains separate from mutation/disclosure authority.
+- [x] Uploaded documents support independent future-context inclusion and private/household audience policy.
+- [x] Current/recent personal location requires owner-controlled `location_assist`.
+- [x] Person-specific location disclosure requires separate owner-controlled `location_share`.
+- [x] Household/admin/OpenClaw/generated-skill/self-maintenance status cannot widen another user's privacy grants.
+- [x] Bounded expiring active-context references support authorized natural follow-ups and clarify ambiguity.
+- [x] Proactive opportunities are source-grounded, freshness-aware, user-scoped, high-signal, and dismissal-aware.
+- [x] Electron Context & Privacy Settings and authenticated mobile settings use the same owner-bound service.
+- [x] Proactive assistance disabled state short-circuits before proactive private/current-info reads.
+- [x] Focused US-123 matrix passed 596/596 tests on 2026-08-22.
+- [x] Context/privacy + output-routing GUI validation passed 8/8 tests, TypeScript typecheck, and production build.
+- [x] Ruff, Black, mypy, release security audit, repository truth/integrity tests, pre-commit, and whitespace checks passed.
+- [x] Full `not slow and not audio and not gpu` release matrix executed: 9,325 passed, 65 skipped, and one inherited environment failure because optional `openwakeword` is absent; the same test fails on master and the three `master..origin/master` commits do not touch the wake-word test/loader/dependency contract.
+- [x] PR #417 implementation head `98c7b224eb6e0a8aadb67cb6071ed7c0a8f7ea11` passed all 18 reported GitHub checks on 2026-08-23; the documentation-only evidence head must remain green before merge.
+
+**Known live-adapter limitation:** proactive weather/traffic/search enrichment is fail-closed and requires an authorized current-info reader. The repository currently has no production traffic reader, so traffic-dependent commute opportunities do not surface live until one is configured.
+
 ## Notes
 
 Goal:

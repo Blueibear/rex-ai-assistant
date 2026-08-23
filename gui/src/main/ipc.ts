@@ -10,6 +10,7 @@ import { registerSMSHandlers } from './handlers/sms'
 import { registerNotificationHandlers } from './handlers/notifications'
 import { registerSpeakerHandlers } from './handlers/speakers'
 import { registerOutputRoutingHandlers } from './handlers/outputRouting'
+import { registerContextPolicyHandlers } from './handlers/contextPolicy'
 import { registerFileHandlers } from './handlers/files'
 import { registerShoppingHandlers } from './handlers/shopping'
 import { registerLogsHandlers } from './handlers/logs'
@@ -37,6 +38,7 @@ export function registerIpcHandlers(mainWindow: BrowserWindow | null, session: E
   registerNotificationHandlers(mainWindow)
   registerSpeakerHandlers(session)
   registerOutputRoutingHandlers(session)
+  registerContextPolicyHandlers(session)
   registerFileHandlers(session)
   registerShoppingHandlers(session)
   registerLogsHandlers()

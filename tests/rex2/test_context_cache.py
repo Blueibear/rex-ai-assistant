@@ -199,6 +199,23 @@ def test_policy_permission_and_model_revisions_change_deterministically(
     assert baseline == build_context_cache_versions(_revision_request(), settings, registry)
 
 
+def test_context_source_policy_revision_invalidates_policy_version(tmp_path, monkeypatch) -> None:
+    from rex.context.revisions import build_context_cache_versions
+
+    _seed_revision_files(tmp_path, monkeypatch)
+    settings = _revision_settings()
+    registry = _revision_registry()
+    baseline = build_context_cache_versions(
+        _revision_request(), settings, registry, source_policy_revision="source-policy-a"
+    )
+    changed = build_context_cache_versions(
+        _revision_request(), settings, registry, source_policy_revision="source-policy-b"
+    )
+
+    assert changed.policy != baseline.policy
+    assert "source-policy" not in repr(changed)
+
+
 def test_capability_and_config_changes_invalidate_versions(tmp_path, monkeypatch) -> None:
     from rex.context.revisions import build_context_cache_versions
 

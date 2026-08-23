@@ -9,6 +9,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from threading import RLock
 
+from rex.context.active import ActiveContextRef, ActiveContextStore
 from rex.identity import validate_user_id
 
 _PROVIDER_PATTERN = re.compile(r"^[a-z][a-z0-9_]{0,63}$")
@@ -87,12 +88,14 @@ class ActiveMediaSessionStore:
         self,
         ttl_seconds: float = 300.0,
         clock: Callable[[], float] = time.monotonic,
+        active_context_store: ActiveContextStore | None = None,
     ) -> None:
         ttl_seconds = _validate_timestamp(ttl_seconds, field="ttl_seconds")
         if ttl_seconds == 0:
             raise ValueError("Active media session ttl_seconds must be positive")
         self._ttl_seconds = ttl_seconds
         self._clock = clock
+        self._active_context_store = active_context_store
         self._sessions: dict[str, ActiveMediaSession] = {}
         self._lock = RLock()
 
@@ -103,27 +106,62 @@ class ActiveMediaSessionStore:
         user_id = validate_user_id(session.user_id)
         with self._lock:
             self._sessions[user_id] = session
+        self._publish_active_context(session)
+
+    def _publish_active_context(self, session: ActiveMediaSession) -> None:
+        store = self._active_context_store
+        if store is None:
+            return
+        try:
+            store.put(
+                ActiveContextRef(
+                    domain="media",
+                    key=session.target_id,
+                    owner_user_id=session.user_id,
+                    payload={
+                        "target_id": session.target_id,
+                        "provider": session.provider,
+                        "media_ref": session.media_ref,
+                    },
+                    source_ids=(),
+                    revision="media:1",
+                    expires_at=session.updated_at + self._ttl_seconds,
+                )
+            )
+        except (PermissionError, TypeError, ValueError):
+            # Context retention is convenience state; it must never rewrite the
+            # truthful result of the already-completed media operation.
+            return
 
     def get(self, user_id: str, *, now: float | None = None) -> ActiveMediaSession | None:
         """Return one user's unexpired session and evict it when stale."""
         user_id = validate_user_id(user_id)
         current = self._clock() if now is None else now
         current = _validate_timestamp(current, field="now")
+        stale: ActiveMediaSession | None = None
         with self._lock:
             session = self._sessions.get(user_id)
             if session is None:
                 return None
             age = current - session.updated_at
             if age < 0 or age >= self._ttl_seconds:
-                del self._sessions[user_id]
-                return None
-            return session
+                stale = self._sessions.pop(user_id)
+            else:
+                return session
+        self._remove_active_context(stale)
+        return None
+
+    def _remove_active_context(self, session: ActiveMediaSession | None) -> None:
+        if session is None or self._active_context_store is None:
+            return
+        self._active_context_store.remove(session.user_id, "media", session.target_id)
 
     def clear(self, user_id: str) -> None:
         """Remove only the requested user's active session."""
         user_id = validate_user_id(user_id)
         with self._lock:
-            self._sessions.pop(user_id, None)
+            session = self._sessions.pop(user_id, None)
+        self._remove_active_context(session)
 
 
 __all__ = ["ActiveMediaSession", "ActiveMediaSessionStore"]

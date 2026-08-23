@@ -106,6 +106,8 @@ def build_context_cache_versions(
     request: ContextCacheRequest,
     settings: Any,
     capability_registry: CapabilityRegistry | None = None,
+    *,
+    source_policy_revision: str | None = None,
 ) -> ContextCacheVersions:
     """Build deterministic cache revisions without exposing private source data."""
     identity_source: object = {"scope": request.scope.value, "owner": "household"}
@@ -130,9 +132,19 @@ def build_context_cache_versions(
             "facts": _file_digest(facts_file),
         }
 
+    if source_policy_revision is not None:
+        if not isinstance(source_policy_revision, str) or not source_policy_revision.strip():
+            raise ValueError("source_policy_revision must be a non-empty string")
+        source_policy_revision = source_policy_revision.strip()
+
     return ContextCacheVersions(
         identity=_stable_digest(identity_source),
-        policy=_stable_digest(request.authorization.policy_ref),
+        policy=_stable_digest(
+            {
+                "authorization": request.authorization.policy_ref,
+                "context_sources": source_policy_revision or "unconfigured",
+            }
+        ),
         permission=_stable_digest(request.authorization.permission_ref),
         model=_stable_digest({"provider": request.model_provider, "model": request.model_name}),
         capability=_stable_digest(_capability_snapshot(capability_registry)),
