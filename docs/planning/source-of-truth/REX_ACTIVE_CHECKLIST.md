@@ -263,7 +263,7 @@
 - [x] Context/privacy + output-routing GUI validation passed 8/8 tests, TypeScript typecheck, and production build.
 - [x] Ruff, Black, mypy, release security audit, repository truth/integrity tests, pre-commit, and whitespace checks passed.
 - [x] Full `not slow and not audio and not gpu` release matrix executed: 9,325 passed, 65 skipped, and one inherited environment failure because optional `openwakeword` is absent; the same test fails on master and the three `master..origin/master` commits do not touch the wake-word test/loader/dependency contract.
-- [ ] Exact-head GitHub CI checks pass after US-123 is published.
+- [x] PR #417 implementation head `98c7b224eb6e0a8aadb67cb6071ed7c0a8f7ea11` passed all 18 reported GitHub checks on 2026-08-23; the documentation-only evidence head must remain green before merge.
 
 **Known live-adapter limitation:** proactive weather/traffic/search enrichment is fail-closed and requires an authorized current-info reader. The repository currently has no production traffic reader, so traffic-dependent commute opportunities do not surface live until one is configured.
 
