@@ -20,6 +20,7 @@ This index covers active documentation under `docs/`. Files under `docs/archive/
 | File | Description |
 |---|---|
 | [ARCHITECTURE.md](ARCHITECTURE.md) | High-level system architecture |
+| [architecture/end-user-installation-and-voice-runtime.md](architecture/end-user-installation-and-voice-runtime.md) | Final consumer installer, background Rex Core/Voice Agent, multi-room endpoint, privacy-control, and screenless release contract |
 | [api.md](api.md) | Active HTTP services and endpoint reference |
 | [configuration.md](configuration.md) | Runtime configuration reference |
 | [environment-variables.md](environment-variables.md) | Environment variable and secret reference |

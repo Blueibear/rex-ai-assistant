@@ -132,6 +132,20 @@ Home Assistant safety:
 
 - `lock`, `cover`, `alarm_control_panel`, broad `script.*`, and broad `scene.*` mutations are sensitive and must use the canonical short-lived confirmation-token gate before dispatch. The first unconfirmed call must have no side effect. Keep `automation`, `python_script`, `shell_command`, `update`, and unknown domains fail-closed unless a later reviewed policy explicitly changes them.
 
+### Consumer installation and always-on household voice
+
+The final consumer voice/runtime contract is `docs/architecture/end-user-installation-and-voice-runtime.md`. Implementation status remains authoritative in `PRD-production-readiness.md`; do not promote beta wake-word behavior in user-facing docs merely because the final architecture requires always-on voice.
+
+- The desktop and mobile apps are interaction, setup, status, and control surfaces. They are not Rex runtime lifecycle owners. Closing the Electron window must not be designed to terminate Rex Core or an enabled local Voice Agent.
+- The supported consumer installation must converge on one packaged AskRex installer with its managed runtime. Do not require normal end users to install Python, Node.js, Git, clone the repo, create a venv, run terminal startup commands, or edit JSON for supported setup.
+- Use one authoritative Rex Core plus lightweight trusted Rex Room endpoints for multi-room voice. Do not duplicate the full Rex stack independently in every room unless a later owner-approved architecture explicitly supersedes this contract.
+- A room endpoint's actual input/output capability must be tested. Never infer that a smart-speaker microphone is programmatically available just because the device contains a microphone.
+- Trusted request-origin device/room context may help resolve an unambiguous command, but origin never grants user, Home Assistant, media, memory, or tool authority.
+- Reuse canonical `rex.media`, `rex.output_routing`, context, identity, user-profile/voice-identity, Home Assistant action lifecycle, and verification services. Do not create parallel room, speaker, user, permission, or verification stores for the household voice path.
+- Always-on listening requires an immediate Pause Listening control, explicit Resume Listening, truthful listening/degraded status, and privacy-safe diagnostics. Do not hide a failed microphone behind a healthy status or log blanket microphone content.
+- OpenClaw/ClawHub remain optional capability providers. Core wake-word voice operation must not depend on OpenClaw availability.
+- Final completion requires the physical clean-install/reboot/screenless acceptance in US-130. Source-mode tests alone cannot satisfy that release gate.
+
 ### Style and quality
 
 - `PRD-production-readiness.md` is the single authoritative tracker for the current integrated production-readiness/Rex 2.0 work. For remaining work, follow its dated `Integrated execution order` rather than raw story file position. Planned Rex 2.0 contracts are not implemented behavior until their individual story is merged and verified.
@@ -746,9 +760,10 @@ For product scope, delivery order, and non-negotiable behavior, read these befor
 
 - `docs/planning/source-of-truth/REX_Unified_Build_Spec_UPDATED.md`
 - `docs/planning/source-of-truth/REX_ACTIVE_CHECKLIST.md`
+- `docs/architecture/end-user-installation-and-voice-runtime.md`
 - `docs/planning/TEAM_LEAD_OPERATING_RULES.md`
 
-The first two files are the product sources of truth. Other PRDs are supporting history and feature inputs only. Do not mark a feature complete from a checklist alone; verify current code, tests, packaged behavior, and user-visible truth.
+The first two files are the product sources of truth. The architecture file is the canonical final consumer installation/always-on household voice contract; current implementation/release status remains governed by `PRD-production-readiness.md`. Other PRDs are supporting history and feature inputs only. Do not mark a feature complete from a checklist alone; verify current code, tests, packaged behavior, and user-visible truth.
 
 #### Mobile device pairing authority (S5)
 
