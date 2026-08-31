@@ -200,6 +200,61 @@ Good voice-only response:
 
 ---
 
+## 6A. Consumer Installation and Always-On Household Voice Runtime
+
+The final consumer product must treat voice availability as part of the installed AskRex system, not as a feature that exists only while the desktop or mobile app is open.
+
+### Consumer install contract
+
+- End users install one packaged AskRex application, such as `AskRex-Setup.exe` on Windows.
+- The supported consumer path must not require Python, Node.js, Git, a repository checkout, virtual-environment commands, terminal startup commands, or manual JSON editing.
+- The packaged installation owns the managed runtime required for supported consumer operation.
+- Developer/operator `pip install .` and source commands remain separate supported development surfaces, not normal consumer setup.
+
+### Runtime roles
+
+| Role | Responsibility |
+|---|---|
+| Rex Core | Persistent authoritative assistant runtime: orchestration, identity, permissions, memory, context, models, tools, integrations, scheduling, verification, final responses |
+| Local Voice Agent | Per-user background audio runtime: microphone/speaker access, wake-word listening, capture handoff, voice health, playback coordination |
+| Rex Room endpoint | Lightweight trusted room satellite with declared input/output capability; it is not a second independent Rex brain |
+| Electron/mobile apps | Interaction, setup, status, and control surfaces; they do not own Rex lifecycle |
+
+### Required lifecycle behavior
+
+- Closing the Electron window must not stop Rex Core or an enabled local Voice Agent.
+- When configured, Rex must start automatically after reboot/sign-in without requiring terminal commands.
+- Always-on voice must expose clear Listening, Paused, Degraded, and Offline states plus an immediate Pause Listening control.
+- A failed microphone, speaker, integration, endpoint, or optional external capability must degrade only the affected function where possible instead of terminating the whole assistant.
+- OpenClaw and ClawHub remain optional capability providers and must never be required for core wake-word voice operation.
+
+### First-run household voice setup
+
+The consumer wizard must guide the user through the supported AI provider, Rex voice preview, microphone test, speaker test, wake-word selection/calibration, local room assignment, background-startup behavior, optional Home Assistant setup, optional household voice enrollment, and optional additional-room endpoints.
+
+Writing settings is not setup verification. Voice setup is complete only when the configured path actually proves wake detection, capture, STT, the canonical Assistant/TurnEngine path, TTS, and audible playback.
+
+### Multi-room requirements
+
+- One authoritative Rex Core serves lightweight room endpoints.
+- Endpoint pairing must be authenticated, revocable, room-aware, and permission-neutral: pairing never grants authority beyond the user's existing Rex permissions.
+- Every endpoint must be capability-tested as input+output, output-only, or input-only. Do not assume a smart speaker microphone is accessible merely because the hardware contains one.
+- The endpoint that hears a request contributes trusted request-origin context but does not itself grant permission.
+- Existing canonical `rex.media`, `rex.output_routing`, context, identity, and Home Assistant action/verification services must be reused rather than duplicated.
+- Interactive responses normally return through the authorized endpoint that heard the request unless the user explicitly selects another destination or a current routing rule applies.
+
+### Final screenless acceptance rule
+
+Rex is not complete as a household voice assistant if normal voice use requires the Electron window or mobile app to remain open.
+
+Final consumer release must prove on a clean supported Windows machine that AskRex installs without developer prerequisites, completes first-run setup, works with the GUI closed, survives reboot/sign-in, completes a wake-word-to-spoken-response round trip, exposes Pause/Resume Listening, reports degraded states truthfully, and continues core operation when optional OpenClaw connectivity is unavailable.
+
+Multi-room release readiness additionally requires at least one securely paired non-Core room endpoint to complete a screenless wake-word interaction from its assigned room.
+
+**Canonical detail:** `docs/architecture/end-user-installation-and-voice-runtime.md`
+
+---
+
 ## 7. Intent and Context Engine
 
 Rex needs to know what kind of request it is handling before deciding what to do.
@@ -1169,3 +1224,7 @@ This standard should apply everywhere:
 - Notifications
 - Email or messaging
 - Git operations
+
+### Household voice completion standard
+
+Rex is not complete as a household voice assistant if normal wake-word use depends on the desktop GUI or mobile app being open. Final consumer release must independently verify the packaged clean-install, background runtime, reboot/sign-in recovery, screenless wake-word round trip, listening privacy controls, and at least one additional paired room endpoint defined in `docs/architecture/end-user-installation-and-voice-runtime.md`.

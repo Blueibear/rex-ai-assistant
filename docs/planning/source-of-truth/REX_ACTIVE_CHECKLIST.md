@@ -267,6 +267,54 @@
 
 **Known live-adapter limitation:** proactive weather/traffic/search enrichment is fail-closed and requires an authorized current-info reader. The repository currently has no production traffic reader, so traffic-dependent commute opportunities do not surface live until one is configured.
 
+## Consumer Installation and Always-On Household Voice
+
+**Canonical contract:** `docs/architecture/end-user-installation-and-voice-runtime.md`
+
+**Status rule:** These items define final consumer release requirements. Current Hold-to-Talk and beta wake-word labels remain truthful until the matching implementation and physical-hardware gates pass.
+
+### Packaged Consumer Installation
+- [ ] Ship one supported Windows AskRex installer that requires no preinstalled Python, Node.js, Git, repo checkout, virtual environment, terminal startup command, or manual JSON editing for normal consumer setup.
+- [ ] Package/provision the managed runtime needed by Rex Core and the supported local Voice Agent.
+- [ ] Keep developer/operator `pip install .` and source commands separate from the consumer path.
+
+### Background Rex Core and Local Voice Agent
+- [ ] Run Rex Core independently of the Electron window lifecycle.
+- [ ] Run the local Voice Agent independently of the Electron window lifecycle when always-on voice is enabled.
+- [ ] Support automatic Windows startup/recovery after reboot/sign-in without terminal commands.
+- [ ] Provide truthful component health for Core, microphone, speaker, wake word, TTS/STT, and optional integrations.
+- [ ] Degrade only the affected capability when an audio device, integration, endpoint, or optional OpenClaw provider fails where safe.
+
+### First-Run Voice Setup
+- [ ] Guide the user through AI provider setup, Rex voice preview, microphone test, speaker test, wake-word selection/calibration, local room assignment, and background-startup behavior.
+- [ ] Offer Home Assistant, household voice enrollment, and additional-room endpoints as optional guided setup rather than prerequisites for basic conversation.
+- [ ] Do not mark voice setup complete merely because settings were saved.
+- [ ] Verify wake detection -> capture -> STT -> canonical Assistant/TurnEngine -> TTS -> audible playback before reporting voice setup complete.
+
+### Listening Privacy and Controls
+- [ ] Provide an immediate Pause Listening and explicit Resume Listening control from the normal desktop/tray control surface.
+- [ ] Show Listening, Paused, Degraded, and Offline states truthfully.
+- [ ] Let the user disable wake-word startup without uninstalling AskRex.
+- [ ] Keep wake-word detection local when the supported local detector allows it and avoid blanket microphone-content logging.
+
+### Rex Room Endpoints
+- [ ] Use one authoritative Rex Core plus lightweight trusted room endpoints instead of replicating the full Rex stack in every room.
+- [ ] Pair room endpoints through authenticated, revocable trust that does not grant broader Rex permissions.
+- [ ] Assign each endpoint a stable device identity and room.
+- [ ] Capability-test each endpoint as input+output, output-only, or input-only; never infer microphone accessibility from hardware branding alone.
+- [ ] Reuse canonical `rex.media`, `rex.output_routing`, context, identity, and Home Assistant services rather than creating duplicate room/speaker stores.
+- [ ] Use trusted request-origin room/device context for unambiguous natural-language resolution without treating location as permission.
+- [ ] Return interactive spoken responses through the authorized endpoint that heard the request unless an explicit target or current routing rule overrides it.
+
+### Final Screenless Release Gate
+- [ ] On a clean supported Windows machine, install AskRex with no developer prerequisites and complete setup without terminal/manual JSON steps.
+- [ ] Close the Electron window and complete a wake-word-to-spoken-response interaction.
+- [ ] Reboot/sign in and repeat the screenless wake-word interaction without manual developer commands.
+- [ ] Demonstrate Pause/Resume Listening and truthful degraded audio behavior.
+- [ ] With Home Assistant configured, complete and independently verify a low-risk room-context command such as turning off that room's light.
+- [ ] Prove core wake-word voice operation continues when optional OpenClaw connectivity is unavailable.
+- [ ] Pair at least one non-Core room endpoint and complete a screenless wake-word interaction from its assigned room before claiming multi-room release readiness.
+
 ## Notes
 
 Goal:

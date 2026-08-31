@@ -27,6 +27,11 @@
 > Design: `docs/superpowers/specs/2026-08-08-rex2-production-readiness-integration-design.md`
 > Implementation plan: `docs/superpowers/plans/2026-08-08-rex2-production-readiness-integration.md`
 
+> **Always-on household voice product-contract amendment - 2026-08-31**
+> The final AskRex consumer product must remain available for screenless household voice use when the Electron and mobile apps are not open. One packaged Windows installation owns an authoritative Rex Core plus a local background Voice Agent; additional rooms use lightweight trusted Rex Room endpoints rather than independent full Rex stacks. The consumer setup flow must cover audio/wake-word calibration, room assignment, background startup, privacy controls, and verified screenless operation. This amendment is a target and release requirement, not a claim that today's wake-word path is production-ready: existing Hold-to-Talk and beta wake-word labels remain truthful until US-124 through US-130 and their physical-hardware gates pass.
+>
+> Canonical product contract: `docs/architecture/end-user-installation-and-voice-runtime.md`
+
 ### Integrated execution order - 2026-08-08
 
 Use this order for task selection after the reconciliation above. Select the first story below that still has any unchecked acceptance criterion:
@@ -91,7 +96,14 @@ Use this order for task selection after the reconciliation above. Select the fir
 58. `US-092`
 59. `US-093`
 60. `US-119`
-61. `US-118`
+61. `US-124`
+62. `US-125`
+63. `US-126`
+64. `US-127`
+65. `US-128`
+66. `US-129`
+67. `US-130`
+68. `US-118`
 
 **Dependency/security notes:** TurnEngine work must preserve the already-implemented explicit, fail-closed user identity contract from its first event. US-087 later proves the broader user/household model and James/Cole concurrency invariants. OpenClaw metadata never widens local authority. Mobile remains desktop-paired and least-privilege. All benchmark evidence must label whether it is deterministic/mock, local source runtime, live provider, packaged Windows artifact, or physical hardware/device.
 
@@ -182,7 +194,8 @@ When this PRD is complete, AskRex Assistant ships as:
 
 - **Primary app artifact:** Packaged Electron desktop app under `gui/`. The Electron main process spawns the Python bridge scripts directly via stdin/stdout JSON, with no Flask backend required at runtime.
 - **Primary non-GUI surface:** `rex` CLI (`python -m rex` or the `rex` console script).
-- **Primary voice surface:** `rex_loop.py` plus the canonical voice loop (`rex.voice_loop`). Hold-to-Talk is the supported default voice mode for the release candidate; wake word remains beta until the reliability tests added by this PRD pass on Windows 11.
+- **Primary voice surface today:** `rex_loop.py` plus the canonical voice loop (`rex.voice_loop`). Hold-to-Talk remains the supported default voice mode for the current release-candidate state; wake word remains beta until the required physical-audio reliability evidence passes.
+- **Final household voice target:** the packaged Windows installation runs an authoritative Rex Core plus a local background Voice Agent independently of the Electron window lifecycle, with additional rooms served by lightweight trusted Rex Room endpoints. This is a release requirement governed by US-124 through US-130 and `docs/architecture/end-user-installation-and-voice-runtime.md`, not a claim about current implementation status.
 - **Primary supported platforms:** Windows 11 (primary), Windows 10, macOS, Linux (best-effort).
 - **Documented experimental surfaces:** OpenClaw integration, autonomy, browser automation, computer control, phone/SMS via Twilio, and `rex-agent` remote PC control. Each is disabled by default and clearly labeled as experimental in README, GUI settings, and `SURFACE-CLASSIFICATION.md`.
 - **Install paths:**
@@ -247,6 +260,7 @@ These principles bind every story in this PRD. They are enforced by review and b
 | P | Voice and model UX gaps | Voice enrollment, custom wake assets, TTS testing, wake runtime diagnostics, LLM persistence, model discovery, incoherent-output recovery, and latency need production-grade UX and tests. | Voice / AI | P0 |
 | Q | User data and memory model | Profiles, voice identity, memory, chat history, shopping lists, and uploaded vector content need one privacy-aware user/household identity model. | Identity / Memory | P0 |
 | R | Mobile/API exposure | Access from an iOS app or `askrex.app` requires an authenticated, rate-limited, HTTPS API gateway and explicit mobile capability boundaries. | Security / Mobile | P0 |
+| S | Always-on household voice and consumer runtime | Final product still requires a verified background Rex Core/Voice Agent lifecycle, guided consumer voice setup, listening privacy controls, secure room endpoints, and clean-install/reboot screenless acceptance before Rex can replace a household voice assistant. | Voice / Installer / Runtime | P0 |
 
 ---
 
@@ -272,6 +286,7 @@ Stories execute in this phase order. Within a phase, stories execute in numeric 
 - **Phase 15 — Home Assistant and Integration Production UX** (US-080 to US-082)
 - **Phase 16 — Identity, Memory, History, Shopping, and Uploads** (US-083 to US-087)
 - **Phase 17 — Mobile/API Gateway and Release Boundary** (US-088)
+- **Phase 18 — Consumer Installation and Always-On Household Voice** (US-124 to US-130)
 
 > **Story-sizing note (added in skill-compliance pass).** Several Phase 15–17 stories (US-080, US-083, US-085, US-086, US-088) bundle more work than one Ralph iteration can finish. Each of those stories carries an explicit decomposition directive in its Implementation notes: before Ralph executes the story, split it into the listed one-iteration slices and run them in order. Do not attempt the full bundle in a single iteration.
 
@@ -3839,6 +3854,141 @@ grep -n "askrex.app\|Cloudflare\|CORS\|rate limit\|revocation" docs/deployment.m
 **Validation commands:** focused context/privacy/proactivity tests; identity/cache/upload suites; `cd gui && npm run typecheck && npm run build`; required repository release gates.
 
 **Risk notes:** Connected-data availability, contextual eligibility, disclosure, and action authority are four distinct concerns. Historical checklist uses of `US-123` are legacy evidence only; this active story is defined by the authoritative production-readiness PRD.
+
+### US-124: Decouple Rex Core and the local Voice Agent from Electron window lifecycle
+
+**Priority:** P0 | **Workstream:** Windows / Runtime / Voice / Installer | **Dependencies:** US-119 and the existing managed Electron runtime.
+
+**Description:** Make the packaged Windows installation keep the authoritative Rex runtime and local voice-listening path available when the Electron window is minimized or closed, without requiring a terminal or source checkout.
+
+**Acceptance Criteria:**
+- [ ] The packaged installation has explicit lifecycle owners for Rex Core and the signed-in user's local Voice Agent; neither depends on a visible renderer window remaining open.
+- [ ] Closing the Electron window does not stop an enabled Voice Agent or the Core services it requires for a screenless turn.
+- [ ] Supported automatic startup after Windows reboot/sign-in uses absolute packaged runtime paths and requires no manual terminal command.
+- [ ] Core and Voice Agent expose bounded health states that distinguish ready, paused, degraded, unavailable, and failed components without exposing private content.
+- [ ] Microphone, speaker, optional integration, or OpenClaw failure degrades only the affected capability where safe; OpenClaw absence never blocks native Core/voice startup.
+- [ ] Automated lifecycle tests cover GUI-close survival, orderly shutdown, restart, duplicate-start prevention, and degraded-component behavior; a Windows packaged-artifact test covers the real installed path.
+- [ ] `README.md`, `INSTALL.md`, `RUNNING.md`, `SURFACE-CLASSIFICATION.md`, relevant installer docs, and `CLAUDE.md` are updated only to the level proved by implementation.
+- [ ] All relevant GitHub checks pass.
+
+**Validation:** focused runtime/service tests plus installed Windows artifact verification with the Electron window closed.
+
+---
+
+### US-125: Build the consumer first-run household voice setup flow
+
+**Priority:** P0 | **Workstream:** Electron / Setup / Voice | **Dependencies:** US-124 plus existing AI, TTS, microphone, wake-word, identity, and Settings services.
+
+**Description:** Turn first-run setup into a guided consumer flow that can configure and verify Rex for household voice use without developer commands or manual JSON editing.
+
+**Acceptance Criteria:**
+- [ ] The wizard guides the user through primary identity/profile, supported AI provider connection, Rex voice selection/preview, microphone selection/test, speaker selection/test, wake-word selection/calibration, local room assignment, and background-startup choice.
+- [ ] Home Assistant, additional household voice enrollment, and additional room endpoints are offered as optional extensions rather than prerequisites for basic conversation.
+- [ ] Setup explains that enabled background listening continues when the app window is closed and provides the corresponding privacy/control choice before enabling it.
+- [ ] Saving configuration is not treated as voice verification: the wizard must prove wake detection -> capture -> STT -> canonical Assistant/TurnEngine -> TTS -> audible playback before reporting voice setup verified.
+- [ ] A failed stage is shown specifically and leaves unaffected text/mobile capabilities usable where possible.
+- [ ] The supported consumer path requires no Python/Node/Git/venv/repository/terminal/manual-JSON steps.
+- [ ] Tests cover successful setup, each major stage failure, skipped optional integrations, cancellation/resume, and truthful verification state.
+- [ ] All relevant GitHub checks pass.
+
+**Validation:** Electron typecheck/tests/build plus packaged first-run smoke and physical audio verification.
+
+---
+
+### US-126: Add always-listening privacy, tray controls, and truthful degraded states
+
+**Priority:** P0 | **Workstream:** Voice / Privacy / Electron | **Dependencies:** US-124.
+
+**Description:** Give users obvious control over an always-available microphone path and make the real listening/health state visible without opening a full settings workflow.
+
+**Acceptance Criteria:**
+- [ ] The normal desktop/tray control surface exposes immediate `Pause Listening` and explicit `Resume Listening` actions.
+- [ ] User-visible status distinguishes Listening, Paused, Degraded, Offline/Unavailable, and startup/recovery states; paused must never be represented as listening.
+- [ ] The user can disable wake-word auto-start without uninstalling AskRex or disabling text/mobile use.
+- [ ] Wake-word detection remains local when the supported detector permits it, and health/audit logs do not blanket-record raw microphone audio, transcripts, credentials, or private memory.
+- [ ] Audio-device loss updates status promptly, prevents false spoken-success claims, and provides a recovery path to choose a replacement device.
+- [ ] Restart/watchdog behavior is bounded and cannot hide a persistent hardware/configuration failure in an endless healthy-looking restart loop.
+- [ ] Tests cover pause/resume, persisted startup choice, device loss/recovery, privacy-safe diagnostics, and status truth.
+- [ ] All relevant GitHub checks pass.
+
+---
+
+### US-127: Define and implement secure Rex Room endpoint identity and pairing
+
+**Priority:** P0 | **Workstream:** Multi-room / Security / Devices | **Dependencies:** US-087, US-121, US-122, US-124.
+
+**Description:** Add a lightweight room-endpoint contract so one authoritative Rex Core can serve additional rooms without installing independent full Rex brains in each room.
+
+**Acceptance Criteria:**
+- [ ] A Rex Room endpoint has a stable device ID, authenticated/revocable pairing record, room assignment, declared input/output capabilities, health state, and authorization metadata.
+- [ ] Pairing does not grant user, Home Assistant, media, memory, or tool authority beyond the already authenticated Rex principal/policy.
+- [ ] Endpoint capability is tested and stored as input+output, output-only, or input-only; AskRex never assumes a microphone is programmatically available merely because hardware contains one.
+- [ ] Revoked, expired, replaced, or untrusted endpoints cannot submit authoritative request-origin context or receive private output.
+- [ ] OpenClaw may contribute optional device capabilities but cannot become pairing, identity, permission, room, or verification authority.
+- [ ] The implementation reuses canonical device/media/output-routing/identity/context services and does not create a second speaker/room authority store.
+- [ ] Security tests cover replay, impersonation, cross-user misuse, revocation, stale pairing, capability mismatch, and fail-closed behavior.
+- [ ] All relevant GitHub checks pass.
+
+---
+
+### US-128: Add room onboarding, request-origin context, and response-to-origin behavior
+
+**Priority:** P0 | **Workstream:** Multi-room / Context / Home Assistant / Output Routing | **Dependencies:** US-125 and US-127.
+
+**Description:** Let users add a Rex Room endpoint through the consumer UI, verify its real audio capabilities, assign it to a room, and use that trusted origin to make natural household commands work without unsafe guessing.
+
+**Acceptance Criteria:**
+- [ ] The setup/control UI can discover or explicitly pair an endpoint, assign its room, and run capability-appropriate microphone, speaker, and wake-word tests.
+- [ ] A validated endpoint stamps trusted request-origin device/room context into the canonical turn path without granting permission by location alone.
+- [ ] Unambiguous commands such as `turn the light off` may use the trusted room plus current Home Assistant mappings to resolve the intended low-risk entity; ambiguity triggers clarification.
+- [ ] Home Assistant mutations still use the canonical authorization/action/verification lifecycle and do not report success until independently verified.
+- [ ] Interactive spoken responses return through the authorized endpoint that heard the request when it supports output unless an explicit target or current per-user routing rule overrides it.
+- [ ] Existing `rex.media`, `rex.output_routing`, situational/active context, identity, and Home Assistant mapping services remain authoritative.
+- [ ] Tests cover origin routing, room ambiguity, endpoint outage, explicit-target override, output-only devices, and verified Home Assistant room commands.
+- [ ] All relevant GitHub checks pass.
+
+---
+
+### US-129: Integrate household speaker identity with screenless room turns
+
+**Priority:** P0 | **Workstream:** Identity / Voice / Multi-user | **Dependencies:** US-087 and US-128.
+
+**Description:** Make screenless room turns resolve speaker identity and room/device context as separate inputs so private and personalized requests remain correctly scoped in a shared household.
+
+**Acceptance Criteria:**
+- [ ] Voice enrollment in consumer setup writes through the existing canonical voice/profile identity services rather than creating a second user store.
+- [ ] A screenless turn can carry both resolved user identity and trusted room/device origin into the canonical TurnEngine path.
+- [ ] Per-user permissions, privacy/context grants, memory, linked accounts, and output-routing policy are evaluated from the resolved user, never inferred from room membership.
+- [ ] Unknown or ambiguous speaker identity fails closed for private, destructive, account-specific, or otherwise permission-sensitive operations and asks only the minimum clarification needed.
+- [ ] Shared household operations remain possible only where the underlying capability/policy explicitly permits household scope.
+- [ ] Concurrent turns from different users/endpoints do not leak identity, memory, routing, or private results across sessions.
+- [ ] Tests cover recognized/unknown/ambiguous speakers, James/Cole-style concurrent isolation, shared-vs-private behavior, and room/user independence.
+- [ ] All relevant GitHub checks pass.
+
+---
+
+### US-130: Pass the final clean-install, reboot, and screenless household voice release gate
+
+**Priority:** P0 | **Workstream:** Release / Windows / Voice / Multi-room | **Dependencies:** US-124 through US-129 and US-119. This story must complete before US-118 final production-readiness closure.
+
+**Description:** Prove the real installed product behaves like an always-available household assistant on physical Windows/audio hardware rather than inferring success from unit tests or source-mode runs.
+
+**Acceptance Criteria:**
+- [ ] On a clean supported Windows machine with no preinstalled Python, Node.js, Git, repo checkout, or development venv, install AskRex using the packaged consumer installer.
+- [ ] Complete supported first-run voice setup without terminal commands or manual JSON edits and record the exact artifact/version used.
+- [ ] Fully close the Electron window, say the configured wake word, ask a normal question, and receive the correct audible response through the configured endpoint.
+- [ ] Reboot/sign in without developer commands and repeat the screenless wake-word round trip successfully.
+- [ ] Demonstrate Pause Listening, verify the wake word does not activate while paused, then Resume Listening and verify activation returns.
+- [ ] Demonstrate truthful degraded behavior by making one audio component unavailable and confirming unaffected app/mobile/Core functions remain usable where expected.
+- [ ] With Home Assistant configured for the release test environment, issue a low-risk room-context command and independently confirm the final entity state before Rex reports success.
+- [ ] Disable or make OpenClaw unreachable and prove native Core/wake-word voice operation still works.
+- [ ] Pair at least one non-Core Rex Room endpoint, assign it to a room, and complete a screenless wake-word interaction from that room before multi-room readiness is claimed.
+- [ ] Store privacy-safe release evidence for install, reboot, audio pipeline, endpoint identity/room, lifecycle health, and verified action outcomes; do not store private transcripts/audio unless explicitly required and approved.
+- [ ] All required GitHub/release checks pass on the exact artifact-producing commit.
+
+**Release rule:** Failure of any required screenless/background/reboot criterion blocks the household-voice completion claim. Do not downgrade this story to source-mode evidence.
+
+---
 
 ### US-115: Compose capability gaps declaratively
 
