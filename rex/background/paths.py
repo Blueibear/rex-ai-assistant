@@ -18,7 +18,7 @@ class BackgroundPaths:
     supervisor_lock: Path
 
     @classmethod
-    def from_runtime_root(cls, runtime_root: Path) -> "BackgroundPaths":
+    def from_runtime_root(cls, runtime_root: Path) -> BackgroundPaths:
         """Resolve canonical paths without creating runtime state as a side effect."""
 
         root = runtime_root.expanduser().resolve()
