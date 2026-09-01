@@ -8,7 +8,6 @@ from pathlib import Path
 
 from rex.background.core_client import CoreAssistantProxy, CoreClient
 from rex.background.core_server import CoreEndpoint, CoreServer
-
 from rex.background.paths import BackgroundPaths
 from rex.runtime.invocation import current_turn_invocation, turn_invocation
 from rex.runtime.turn import IdentityResolution, TurnSource
