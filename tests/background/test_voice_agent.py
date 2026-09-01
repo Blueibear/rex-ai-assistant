@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import asyncio
+import json
 from pathlib import Path
-from types import SimpleNamespace
 
 import pytest
 
@@ -140,7 +140,9 @@ def test_audio_startup_failures_are_content_free_and_do_not_mutate_core_state(
         )
         original = endpoint.to_dict()
         paths.core_endpoint_file.write_text(
-            '{"host":"127.0.0.1","port":49152,"token":"' + "t" * 32 + '","pid":1234}\n',
+            '{"host":"127.0.0.1","port":49152,"token":"'
+            + "t" * 32
+            + '","pid":1234}\n',
             encoding="utf-8",
         )
         monkeypatch.setattr(
@@ -158,7 +160,7 @@ def test_audio_startup_failures_are_content_free_and_do_not_mutate_core_state(
         assert health.detail_code == detail_code
         assert "private" not in str(health.to_dict())
         assert paths.core_endpoint_file.exists()
-        stored = __import__("json").loads(paths.core_endpoint_file.read_text(encoding="utf-8"))
+        stored = json.loads(paths.core_endpoint_file.read_text(encoding="utf-8"))
         assert stored == original
 
     asyncio.run(_run())
