@@ -7,12 +7,12 @@ import json
 from pathlib import Path
 
 import pytest
-from rex.background.voice_agent import build_voice_agent, run_voice_agent
 
 from rex.assistant_errors import AudioDeviceError, TextToSpeechError, WakeWordError
 from rex.background.core_server import CoreEndpoint
 from rex.background.paths import BackgroundPaths
 from rex.background.types import HealthState
+from rex.background.voice_agent import build_voice_agent, run_voice_agent
 
 
 class _FakeLoop:
