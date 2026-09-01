@@ -3,10 +3,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from enum import Enum
+from enum import StrEnum
 
 
-class HealthState(str, Enum):
+class HealthState(StrEnum):
     """Bounded component health states exposed by the background runtime."""
 
     STARTING = "starting"
