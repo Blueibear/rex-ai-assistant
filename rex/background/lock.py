@@ -3,9 +3,17 @@
 from __future__ import annotations
 
 import errno
+import importlib
 import os
 from pathlib import Path
-from typing import BinaryIO
+from typing import BinaryIO, Protocol, cast
+
+
+class _Msvcrt(Protocol):
+    LK_NBLCK: int
+    LK_UNLCK: int
+
+    def locking(self, fd: int, mode: int, nbytes: int) -> None: ...
 
 
 class AlreadyRunningError(RuntimeError):
@@ -20,7 +28,7 @@ class SingleInstanceLock:
         self._handle: BinaryIO | None = None
         self._locked = False
 
-    def __enter__(self) -> "SingleInstanceLock":
+    def __enter__(self) -> SingleInstanceLock:
         self.acquire()
         return self
 
@@ -65,10 +73,13 @@ class SingleInstanceLock:
             handle.close()
 
     @staticmethod
+    def _msvcrt() -> _Msvcrt:
+        return cast(_Msvcrt, importlib.import_module("msvcrt"))
+
+    @staticmethod
     def _lock_handle(handle: BinaryIO) -> None:
         if os.name == "nt":
-            import msvcrt
-
+            msvcrt = SingleInstanceLock._msvcrt()
             try:
                 msvcrt.locking(handle.fileno(), msvcrt.LK_NBLCK, 1)
             except OSError as exc:
@@ -90,8 +101,7 @@ class SingleInstanceLock:
     def _unlock_handle(handle: BinaryIO) -> None:
         handle.seek(0)
         if os.name == "nt":
-            import msvcrt
-
+            msvcrt = SingleInstanceLock._msvcrt()
             msvcrt.locking(handle.fileno(), msvcrt.LK_UNLCK, 1)
             return
 
