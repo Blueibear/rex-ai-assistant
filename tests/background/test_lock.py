@@ -2,23 +2,24 @@ from __future__ import annotations
 
 import subprocess
 import sys
-from pathlib import Path
-
-import pytest
 
 from rex.background.lock import AlreadyRunningError, SingleInstanceLock
 
 
-def test_second_lock_is_rejected(tmp_path: Path) -> None:
+def test_second_lock_is_rejected(tmp_path) -> None:
     lock_path = tmp_path / "runtime.lock"
 
     with SingleInstanceLock(lock_path):
-        with pytest.raises(AlreadyRunningError):
+        try:
             with SingleInstanceLock(lock_path):
                 pass
+        except AlreadyRunningError:
+            pass
+        else:
+            raise AssertionError("a second live lock acquisition must be rejected")
 
 
-def test_lock_releases_after_context_exit(tmp_path: Path) -> None:
+def test_lock_releases_after_context_exit(tmp_path) -> None:
     lock_path = tmp_path / "runtime.lock"
 
     with SingleInstanceLock(lock_path):
@@ -28,16 +29,16 @@ def test_lock_releases_after_context_exit(tmp_path: Path) -> None:
         pass
 
 
-def test_lock_releases_after_process_exit(tmp_path: Path) -> None:
+def test_lock_releases_after_process_exit(tmp_path) -> None:
     lock_path = tmp_path / "runtime.lock"
-    child_code = """
+    child_code = f"""
 from pathlib import Path
 from rex.background.lock import SingleInstanceLock
 
-path = Path(r'''{path}''')
+path = Path({str(lock_path)!r})
 with SingleInstanceLock(path):
     pass
-""".format(path=str(lock_path))
+"""
 
     completed = subprocess.run(
         [sys.executable, "-c", child_code],
@@ -52,7 +53,7 @@ with SingleInstanceLock(path):
         pass
 
 
-def test_lock_creates_only_parent_directory_and_lock_file(tmp_path: Path) -> None:
+def test_lock_creates_only_parent_directory_and_lock_file(tmp_path) -> None:
     lock_path = tmp_path / "nested" / "runtime.lock"
 
     with SingleInstanceLock(lock_path):
