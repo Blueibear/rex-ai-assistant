@@ -8,6 +8,7 @@ from pathlib import Path
 
 from rex.background.core_client import CoreAssistantProxy, CoreClient
 from rex.background.core_server import CoreEndpoint, CoreServer
+
 from rex.background.paths import BackgroundPaths
 from rex.runtime.invocation import current_turn_invocation, turn_invocation
 from rex.runtime.turn import IdentityResolution, TurnSource
@@ -62,7 +63,9 @@ class _FakeAssistant:
         yield "Second sentence."
 
 
-async def _start_server(tmp_path: Path) -> tuple[CoreServer, CoreClient, _FakeAssistant, CoreEndpoint]:
+async def _start_server(
+    tmp_path: Path,
+) -> tuple[CoreServer, CoreClient, _FakeAssistant, CoreEndpoint]:
     paths = BackgroundPaths.from_runtime_root(tmp_path)
     assistant = _FakeAssistant()
     server = CoreServer(assistant_factory=lambda: assistant, paths=paths)
@@ -117,7 +120,9 @@ def test_malformed_and_oversized_requests_fail_boundedly(tmp_path: Path) -> None
     asyncio.run(_run())
 
 
-def test_health_is_content_free_and_endpoint_contains_no_identity_or_transcript(tmp_path: Path) -> None:
+def test_health_is_content_free_and_endpoint_contains_no_identity_or_transcript(
+    tmp_path: Path,
+) -> None:
     async def _run() -> None:
         server, client, _assistant, endpoint = await _start_server(tmp_path)
         try:
@@ -190,7 +195,9 @@ def test_invalid_request_identity_fails_before_assistant_call(tmp_path: Path) ->
     asyncio.run(_run())
 
 
-def test_proxy_forwards_current_voice_provenance_and_resolves_user_each_turn(tmp_path: Path) -> None:
+def test_proxy_forwards_current_voice_provenance_and_resolves_user_each_turn(
+    tmp_path: Path,
+) -> None:
     async def _run() -> None:
         server, client, assistant, _endpoint = await _start_server(tmp_path)
         active_user = "james"
@@ -213,7 +220,10 @@ def test_proxy_forwards_current_voice_provenance_and_resolves_user_each_turn(tmp
             ):
                 assert await proxy.generate_reply("hello again", voice_mode=True) == "Core reply"
 
-            assert [call["active_user_id"] for call in assistant.generate_calls] == ["james", "cole"]
+            assert [call["active_user_id"] for call in assistant.generate_calls] == [
+                "james",
+                "cole",
+            ]
             assert [call["identity_resolution"] for call in assistant.generate_calls] == [
                 IdentityResolution.VOICE_RECOGNIZED,
                 IdentityResolution.VOICE_REVIEW,
@@ -233,7 +243,10 @@ def test_proxy_preserves_streaming_reply_path(tmp_path: Path) -> None:
                 TurnSource.VOICE,
                 identity_resolution=IdentityResolution.VOICE_RECOGNIZED,
             ):
-                chunks = [chunk async for chunk in proxy.stream_reply("tell me something", voice_mode=True)]
+                chunks = [
+                    chunk
+                    async for chunk in proxy.stream_reply("tell me something", voice_mode=True)
+                ]
             assert chunks == ["First sentence.", "Second sentence."]
             assert len(assistant.stream_calls) == 1
             assert assistant.stream_calls[0]["source"] is TurnSource.VOICE
