@@ -105,7 +105,7 @@ class CoreServer:
             port=0,
             limit=_MAX_REQUEST_BYTES + 1,
         )
-        sockets = server.sockets or []
+        sockets: tuple[Any, ...] = server.sockets or ()
         if len(sockets) != 1:  # pragma: no cover - platform invariant
             server.close()
             await server.wait_closed()
@@ -296,6 +296,7 @@ def _parse_turn_request(payload: dict[str, object]) -> _TurnRequest | None:
         or len(transcript) > _MAX_TRANSCRIPT_CHARS
         or not isinstance(voice_mode, bool)
         or not isinstance(active_user_id, str)
+        or not isinstance(identity_value, str)
     ):
         return None
     try:
