@@ -23,7 +23,9 @@ class CoreProtocolError(RuntimeError):
 class CoreClient:
     """Make bounded authenticated requests to one local Rex Core instance."""
 
-    def __init__(self, endpoint: CoreEndpoint, *, timeout: float = _REQUEST_TIMEOUT_SECONDS) -> None:
+    def __init__(
+        self, endpoint: CoreEndpoint, *, timeout: float = _REQUEST_TIMEOUT_SECONDS
+    ) -> None:
         self._endpoint = endpoint
         self._timeout = float(timeout)
         if self._timeout <= 0:
