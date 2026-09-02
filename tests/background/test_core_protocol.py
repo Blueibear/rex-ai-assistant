@@ -81,7 +81,7 @@ def test_invalid_token_is_rejected_without_assistant_call(tmp_path: Path) -> Non
                 CoreEndpoint(
                     host=endpoint.host,
                     port=endpoint.port,
-                    token="wrong-token",
+                    token="w" * 32,
                     pid=endpoint.pid,
                 )
             )
