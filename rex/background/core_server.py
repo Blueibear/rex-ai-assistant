@@ -146,78 +146,66 @@ class CoreServer:
     ) -> None:
         shutdown_requested = False
         try:
-            try:
-                line = await asyncio.wait_for(
-                    reader.readuntil(b"\n"), timeout=_REQUEST_TIMEOUT_SECONDS
-                )
-            except asyncio.LimitOverrunError:
-                await _send_json(writer, {"ok": False, "error": "request_too_large"})
-                return
-            except (asyncio.IncompleteReadError, TimeoutError):
-                await _send_json(writer, {"ok": False, "error": "invalid_request"})
+            payload = await _read_request_payload(reader, writer)
+            if payload is None:
                 return
 
-            if len(line) - 1 > _MAX_REQUEST_BYTES:
-                await _send_json(writer, {"ok": False, "error": "request_too_large"})
-                return
-            try:
-                payload = json.loads(line)
-            except (UnicodeDecodeError, json.JSONDecodeError):
-                await _send_json(writer, {"ok": False, "error": "invalid_request"})
-                return
-            if not isinstance(payload, dict):
-                await _send_json(writer, {"ok": False, "error": "invalid_request"})
-                return
-
-            endpoint = self._endpoint
-            token = payload.get("token")
-            if (
-                endpoint is None
-                or not isinstance(token, str)
-                or not hmac.compare_digest(token, endpoint.token)
-            ):
+            endpoint = self._authorized_endpoint(payload)
+            if endpoint is None:
                 await _send_json(writer, {"ok": False, "error": "unauthorized"})
                 return
 
-            request_type = payload.get("type")
-            if request_type == "health":
-                await _send_json(
-                    writer,
-                    {"ok": True, "state": "ready", "pid": endpoint.pid},
-                )
-            elif request_type == "turn":
-                request = _parse_turn_request(payload)
-                if request is None:
-                    await _send_json(writer, {"ok": False, "error": "invalid_request"})
-                    return
-                reply = await self._run_turn(request)
-                await _send_json(writer, {"ok": True, "reply": reply})
-            elif request_type == "stream_turn":
-                request = _parse_turn_request(payload)
-                if request is None:
-                    await _send_json(writer, {"ok": False, "error": "invalid_request"})
-                    return
-                await self._stream_turn(request, writer)
-            elif request_type == "shutdown":
-                await _send_json(writer, {"ok": True})
-                shutdown_requested = True
-            else:
-                await _send_json(writer, {"ok": False, "error": "invalid_request"})
+            shutdown_requested = await self._dispatch_request(payload, endpoint, writer)
         except Exception:
             # Keep transport errors content-free. Detailed diagnostics belong in
             # process-local logs owned by the Core runtime, not on IPC responses.
-            try:
-                await _send_json(writer, {"ok": False, "error": "core_error"})
-            except Exception:
-                pass
+            await _send_core_error(writer)
         finally:
-            writer.close()
-            try:
-                await writer.wait_closed()
-            except (ConnectionError, RuntimeError):
-                pass
+            await _close_writer(writer)
             if shutdown_requested:
                 await self.close()
+
+    def _authorized_endpoint(self, payload: dict[str, object]) -> CoreEndpoint | None:
+        endpoint = self._endpoint
+        token = payload.get("token")
+        if (
+            endpoint is None
+            or not isinstance(token, str)
+            or not hmac.compare_digest(token, endpoint.token)
+        ):
+            return None
+        return endpoint
+
+    async def _dispatch_request(
+        self,
+        payload: dict[str, object],
+        endpoint: CoreEndpoint,
+        writer: asyncio.StreamWriter,
+    ) -> bool:
+        request_type = payload.get("type")
+        if request_type == "health":
+            await _send_json(
+                writer,
+                {"ok": True, "state": "ready", "pid": endpoint.pid},
+            )
+            return False
+        if request_type == "shutdown":
+            await _send_json(writer, {"ok": True})
+            return True
+        if request_type in {"turn", "stream_turn"}:
+            request = _parse_turn_request(payload)
+            if request is None:
+                await _send_json(writer, {"ok": False, "error": "invalid_request"})
+                return False
+            if request_type == "turn":
+                reply = await self._run_turn(request)
+                await _send_json(writer, {"ok": True, "reply": reply})
+            else:
+                await self._stream_turn(request, writer)
+            return False
+
+        await _send_json(writer, {"ok": False, "error": "invalid_request"})
+        return False
 
     async def _run_turn(self, request: _TurnRequest) -> str:
         assistant = self._require_assistant()
@@ -283,6 +271,35 @@ class _TurnRequest:
     identity_resolution: IdentityResolution
 
 
+async def _read_request_payload(
+    reader: asyncio.StreamReader,
+    writer: asyncio.StreamWriter,
+) -> dict[str, object] | None:
+    try:
+        line = await asyncio.wait_for(
+            reader.readuntil(b"\n"), timeout=_REQUEST_TIMEOUT_SECONDS
+        )
+    except asyncio.LimitOverrunError:
+        await _send_json(writer, {"ok": False, "error": "request_too_large"})
+        return None
+    except (asyncio.IncompleteReadError, TimeoutError):
+        await _send_json(writer, {"ok": False, "error": "invalid_request"})
+        return None
+
+    if len(line) - 1 > _MAX_REQUEST_BYTES:
+        await _send_json(writer, {"ok": False, "error": "request_too_large"})
+        return None
+    try:
+        payload = json.loads(line)
+    except (UnicodeDecodeError, json.JSONDecodeError):
+        await _send_json(writer, {"ok": False, "error": "invalid_request"})
+        return None
+    if not isinstance(payload, dict):
+        await _send_json(writer, {"ok": False, "error": "invalid_request"})
+        return None
+    return payload
+
+
 def _parse_turn_request(payload: dict[str, object]) -> _TurnRequest | None:
     transcript = payload.get("transcript")
     voice_mode = payload.get("voice_mode", True)
@@ -326,6 +343,23 @@ async def _send_json(writer: asyncio.StreamWriter, payload: dict[str, object]) -
     await writer.drain()
 
 
+async def _send_core_error(writer: asyncio.StreamWriter) -> None:
+    if writer.is_closing():
+        return
+    try:
+        await _send_json(writer, {"ok": False, "error": "core_error"})
+    except (ConnectionError, OSError, RuntimeError):
+        return
+
+
+async def _close_writer(writer: asyncio.StreamWriter) -> None:
+    writer.close()
+    try:
+        await writer.wait_closed()
+    except (ConnectionError, OSError, RuntimeError):
+        return
+
+
 def _atomic_write_json(path: Path, payload: dict[str, object]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     temporary: Path | None = None
@@ -356,4 +390,4 @@ def _restrict_owner_access(path: Path) -> None:
     except OSError:
         # Windows ACL hardening belongs to the install/runtime task. The token
         # remains mandatory even when chmod semantics are unavailable.
-        pass
+        return
