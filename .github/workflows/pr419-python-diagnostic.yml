@@ -1,20 +1,21 @@
-name: PR419 Blocker Diagnostic
+name: PR419 Audited Lockfile Repair
 
 on:
   push:
     branches: [lead/us124-background-runtime]
 
 permissions:
-  contents: read
-  checks: read
+  contents: write
 
 jobs:
-  blocker-diagnostic:
+  audited-lockfile-repair:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          ref: lead/us124-background-runtime
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -23,43 +24,47 @@ jobs:
           cache: npm
           cache-dependency-path: gui/package-lock.json
 
-      - name: Read CodeFactor annotations from failing check
-        env:
-          GH_TOKEN: ${{ github.token }}
-          CODEFACTOR_CHECK_ID: "100176618703"
-        run: |
-          curl --fail --silent --show-error \
-            -H "Authorization: Bearer ${GH_TOKEN}" \
-            -H "Accept: application/vnd.github+json" \
-            -H "X-GitHub-Api-Version: 2022-11-28" \
-            "https://api.github.com/repos/${GITHUB_REPOSITORY}/check-runs/${CODEFACTOR_CHECK_ID}/annotations" \
-            | jq .
-
-      - name: Compute npm audit lockfile repair without committing
+      - name: Refresh high-severity transitive dependencies only
         working-directory: gui
+        run: npm audit fix --package-lock-only --audit-level=high
+
+      - name: Assert package manifest is unchanged
+        run: git diff --exit-code -- gui/package.json
+
+      - name: Verify high-severity audit gate
+        working-directory: gui
+        run: npm audit --audit-level=high
+
+      - name: Install exact repaired dependencies
+        working-directory: gui
+        run: npm ci
+
+      - name: Run GUI tests
+        working-directory: gui
+        run: npm test
+
+      - name: Run GUI typecheck
+        working-directory: gui
+        run: npm run typecheck
+
+      - name: Build GUI
+        working-directory: gui
+        run: npm run build
+
+      - name: Commit repaired lockfile when changed
         shell: bash
         run: |
-          echo "--- audit before ---"
-          npm audit --audit-level=high || true
-
-          echo "--- package-lock-only repair ---"
-          npm audit fix --package-lock-only || true
-
-          echo "--- changed files ---"
-          git status --short -- package.json package-lock.json
-          git diff --stat -- package.json package-lock.json
-          echo "--- package.json diff ---"
-          git diff -- package.json
-
-          echo "--- relevant resolved versions after repair ---"
-          node - <<'NODE'
-          const fs = require('fs')
-          const lock = JSON.parse(fs.readFileSync('package-lock.json', 'utf8'))
-          for (const name of ['browserslist', 'postcss-selector-parser', 'react-router', 'react-router-dom']) {
-            const entry = lock.packages?.[`node_modules/${name}`]
-            console.log(`${name}: ${entry?.version ?? 'not-found'}`)
-          }
-          NODE
-
-          echo "--- audit after ---"
-          npm audit --audit-level=high || true
+          if git diff --quiet -- gui/package-lock.json; then
+            echo "No lockfile repair required."
+            exit 0
+          fi
+          if [ -n "$(git status --short --untracked-files=no | grep -v '^ M gui/package-lock.json$' || true)" ]; then
+            echo "Unexpected tracked changes detected; refusing automated commit."
+            git status --short
+            exit 1
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add gui/package-lock.json
+          git commit -m "chore(gui): refresh audited dependencies"
+          git push origin HEAD:lead/us124-background-runtime
