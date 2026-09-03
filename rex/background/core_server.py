@@ -276,9 +276,7 @@ async def _read_request_payload(
     writer: asyncio.StreamWriter,
 ) -> dict[str, object] | None:
     try:
-        line = await asyncio.wait_for(
-            reader.readuntil(b"\n"), timeout=_REQUEST_TIMEOUT_SECONDS
-        )
+        line = await asyncio.wait_for(reader.readuntil(b"\n"), timeout=_REQUEST_TIMEOUT_SECONDS)
     except asyncio.LimitOverrunError:
         await _send_json(writer, {"ok": False, "error": "request_too_large"})
         return None
