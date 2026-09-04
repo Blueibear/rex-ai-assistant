@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import tomllib
 from pathlib import Path
 
 from scripts.verify_electron_package_contents import REQUIRED_BRIDGES, verify
@@ -92,6 +93,12 @@ def test_runtime_builder_is_pinned_and_package_filters_private_config() -> None:
     config_rule = next(item for item in resources if item["to"] == "config")
     assert "rex_config.json" not in config_rule["filter"]
     assert next(item for item in resources if item["to"] == "python")["from"] == "runtime/python"
+
+
+def test_managed_wheel_includes_voice_runtime_utils_package() -> None:
+    config = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
+    include = config["tool"]["setuptools"]["packages"]["find"]["include"]
+    assert "utils*" in include
 
 
 def test_packaged_bridges_do_not_require_a_source_checkout() -> None:

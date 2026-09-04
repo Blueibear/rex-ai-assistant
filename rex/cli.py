@@ -215,6 +215,13 @@ def main(argv: Sequence[str] | None = None) -> int:
     """Main entry point for the Rex CLI."""
     check_startup_env()
 
+    # Keep legacy-environment diagnostics on the user-facing CLI path without
+    # forcing rex.config to initialize during package/background imports.
+    from rex.config_manager import get_legacy_env_warnings
+
+    for warning in get_legacy_env_warnings()[:3]:
+        print(warning, file=sys.stderr)
+
     from rex.first_run import maybe_print_welcome
 
     maybe_print_welcome()

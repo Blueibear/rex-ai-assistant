@@ -191,3 +191,88 @@ def test_status_rejects_oversized_supervisor_pid_without_raising(tmp_path: Path,
     result = json.loads(capsys.readouterr().out)
     assert result["core"]["state"] == "unavailable"
     assert result["voice_agent"]["state"] == "unavailable"
+
+
+def test_cli_import_does_not_preload_voice_runtime() -> None:
+    import subprocess
+    import sys
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            "import sys; import rex.background.cli; raise SystemExit(int('rex.voice_loop' in sys.modules))",
+        ],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, result.stderr
+
+
+def test_packaged_supervisor_configures_runtime_environment_before_build(
+    monkeypatch, tmp_path: Path
+) -> None:
+    captured: dict[str, str | None] = {}
+
+    class _Runtime:
+        def run(self) -> None:
+            return None
+
+    def _build(_paths, **_kwargs):
+        import os
+
+        for key in (
+            "ASKREX_PACKAGED",
+            "ASKREX_RUNTIME_DIR",
+            "ASKREX_CONFIG_PATH",
+            "ASKREX_ENV_PATH",
+            "ASKREX_PROFILES_DIR",
+            "REX_DATA_DIR",
+            "ASKREX_HOUSEHOLD_DATA_DIR",
+            "ASKREX_USERS_DATA_DIR",
+            "ASKREX_MEMORY_DIR",
+            "REX_ALLOW_PLAINTEXT_CREDENTIAL_FALLBACK",
+        ):
+            captured[key] = os.environ.get(key)
+        return _Runtime()
+
+    monkeypatch.setenv("REX_ALLOW_PLAINTEXT_CREDENTIAL_FALLBACK", "1")
+    monkeypatch.setattr(background_cli, "build_supervisor", _build)
+    root = tmp_path.resolve()
+
+    assert (
+        background_cli.main(
+            ["supervisor", "--runtime-root", str(root), "--user", "james", "--packaged"]
+        )
+        == 0
+    )
+    assert captured == {
+        "ASKREX_PACKAGED": "1",
+        "ASKREX_RUNTIME_DIR": str(root),
+        "ASKREX_CONFIG_PATH": str(root / "config" / "rex_config.json"),
+        "ASKREX_ENV_PATH": str(root / ".env"),
+        "ASKREX_PROFILES_DIR": str(root / "profiles"),
+        "REX_DATA_DIR": str(root / "data"),
+        "ASKREX_HOUSEHOLD_DATA_DIR": str(root / "data" / "household"),
+        "ASKREX_USERS_DATA_DIR": str(root / "data" / "users"),
+        "ASKREX_MEMORY_DIR": str(root / "Memory"),
+        "REX_ALLOW_PLAINTEXT_CREDENTIAL_FALLBACK": None,
+    }
+
+
+def test_cli_import_does_not_preload_runtime_config() -> None:
+    import subprocess
+    import sys
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            "import sys; import rex.background.cli; raise SystemExit(int('rex.config' in sys.modules))",
+        ],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, result.stderr
