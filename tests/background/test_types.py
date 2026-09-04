@@ -81,3 +81,8 @@ def test_background_paths_are_bounded_to_runtime_root(tmp_path: Path) -> None:
     assert paths.stop_file == paths.state_dir / "stop.request"
     assert paths.supervisor_lock == paths.state_dir / "supervisor.lock"
     assert not paths.state_dir.exists(), "path resolution must not create runtime state"
+
+
+def test_background_paths_include_voice_agent_health_file(tmp_path: Path) -> None:
+    paths = BackgroundPaths.from_runtime_root(tmp_path)
+    assert paths.voice_agent_health_file == paths.state_dir / "voice-agent-health.json"

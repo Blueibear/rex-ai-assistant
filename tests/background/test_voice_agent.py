@@ -184,3 +184,94 @@ def test_voice_agent_runs_canonical_loop_once(
         assert health.detail_code is None
 
     asyncio.run(_run())
+
+
+class _BlockingLoop:
+    def __init__(self) -> None:
+        self.started = asyncio.Event()
+        self.release = asyncio.Event()
+
+    async def run(self) -> None:
+        self.started.set()
+        await self.release.wait()
+
+
+def test_voice_agent_publishes_ready_health_before_listening_loop(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    async def _run() -> None:
+        paths = BackgroundPaths.from_runtime_root(tmp_path)
+        _patch_core(monkeypatch, paths.core_endpoint_file)
+        loop = _BlockingLoop()
+        monkeypatch.setattr(
+            "rex.background.voice_agent.build_voice_loop",
+            lambda *_args, **_kwargs: loop,
+        )
+        task = asyncio.create_task(run_voice_agent("james", paths))
+        await asyncio.wait_for(loop.started.wait(), timeout=1.0)
+
+        payload = json.loads(paths.voice_agent_health_file.read_text(encoding="utf-8"))
+        assert payload["component"] == "voice_agent"
+        assert payload["state"] == "ready"
+        assert payload["detail_code"] is None
+        assert isinstance(payload["pid"], int)
+
+        loop.release.set()
+        health = await asyncio.wait_for(task, timeout=1.0)
+        assert health.state is HealthState.STOPPED
+        terminal = json.loads(paths.voice_agent_health_file.read_text(encoding="utf-8"))
+        assert terminal["state"] == "stopped"
+
+    asyncio.run(_run())
+
+
+def test_voice_agent_publishes_content_free_startup_failure(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    async def _run() -> None:
+        paths = BackgroundPaths.from_runtime_root(tmp_path)
+        _patch_core(monkeypatch, paths.core_endpoint_file)
+
+        def _fail_build(*_args, **_kwargs):
+            raise AudioDeviceError("private microphone path")
+
+        monkeypatch.setattr("rex.background.voice_agent.build_voice_loop", _fail_build)
+        health = await run_voice_agent("james", paths)
+
+        assert health.state is HealthState.UNAVAILABLE
+        payload = json.loads(paths.voice_agent_health_file.read_text(encoding="utf-8"))
+        assert payload["state"] == "unavailable"
+        assert payload["detail_code"] == "microphone_unavailable"
+        assert "private microphone path" not in json.dumps(payload)
+
+    asyncio.run(_run())
+
+
+def test_voice_agent_refreshes_ready_health_while_loop_is_running(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    async def _run() -> None:
+        paths = BackgroundPaths.from_runtime_root(tmp_path)
+        _patch_core(monkeypatch, paths.core_endpoint_file)
+        loop = _BlockingLoop()
+        monkeypatch.setattr("rex.background.voice_agent.build_voice_loop", lambda *_a, **_k: loop)
+        monkeypatch.setattr(
+            "rex.background.voice_agent._VOICE_HEALTH_HEARTBEAT_SECONDS",
+            0.01,
+            raising=False,
+        )
+        task = asyncio.create_task(run_voice_agent("james", paths))
+        await asyncio.wait_for(loop.started.wait(), timeout=1.0)
+        first = json.loads(paths.voice_agent_health_file.read_text(encoding="utf-8"))["observed_at"]
+        await asyncio.sleep(0.04)
+        second = json.loads(paths.voice_agent_health_file.read_text(encoding="utf-8"))[
+            "observed_at"
+        ]
+        assert second > first
+        loop.release.set()
+        await asyncio.wait_for(task, timeout=1.0)
+
+    asyncio.run(_run())

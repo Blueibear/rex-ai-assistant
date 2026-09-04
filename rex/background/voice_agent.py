@@ -2,10 +2,14 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import os
+import tempfile
 import time
+from contextlib import suppress
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 
 from rex.assistant_errors import AudioDeviceError, TextToSpeechError, WakeWordError
@@ -14,6 +18,8 @@ from rex.background.paths import BackgroundPaths
 from rex.background.types import ComponentHealth, HealthState
 from rex.identity import resolve_active_user, validate_user_id
 from rex.voice_loop import build_voice_loop
+
+_VOICE_HEALTH_HEARTBEAT_SECONDS = 1.0
 
 
 class _CoreUnavailable(RuntimeError):
@@ -79,16 +85,44 @@ async def run_voice_agent(
             origin_device_id=origin_device_id,
         )
     except _CoreUnavailable:
-        return _health(HealthState.DEGRADED, "core_unavailable")
+        return _publish_health(paths, HealthState.DEGRADED, "core_unavailable")
     except AudioDeviceError:
-        return _health(HealthState.UNAVAILABLE, "microphone_unavailable")
+        return _publish_health(paths, HealthState.UNAVAILABLE, "microphone_unavailable")
     except TextToSpeechError:
-        return _health(HealthState.UNAVAILABLE, "speaker_unavailable")
+        return _publish_health(paths, HealthState.UNAVAILABLE, "speaker_unavailable")
     except WakeWordError:
-        return _health(HealthState.UNAVAILABLE, "wakeword_unavailable")
+        return _publish_health(paths, HealthState.UNAVAILABLE, "wakeword_unavailable")
 
-    await runtime.loop.run()
-    return _health(HealthState.STOPPED, None)
+    _publish_health(paths, HealthState.READY, None)
+    await _run_loop_with_health_heartbeat(runtime.loop, paths)
+    return _publish_health(paths, HealthState.STOPPED, None)
+
+
+async def _run_loop_with_health_heartbeat(loop: Any, paths: BackgroundPaths) -> None:
+    loop_task = asyncio.create_task(loop.run())
+    heartbeat_task = asyncio.create_task(_ready_health_heartbeat(paths))
+    try:
+        done, _pending = await asyncio.wait(
+            {loop_task, heartbeat_task}, return_when=asyncio.FIRST_COMPLETED
+        )
+        if heartbeat_task in done:
+            heartbeat_error = heartbeat_task.exception()
+            if heartbeat_error is not None:
+                loop_task.cancel()
+                with suppress(asyncio.CancelledError):
+                    await loop_task
+                raise heartbeat_error
+        await loop_task
+    finally:
+        heartbeat_task.cancel()
+        with suppress(asyncio.CancelledError):
+            await heartbeat_task
+
+
+async def _ready_health_heartbeat(paths: BackgroundPaths) -> None:
+    while True:
+        await asyncio.sleep(_VOICE_HEALTH_HEARTBEAT_SECONDS)
+        _publish_health(paths, HealthState.READY, None)
 
 
 def _health(state: HealthState, detail_code: str | None) -> ComponentHealth:
@@ -99,3 +133,31 @@ def _health(state: HealthState, detail_code: str | None) -> ComponentHealth:
         observed_at=time.time(),
         pid=os.getpid(),
     )
+
+
+def _publish_health(
+    paths: BackgroundPaths, state: HealthState, detail_code: str | None
+) -> ComponentHealth:
+    health = _health(state, detail_code)
+    paths.state_dir.mkdir(parents=True, exist_ok=True)
+    temporary: Path | None = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="w",
+            encoding="utf-8",
+            dir=paths.state_dir,
+            prefix=".voice-agent-health.",
+            suffix=".tmp",
+            delete=False,
+        ) as handle:
+            temporary = Path(handle.name)
+            json.dump(health.to_dict(), handle, separators=(",", ":"), ensure_ascii=False)
+            handle.write("\n")
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temporary, paths.voice_agent_health_file)
+        temporary = None
+    finally:
+        if temporary is not None:
+            temporary.unlink(missing_ok=True)
+    return health

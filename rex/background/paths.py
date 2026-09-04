@@ -13,6 +13,7 @@ class BackgroundPaths:
     runtime_root: Path
     state_dir: Path
     core_endpoint_file: Path
+    voice_agent_health_file: Path
     health_file: Path
     stop_file: Path
     supervisor_lock: Path
@@ -27,6 +28,7 @@ class BackgroundPaths:
             runtime_root=root,
             state_dir=state_dir,
             core_endpoint_file=state_dir / "core-endpoint.json",
+            voice_agent_health_file=state_dir / "voice-agent-health.json",
             health_file=state_dir / "health.json",
             stop_file=state_dir / "stop.request",
             supervisor_lock=state_dir / "supervisor.lock",
