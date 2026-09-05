@@ -71,7 +71,7 @@ def test_create_command_stays_within_schtasks_action_limit_for_production_shaped
         pythonw,
         runtime_root,
         user_id,
-        run_as_user=r"CONTOSO\abcdefghijklmnopqrst",
+        run_as_user=r"CONTOSO\abcdefghijklmnopqrst",  # pragma: allowlist secret
     )
 
     action = command[command.index("/TR") + 1]
