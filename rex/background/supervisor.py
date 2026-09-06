@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import json
 import logging
 import math
@@ -399,10 +400,8 @@ class RuntimeSupervisor:
         path so an initial-launch failure still surfaces with cleanup.
         """
 
-        try:
+        with contextlib.suppress(OSError):
             self.paths.voice_agent_health_file.unlink(missing_ok=True)
-        except OSError:
-            logger.debug("Voice health cleanup skipped after a filesystem race")
 
     def _relaunch_within_policy(self, runtime: _ComponentRuntime) -> None:
         """Relaunch a child inside the lifecycle loop, absorbing launch failures.
@@ -723,10 +722,8 @@ class RuntimeSupervisor:
         if endpoint is None:
             return
         if endpoint.pid == pid:
-            try:
+            with contextlib.suppress(OSError):
                 path.unlink(missing_ok=True)
-            except OSError:
-                logger.debug("Core endpoint cleanup skipped after a filesystem race")
 
 
 class _WindowsJobChild:

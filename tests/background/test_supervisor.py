@@ -1333,7 +1333,17 @@ def test_supervisor_codefactor_regressions_stay_closed() -> None:
             node for node in ast.walk(functions[name]) if isinstance(node, ast.ExceptHandler)
         ]
         assert not any(
-            len(handler.body) == 1 and isinstance(handler.body[0], (ast.Pass, ast.Return))
+            len(handler.body) == 1
+            and (
+                isinstance(handler.body[0], (ast.Pass, ast.Return))
+                or (
+                    isinstance(handler.body[0], ast.Expr)
+                    and isinstance(handler.body[0].value, ast.Call)
+                    and isinstance(handler.body[0].value.func, ast.Attribute)
+                    and isinstance(handler.body[0].value.func.value, ast.Name)
+                    and handler.body[0].value.func.value.id == "logger"
+                )
+            )
             for handler in handlers
         ), name
 
