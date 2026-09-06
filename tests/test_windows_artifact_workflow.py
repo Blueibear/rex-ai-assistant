@@ -92,7 +92,12 @@ def test_installed_artifact_harness_uses_clean_reinstall_lifecycle() -> None:
     assert positions == sorted(positions)
     assert "function Invoke-Uninstaller" in harness
     assert "[string]$InstallRoot" in harness
-    assert """-ArgumentList @('/S', "_?=$InstallRoot")""" in harness
+    assert "$uninstallCopyRoot = Join-Path ([System.IO.Path]::GetTempPath())" in harness
+    assert "Copy-Item -LiteralPath $UninstallerPath -Destination $uninstallCopy -Force" in harness
+    assert "Start-Process -FilePath $uninstallCopy" in harness
+    assert """-ArgumentList @('/S', '/currentuser', "_?=$InstallRoot")""" in harness
+    assert "Remove-Item -LiteralPath $uninstallCopyRoot -Recurse -Force" in harness
+    assert "Start-Process -FilePath $UninstallerPath" not in harness
     assert harness.count("Invoke-Uninstaller $uninstaller $installPath") == 2
     assert "function Assert-Uninstalled" in harness
 

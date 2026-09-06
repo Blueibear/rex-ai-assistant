@@ -135,12 +135,29 @@ function Invoke-Uninstaller(
     if (-not (Test-Path -LiteralPath $UninstallerPath -PathType Leaf)) {
         throw "Uninstaller is missing: $UninstallerPath"
     }
-    $process = Start-Process -FilePath $UninstallerPath -ArgumentList @('/S', "_?=$InstallRoot") -PassThru
-    if (-not $process.WaitForExit($TimeoutSeconds * 1000)) {
-        Stop-ProcessTree $process
-        throw "Uninstaller timed out after $TimeoutSeconds seconds."
+
+    # Mirror electron-builder's own upgrade path: copy the uninstaller outside
+    # the installation directory, then run that copy with _?= so WaitForExit
+    # observes the process that actually removes the installed files. Running
+    # the installed executable with _?= directly can fail because it is still
+    # located inside the directory it is deleting.
+    $uninstallCopyRoot = Join-Path ([System.IO.Path]::GetTempPath()) ('askrex-uninstall-' + [guid]::NewGuid().ToString('N'))
+    $uninstallCopy = Join-Path $uninstallCopyRoot 'uninstaller.exe'
+    New-Item -ItemType Directory -Force -Path $uninstallCopyRoot | Out-Null
+    Copy-Item -LiteralPath $UninstallerPath -Destination $uninstallCopy -Force
+
+    try {
+        $process = Start-Process -FilePath $uninstallCopy -ArgumentList @('/S', '/currentuser', "_?=$InstallRoot") -PassThru
+        if (-not $process.WaitForExit($TimeoutSeconds * 1000)) {
+            Stop-ProcessTree $process
+            throw "Uninstaller timed out after $TimeoutSeconds seconds."
+        }
+        if ($process.ExitCode -ne 0) { throw "Uninstaller exited with code $($process.ExitCode)" }
+    } finally {
+        if (Test-Path -LiteralPath $uninstallCopyRoot) {
+            Remove-Item -LiteralPath $uninstallCopyRoot -Recurse -Force -ErrorAction SilentlyContinue
+        }
     }
-    if ($process.ExitCode -ne 0) { throw "Uninstaller exited with code $($process.ExitCode)" }
 }
 
 function Assert-Uninstalled([string]$ApplicationPath) {

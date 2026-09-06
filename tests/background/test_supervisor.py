@@ -1323,7 +1323,12 @@ def test_supervisor_codefactor_regressions_stay_closed() -> None:
     tree = ast.parse(source_path.read_text(encoding="utf-8"))
     functions = {node.name: node for node in ast.walk(tree) if isinstance(node, ast.FunctionDef)}
 
-    for name in ("_handle_core_exit", "_relaunch_within_policy", "_remove_endpoint_for_pid"):
+    for name in (
+        "_handle_core_exit",
+        "_relaunch_within_policy",
+        "_discard_voice_health_file",
+        "_remove_endpoint_for_pid",
+    ):
         handlers = [
             node for node in ast.walk(functions[name]) if isinstance(node, ast.ExceptHandler)
         ]
@@ -1341,4 +1346,4 @@ def test_supervisor_codefactor_regressions_stay_closed() -> None:
     complexity += sum(
         len(node.values) - 1 for node in ast.walk(voice_handler) if isinstance(node, ast.BoolOp)
     )
-    assert complexity <= 20
+    assert complexity <= 8

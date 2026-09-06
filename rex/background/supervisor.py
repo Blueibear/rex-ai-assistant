@@ -399,7 +399,7 @@ class RuntimeSupervisor:
         try:
             self.paths.voice_agent_health_file.unlink(missing_ok=True)
         except OSError:
-            pass
+            return
 
     def _relaunch_within_policy(self, runtime: _ComponentRuntime) -> None:
         """Relaunch a child inside the lifecycle loop, absorbing launch failures.
@@ -453,37 +453,48 @@ class RuntimeSupervisor:
         if not core_ready:
             self._handle_voice_without_core(process)
             return
-
         if process is None:
-            if self._voice.health is not None and self._voice.health.state is HealthState.FAILED:
-                return
-            if self._voice.next_restart_at is not None:
-                if self._clock() < self._voice.next_restart_at:
-                    return
-                self._relaunch_within_policy(self._voice)
-                return
-            self._relaunch_within_policy(self._voice)
+            self._handle_missing_voice_process()
             return
-
-        if self._voice.health is not None and self._voice.health.detail_code == "core_unavailable":
-            # A Voice child constructed against the previous Core endpoint must
-            # be replaced before it can become READY against the restarted Core.
-            try:
-                self._stop_component(self._voice)
-            except Exception:
-                return
-            self._discard_voice_health_file()
-            self._relaunch_within_policy(self._voice)
+        if self._voice_requires_core_rebind():
+            self._replace_voice_after_core_restart()
             return
-
         child_health = self._read_voice_child_health(int(process.pid))
         if process.poll() is None:
-            if child_health is not None:
-                self._voice.health = child_health
-            elif self._voice.health is None or self._voice.health.state is not HealthState.STARTING:
-                self._set_voice_health(HealthState.STARTING, None)
+            self._refresh_running_voice_health(child_health)
             return
+        self._handle_exited_voice(child_health)
 
+    def _handle_missing_voice_process(self) -> None:
+        if self._voice.health is not None and self._voice.health.state is HealthState.FAILED:
+            return
+        restart_at = self._voice.next_restart_at
+        if restart_at is not None and self._clock() < restart_at:
+            return
+        self._relaunch_within_policy(self._voice)
+
+    def _voice_requires_core_rebind(self) -> bool:
+        health = self._voice.health
+        return health is not None and health.detail_code == "core_unavailable"
+
+    def _replace_voice_after_core_restart(self) -> None:
+        # A Voice child constructed against the previous Core endpoint must
+        # be replaced before it can become READY against the restarted Core.
+        try:
+            self._stop_component(self._voice)
+        except Exception:
+            return
+        self._discard_voice_health_file()
+        self._relaunch_within_policy(self._voice)
+
+    def _refresh_running_voice_health(self, child_health: ComponentHealth | None) -> None:
+        if child_health is not None:
+            self._voice.health = child_health
+            return
+        if self._voice.health is None or self._voice.health.state is not HealthState.STARTING:
+            self._set_voice_health(HealthState.STARTING, None)
+
+    def _handle_exited_voice(self, child_health: ComponentHealth | None) -> None:
         self._voice.process = None
         if child_health is not None and child_health.state in {
             HealthState.DEGRADED,
