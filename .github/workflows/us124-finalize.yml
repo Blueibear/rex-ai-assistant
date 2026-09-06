@@ -37,24 +37,24 @@ jobs:
           prd.write_text(text.replace(old, new, 1), encoding="utf-8")
 
           marker = "2026-09-06 - US-124 final GitHub gate (PR #426)"
-          entry = """
-
-2026-09-06 - US-124 final GitHub gate (PR #426)
-- Final implementation head: `17356bf6c80b53c1314fc4b939d19a8670f00842`.
-- All 18 reported check runs completed successfully on that exact head; the full Python coverage/integration/skip-budget/clean-tree gate and the installed Windows Electron artifact workflow both passed.
-- The installed-artifact smoke passed install, packaged-resource verification, Electron bootstrap, background-runtime survival after GUI exit, deterministic lifecycle checks, uninstall, reinstall, and final uninstall. The earlier false failure was traced to an ignored `schtasks.exe` cleanup exit code; commit `17356bf6c80b53c1314fc4b939d19a8670f00842` resets that ignored native exit state, and the exact GitHub Windows gate is green.
-- CodeFactor reports no issues on the clean replacement PR. PR #419 remains the incremental audit trail; PR #426 is the clean final US-124 review surface.
-- Evidence boundary remains unchanged: physical microphone/speaker/wake-word/reboot/sign-in acceptance is reserved for US-130 and is not claimed by US-124.
-"""
+          lines = [
+              "",
+              marker,
+              "- Final implementation head: `17356bf6c80b53c1314fc4b939d19a8670f00842`.",
+              "- All 18 reported check runs completed successfully on that exact head; the full Python coverage/integration/skip-budget/clean-tree gate and the installed Windows Electron artifact workflow both passed.",
+              "- The installed-artifact smoke passed install, packaged-resource verification, Electron bootstrap, background-runtime survival after GUI exit, deterministic lifecycle checks, uninstall, reinstall, and final uninstall. The earlier false failure was traced to an ignored `schtasks.exe` cleanup exit code; commit `17356bf6c80b53c1314fc4b939d19a8670f00842` resets that ignored native exit state, and the exact GitHub Windows gate is green.",
+              "- CodeFactor reports no issues on the clean replacement PR. PR #419 remains the incremental audit trail; PR #426 is the clean final US-124 review surface.",
+              "- Evidence boundary remains unchanged: physical microphone/speaker/wake-word/reboot/sign-in acceptance is reserved for US-130 and is not claimed by US-124.",
+              "",
+          ]
           history = progress.read_text(encoding="utf-8")
           if marker not in history:
-              progress.write_text(history.rstrip() + entry + "\n", encoding="utf-8")
+              progress.write_text(history.rstrip() + "\n" + "\n".join(lines), encoding="utf-8")
           PY
 
-          rm .github/workflows/us124-finalize.yml
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add PRD-production-readiness.md docs/archive/progress/progress-production-readiness.txt .github/workflows/us124-finalize.yml
+          git add PRD-production-readiness.md docs/archive/progress/progress-production-readiness.txt
           git diff --cached --check
           git commit -m "docs(runtime): close US-124 after green gates"
           git push origin HEAD:lead/us124-background-runtime-final
