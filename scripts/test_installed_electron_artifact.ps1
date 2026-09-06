@@ -113,6 +113,7 @@ function Remove-SmokeBackgroundStartupTask {
     } catch {
         Write-Verbose "Background task delete cleanup skipped: $($_.Exception.Message)"
     }
+    $global:LASTEXITCODE = 0
 }
 
 function Invoke-Installer(
