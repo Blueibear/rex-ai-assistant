@@ -618,11 +618,8 @@ class RuntimeSupervisor:
         except (OSError, ValueError, json.JSONDecodeError, RuntimeError):
             shutdown_requested = False
         if shutdown_requested:
-            try:
+            with contextlib.suppress(subprocess.TimeoutExpired):
                 process.wait(timeout=2.0)
-            except subprocess.TimeoutExpired:
-                pass
-            else:
                 self._core.process = None
                 return
         self._stop_component(self._core)
@@ -686,10 +683,8 @@ class RuntimeSupervisor:
         _atomic_write_json(self.paths.health_file, self.health().to_dict())
 
     def _write_health_best_effort(self) -> None:
-        try:
+        with contextlib.suppress(OSError):
             self._write_health()
-        except OSError:
-            pass
 
     def _remove_stale_endpoint(self) -> None:
         path = self.paths.core_endpoint_file
@@ -802,10 +797,8 @@ class _WindowsJobChild:
             self._kernel32.CloseHandle(handle)
 
     def __del__(self) -> None:
-        try:
+        with contextlib.suppress(Exception):
             self._close_handle()
-        except Exception:
-            pass
 
 
 class _WindowsJobContainment:

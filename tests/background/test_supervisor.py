@@ -1327,7 +1327,10 @@ def test_supervisor_codefactor_regressions_stay_closed() -> None:
         "_handle_core_exit",
         "_relaunch_within_policy",
         "_discard_voice_health_file",
+        "_stop_core_orderly",
+        "_write_health_best_effort",
         "_remove_endpoint_for_pid",
+        "__del__",
     ):
         handlers = [
             node for node in ast.walk(functions[name]) if isinstance(node, ast.ExceptHandler)

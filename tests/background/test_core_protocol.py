@@ -268,3 +268,23 @@ def test_endpoint_file_loader_and_shutdown_are_authenticated(tmp_path: Path) -> 
         assert not paths.core_endpoint_file.exists()
 
     asyncio.run(_run())
+
+
+def test_core_client_has_no_silent_except_pass_cleanup() -> None:
+    import ast
+
+    source_path = Path(__file__).parents[2] / "rex" / "background" / "core_client.py"
+    tree = ast.parse(source_path.read_text(encoding="utf-8"))
+    functions = {
+        node.name: node
+        for node in ast.walk(tree)
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+    }
+
+    for name in ("request", "stream_turn"):
+        handlers = [
+            node for node in ast.walk(functions[name]) if isinstance(node, ast.ExceptHandler)
+        ]
+        assert not any(
+            len(handler.body) == 1 and isinstance(handler.body[0], ast.Pass) for handler in handlers
+        ), name

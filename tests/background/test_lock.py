@@ -3,6 +3,8 @@ from __future__ import annotations
 import subprocess
 import sys
 
+import pytest
+
 from rex.background.lock import AlreadyRunningError, SingleInstanceLock
 
 
@@ -10,13 +12,9 @@ def test_second_lock_is_rejected(tmp_path) -> None:
     lock_path = tmp_path / "runtime.lock"
 
     with SingleInstanceLock(lock_path):
-        try:
+        with pytest.raises(AlreadyRunningError):
             with SingleInstanceLock(lock_path):
-                pass
-        except AlreadyRunningError:
-            pass
-        else:
-            raise AssertionError("a second live lock acquisition must be rejected")
+                raise AssertionError("a second live lock acquisition must be rejected")
 
 
 def test_lock_releases_after_context_exit(tmp_path) -> None:

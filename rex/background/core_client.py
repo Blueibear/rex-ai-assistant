@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import json
 from collections.abc import AsyncIterator, Callable
 from pathlib import Path
@@ -63,10 +64,8 @@ class CoreClient:
             return response
         finally:
             writer.close()
-            try:
+            with contextlib.suppress(ConnectionError, RuntimeError):
                 await writer.wait_closed()
-            except (ConnectionError, RuntimeError):
-                pass
 
     async def health(self) -> dict[str, object]:
         return await self.request({"type": "health"})
@@ -141,10 +140,8 @@ class CoreClient:
                 yield text
         finally:
             writer.close()
-            try:
+            with contextlib.suppress(ConnectionError, RuntimeError):
                 await writer.wait_closed()
-            except (ConnectionError, RuntimeError):
-                pass
 
     async def shutdown(self) -> dict[str, object]:
         return await self.request({"type": "shutdown"})
