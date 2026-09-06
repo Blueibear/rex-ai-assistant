@@ -13,7 +13,12 @@ import pytest
 
 from rex.background.lock import AlreadyRunningError, SingleInstanceLock
 from rex.background.paths import BackgroundPaths
-from rex.background.supervisor import ComponentSpec, RuntimeSupervisor, _pid_is_alive
+from rex.background.supervisor import (
+    ComponentSpec,
+    RuntimeSupervisor,
+    _pid_is_alive,
+    _request_authenticated_core_shutdown,
+)
 from rex.background.types import HealthState
 
 
@@ -32,8 +37,9 @@ class _FakeChild:
         self.returncode = 0
 
     def wait(self, timeout: float | None = None) -> int:
-        del timeout
         self.events.append(f"wait:{self.name}")
+        if self.returncode is None and timeout is not None:
+            raise subprocess.TimeoutExpired(self.name, timeout)
         if self.returncode is None:
             self.returncode = 0
         return self.returncode
@@ -1187,3 +1193,124 @@ def test_nan_voice_child_health_is_not_treated_as_ready(tmp_path: Path) -> None:
     supervisor.tick()
 
     assert supervisor.health().voice_agent.state is HealthState.STARTING
+
+
+def test_tick_keeps_runtime_alive_when_aggregate_health_write_temporarily_fails(
+    tmp_path: Path, monkeypatch
+) -> None:
+    factory = _FakeProcessFactory()
+    supervisor = _supervisor(tmp_path, factory)
+    supervisor.start()
+    _write_core_endpoint(supervisor.paths, factory.children["core"][0].pid)
+
+    monkeypatch.setattr(
+        supervisor,
+        "_write_health",
+        lambda: (_ for _ in ()).throw(OSError("sharing violation")),
+    )
+
+    supervisor.tick()
+
+    assert factory.children["core"][0].poll() is None
+    assert supervisor.health().core.state is HealthState.READY
+    monkeypatch.undo()
+    supervisor.stop()
+
+
+def test_supervisor_accepts_listening_paused_voice_health(tmp_path: Path) -> None:
+    factory = _FakeProcessFactory()
+    supervisor = _supervisor(tmp_path, factory)
+    supervisor.start()
+    _write_core_endpoint(supervisor.paths, factory.children["core"][0].pid)
+    supervisor.tick()
+    voice = factory.children["voice_agent"][0]
+    _write_voice_health(
+        supervisor.paths,
+        voice.pid,
+        HealthState.DEGRADED,
+        detail_code="listening_paused",
+    )
+
+    supervisor.tick()
+
+    health = supervisor.health().voice_agent
+    assert health.state is HealthState.DEGRADED
+    assert health.detail_code == "listening_paused"
+    supervisor.stop()
+
+
+def test_orderly_stop_allows_voice_cleanup_and_requests_authenticated_core_shutdown(
+    tmp_path: Path, monkeypatch
+) -> None:
+    paths = BackgroundPaths.from_runtime_root(tmp_path)
+    events: list[str] = []
+
+    class _OrderlyChild(_FakeChild):
+        def wait(self, timeout: float | None = None) -> int:
+            del timeout
+            if self.name == "voice_agent" and paths.stop_file.exists():
+                events.append("graceful:voice_agent")
+                self.returncode = 0
+                return 0
+            if self.returncode is not None:
+                return self.returncode
+            raise subprocess.TimeoutExpired(self.name, 1.0)
+
+    class _OrderlyFactory(_FakeProcessFactory):
+        def __call__(self, spec: ComponentSpec) -> _OrderlyChild:
+            events.append(f"start:{spec.name}")
+            child = _OrderlyChild(spec.name, self._next_pid, events)
+            self._next_pid += 1
+            self.children[spec.name].append(child)
+            return child
+
+    factory = _OrderlyFactory()
+
+    def _request_core_shutdown(_path: Path) -> bool:
+        events.append("shutdown:core")
+        factory.children["core"][0].returncode = 0
+        return True
+
+    supervisor = RuntimeSupervisor(
+        paths,
+        _spec("core"),
+        _spec("voice_agent"),
+        poll_interval=0.01,
+        process_factory=factory,
+        core_shutdown_requester=_request_core_shutdown,
+        clock=lambda: 100.0,
+    )
+    supervisor.start()
+    core = factory.children["core"][0]
+    _write_core_endpoint(paths, core.pid)
+    supervisor.tick()
+
+    supervisor.stop()
+
+    assert "graceful:voice_agent" in events
+    assert "shutdown:core" in events
+    assert "terminate:voice_agent" not in events
+    assert "terminate:core" not in events
+    assert events.index("graceful:voice_agent") < events.index("shutdown:core")
+
+
+def test_authenticated_core_shutdown_request_uses_bounded_timeout(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    captured: dict[str, float] = {}
+
+    class _Client:
+        async def shutdown(self) -> dict[str, bool]:
+            return {"ok": True}
+
+    def _load(_path: Path, *, timeout: float):
+        captured["timeout"] = timeout
+        return _Client()
+
+    monkeypatch.setattr(
+        "rex.background.supervisor.CoreClient.from_endpoint_file",
+        _load,
+    )
+
+    assert _request_authenticated_core_shutdown(tmp_path / "core-endpoint.json") is True
+    assert 0 < captured["timeout"] <= 2.0

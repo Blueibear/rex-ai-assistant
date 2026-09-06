@@ -276,3 +276,42 @@ def test_cli_import_does_not_preload_runtime_config() -> None:
         text=True,
     )
     assert result.returncode == 0, result.stderr
+
+
+def test_status_accepts_bounded_listening_paused_detail_code(tmp_path: Path, capsys) -> None:
+    paths = BackgroundPaths.from_runtime_root(tmp_path)
+    paths.state_dir.mkdir(parents=True)
+    payload = _health().to_dict()
+    payload["voice_agent"]["state"] = "paused"
+    payload["voice_agent"]["detail_code"] = "listening_paused"
+    paths.health_file.write_text(json.dumps(payload) + "\n", encoding="utf-8")
+
+    assert background_cli.main(["status", "--runtime-root", str(tmp_path)]) == 0
+    result = json.loads(capsys.readouterr().out)
+    assert result["voice_agent"]["state"] == "paused"
+    assert result["voice_agent"]["detail_code"] == "listening_paused"
+
+
+def test_stop_wait_option_waits_for_supervisor_release(tmp_path: Path, capsys, monkeypatch) -> None:
+    observed: dict[str, float] = {}
+
+    def fake_wait(_paths, timeout_seconds: float) -> bool:
+        observed["timeout"] = timeout_seconds
+        return True
+
+    monkeypatch.setattr(background_cli, "_wait_for_supervisor_stop", fake_wait, raising=False)
+    assert (
+        background_cli.main(["stop", "--runtime-root", str(tmp_path), "--wait-seconds", "15"]) == 0
+    )
+    assert observed == {"timeout": 15.0}
+    assert json.loads(capsys.readouterr().out) == {"ok": True, "requested": True}
+
+
+def test_stop_wait_timeout_is_bounded_failure(tmp_path: Path, capsys, monkeypatch) -> None:
+    monkeypatch.setattr(
+        background_cli, "_wait_for_supervisor_stop", lambda _paths, _timeout: False, raising=False
+    )
+    assert (
+        background_cli.main(["stop", "--runtime-root", str(tmp_path), "--wait-seconds", "1"]) == 1
+    )
+    assert json.loads(capsys.readouterr().out) == {"ok": False, "detail_code": "stop_timeout"}

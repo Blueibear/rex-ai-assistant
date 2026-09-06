@@ -275,3 +275,27 @@ def test_voice_agent_refreshes_ready_health_while_loop_is_running(
         await asyncio.wait_for(task, timeout=1.0)
 
     asyncio.run(_run())
+
+
+def test_voice_agent_exits_cleanly_when_supervisor_stop_file_is_requested(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    async def _run() -> None:
+        paths = BackgroundPaths.from_runtime_root(tmp_path)
+        _patch_core(monkeypatch, paths.core_endpoint_file)
+        loop = _BlockingLoop()
+        monkeypatch.setattr(
+            "rex.background.voice_agent.build_voice_loop",
+            lambda *_args, **_kwargs: loop,
+        )
+        task = asyncio.create_task(run_voice_agent("james", paths))
+        await asyncio.wait_for(loop.started.wait(), timeout=1.0)
+
+        paths.stop_file.touch()
+        health = await asyncio.wait_for(task, timeout=0.5)
+
+        assert health.state is HealthState.STOPPED
+        assert health.detail_code is None
+
+    asyncio.run(_run())

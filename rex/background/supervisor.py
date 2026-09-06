@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import math
 import os
@@ -13,6 +14,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Protocol
 
+from rex.background.core_client import CoreClient
 from rex.background.core_server import CoreEndpoint
 from rex.background.lock import SingleInstanceLock
 from rex.background.paths import BackgroundPaths
@@ -27,6 +29,7 @@ _VOICE_DETAIL_CODES = frozenset(
         "wakeword_unavailable",
         "restart_backoff",
         "restart_limit_exceeded",
+        "listening_paused",
     }
 )
 
@@ -78,6 +81,7 @@ class _NoopContainment:
 
 
 ContainmentFactory = Callable[[], _ProcessContainment]
+CoreShutdownRequester = Callable[[Path], bool]
 
 
 class RuntimeSupervisor:
@@ -94,6 +98,7 @@ class RuntimeSupervisor:
         restart_backoff_seconds: float = 1.0,
         process_factory: ProcessFactory | None = None,
         containment_factory: ContainmentFactory | None = None,
+        core_shutdown_requester: CoreShutdownRequester | None = None,
         clock: Clock = time.time,
     ) -> None:
         if poll_interval <= 0:
@@ -114,6 +119,12 @@ class RuntimeSupervisor:
             self._containment_factory = _default_containment
         else:
             self._containment_factory = _NoopContainment
+        if core_shutdown_requester is not None:
+            self._core_shutdown_requester = core_shutdown_requester
+        elif process_factory is None:
+            self._core_shutdown_requester = _request_authenticated_core_shutdown
+        else:
+            self._core_shutdown_requester = lambda _path: False
         self._core = _ComponentRuntime(core_spec)
         self._voice = _ComponentRuntime(voice_spec)
         self._lock: SingleInstanceLock | None = None
@@ -190,7 +201,7 @@ class RuntimeSupervisor:
             self._mark_core_waiting_for_endpoint()
             self._handle_core_startup_timeout()
             self._handle_voice(core_ready=False)
-        self._write_health()
+        self._write_health_best_effort()
 
     def run(self) -> None:
         """Run until a stop request or signal-driven caller stops the supervisor."""
@@ -238,14 +249,15 @@ class RuntimeSupervisor:
                     first_error.append(exc)
                 return False
 
-        voice_stopped = attempt("stop voice agent", lambda: self._stop_component(self._voice))
+        attempt("request child stop", lambda: self.paths.stop_file.touch(exist_ok=True))
+        voice_stopped = attempt("stop voice agent", self._stop_voice_orderly)
         self._set_voice_health(
             HealthState.STOPPED if voice_stopped else HealthState.FAILED,
             None if voice_stopped else "stop_failed",
             pid=None,
         )
         core_pid = getattr(self._core.process, "pid", None)
-        core_stopped = attempt("stop core", lambda: self._stop_component(self._core))
+        core_stopped = attempt("stop core", self._stop_core_orderly)
         self._set_core_health(
             HealthState.STOPPED if core_stopped else HealthState.FAILED,
             None if core_stopped else "stop_failed",
@@ -556,6 +568,42 @@ class RuntimeSupervisor:
         if runtime is self._core:
             self._core_started_at = self._clock()
 
+    def _stop_voice_orderly(self) -> None:
+        process = self._voice.process
+        if process is None:
+            return
+        if process.poll() is not None:
+            self._voice.process = None
+            return
+        try:
+            process.wait(timeout=2.0)
+        except subprocess.TimeoutExpired:
+            self._stop_component(self._voice)
+            return
+        self._voice.process = None
+
+    def _stop_core_orderly(self) -> None:
+        process = self._core.process
+        if process is None:
+            return
+        if process.poll() is not None:
+            self._core.process = None
+            return
+        shutdown_requested = False
+        try:
+            shutdown_requested = self._core_shutdown_requester(self.paths.core_endpoint_file)
+        except (OSError, ValueError, json.JSONDecodeError, RuntimeError):
+            shutdown_requested = False
+        if shutdown_requested:
+            try:
+                process.wait(timeout=2.0)
+            except subprocess.TimeoutExpired:
+                pass
+            else:
+                self._core.process = None
+                return
+        self._stop_component(self._core)
+
     def _stop_component(self, runtime: _ComponentRuntime) -> None:
         process = runtime.process
         if process is None:
@@ -613,6 +661,12 @@ class RuntimeSupervisor:
 
     def _write_health(self) -> None:
         _atomic_write_json(self.paths.health_file, self.health().to_dict())
+
+    def _write_health_best_effort(self) -> None:
+        try:
+            self._write_health()
+        except OSError:
+            pass
 
     def _remove_stale_endpoint(self) -> None:
         path = self.paths.core_endpoint_file
@@ -1033,6 +1087,14 @@ def _windows_pid_is_alive(pid: int) -> bool:
         return int(exit_code.value) == still_active
     finally:
         kernel32.CloseHandle(handle)
+
+
+def _request_authenticated_core_shutdown(endpoint_file: Path) -> bool:
+    try:
+        client = CoreClient.from_endpoint_file(endpoint_file, timeout=2.0)
+        return asyncio.run(client.shutdown()).get("ok") is True
+    except (OSError, ValueError, json.JSONDecodeError, RuntimeError):
+        return False
 
 
 def _atomic_write_json(path: Path, payload: dict[str, object]) -> None:

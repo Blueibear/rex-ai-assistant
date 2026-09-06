@@ -17,7 +17,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from rex.background.supervisor import RuntimeSupervisor
 
-from rex.background.lock import AlreadyRunningError
+from rex.background.lock import AlreadyRunningError, SingleInstanceLock
 from rex.background.paths import BackgroundPaths
 from rex.background.types import ComponentHealth, HealthState, RuntimeHealth
 from rex.background.windows_startup import (
@@ -39,10 +39,13 @@ _CONTENT_FREE_DETAIL_CODES = frozenset(
         "microphone_unavailable",
         "speaker_unavailable",
         "wakeword_unavailable",
+        "listening_paused",
     }
 )
 
 _STATUS_MAX_AGE_SECONDS = 5.0
+_STOP_WAIT_MAX_SECONDS = 30.0
+_STOP_WAIT_POLL_SECONDS = 0.1
 
 
 _RUNTIME_ENV_NAMES = (
@@ -234,6 +237,27 @@ def _request_stop(paths: BackgroundPaths) -> None:
     paths.stop_file.touch(exist_ok=True)
 
 
+def _supervisor_is_running(paths: BackgroundPaths) -> bool:
+    lock = SingleInstanceLock(paths.supervisor_lock)
+    try:
+        lock.acquire()
+    except AlreadyRunningError:
+        return True
+    else:
+        lock.close()
+        return False
+
+
+def _wait_for_supervisor_stop(paths: BackgroundPaths, timeout_seconds: float) -> bool:
+    deadline = time.monotonic() + timeout_seconds
+    while _supervisor_is_running(paths):
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            return False
+        time.sleep(min(_STOP_WAIT_POLL_SECONDS, remaining))
+    return True
+
+
 def _install_stop_signal_handlers(paths: BackgroundPaths) -> None:
     def _handle_signal(_signum: int, _frame: object) -> None:
         _request_stop(paths)
@@ -286,6 +310,7 @@ def create_parser() -> argparse.ArgumentParser:
 
     stop = subparsers.add_parser("stop")
     _add_runtime_root(stop)
+    stop.add_argument("--wait-seconds", type=float, default=0.0)
 
     install = subparsers.add_parser("install-startup")
     _add_runtime_root(install)
@@ -342,7 +367,18 @@ def _dispatch(args: argparse.Namespace, paths: BackgroundPaths) -> int:
         print(json.dumps(payload, separators=(",", ":"), sort_keys=True))
         return result
     if args.command == "stop":
+        wait_seconds = float(args.wait_seconds)
+        if (
+            not math.isfinite(wait_seconds)
+            or wait_seconds < 0
+            or wait_seconds > _STOP_WAIT_MAX_SECONDS
+        ):
+            print(json.dumps({"ok": False, "detail_code": "invalid_stop_wait"}))
+            return 2
         _request_stop(paths)
+        if wait_seconds > 0 and not _wait_for_supervisor_stop(paths, wait_seconds):
+            print(json.dumps({"ok": False, "detail_code": "stop_timeout"}, separators=(",", ":")))
+            return 1
         print(json.dumps({"ok": True, "requested": True}, separators=(",", ":")))
         return 0
 

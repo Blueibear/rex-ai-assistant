@@ -101,10 +101,16 @@ async def run_voice_agent(
 async def _run_loop_with_health_heartbeat(loop: Any, paths: BackgroundPaths) -> None:
     loop_task = asyncio.create_task(loop.run())
     heartbeat_task = asyncio.create_task(_ready_health_heartbeat(paths))
+    stop_task = asyncio.create_task(_wait_for_stop_request(paths))
     try:
         done, _pending = await asyncio.wait(
-            {loop_task, heartbeat_task}, return_when=asyncio.FIRST_COMPLETED
+            {loop_task, heartbeat_task, stop_task}, return_when=asyncio.FIRST_COMPLETED
         )
+        if stop_task in done:
+            loop_task.cancel()
+            with suppress(asyncio.CancelledError):
+                await loop_task
+            return
         if heartbeat_task in done:
             heartbeat_error = heartbeat_task.exception()
             if heartbeat_error is not None:
@@ -114,9 +120,15 @@ async def _run_loop_with_health_heartbeat(loop: Any, paths: BackgroundPaths) -> 
                 raise heartbeat_error
         await loop_task
     finally:
-        heartbeat_task.cancel()
-        with suppress(asyncio.CancelledError):
-            await heartbeat_task
+        for task in (heartbeat_task, stop_task):
+            task.cancel()
+            with suppress(asyncio.CancelledError):
+                await task
+
+
+async def _wait_for_stop_request(paths: BackgroundPaths) -> None:
+    while not paths.stop_file.exists():
+        await asyncio.sleep(0.05)
 
 
 async def _ready_health_heartbeat(paths: BackgroundPaths) -> None:
