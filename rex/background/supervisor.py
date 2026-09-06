@@ -310,13 +310,7 @@ class RuntimeSupervisor:
         self._core.process = None
         self._remove_endpoint_for_pid(dead_pid)
         if self._voice.process is not None:
-            try:
-                self._stop_component(self._voice)
-            except Exception:
-                # Core recovery must continue even if an obsolete Voice child
-                # cannot be terminated yet. _stop_component retains ownership
-                # on failure so a duplicate Voice Agent cannot be launched.
-                pass
+            self._try_stop_voice_after_core_exit()
         self._discard_voice_health_file()
         if self._voice.health is None or self._voice.health.state is not HealthState.FAILED:
             self._set_voice_health(HealthState.DEGRADED, "core_unavailable", pid=None)
@@ -325,6 +319,17 @@ class RuntimeSupervisor:
             self._set_core_health(HealthState.STARTING, "restart_backoff", pid=None)
         else:
             self._set_core_health(HealthState.FAILED, "restart_limit_exceeded", pid=None)
+
+    def _try_stop_voice_after_core_exit(self) -> bool:
+        """Best-effort stop of the obsolete Voice child during Core recovery."""
+
+        try:
+            self._stop_component(self._voice)
+        except Exception:
+            # Core recovery must continue while ownership of a child that could
+            # not be stopped is retained, preventing duplicate Voice launch.
+            return False
+        return True
 
     def _mark_core_waiting_for_endpoint(self) -> None:
         process = self._core.process
@@ -413,11 +418,7 @@ class RuntimeSupervisor:
             self._launch(runtime, HealthState.STARTING)
             return
         except Exception:
-            pass
-        try:
-            self._stop_component(runtime)
-        except Exception:
-            runtime.process = None
+            self._cleanup_failed_launch(runtime)
         if runtime is self._voice:
             self._discard_voice_health_file()
         if self._schedule_restart(runtime):
@@ -429,19 +430,28 @@ class RuntimeSupervisor:
         else:
             self._set_voice_health(state, detail_code, pid=None)
 
+    def _cleanup_failed_launch(self, runtime: _ComponentRuntime) -> None:
+        try:
+            self._stop_component(runtime)
+        except Exception:
+            runtime.process = None
+
+    def _handle_voice_without_core(self, process: Any | None) -> None:
+        if process is not None:
+            try:
+                self._stop_component(self._voice)
+            except Exception:
+                self._discard_voice_health_file()
+                self._set_voice_health(HealthState.DEGRADED, "core_unavailable")
+                return
+            self._discard_voice_health_file()
+        if self._voice.health is None or self._voice.health.state is not HealthState.FAILED:
+            self._set_voice_health(HealthState.DEGRADED, "core_unavailable", pid=None)
+
     def _handle_voice(self, *, core_ready: bool) -> None:
         process = self._voice.process
         if not core_ready:
-            if process is not None:
-                try:
-                    self._stop_component(self._voice)
-                except Exception:
-                    self._discard_voice_health_file()
-                    self._set_voice_health(HealthState.DEGRADED, "core_unavailable")
-                    return
-                self._discard_voice_health_file()
-            if self._voice.health is None or self._voice.health.state is not HealthState.FAILED:
-                self._set_voice_health(HealthState.DEGRADED, "core_unavailable", pid=None)
+            self._handle_voice_without_core(process)
             return
 
         if process is None:
@@ -699,7 +709,7 @@ class RuntimeSupervisor:
             try:
                 path.unlink(missing_ok=True)
             except OSError:
-                pass
+                return
 
 
 class _WindowsJobChild:

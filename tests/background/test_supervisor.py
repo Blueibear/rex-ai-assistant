@@ -1314,3 +1314,31 @@ def test_authenticated_core_shutdown_request_uses_bounded_timeout(
 
     assert _request_authenticated_core_shutdown(tmp_path / "core-endpoint.json") is True
     assert 0 < captured["timeout"] <= 2.0
+
+
+def test_supervisor_codefactor_regressions_stay_closed() -> None:
+    import ast
+
+    source_path = Path(__file__).parents[2] / "rex" / "background" / "supervisor.py"
+    tree = ast.parse(source_path.read_text(encoding="utf-8"))
+    functions = {node.name: node for node in ast.walk(tree) if isinstance(node, ast.FunctionDef)}
+
+    for name in ("_handle_core_exit", "_relaunch_within_policy", "_remove_endpoint_for_pid"):
+        handlers = [
+            node for node in ast.walk(functions[name]) if isinstance(node, ast.ExceptHandler)
+        ]
+        assert not any(
+            len(handler.body) == 1 and isinstance(handler.body[0], ast.Pass) for handler in handlers
+        ), name
+
+    voice_handler = functions["_handle_voice"]
+    complexity = 1
+    complexity += sum(
+        isinstance(node, (ast.If, ast.For, ast.AsyncFor, ast.While, ast.IfExp, ast.comprehension))
+        for node in ast.walk(voice_handler)
+    )
+    complexity += sum(isinstance(node, ast.ExceptHandler) for node in ast.walk(voice_handler))
+    complexity += sum(
+        len(node.values) - 1 for node in ast.walk(voice_handler) if isinstance(node, ast.BoolOp)
+    )
+    assert complexity <= 20

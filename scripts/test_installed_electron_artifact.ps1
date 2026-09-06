@@ -129,12 +129,13 @@ function Invoke-Installer(
 
 function Invoke-Uninstaller(
     [string]$UninstallerPath,
+    [string]$InstallRoot,
     [int]$TimeoutSeconds = 300
 ) {
     if (-not (Test-Path -LiteralPath $UninstallerPath -PathType Leaf)) {
         throw "Uninstaller is missing: $UninstallerPath"
     }
-    $process = Start-Process -FilePath $UninstallerPath -ArgumentList @('/S') -PassThru
+    $process = Start-Process -FilePath $UninstallerPath -ArgumentList @('/S', "_?=$InstallRoot") -PassThru
     if (-not $process.WaitForExit($TimeoutSeconds * 1000)) {
         Stop-ProcessTree $process
         throw "Uninstaller timed out after $TimeoutSeconds seconds."
@@ -427,7 +428,7 @@ try {
     Invoke-BackgroundLifecycleSmoke -Resources $resources -RuntimeRoot $lifecycleRuntimeRoot -RuntimePython $runtimePython
 
     Set-SmokePhase 'first-uninstall'
-    Invoke-Uninstaller $uninstaller
+    Invoke-Uninstaller $uninstaller $installPath
     Assert-Uninstalled $appExe
     Assert-BackgroundStartupTaskAbsent
     $deadline = [DateTime]::UtcNow.AddSeconds(5)
@@ -450,7 +451,7 @@ try {
 
     Set-SmokePhase 'final-uninstall'
     Stop-InstalledProcesses $installPath
-    Invoke-Uninstaller $uninstaller
+    Invoke-Uninstaller $uninstaller $installPath
     Assert-Uninstalled $appExe
 
     Set-SmokePhase 'complete'
