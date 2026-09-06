@@ -241,7 +241,7 @@ def test_nsis_uninstaller_stops_background_runtime_and_removes_startup_task() ->
         "/F",
     ):
         assert required in include
-    assert r"$$folder = $$service.GetFolder(''\'');" in include
+    assert r"$$folder = $$service.GetFolder('\');" in include
     assert r"$$folder = $$service.GetFolder(''\\'');" not in include
 
 
@@ -295,6 +295,21 @@ def test_nsis_uninstaller_fails_closed_when_startup_task_removal_cannot_be_confi
     )
     assert delete_at < failure_check < verify_at < abort_at
     assert "($$_.Exception.HResult -band 0xFFFF) -eq 2" in include
+
+
+def test_nsis_scheduler_fallback_preserves_powershell_quotes() -> None:
+    include = (ROOT / "gui/nsis/installer.nsh").read_text(encoding="utf-8")
+    verify_line = next(line for line in include.splitlines() if "Schedule.Service" in line)
+    assert verify_line.lstrip().startswith("nsExec::ExecToStack `")
+    assert verify_line.rstrip().endswith("`")
+    assert "$$ErrorActionPreference = 'Stop'" in verify_line
+    assert "New-Object -ComObject 'Schedule.Service'" in verify_line
+    root_prefix = "$$service.GetFolder('"
+    root_start = verify_line.index(root_prefix) + len(root_prefix)
+    root_end = verify_line.index("')", root_start)
+    assert verify_line[root_start:root_end] == "\\"
+    assert "$$folder.GetTask('AskRex Background Runtime')" in verify_line
+    assert "''Stop''" not in verify_line
 
 
 def test_artifact_smoke_task_state_query_fails_closed_on_scheduler_errors() -> None:
