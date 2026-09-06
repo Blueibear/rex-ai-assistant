@@ -1333,7 +1333,8 @@ def test_supervisor_codefactor_regressions_stay_closed() -> None:
             node for node in ast.walk(functions[name]) if isinstance(node, ast.ExceptHandler)
         ]
         assert not any(
-            len(handler.body) == 1 and isinstance(handler.body[0], ast.Pass) for handler in handlers
+            len(handler.body) == 1 and isinstance(handler.body[0], (ast.Pass, ast.Return))
+            for handler in handlers
         ), name
 
     voice_handler = functions["_handle_voice"]

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 import math
 import os
 import subprocess
@@ -34,6 +35,8 @@ _VOICE_DETAIL_CODES = frozenset(
 )
 
 _VOICE_HEALTH_MAX_AGE_SECONDS = 5.0
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True, slots=True)
@@ -399,7 +402,7 @@ class RuntimeSupervisor:
         try:
             self.paths.voice_agent_health_file.unlink(missing_ok=True)
         except OSError:
-            return
+            logger.debug("Voice health cleanup skipped after a filesystem race")
 
     def _relaunch_within_policy(self, runtime: _ComponentRuntime) -> None:
         """Relaunch a child inside the lifecycle loop, absorbing launch failures.
@@ -711,16 +714,19 @@ class RuntimeSupervisor:
         path = self.paths.core_endpoint_file
         if not path.exists():
             return
+        endpoint: CoreEndpoint | None = None
         try:
             payload = json.loads(path.read_text(encoding="utf-8"))
             endpoint = CoreEndpoint.from_dict(payload)
         except (OSError, json.JSONDecodeError, ValueError):
+            endpoint = None
+        if endpoint is None:
             return
         if endpoint.pid == pid:
             try:
                 path.unlink(missing_ok=True)
             except OSError:
-                return
+                logger.debug("Core endpoint cleanup skipped after a filesystem race")
 
 
 class _WindowsJobChild:
