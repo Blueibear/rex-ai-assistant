@@ -12,7 +12,7 @@
   Pop $0
   ${If} $0 != 0
     DetailPrint "Task Scheduler deletion did not succeed; verifying whether the task is already absent..."
-    nsExec::ExecToStack '"$SYSDIR\WindowsPowerShell\v1.0\powershell.exe" -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -Command "$$ErrorActionPreference = ''Stop''; try { $$service = New-Object -ComObject ''Schedule.Service''; $$service.Connect(); $$folder = $$service.GetFolder(''\\''); $$null = $$folder.GetTask(''AskRex Background Runtime''); exit 1 } catch { if (($$_.Exception.HResult -band 0xFFFF) -eq 2) { exit 0 }; exit 1 }"'
+    nsExec::ExecToStack '"$SYSDIR\WindowsPowerShell\v1.0\powershell.exe" -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -Command "$$ErrorActionPreference = ''Stop''; try { $$service = New-Object -ComObject ''Schedule.Service''; $$service.Connect(); $$folder = $$service.GetFolder(''\''); $$null = $$folder.GetTask(''AskRex Background Runtime''); exit 1 } catch { if (($$_.Exception.HResult -band 0xFFFF) -eq 2) { exit 0 }; exit 1 }"'
     Pop $0
     ${If} $0 != 0
       Abort "AskRex could not confirm removal of the background startup task."

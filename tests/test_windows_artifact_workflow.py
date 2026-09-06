@@ -241,6 +241,8 @@ def test_nsis_uninstaller_stops_background_runtime_and_removes_startup_task() ->
         "/F",
     ):
         assert required in include
+    assert r"$$folder = $$service.GetFolder(''\'');" in include
+    assert r"$$folder = $$service.GetFolder(''\\'');" not in include
 
 
 def test_installed_artifact_harness_proves_startup_task_removed_by_uninstall() -> None:
