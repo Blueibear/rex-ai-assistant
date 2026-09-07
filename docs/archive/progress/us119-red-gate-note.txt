@@ -1,1 +1,0 @@
-US-119 TDD checkpoint: test-only branch intentionally contains failing absolute-path contracts before production launcher changes. Remove this temporary note before merge.
