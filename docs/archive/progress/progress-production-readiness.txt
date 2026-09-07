@@ -2508,3 +2508,12 @@ Final local Task 6 verification on this correction tree: 86/86 focused backgroun
 - The installed-artifact smoke passed install, packaged-resource verification, Electron bootstrap, background-runtime survival after GUI exit, deterministic lifecycle checks, uninstall, reinstall, and final uninstall. The earlier false failure was traced to an ignored `schtasks.exe` cleanup exit code; commit `17356bf6c80b53c1314fc4b939d19a8670f00842` resets that ignored native exit state, and the exact GitHub Windows gate is green.
 - CodeFactor reports no issues on the clean replacement PR. PR #419 remains the incremental audit trail; PR #426 is the clean final US-124 review surface.
 - Evidence boundary remains unchanged: physical microphone/speaker/wake-word/reboot/sign-in acceptance is reserved for US-130 and is not claimed by US-124.
+
+## US-119 — absolute Windows service paths
+- TDD RED proved 7/7 intended Windows path failures before production changes: caller-CWD RexSpeak launch, unnormalized lean-node root, relative registration path, missing executable normalizer, raw service child interpreter, and relative-root/space quoting behavior.
+- GREEN focused Windows gate passed 7/7 on a real Windows runner, including invocation from a non-repo working directory with a relative install root containing spaces.
+- `Start-RexSpeak.ps1` and `install.ps1` now root from normalized `$PSScriptRoot`; the lean-node installer normalizes `$RexRoot`, quotes the absolute interpreter, and fails closed if it is missing.
+- `rex.windows_service_paths.normalize_existing_executable()` is the shared fail-closed executable normalizer; `rex.windows_service` normalizes `sys.executable` before launching its child.
+- Exact implementation head `8b786aa7287eeded95f36f0956e44070003e33b6` passed full Python tests/coverage/integration/clean-tree, Ruff, Black, mypy, pre-commit, security/dependency/secret gates, GUI test/typecheck/lint/build, wheel smoke, and skipped-test inventory.
+- Windows Electron Artifact passed PowerShell parsing, focused US-119 contracts, managed runtime/installer build, package-resource validation, and installed-artifact exercise without machine Python or Node.
+- Evidence boundary: US-119 proves executable-path/service-registration reliability only; it does not claim physical microphone/speaker/wake-word/reboot acceptance, which remains US-130.
