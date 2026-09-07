@@ -38,10 +38,9 @@ jobs:
           prd = Path('PRD-production-readiness.md')
           text = prd.read_text()
           start = text.index('### US-119:')
-          end_candidates = [pos for marker in ('### US-120:', '### US-121:', '### US-124:', '### US-125:') if (pos := text.find(marker, start + 1)) != -1]
-          if not end_candidates:
-              raise SystemExit('US-119 end marker not found')
-          end = min(end_candidates)
+          end = text.find('\n### US-', start + len('### US-119:'))
+          if end == -1:
+              raise SystemExit('US-119 next-story marker not found')
           story = text[start:end]
           if '- [ ]' not in story:
               raise SystemExit('US-119 has no unchecked acceptance criteria to finalize')
