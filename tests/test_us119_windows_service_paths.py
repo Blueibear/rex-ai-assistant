@@ -101,6 +101,16 @@ def test_service_python_path_helper_normalizes_and_requires_existing_file(
         normalize_existing_executable(tmp_path / "missing" / "python.exe")
 
 
+def test_windows_service_normalizes_child_interpreter_before_launch() -> None:
+    service = _read("rex/windows_service.py")
+
+    assert (
+        "from rex.windows_service_paths import normalize_existing_executable" in service
+    )
+    assert "service_python = normalize_existing_executable(sys.executable)" in service
+    assert "str(service_python)," in service
+
+
 @pytest.mark.skipif(os.name != "nt", reason="PowerShell Windows path semantics required")
 def test_lean_node_dry_run_emits_absolute_quoted_registration_from_other_cwd(
     tmp_path: Path,
