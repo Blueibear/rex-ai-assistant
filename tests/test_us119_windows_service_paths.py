@@ -40,7 +40,7 @@ def test_source_installer_roots_repo_paths_at_its_own_location() -> None:
 
     assert "$PSScriptRoot" in script
     assert "$RepoDir = [System.IO.Path]::GetFullPath($PSScriptRoot)" in script
-    assert "$VenvPython = Join-Path $VenvDir \"Scripts\\python.exe\"" in script
+    assert '$VenvPython = Join-Path $VenvDir "Scripts\\python.exe"' in script
 
 
 def test_lean_node_installer_normalizes_root_before_service_paths() -> None:
@@ -49,11 +49,11 @@ def test_lean_node_installer_normalizes_root_before_service_paths() -> None:
     normalization = "$RexRoot = [System.IO.Path]::GetFullPath($RexRoot)"
     assert normalization in script
     assert script.index(normalization) < script.index("Test-Path $RexRoot")
-    assert "$python = Join-Path $RexRoot \"venv\\Scripts\\python.exe\"" in script
-    assert "$pip = Join-Path $RexRoot \"venv\\Scripts\\pip.exe\"" in script
+    assert '$python = Join-Path $RexRoot "venv\\Scripts\\python.exe"' in script
+    assert '$pip = Join-Path $RexRoot "venv\\Scripts\\pip.exe"' in script
     assert "Test-Path -LiteralPath $python" in script
-    assert 'Write-Host "[DRY RUN] & `\"$python`\" -m rex.windows_service install"' in script
-    assert 'Write-Host "[DRY RUN] & `\"$python`\" -m rex.windows_service start"' in script
+    assert 'Write-Host "[DRY RUN] & `"$python`" -m rex.windows_service install"' in script
+    assert 'Write-Host "[DRY RUN] & `"$python`" -m rex.windows_service start"' in script
 
 
 def test_service_registration_sources_do_not_embed_relative_venv_python() -> None:
