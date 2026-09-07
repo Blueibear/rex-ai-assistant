@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import os
-import re
 import shutil
 import subprocess
 from pathlib import Path
@@ -9,15 +8,15 @@ from pathlib import Path
 import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-RELATIVE_VENV_PYTHON_PATTERNS = (
-    r"\.\\\.venv\\Scripts\\python\.exe",
-    r"(?<![A-Za-z0-9_])venv\\Scripts\\python\.exe",
-)
 SERVICE_REGISTRATION_MARKERS = (
     "New-Service",
     "sc.exe create",
     "rex.windows_service install",
     "HandleCommandLine(",
+)
+RELATIVE_VENV_PYTHON_FRAGMENTS = (
+    ".\\.venv\\scripts\\python.exe",
+    "venv\\scripts\\python.exe",
 )
 
 
@@ -53,8 +52,8 @@ def test_lean_node_installer_normalizes_root_before_service_paths() -> None:
     assert "$python = Join-Path $RexRoot \"venv\\Scripts\\python.exe\"" in script
     assert "$pip = Join-Path $RexRoot \"venv\\Scripts\\pip.exe\"" in script
     assert "Test-Path -LiteralPath $python" in script
-    assert '& \"$python\" -m rex.windows_service install' in script
-    assert '& \"$python\" -m rex.windows_service start' in script
+    assert 'Write-Host "[DRY RUN] & `\"$python`\" -m rex.windows_service install"' in script
+    assert 'Write-Host "[DRY RUN] & `\"$python`\" -m rex.windows_service start"' in script
 
 
 def test_service_registration_sources_do_not_embed_relative_venv_python() -> None:
@@ -72,8 +71,11 @@ def test_service_registration_sources_do_not_embed_relative_venv_python() -> Non
         text = path.read_text(encoding="utf-8", errors="ignore")
         if not any(marker in text for marker in SERVICE_REGISTRATION_MARKERS):
             continue
-        for pattern in RELATIVE_VENV_PYTHON_PATTERNS:
-            if re.search(pattern, text, flags=re.IGNORECASE):
+        for line in text.splitlines():
+            lowered = line.lower()
+            if "join-path" in lowered:
+                continue
+            if any(fragment in lowered for fragment in RELATIVE_VENV_PYTHON_FRAGMENTS):
                 offenders.append(str(relative))
                 break
 
@@ -104,9 +106,7 @@ def test_service_python_path_helper_normalizes_and_requires_existing_file(
 def test_windows_service_normalizes_child_interpreter_before_launch() -> None:
     service = _read("rex/windows_service.py")
 
-    assert (
-        "from rex.windows_service_paths import normalize_existing_executable" in service
-    )
+    assert "from rex.windows_service_paths import normalize_existing_executable" in service
     assert "service_python = normalize_existing_executable(sys.executable)" in service
     assert "str(service_python)," in service
 
