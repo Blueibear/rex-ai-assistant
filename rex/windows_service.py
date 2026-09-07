@@ -7,6 +7,8 @@ import subprocess
 import sys
 from typing import TYPE_CHECKING, Any
 
+from rex.windows_service_paths import normalize_existing_executable
+
 if sys.platform != "win32":
     raise ImportError(
         "rex.windows_service is only supported on Windows. "
@@ -63,8 +65,9 @@ class RexNodeService(_ServiceBase):
         )
         services = os.environ.get("REX_SERVICES", DEFAULT_SERVICES)
         port = os.environ.get("REX_SERVICE_PORT", DEFAULT_PORT)
+        service_python = normalize_existing_executable(sys.executable)
         cmd = [
-            sys.executable,
+            str(service_python),
             "-m",
             "rex.app",
             "--services",

@@ -138,6 +138,7 @@ The final consumer voice/runtime contract is `docs/architecture/end-user-install
 
 - The desktop and mobile apps are interaction, setup, status, and control surfaces. They are not Rex runtime lifecycle owners. Closing the Electron window must not be designed to terminate Rex Core or an enabled local Voice Agent.
 - The supported consumer installation must converge on one packaged AskRex installer with its managed runtime. Do not require normal end users to install Python, Node.js, Git, clone the repo, create a venv, run terminal startup commands, or edit JSON for supported setup.
+- Windows launcher and service-registration executable paths must derive from `$PSScriptRoot` or another canonical absolute install root. Normalize user-supplied roots before constructing venv/service paths, never persist or execute cwd-relative venv Python paths for services, fail closed when the intended interpreter is missing, and preserve correct quoting for paths containing spaces.
 - Use one authoritative Rex Core plus lightweight trusted Rex Room endpoints for multi-room voice. Do not duplicate the full Rex stack independently in every room unless a later owner-approved architecture explicitly supersedes this contract.
 - A room endpoint's actual input/output capability must be tested. Never infer that a smart-speaker microphone is programmatically available just because the device contains a microphone.
 - Trusted request-origin device/room context may help resolve an unambiguous command, but origin never grants user, Home Assistant, media, memory, or tool authority.

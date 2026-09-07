@@ -40,7 +40,9 @@ cd node_installers
 .\install_windows.ps1 -RexRoot "C:\RexNode" -PackageSource rex-ai-assistant
 ```
 
-Use `-DryRun` to preview actions.
+`install_windows.ps1` normalizes `-RexRoot` to an absolute path before it builds the virtual-environment and service-registration paths. The Windows service is installed and started with the fully qualified `<RexRoot>\venv\Scripts\python.exe`; paths containing spaces are quoted, and a real registration fails closed if that interpreter is missing. This remains true when the installer is invoked from a working directory outside the repository or when `-RexRoot` is supplied as a relative path.
+
+Use `-DryRun` to preview the exact normalized interpreter path and service commands without creating or registering the service. CI exercises that dry run on a Windows runner with a relative root containing spaces, and the packaged Windows artifact gate verifies the installed application without relying on machine Python or Node.
 
 ## Manual registration (stub)
 Once installed, register the node with the gateway:

@@ -5,6 +5,8 @@ on:
     branches: [master]
     paths:
       - ".github/workflows/windows-electron-artifact.yml"
+      - "Start-RexSpeak.ps1"
+      - "node_installers/install_windows.ps1"
       - "bridge/**"
       - "gui/**"
       - "rex/**"
@@ -14,6 +16,7 @@ on:
       - "scripts/background_lifecycle_fake_child.py"
       - "scripts/verify_electron_package_contents.py"
       - "requirements-electron-*.txt"
+      - "tests/test_us119_windows_service_paths.py"
   push:
     tags: ["v*"]
   workflow_dispatch:
@@ -34,11 +37,18 @@ jobs:
         shell: powershell
         run: |
           $parseErrors = @()
-          [System.Management.Automation.Language.Parser]::ParseFile(
-            (Resolve-Path 'scripts/test_installed_electron_artifact.ps1'),
-            [ref]$null,
-            [ref]$parseErrors
-          ) | Out-Null
+          $scripts = @(
+            'Start-RexSpeak.ps1',
+            'node_installers/install_windows.ps1',
+            'scripts/test_installed_electron_artifact.ps1'
+          )
+          foreach ($script in $scripts) {
+            [System.Management.Automation.Language.Parser]::ParseFile(
+              (Resolve-Path $script),
+              [ref]$null,
+              [ref]$parseErrors
+            ) | Out-Null
+          }
           if ($parseErrors.Count -gt 0) {
             $parseErrors | ForEach-Object { Write-Error $_.Message }
             exit 1
@@ -54,6 +64,12 @@ jobs:
         with:
           python-version: "3.11.9"
           cache: pip
+
+      - name: Install Windows path test dependency
+        run: python -m pip install "pytest>=8.0.0"
+
+      - name: Validate Windows service absolute-path contracts
+        run: python -m pytest tests/test_us119_windows_service_paths.py -q
 
       - name: Install exact build tools
         run: python -m pip install "build==1.3.0"

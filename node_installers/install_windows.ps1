@@ -6,6 +6,13 @@ Param(
     [switch]$DryRun
 )
 
+$ErrorActionPreference = "Stop"
+
+if ([string]::IsNullOrWhiteSpace($RexRoot)) {
+    throw "RexRoot must not be empty."
+}
+$RexRoot = [System.IO.Path]::GetFullPath($RexRoot)
+
 Write-Host "Installing Rex lean node to $RexRoot"
 
 if (-not (Test-Path $RexRoot)) {
@@ -19,24 +26,31 @@ if (-not (Test-Path $RexRoot)) {
 $env:REX_SERVICES = $Services
 $env:REX_SERVICE_PORT = "$Port"
 
+$venv = Join-Path $RexRoot "venv"
+$pip = Join-Path $RexRoot "venv\Scripts\pip.exe"
+$python = Join-Path $RexRoot "venv\Scripts\python.exe"
+
 if ($DryRun) {
-    Write-Host "[DRY RUN] python -m venv $RexRoot\venv"
+    Write-Host "[DRY RUN] python -m venv `"$venv`""
 } else {
-    python -m venv "$RexRoot\venv"
+    python -m venv $venv
+    if ($LASTEXITCODE -ne 0) {
+        throw "Failed to create the Rex lean-node virtual environment at $venv."
+    }
+    if (-not (Test-Path -LiteralPath $python -PathType Leaf)) {
+        throw "Rex lean-node Python interpreter was not created at the expected absolute path: $python"
+    }
 }
 
-$pip = "$RexRoot\venv\Scripts\pip.exe"
-$python = "$RexRoot\venv\Scripts\python.exe"
-
 if ($DryRun) {
-    Write-Host "[DRY RUN] $pip install $PackageSource"
-    Write-Host "[DRY RUN] $pip install pywin32"
+    Write-Host "[DRY RUN] & `"$pip`" install `"$PackageSource`""
+    Write-Host "[DRY RUN] & `"$pip`" install pywin32"
 } else {
     & $pip install $PackageSource
     & $pip install pywin32
 }
 
-$envFile = "$RexRoot\.env.node"
+$envFile = Join-Path $RexRoot ".env.node"
 if (-not (Test-Path $envFile)) {
     if ($DryRun) {
         Write-Host "[DRY RUN] Copying .env.node template to $envFile"
@@ -46,8 +60,8 @@ if (-not (Test-Path $envFile)) {
 }
 
 if ($DryRun) {
-    Write-Host "[DRY RUN] $python -m rex.windows_service install"
-    Write-Host "[DRY RUN] $python -m rex.windows_service start"
+    Write-Host "[DRY RUN] & `"$python`" -m rex.windows_service install"
+    Write-Host "[DRY RUN] & `"$python`" -m rex.windows_service start"
 } else {
     & $python -m rex.windows_service install
     & $python -m rex.windows_service start

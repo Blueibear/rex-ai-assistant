@@ -4069,15 +4069,15 @@ grep -n "askrex.app\|Cloudflare\|CORS\|rate limit\|revocation" docs/deployment.m
 **Files/areas likely involved:** `Start-RexSpeak.ps1`, `install.ps1`, `node_installers/install_windows.ps1`, `rex/windows_service.py`, any additional `New-Service` / `sc.exe create` / pywin32 `HandleCommandLine` / service ImagePath writers discovered by repo-wide audit, and their tests/docs.
 
 **Acceptance Criteria:**
-- [ ] Repo-wide audit identifies every Windows service installer, registration script, and service startup wrapper that can influence the executable path persisted for Rex/AskRex/RexSpeak services.
-- [ ] Every persisted service executable/ImagePath uses a normalized absolute path to the intended venv Python executable; no service registration may persist `.\\.venv\\Scripts\\python.exe`, `venv\\Scripts\\python.exe`, or any other cwd-relative Python path.
-- [ ] `Start-RexSpeak.ps1` and equivalent Windows launch wrappers resolve paths from `$PSScriptRoot` or another canonical absolute repo/install root rather than the caller's current working directory.
-- [ ] Installers normalize user-supplied roots (including relative `$RexRoot` values) to absolute paths before constructing venv/service paths and fail closed if the resolved Python executable does not exist.
-- [ ] Service command construction correctly quotes absolute paths containing spaces and preserves arguments without changing service behavior.
-- [ ] Regression tests cover an install root containing spaces, a relative input root, and service registration invoked from a working directory different from the repo/install directory.
-- [ ] Windows service tests verify the exact executable path that would be persisted/registered is absolute and points to the expected venv interpreter.
-- [ ] Relevant installer/service documentation and `CLAUDE.md` are updated if commands, scripts, or service-registration behavior changes.
-- [ ] All relevant GitHub checks pass.
+- [x] Repo-wide audit identifies every Windows service installer, registration script, and service startup wrapper that can influence the executable path persisted for Rex/AskRex/RexSpeak services.
+- [x] Every persisted service executable/ImagePath uses a normalized absolute path to the intended venv Python executable; no service registration may persist `.\\.venv\\Scripts\\python.exe`, `venv\\Scripts\\python.exe`, or any other cwd-relative Python path.
+- [x] `Start-RexSpeak.ps1` and equivalent Windows launch wrappers resolve paths from `$PSScriptRoot` or another canonical absolute repo/install root rather than the caller's current working directory.
+- [x] Installers normalize user-supplied roots (including relative `$RexRoot` values) to absolute paths before constructing venv/service paths and fail closed if the resolved Python executable does not exist.
+- [x] Service command construction correctly quotes absolute paths containing spaces and preserves arguments without changing service behavior.
+- [x] Regression tests cover an install root containing spaces, a relative input root, and service registration invoked from a working directory different from the repo/install directory.
+- [x] Windows service tests verify the exact executable path that would be persisted/registered is absolute and points to the expected venv interpreter.
+- [x] Relevant installer/service documentation and `CLAUDE.md` are updated if commands, scripts, or service-registration behavior changes.
+- [x] All relevant GitHub checks pass.
 
 **Validation commands:** `pytest tests/test_windows_service.py tests/test_install_scripts.py -q`; run the Windows installer/service dry-run tests from a non-repo working directory and assert the emitted service Python path is absolute; repo-wide search confirms no Windows service-registration path persists a relative venv interpreter.
 
