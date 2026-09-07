@@ -8,7 +8,6 @@ from pathlib import Path
 
 import pytest
 
-
 REPO_ROOT = Path(__file__).resolve().parents[1]
 RELATIVE_VENV_PYTHON_PATTERNS = (
     r"\.\\\.venv\\Scripts\\python\.exe",
@@ -134,9 +133,7 @@ def test_lean_node_dry_run_emits_absolute_quoted_registration_from_other_cwd(
     )
 
     assert result.returncode == 0, result.stderr
-    expected_install = (
-        f'[DRY RUN] & "{expected_python}" -m rex.windows_service install'
-    )
+    expected_install = f'[DRY RUN] & "{expected_python}" -m rex.windows_service install'
     expected_start = f'[DRY RUN] & "{expected_python}" -m rex.windows_service start'
     assert expected_install in result.stdout
     assert expected_start in result.stdout
