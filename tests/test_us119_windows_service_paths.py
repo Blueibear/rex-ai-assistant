@@ -111,39 +111,39 @@ def test_windows_service_normalizes_child_interpreter_before_launch() -> None:
     assert "str(service_python)," in service
 
 
-@pytest.mark.skipif(os.name != "nt", reason="PowerShell Windows path semantics required")
-def test_lean_node_dry_run_emits_absolute_quoted_registration_from_other_cwd(
-    tmp_path: Path,
-) -> None:
-    powershell = shutil.which("powershell") or shutil.which("pwsh")
-    if powershell is None:
-        pytest.skip("PowerShell is unavailable")
+if os.name == "nt":
 
-    script = REPO_ROOT / "node_installers" / "install_windows.ps1"
-    relative_root = Path("nested") / "Rex Root With Spaces"
-    expected_root = (tmp_path / relative_root).resolve()
-    expected_python = expected_root / "venv" / "Scripts" / "python.exe"
+    def test_lean_node_dry_run_emits_absolute_quoted_registration_from_other_cwd(
+        tmp_path: Path,
+    ) -> None:
+        powershell = shutil.which("powershell") or shutil.which("pwsh")
+        assert powershell is not None, "PowerShell is required for Windows service-path validation"
 
-    result = subprocess.run(
-        [
-            powershell,
-            "-NoProfile",
-            "-ExecutionPolicy",
-            "Bypass",
-            "-File",
-            str(script),
-            "-RexRoot",
-            str(relative_root),
-            "-DryRun",
-        ],
-        cwd=tmp_path,
-        capture_output=True,
-        text=True,
-        check=False,
-    )
+        script = REPO_ROOT / "node_installers" / "install_windows.ps1"
+        relative_root = Path("nested") / "Rex Root With Spaces"
+        expected_root = (tmp_path / relative_root).resolve()
+        expected_python = expected_root / "venv" / "Scripts" / "python.exe"
 
-    assert result.returncode == 0, result.stderr
-    expected_install = f'[DRY RUN] & "{expected_python}" -m rex.windows_service install'
-    expected_start = f'[DRY RUN] & "{expected_python}" -m rex.windows_service start'
-    assert expected_install in result.stdout
-    assert expected_start in result.stdout
+        result = subprocess.run(
+            [
+                powershell,
+                "-NoProfile",
+                "-ExecutionPolicy",
+                "Bypass",
+                "-File",
+                str(script),
+                "-RexRoot",
+                str(relative_root),
+                "-DryRun",
+            ],
+            cwd=tmp_path,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+
+        assert result.returncode == 0, result.stderr
+        expected_install = f'[DRY RUN] & "{expected_python}" -m rex.windows_service install'
+        expected_start = f'[DRY RUN] & "{expected_python}" -m rex.windows_service start'
+        assert expected_install in result.stdout
+        assert expected_start in result.stdout
