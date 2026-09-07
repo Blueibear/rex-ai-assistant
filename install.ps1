@@ -5,7 +5,7 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-$RepoDir = Split-Path -Parent $MyInvocation.MyCommand.Definition
+$RepoDir = [System.IO.Path]::GetFullPath($PSScriptRoot)
 $VenvDir = Join-Path $RepoDir ".venv"
 $VenvPython = Join-Path $VenvDir "Scripts\python.exe"
 $VenvPip = Join-Path $VenvDir "Scripts\pip.exe"
