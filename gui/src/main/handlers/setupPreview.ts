@@ -13,6 +13,22 @@ const SETUP_PREVIEW_CHANNELS = [
   'rex:getWakeWordStatus'
 ] as const
 
+const setupVoiceInventory = new Map<string, Set<string>>()
+
+function normalizeVoiceProvider(provider: string): string {
+  return provider.trim().toLowerCase()
+}
+
+function enumeratedVoiceIds(voices: unknown[]): Set<string> {
+  const ids = new Set<string>()
+  for (const voice of voices) {
+    if (typeof voice !== 'object' || voice === null) continue
+    const id = (voice as Record<string, unknown>).id
+    if (typeof id === 'string' && id) ids.add(id)
+  }
+  return ids
+}
+
 function callJsonBridge(
   scriptName: string,
   payload: Record<string, unknown>
@@ -51,18 +67,34 @@ function callJsonBridge(
 }
 
 export function registerSetupPreviewHandlers(): void {
+  setupVoiceInventory.clear()
+
   ipcMain.handle('rex:listVoices', async (_event, provider: string) => {
     const result = await callJsonBridge('rex_voices_bridge.py', { provider })
+    const voices = Array.isArray(result.voices) ? result.voices : []
+    const providerKey = normalizeVoiceProvider(provider)
+    if (result.ok === true) {
+      setupVoiceInventory.set(providerKey, enumeratedVoiceIds(voices))
+    } else {
+      setupVoiceInventory.delete(providerKey)
+    }
     return {
       ok: result.ok === true,
-      voices: Array.isArray(result.voices) ? result.voices : [],
+      voices,
       error: typeof result.error === 'string' ? result.error : undefined
     }
   })
 
-  ipcMain.handle('rex:previewVoice', async (_event, provider: string, voiceId: string) =>
-    callJsonBridge('rex_voice_sample_bridge.py', { provider, voice_id: voiceId })
-  )
+  ipcMain.handle('rex:previewVoice', async (_event, provider: string, voiceId: string) => {
+    const allowedVoiceIds = setupVoiceInventory.get(normalizeVoiceProvider(provider))
+    if (!allowedVoiceIds?.has(voiceId)) {
+      return {
+        ok: false,
+        error: 'Choose a voice from the available setup list before previewing it.'
+      }
+    }
+    return callJsonBridge('rex_voice_sample_bridge.py', { provider, voice_id: voiceId })
+  })
 
   ipcMain.handle('rex:listWakeWords', async () => {
     const result = await callJsonBridge('rex_wakeword_list_bridge.py', {})
@@ -86,6 +118,7 @@ export function registerSetupPreviewHandlers(): void {
 }
 
 export function unregisterSetupPreviewHandlers(): void {
+  setupVoiceInventory.clear()
   for (const channel of SETUP_PREVIEW_CHANNELS) {
     ipcMain.removeHandler(channel)
   }
