@@ -1,0 +1,103 @@
+name: US-125 Apply Green Patch
+
+on:
+  push:
+    branches:
+      - lead/us125-first-run-household-voice
+    paths:
+      - .github/workflows/us125-apply-green-patch.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Apply asserted US-125 GREEN replacements
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          def replace_once(path: str, old: str, new: str) -> None:
+              file_path = Path(path)
+              text = file_path.read_text(encoding="utf-8")
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f"{path}: expected exactly one replacement target, found {count}")
+              file_path.write_text(text.replace(old, new, 1), encoding="utf-8")
+
+          replace_once(
+              "gui/src/types/ipc.ts",
+              """export interface SetupCompleteResponse {\n  ok: boolean\n  user_id?: string\n  error?: string\n}""",
+              """export interface SetupCompleteResponse {\n  ok: boolean\n  user_id?: string\n  error?: string\n  setup_saved?: boolean\n  runtime_ready?: boolean\n  warning?: string\n}""",
+          )
+
+          replace_once(
+              "gui/src/main/handlers/setup.ts",
+              """      if (result.ok && onSetupCompleted) {\n        await onSetupCompleted()\n      }\n      return result""",
+              """      if (!result.ok) {\n        return result\n      }\n\n      if (!onSetupCompleted) {\n        return { ...result, setup_saved: true, runtime_ready: true }\n      }\n\n      try {\n        await onSetupCompleted()\n        return { ...result, setup_saved: true, runtime_ready: true }\n      } catch {\n        return {\n          ...result,\n          setup_saved: true,\n          runtime_ready: false,\n          warning:\n            'Setup was saved, but Rex could not finish starting. Close and reopen AskRex to continue.'\n        }\n      }""",
+          )
+
+          replace_once(
+              "gui/src/pages/SetupWizardPage.tsx",
+              """function StepDone({ voiceVerified }: { voiceVerified: boolean }): React.ReactElement {\n  return (\n    <div className=\"space-y-4 text-center\">\n      <h3 className=\"text-lg font-semibold text-text-primary\">Setup saved</h3>\n      <p className=\"text-text-secondary text-sm\">\n        {voiceVerified\n          ? 'Your account and configuration are saved, and this setup session completed the full screenless voice verification path.'\n          : 'Your account and configuration are saved. Voice was not verified during setup; you can test it later from Voice.'}\n      </p>\n    </div>\n  )\n}""",
+              """function StepDone({\n  voiceVerified,\n  runtimeWarning\n}: {\n  voiceVerified: boolean\n  runtimeWarning: string\n}): React.ReactElement {\n  return (\n    <div className=\"space-y-4 text-center\">\n      <h3 className=\"text-lg font-semibold text-text-primary\">Setup saved</h3>\n      {runtimeWarning ? (\n        <>\n          <p className=\"text-amber-300 text-sm font-medium\">{runtimeWarning}</p>\n          <p className=\"text-text-secondary text-sm\">Close and reopen AskRex to continue.</p>\n        </>\n      ) : (\n        <p className=\"text-text-secondary text-sm\">\n          {voiceVerified\n            ? 'Your account and configuration are saved, and this setup session completed the full screenless voice verification path.'\n            : 'Your account and configuration are saved. Voice was not verified during setup; you can test it later from Voice.'}\n        </p>\n      )}\n    </div>\n  )\n}""",
+          )
+
+          replace_once(
+              "gui/src/pages/SetupWizardPage.tsx",
+              """  const [submitting, setSubmitting] = useState(false)\n  const [audioDevices, setAudioDevices] = useState<SetupAudioDevice[]>([])""",
+              """  const [submitting, setSubmitting] = useState(false)\n  const [setupRuntimeWarning, setSetupRuntimeWarning] = useState('')\n  const [audioDevices, setAudioDevices] = useState<SetupAudioDevice[]>([])""",
+          )
+
+          replace_once(
+              "gui/src/pages/SetupWizardPage.tsx",
+              """  const handleSubmit = async (deferHomeAssistant = false): Promise<void> => {\n    setSubmitting(true)\n    setError('')\n    try {\n      const submission = buildSetupSubmission(data, { deferHomeAssistant })\n      const result = await window.rex.completeSetup(submission)\n      if (!result.ok) {\n        setError(result.error ?? 'Setup failed.')\n        setSubmitting(false)\n        return\n      }\n      setSubmitting(false)\n      setStep(VERIFY_STEP)\n    } catch {\n      setError('Setup failed. Please try again.')\n      setSubmitting(false)\n    }\n  }""",
+              """  const handleSubmit = async (deferHomeAssistant = false): Promise<void> => {\n    setSubmitting(true)\n    setError('')\n    setSetupRuntimeWarning('')\n    try {\n      const submission = buildSetupSubmission(data, { deferHomeAssistant })\n      const result = await window.rex.completeSetup(submission)\n      if (!result.ok) {\n        setError(result.error ?? 'Setup failed.')\n        setSubmitting(false)\n        return\n      }\n      if (result.runtime_ready === false) {\n        setSetupRuntimeWarning(\n          result.warning ?? 'Setup was saved, but Rex could not finish starting.'\n        )\n        setSubmitting(false)\n        setStep(DONE_STEP)\n        return\n      }\n      setSubmitting(false)\n      setStep(VERIFY_STEP)\n    } catch {\n      setError('Setup failed. Please try again.')\n      setSubmitting(false)\n    }\n  }""",
+          )
+
+          replace_once(
+              "gui/src/pages/SetupWizardPage.tsx",
+              """      default:\n        return <StepDone voiceVerified={voiceVerification.status === 'verified'} />""",
+              """      default:\n        return (\n          <StepDone\n            voiceVerified={voiceVerification.status === 'verified'}\n            runtimeWarning={setupRuntimeWarning}\n          />\n        )""",
+          )
+
+          replace_once(
+              "gui/src/pages/SetupWizardPage.tsx",
+              """              {isDone ? 'All done!' : `Set up ${STEPS[step]}`}""",
+              """              {isDone ? (setupRuntimeWarning ? 'Setup saved' : 'All done!') : `Set up ${STEPS[step]}`}""",
+          )
+
+          replace_once(
+              "gui/src/pages/SetupWizardPage.tsx",
+              """            {isDone ? (\n              <button\n                type=\"button\"\n                onClick={onComplete}\n                className=\"px-6 py-2 rounded-lg bg-accent text-white text-sm font-medium hover:bg-accent/90 transition-colors\"\n              >\n                Open Dashboard\n              </button>\n            ) : step === VERIFY_STEP ? (""",
+              """            {isDone ? (\n              setupRuntimeWarning ? (\n                <span />\n              ) : (\n                <button\n                  type=\"button\"\n                  onClick={onComplete}\n                  className=\"px-6 py-2 rounded-lg bg-accent text-white text-sm font-medium hover:bg-accent/90 transition-colors\"\n                >\n                  Open Dashboard\n                </button>\n              )\n            ) : step === VERIFY_STEP ? (""",
+          )
+
+          replace_once(
+              "tests/test_us125_setup_security.py",
+              """    def __enter__(self) -> \"_ExistingUsersDb\":""",
+              """    def __enter__(self) -> _ExistingUsersDb:""",
+          )
+          PY
+
+      - name: Verify patch shape
+        shell: bash
+        run: |
+          git diff --check
+          git diff -- gui/src/types/ipc.ts gui/src/main/handlers/setup.ts gui/src/pages/SetupWizardPage.tsx tests/test_us125_setup_security.py
+
+      - name: Commit GREEN implementation
+        shell: bash
+        run: |
+          git config user.name "AskRex CI"
+          git config user.email "actions@users.noreply.github.com"
+          git add gui/src/types/ipc.ts gui/src/main/handlers/setup.ts gui/src/pages/SetupWizardPage.tsx tests/test_us125_setup_security.py
+          git commit -m "fix(setup): distinguish saved setup from runtime readiness"
+          git push origin HEAD:lead/us125-first-run-household-voice
