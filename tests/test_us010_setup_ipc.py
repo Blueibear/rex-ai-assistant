@@ -1,8 +1,9 @@
 """
 US-010: Verify SetupWizardPage and App.tsx /api/setup/* IPC migration is complete.
 
-Static/structural tests — verify TypeScript type definitions and that raw
-fetch('/api/setup/') calls no longer exist.
+Static/structural tests — verify TypeScript type definitions, setup's pre-auth
+first-run registration boundary, and that raw fetch('/api/setup/') calls no
+longer exist.
 """
 
 from pathlib import Path
@@ -10,6 +11,7 @@ from pathlib import Path
 IPC_TYPES = Path("gui/src/types/ipc.ts")
 HANDLER_FILE = Path("gui/src/main/handlers/setup.ts")
 IPC_AGGREGATOR = Path("gui/src/main/ipc.ts")
+MAIN_PROCESS = Path("gui/src/main/index.ts")
 PRELOAD_FILE = Path("gui/src/preload/index.ts")
 APP_TSX = Path("gui/src/renderer/src/App.tsx")
 SETUP_WIZARD_PAGE = Path("gui/src/pages/SetupWizardPage.tsx")
@@ -76,16 +78,19 @@ def test_handler_calls_bridge():
     assert "rex_setup_bridge.py" in content
 
 
-def test_ipc_aggregator_imports_handler():
-    """ipc.ts imports registerSetupHandlers."""
+def test_authenticated_ipc_aggregator_excludes_setup_handler():
+    """Setup stays outside identity-bound IPC so clean first run can reach it."""
     content = _read(IPC_AGGREGATOR)
-    assert "registerSetupHandlers" in content
+    assert "registerSetupHandlers" not in content
 
 
-def test_ipc_aggregator_calls_handler():
-    """ipc.ts calls registerSetupHandlers()."""
-    content = _read(IPC_AGGREGATOR)
-    assert "registerSetupHandlers()" in content
+def test_main_process_registers_setup_handler_before_authenticated_bootstrap():
+    """The main process owns pre-auth setup and later authenticated bootstrap."""
+    content = _read(MAIN_PROCESS)
+    assert "registerSetupPreviewHandlers()" in content
+    assert "registerSetupHandlers(async () =>" in content
+    assert "registerAuthenticatedIpcHandlers(mainWindow, sessionIdentity)" in content
+    assert "bootstrapAuthenticatedRuntime" in content
 
 
 def test_preload_exposes_get_setup_status():
