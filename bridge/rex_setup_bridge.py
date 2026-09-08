@@ -72,14 +72,20 @@ def main() -> None:
         sys.stdout.write(json.dumps({"ok": False, "error": "Secure setup persistence failed"}))
 
 
-def _handle_status() -> None:
+def _read_user_count() -> int:
+    """Read the canonical auth-user count; callers decide how failures are represented."""
     from rex.auth import _open_db  # noqa: PLC2701
+
+    with _open_db() as conn:
+        row = conn.execute("SELECT COUNT(*) FROM users").fetchone()
+    return int(row[0]) if row else 0
+
+
+def _handle_status() -> None:
     from rex.config_manager import load_config
 
     try:
-        with _open_db() as conn:
-            row = conn.execute("SELECT COUNT(*) FROM users").fetchone()
-            count = row[0] if row else 0
+        count = _read_user_count()
     except Exception:
         count = 0
 
@@ -253,6 +259,10 @@ def _handle_complete(payload: dict[str, Any]) -> None:
     validation_error = _validate_setup_choices(choices)
     if validation_error is not None:
         sys.stdout.write(json.dumps({"ok": False, "error": validation_error}))
+        return
+
+    if _read_user_count() > 0:
+        sys.stdout.write(json.dumps({"ok": False, "error": "setup is already complete"}))
         return
 
     from rex.auth import create_user
