@@ -27,8 +27,10 @@ describe('US-125 setup wake-word UX', () => {
     expect(pageSource).toContain('Actual wake detection is still required')
   })
 
-  it('reports canonical wake-word asset readiness separately from full verification', () => {
-    expect(pageSource).toContain('window.rex.getWakeWordStatus')
+  it('checks canonical readiness for the currently selected setup wake word', () => {
+    expect(pageSource).toContain("ipcRenderer.invoke('rex:getSetupWakeWordStatus', wakeWordId)")
+    expect(pageSource).toContain('getSetupWakeWordStatus(data.wakeWordId)')
+    expect(pageSource).toContain('[data.wakeWordId, wakeWordsLoading]')
     expect(pageSource).toContain('Wake-word asset ready')
     expect(pageSource).toContain('wakeWordStatusError')
     expect(pageSource).toContain('Voice not yet verified')
