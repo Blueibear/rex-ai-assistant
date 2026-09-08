@@ -10,4 +10,11 @@ describe('US-125 pre-auth setup preview boundary', () => {
     expect(source).not.toContain('const source = values ??')
     expect(source).toContain("const source = (stored.voice ?? {}) as Settings")
   })
+
+  it('only previews voice IDs that AskRex enumerated for setup', () => {
+    expect(source).toContain('const setupVoiceInventory = new Map<string, Set<string>>()')
+    expect(source).toContain('setupVoiceInventory.set(')
+    expect(source).toContain('allowedVoiceIds?.has(voiceId)')
+    expect(source).toContain('Choose a voice from the available setup list before previewing it.')
+  })
 })
