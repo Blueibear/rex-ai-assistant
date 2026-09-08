@@ -1,0 +1,23 @@
+name: US-125 Focused Security
+
+on:
+  push:
+    branches:
+      - lead/us125-first-run-household-voice
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  wake-sample-path-boundary:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install focused test dependencies
+        run: python -m pip install pytest numpy
+      - name: Reject wake-word sample path traversal
+        run: python -m pytest tests/test_us310_wakeword_sample.py -q -k sample_bridge_rejects_path_traversal
