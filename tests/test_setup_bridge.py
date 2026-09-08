@@ -17,6 +17,7 @@ def _install_setup_fakes(
 ) -> tuple[dict[str, Any], list[str]]:
     captured: dict[str, Any] = {}
     bootstrapped: list[str] = []
+    monkeypatch.setattr(rex_setup_bridge, "_read_user_count", lambda: 0)
 
     def fake_create_user(username: str, password: str) -> dict[str, str]:
         assert username == "james"
