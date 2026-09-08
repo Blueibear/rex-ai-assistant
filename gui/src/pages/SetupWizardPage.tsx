@@ -88,10 +88,6 @@ function voiceApiProvider(ttsProvider: string): string {
   return 'pyttsx3'
 }
 
-function getSetupWakeWordStatus(wakeWordId: string): Promise<WakeWordStatus> {
-  return window.electron.ipcRenderer.invoke('rex:getSetupWakeWordStatus', wakeWordId)
-}
-
 const inputClass =
   'w-full px-3 py-2 rounded-lg border border-border bg-surface text-text-primary text-sm focus:outline-none focus:ring-2 focus:ring-accent/50'
 
@@ -857,7 +853,7 @@ export function SetupWizardPage({ onComplete }: SetupWizardPageProps): React.Rea
     setWakeWordStatusLoading(true)
     setWakeWordStatusError('')
 
-    getSetupWakeWordStatus(data.wakeWordId)
+    window.rex.getSetupWakeWordStatus(data.wakeWordId)
       .then((status) => {
         if (!cancelled) setWakeWordStatus(status)
       })
