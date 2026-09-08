@@ -40,7 +40,7 @@ describe('US-125 packaged first-run bootstrap', () => {
     expect(mainSource).toContain('registerAuthenticatedIpcHandlers')
   })
 
-  it('keeps read-only voice inventory, preview, and wake readiness usable before identity exists', () => {
+  it('keeps read-only voice inventory, preview, and selected wake readiness usable before identity exists', () => {
     expect(setupPreviewSource).toContain('registerSetupPreviewHandlers')
     expect(setupPreviewSource).toContain('unregisterSetupPreviewHandlers')
     for (const channel of [
@@ -48,7 +48,7 @@ describe('US-125 packaged first-run bootstrap', () => {
       "'rex:previewVoice'",
       "'rex:listWakeWords'",
       "'rex:previewWakeWordSample'",
-      "'rex:getWakeWordStatus'"
+      "'rex:getSetupWakeWordStatus'"
     ]) {
       expect(setupPreviewSource).toContain(channel)
     }
