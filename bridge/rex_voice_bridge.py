@@ -454,6 +454,12 @@ class WakeWordRuntimeTracker:
             self._emit_runtime(event_name)
             return
 
+        if event_name == "wakeword_listening_cycle_ended":
+            self._update_common(extra)
+            self._armed = False
+            self._emit_runtime(event_name)
+            return
+
         if event_name == "wakeword_detector_rebuilt":
             self._update_common(extra)
             self._emit_runtime(event_name)

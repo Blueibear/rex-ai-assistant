@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { getWakeWordDiagnosticMessages } from '../src/types/wakeWordDiagnostics'
+import {
+  getWakeWordDiagnosticMessages,
+  shouldRestoreWakeWordRuntimeSnapshot,
+} from '../src/types/wakeWordDiagnostics'
 import type {
   WakeWordAttemptEvidence,
   WakeWordRuntimeStatus,
@@ -61,5 +64,13 @@ describe('wake-word diagnostics', () => {
     )
 
     expect(messages.join(' ')).toMatch(/not currently armed/i)
+  })
+
+  it('rejects a pending snapshot after newer live runtime evidence arrives', () => {
+    const requestRevision = 4
+    const liveRevisionAfterEvent = 5
+
+    expect(shouldRestoreWakeWordRuntimeSnapshot(requestRevision, liveRevisionAfterEvent)).toBe(false)
+    expect(shouldRestoreWakeWordRuntimeSnapshot(requestRevision, requestRevision)).toBe(true)
   })
 })

@@ -56,6 +56,75 @@ def test_wakeword_runtime_tracker_projects_armed_status(monkeypatch):
 
 
 @pytest.mark.unit
+def test_wakeword_runtime_tracker_disarms_on_listening_cycle_ended(monkeypatch):
+    events: list[dict[str, object]] = []
+    monkeypatch.setattr(rex_voice_bridge, "emit", events.append)
+    tracker = rex_voice_bridge.WakeWordRuntimeTracker(
+        configured_phrase="rex",
+        configured_backend="custom_embedding",
+        fallback_phrase="hey jarvis",
+        microphone_label="USB Microphone",
+        portaudio_device_index=4,
+    )
+
+    tracker.handle(
+        {
+            "level": "INFO",
+            "message": "Wake-word listening cycle started",
+            "extra": {
+                "event": "wakeword_listening_cycle_started",
+                "threshold": 0.5,
+                "keyword": "rex",
+                "backend": "custom_embedding",
+                "detector_generation": 1,
+            },
+        }
+    )
+    tracker.handle(
+        {
+            "level": "INFO",
+            "message": "Wake-word listening cycle ended",
+            "extra": {
+                "event": "wakeword_listening_cycle_ended",
+                "reason": "accepted_wake",
+                "accepted": True,
+                "threshold": 0.5,
+                "confidence": 0.91,
+                "keyword": "rex",
+                "backend": "custom_embedding",
+                "detector_generation": 1,
+                "listening_cycle": 1,
+                "attempts": 3,
+                "duration_s": 1.2,
+            },
+        }
+    )
+
+    runtime_events = [event for event in events if event.get("type") == "wakeword_runtime_status"]
+    assert runtime_events, "wakeword_listening_cycle_ended must project a runtime status"
+    ended_runtime = runtime_events[-1]["runtime"]
+    assert ended_runtime["reason"] == "wakeword_listening_cycle_ended"
+    assert ended_runtime["armed"] is False
+
+    # The next listening cycle must restore the armed projection.
+    tracker.handle(
+        {
+            "level": "INFO",
+            "message": "Wake-word listening cycle started",
+            "extra": {
+                "event": "wakeword_listening_cycle_started",
+                "threshold": 0.5,
+                "keyword": "rex",
+                "backend": "custom_embedding",
+                "detector_generation": 1,
+            },
+        }
+    )
+    runtime_events = [event for event in events if event.get("type") == "wakeword_runtime_status"]
+    assert runtime_events[-1]["runtime"]["armed"] is True
+
+
+@pytest.mark.unit
 def test_wakeword_runtime_tracker_projects_bounded_attempt_evidence(monkeypatch):
     events: list[dict[str, object]] = []
     monkeypatch.setattr(rex_voice_bridge, "emit", events.append)

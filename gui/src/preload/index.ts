@@ -37,6 +37,7 @@ import type {
   WakeWordStatus,
   WakeWordRuntimeStatus,
   WakeWordAttemptEvidence,
+  WakeWordRuntimeSnapshots,
   LogEntry,
   LogsResponse,
   UsageSummary,
@@ -280,6 +281,8 @@ const rexAPI = {
   attachVoiceSession,
   startVoice: makeStartVoice,
   stopVoice,
+  getWakeWordRuntimeSnapshots: (): Promise<WakeWordRuntimeSnapshots> =>
+    ipcRenderer.invoke('rex:getWakeWordRuntimeSnapshots'),
   getTasks: (): Promise<Task[]> => ipcRenderer.invoke('rex:getTasks'),
   saveTask: (task: TaskInput): Promise<Task> => ipcRenderer.invoke('rex:saveTask', task),
   deleteTask: (taskId: string): Promise<void> => ipcRenderer.invoke('rex:deleteTask', taskId),

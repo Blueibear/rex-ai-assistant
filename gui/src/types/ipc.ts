@@ -137,6 +137,11 @@ export interface WakeWordAttemptEvidence {
   portAudioDeviceIndex: number | null
 }
 
+export interface WakeWordRuntimeSnapshots {
+  runtimeStatus: WakeWordRuntimeStatus | null
+  attemptEvidence: WakeWordAttemptEvidence | null
+}
+
 export interface VoiceTranscriptEntry {
   text: string
   role: 'user' | 'rex'
@@ -881,6 +886,7 @@ export interface RexAPI {
     onWakeWordAttemptEvidence?: (evidence: WakeWordAttemptEvidence) => void
   ) => (() => void)
   stopVoice: () => Promise<void>
+  getWakeWordRuntimeSnapshots: () => Promise<WakeWordRuntimeSnapshots>
   getTasks: () => Promise<Task[]>
   saveTask: (task: TaskInput) => Promise<Task>
   deleteTask: (taskId: string) => Promise<void>

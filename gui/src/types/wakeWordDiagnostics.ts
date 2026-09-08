@@ -49,3 +49,9 @@ export function getWakeWordDiagnosticMessages(
   }
   return messages
 }
+export function shouldRestoreWakeWordRuntimeSnapshot(
+  requestRevision: number,
+  currentRevision: number,
+): boolean {
+  return requestRevision === currentRevision
+}

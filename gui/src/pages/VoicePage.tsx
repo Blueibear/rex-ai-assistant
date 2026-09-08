@@ -12,7 +12,10 @@ import type {
   WakeWordRuntimeStatus,
 } from '../types/ipc'
 import { voiceProvider } from '../types/voiceProvider'
-import { getWakeWordDiagnosticMessages } from '../types/wakeWordDiagnostics'
+import {
+  getWakeWordDiagnosticMessages,
+  shouldRestoreWakeWordRuntimeSnapshot,
+} from '../types/wakeWordDiagnostics'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -635,6 +638,7 @@ export function VoicePage(): React.ReactElement {
   const [deviceNotice, setDeviceNotice] = useState<string | null>(null)
   const [wakeRuntimeStatus, setWakeRuntimeStatus] = useState<WakeWordRuntimeStatus | null>(null)
   const [wakeAttemptEvidence, setWakeAttemptEvidence] = useState<WakeWordAttemptEvidence | null>(null)
+  const wakeRuntimeRevisionRef = useRef(0)
   const activeAudioRef = useRef<HTMLAudioElement | null>(null)
   const activeTurnRef = useRef<AbortController | null>(null)
 
@@ -842,6 +846,7 @@ export function VoicePage(): React.ReactElement {
   }, [])
 
   const handleVoiceError = useCallback((err: string) => {
+    wakeRuntimeRevisionRef.current += 1
     setError(err)
     setVoiceState('error')
     setIsActive(false)
@@ -854,6 +859,7 @@ export function VoicePage(): React.ReactElement {
   }, [])
 
   const handleWakeWordRuntimeStatus = useCallback((status: WakeWordRuntimeStatus) => {
+    wakeRuntimeRevisionRef.current += 1
     setWakeRuntimeStatus(status)
     setWakeAttemptEvidence((previous) =>
       previous && previous.detectorGeneration === status.detectorGeneration ? previous : null,
@@ -892,6 +898,33 @@ export function VoicePage(): React.ReactElement {
         }
       })
 
+    // Restore wake-word diagnostics owned by the trusted main process so the
+    // panel survives an unmount/remount while the same voice process runs. A
+    // live event that arrives first wins (functional update keeps it).
+    const snapshotRuntimeRevision = wakeRuntimeRevisionRef.current
+    void window.rex
+      .getWakeWordRuntimeSnapshots()
+      .then((snapshots) => {
+        if (
+          cancelled ||
+          !shouldRestoreWakeWordRuntimeSnapshot(
+            snapshotRuntimeRevision,
+            wakeRuntimeRevisionRef.current,
+          )
+        ) {
+          return
+        }
+        if (snapshots.runtimeStatus) {
+          setWakeRuntimeStatus((previous) => previous ?? snapshots.runtimeStatus)
+        }
+        if (snapshots.attemptEvidence) {
+          setWakeAttemptEvidence((previous) => previous ?? snapshots.attemptEvidence)
+        }
+      })
+      .catch(() => {
+        // Diagnostics are best-effort; absence just means an empty panel.
+      })
+
     return () => {
       cancelled = true
       cleanup()
@@ -908,6 +941,7 @@ export function VoicePage(): React.ReactElement {
   const handleToggle = useCallback(async () => {
     if (startingWakeMode) return
     if (!isActive) {
+      wakeRuntimeRevisionRef.current += 1
       setError(null)
       setTranscripts([])
       setWakeRuntimeStatus(null)
@@ -936,6 +970,7 @@ export function VoicePage(): React.ReactElement {
         setStartingWakeMode(false)
       }
     } else {
+      wakeRuntimeRevisionRef.current += 1
       await window.rex.stopVoice()
       setIsActive(false)
       setVoiceState('idle')
