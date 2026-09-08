@@ -435,6 +435,8 @@ const rexAPI = {
     ipcRenderer.invoke('rex:clearCheckedShoppingItems'),
   listWakeWords: (): Promise<{ ok: boolean; wake_words: WakeWordInfo[]; error?: string; warning?: string }> =>
     ipcRenderer.invoke('rex:listWakeWords'),
+  getSetupWakeWordStatus: (wakeWordId: string): Promise<WakeWordStatus> =>
+    ipcRenderer.invoke('rex:getSetupWakeWordStatus', wakeWordId),
   getWakeWordStatus: (settings?: VoiceSettings): Promise<WakeWordStatus> =>
     ipcRenderer.invoke('rex:getWakeWordStatus', settings),
   previewWakeWordSample: (
