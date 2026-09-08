@@ -933,6 +933,7 @@ export interface RexAPI {
   getUnreadNotificationCount: () => Promise<number>
   onNewNotification: (cb: (notification: GuiNotification) => void) => void
   listWakeWords: () => Promise<{ ok: boolean; wake_words: WakeWordInfo[]; error?: string; warning?: string }>
+  getSetupWakeWordStatus: (wakeWordId: string) => Promise<WakeWordStatus>
   getWakeWordStatus: (settings?: VoiceSettings) => Promise<WakeWordStatus>
   previewWakeWordSample: (
     wakeWordId: string
