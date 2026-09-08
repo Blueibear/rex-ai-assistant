@@ -663,12 +663,37 @@ export interface SetupStatusResponse {
   needs_setup: boolean
 }
 
+export interface SetupAudioDevice {
+  index: number
+  name: string
+  max_input_channels: number
+  max_output_channels: number
+}
+
+export interface SetupAudioDevicesResponse {
+  ok: boolean
+  devices: SetupAudioDevice[]
+  error?: string
+}
+
+export interface SetupAudioTestResponse {
+  ok: boolean
+  error?: string
+}
+
 export interface SetupCompletePayload {
   username: string
   password: string
   llm_provider: string
   llm_api_key?: string
   tts_provider: string
+  tts_voice_id: string
+  microphone_device_index: number | null
+  speaker_device_index: number | null
+  local_device_id: string
+  wake_word_id: string
+  room_name: string
+  background_voice_enabled: boolean
   ha_base_url: string
   ha_token: string
   defer_home_assistant?: boolean
@@ -976,6 +1001,8 @@ export interface RexAPI {
   onLogEntry: (cb: (entry: LogEntry) => void) => void
   getUsage: () => Promise<UsageSummary>
   getSetupStatus: () => Promise<SetupStatusResponse>
+  getSetupAudioDevices: () => Promise<SetupAudioDevicesResponse>
+  testSetupAudioDevice: (kind: 'microphone' | 'speaker', deviceIndex: number) => Promise<SetupAudioTestResponse>
   completeSetup: (payload: SetupCompletePayload) => Promise<SetupCompleteResponse>
   createPairingChallenge: (scopes: string[]) => Promise<PairingResponse>
   listPendingPairings: () => Promise<PairingResponse>

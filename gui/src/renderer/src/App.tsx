@@ -25,6 +25,7 @@ import { HomePage } from '../../pages/HomePage'
 import { IntegrationsPage } from '../../pages/IntegrationsPage'
 import { AboutPage } from '../../pages/AboutPage'
 import { SetupWizardPage } from '../../pages/SetupWizardPage'
+import { SetupOptionalExtensionsPage } from '../../pages/SetupOptionalExtensionsPage'
 import { HomeAssistantSettingsPage } from '../../pages/HomeAssistantSettingsPage'
 import { HomeAssistantPage } from '../../pages/HomeAssistantPage'
 import { DevicesPage } from '../../pages/DevicesPage'
@@ -44,6 +45,7 @@ const PRIORITY_TOAST_TYPE: Record<NotificationPriority, ToastType> = {
 function AppShell(): React.ReactElement {
   const [status, setStatus] = useState<string>('loading…')
   const [needsSetup, setNeedsSetup] = useState<boolean | null>(null)
+  const [showSetupExtensions, setShowSetupExtensions] = useState(false)
   const addToast = useToast()
 
   useEffect(() => {
@@ -54,6 +56,7 @@ function AppShell(): React.ReactElement {
   }, [])
 
   useEffect(() => {
+    if (needsSetup !== false) return
     window.rex
       .getStatus()
       .then((res) => {
@@ -65,7 +68,7 @@ function AppShell(): React.ReactElement {
         setStatus('error')
         addToast('Could not reach Rex backend', 'error')
       })
-  }, [addToast])
+  }, [addToast, needsSetup])
 
   // Listen for push notifications forwarded by the main process (e.g. from the
   // Rex Python backend). Only critical and high are forwarded (see notifications.ts).
@@ -76,7 +79,7 @@ function AppShell(): React.ReactElement {
     })
   }, [addToast])
 
-  if (needsSetup === null || status === 'loading…') {
+  if (needsSetup === null) {
     return (
       <div className="flex flex-col items-center justify-center h-screen bg-bg gap-4">
         <Spinner size="lg" />
@@ -86,7 +89,27 @@ function AppShell(): React.ReactElement {
   }
 
   if (needsSetup) {
-    return <SetupWizardPage onComplete={() => setNeedsSetup(false)} />
+    return (
+      <SetupWizardPage
+        onComplete={() => {
+          setNeedsSetup(false)
+          setShowSetupExtensions(true)
+        }}
+      />
+    )
+  }
+
+  if (showSetupExtensions) {
+    return <SetupOptionalExtensionsPage onContinue={() => setShowSetupExtensions(false)} />
+  }
+
+  if (status === 'loading…') {
+    return (
+      <div className="flex flex-col items-center justify-center h-screen bg-bg gap-4">
+        <Spinner size="lg" />
+        <SkeletonLine width="200px" height="16px" />
+      </div>
+    )
   }
 
   if (status === 'error') {

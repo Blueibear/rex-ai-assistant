@@ -202,6 +202,11 @@
           "description": "Enable file logging",
           "default": false
         },
+        "background_voice_enabled": {
+          "type": "boolean",
+          "description": "Start persistent background wake-word listening after setup; false unless the household explicitly opts in",
+          "default": false
+        },
         "transcripts_enabled": {
           "type": "boolean",
           "description": "Enable conversation transcripts",

@@ -16,6 +16,121 @@ interface ArtifactSmokeResult {
   error?: string
 }
 
+interface FirstRunArtifactSmokeResult {
+  ok: boolean
+  setup_ui: boolean
+  preauth_ipc: boolean
+  setup_completed: boolean
+  authenticated_ipc: boolean
+  background_voice_enabled: boolean
+  error?: string
+}
+
+export function runInstalledFirstRunSmoke(mainWindow: BrowserWindow): boolean {
+  const outputPath = process.env['ASKREX_ARTIFACT_SMOKE_OUTPUT']
+  if (!outputPath) return false
+
+  const finish = (result: FirstRunArtifactSmokeResult): void => {
+    writeFileSync(outputPath, JSON.stringify(result, null, 2), 'utf8')
+    appendElectronLog(result.ok ? 'INFO' : 'ERROR', 'Installed first-run smoke completed', {
+      event: 'installed_first_run_smoke',
+      ok: result.ok
+    })
+    app.quit()
+  }
+
+  mainWindow.webContents.once('did-finish-load', () => {
+    void mainWindow.webContents
+      .executeJavaScript(`(async () => {
+        const api = window.rex;
+        if (!api || typeof api.getSetupStatus !== 'function' ||
+            typeof api.completeSetup !== 'function') {
+          throw new Error('Typed AskRex setup preload API is unavailable');
+        }
+        const waitFor = async (predicate, timeoutMs = 10000) => {
+          const deadline = Date.now() + timeoutMs;
+          while (Date.now() < deadline) {
+            if (predicate()) return true;
+            await new Promise((resolve) => setTimeout(resolve, 50));
+          }
+          return Boolean(predicate());
+        };
+        const initialStatus = await api.getSetupStatus();
+        const setupUi = await waitFor(() =>
+          (document.body?.innerText ?? '').includes('Set up Account')
+        );
+        const preauthMethods = [
+          'getSetupAudioDevices',
+          'testSetupAudioDevice',
+          'listVoices',
+          'previewVoice',
+          'listWakeWords',
+          'previewWakeWordSample',
+          'getWakeWordStatus'
+        ];
+        const preauthIpc = preauthMethods.every((name) => typeof api[name] === 'function');
+        if (!initialStatus.needs_setup || !setupUi || !preauthIpc) {
+          throw new Error('Fresh install did not expose the first-run setup surface');
+        }
+
+        const wakeStatus = await api.getWakeWordStatus();
+        const wakeInventory = await api.listWakeWords();
+        if (!wakeStatus || !wakeInventory || typeof wakeInventory.ok !== 'boolean') {
+          throw new Error('Pre-auth wake-word setup IPC did not return a typed result');
+        }
+
+        const completed = await api.completeSetup({
+          username: 'artifact-first-run-user',
+          password: 'artifact-smoke-password', // pragma: allowlist secret
+          llm_provider: 'local',
+          tts_provider: 'pyttsx3',
+          tts_voice_id: '',
+          microphone_device_index: null,
+          speaker_device_index: null,
+          local_device_id: 'local_voice',
+          wake_word_id: 'hey_rex',
+          room_name: 'Artifact Room',
+          background_voice_enabled: false,
+          ha_base_url: '',
+          ha_token: '',
+          defer_home_assistant: true
+        });
+        if (!completed.ok) {
+          throw new Error('First-run setup completion failed: ' + (completed.error ?? 'unknown error'));
+        }
+
+        const postSetup = await api.getSetupStatus();
+        const authenticatedStatus = await api.getStatus();
+        const authenticatedIpc =
+          postSetup.needs_setup === false &&
+          authenticatedStatus &&
+          typeof authenticatedStatus.status === 'string';
+        return {
+          ok: setupUi && preauthIpc && completed.ok && authenticatedIpc,
+          setup_ui: setupUi,
+          preauth_ipc: preauthIpc,
+          setup_completed: completed.ok,
+          authenticated_ipc: authenticatedIpc,
+          background_voice_enabled: false
+        };
+      })()`)
+      .then((result: FirstRunArtifactSmokeResult) => finish(result))
+      .catch((error: unknown) =>
+        finish({
+          ok: false,
+          setup_ui: false,
+          preauth_ipc: false,
+          setup_completed: false,
+          authenticated_ipc: false,
+          background_voice_enabled: false,
+          error: error instanceof Error ? error.message : String(error)
+        })
+      )
+  })
+
+  return true
+}
+
 export function runInstalledArtifactSmoke(mainWindow: BrowserWindow): boolean {
   const outputPath = process.env['ASKREX_ARTIFACT_SMOKE_OUTPUT']
   if (!outputPath) return false

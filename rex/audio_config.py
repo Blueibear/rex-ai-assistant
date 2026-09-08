@@ -244,15 +244,8 @@ def set_selected_output_device_index(config: dict, index: int | None) -> dict:
     return config
 
 
-def select_input(device_id: int, *, config: dict | None = None) -> None:
-    """Select and persist input device to rex_config.json.
-
-    Args:
-        device_id: Device index to select
-
-    Raises:
-        AudioDeviceError: If device is invalid or cannot be opened
-    """
+def test_input_device(device_id: int) -> None:
+    """Functionally probe an input device without persisting a selection."""
     devices = list_devices()
     if device_id < 0 or device_id >= len(devices):
         raise AudioDeviceError(f"Invalid input device ID: {device_id}")
@@ -268,7 +261,36 @@ def select_input(device_id: int, *, config: dict | None = None) -> None:
     except Exception as exc:
         raise AudioDeviceError(f"Failed to open input device {device_id}: {exc}") from exc
 
-    # Save to rex_config.json
+
+def test_output_device(device_id: int) -> None:
+    """Functionally probe an output device without persisting a selection."""
+    devices = list_devices()
+    if device_id < 0 or device_id >= len(devices):
+        raise AudioDeviceError(f"Invalid output device ID: {device_id}")
+
+    device = devices[device_id]
+    if device["max_output_channels"] < 1:
+        raise AudioDeviceError(f"Device {device_id} has no output channels.")
+
+    try:
+        sounddevice = _require_sounddevice()
+        with sounddevice.OutputStream(device=device_id, blocksize=0):
+            pass
+    except Exception as exc:
+        raise AudioDeviceError(f"Failed to open output device {device_id}: {exc}") from exc
+
+
+def select_input(device_id: int, *, config: dict | None = None) -> None:
+    """Select and persist input device to rex_config.json.
+
+    Args:
+        device_id: Device index to select
+
+    Raises:
+        AudioDeviceError: If device is invalid or cannot be opened
+    """
+    test_input_device(device_id)
+
     if config is None:
         config = load_config()
     config = set_selected_input_device_index(config, device_id)
@@ -285,22 +307,8 @@ def select_output(device_id: int, *, config: dict | None = None) -> None:
     Raises:
         AudioDeviceError: If device is invalid or cannot be opened
     """
-    devices = list_devices()
-    if device_id < 0 or device_id >= len(devices):
-        raise AudioDeviceError(f"Invalid output device ID: {device_id}")
+    test_output_device(device_id)
 
-    device = devices[device_id]
-    if device["max_output_channels"] < 1:
-        raise AudioDeviceError(f"Device {device_id} has no output channels.")
-
-    try:
-        sounddevice = _require_sounddevice()
-        with sounddevice.OutputStream(device=device_id, blocksize=0):
-            pass
-    except Exception as exc:
-        raise AudioDeviceError(f"Failed to open output device {device_id}: {exc}") from exc
-
-    # Save to rex_config.json
     if config is None:
         config = load_config()
     config = set_selected_output_device_index(config, device_id)
