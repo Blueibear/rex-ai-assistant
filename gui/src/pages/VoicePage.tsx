@@ -4,8 +4,15 @@ import type { VoiceState } from '../components/voice/VoiceToggle'
 import { WaveformVisualizer } from '../components/voice/WaveformVisualizer'
 import { EmptyState } from '../components/ui/EmptyState'
 import { Tooltip } from '../components/ui/Tooltip'
-import type { ChatStreamCancelHandle, VoiceSettings, VoiceTranscriptEntry } from '../types/ipc'
+import type {
+  ChatStreamCancelHandle,
+  VoiceSettings,
+  VoiceTranscriptEntry,
+  WakeWordAttemptEvidence,
+  WakeWordRuntimeStatus,
+} from '../types/ipc'
 import { voiceProvider } from '../types/voiceProvider'
+import { getWakeWordDiagnosticMessages } from '../types/wakeWordDiagnostics'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -26,6 +33,7 @@ const knownVoiceStates: VoiceState[] = [
   'processing',
   'speaking',
   'cooldown',
+  'error',
 ]
 const internalToolSyntaxPattern = /\bTOOL_(?:REQUEST|RESULT)\s*:/i
 
@@ -68,6 +76,8 @@ function getVoiceStatusLabel(state: VoiceState): string | null {
       return 'Speaking response'
     case 'cooldown':
       return 'Resetting microphone'
+    case 'error':
+      return 'Voice failed'
     case 'idle':
       return null
   }
@@ -623,6 +633,8 @@ export function VoicePage(): React.ReactElement {
   const [selectedMicId, setSelectedMicId] = useState<string>('')
   const [holdToTalkError, setHoldToTalkError] = useState<string | null>(null)
   const [deviceNotice, setDeviceNotice] = useState<string | null>(null)
+  const [wakeRuntimeStatus, setWakeRuntimeStatus] = useState<WakeWordRuntimeStatus | null>(null)
+  const [wakeAttemptEvidence, setWakeAttemptEvidence] = useState<WakeWordAttemptEvidence | null>(null)
   const activeAudioRef = useRef<HTMLAudioElement | null>(null)
   const activeTurnRef = useRef<AbortController | null>(null)
 
@@ -831,14 +843,25 @@ export function VoicePage(): React.ReactElement {
 
   const handleVoiceError = useCallback((err: string) => {
     setError(err)
-    setVoiceState('idle')
+    setVoiceState('error')
     setIsActive(false)
     setStartingWakeMode(false)
-    setVoiceStatusLabel(null)
+    setVoiceStatusLabel('Voice failed')
   }, [])
 
   const handleVoiceStatus = useCallback((_status: string, label: string) => {
     setVoiceStatusLabel(label)
+  }, [])
+
+  const handleWakeWordRuntimeStatus = useCallback((status: WakeWordRuntimeStatus) => {
+    setWakeRuntimeStatus(status)
+    setWakeAttemptEvidence((previous) =>
+      previous && previous.detectorGeneration === status.detectorGeneration ? previous : null,
+    )
+  }, [])
+
+  const handleWakeWordAttemptEvidence = useCallback((evidence: WakeWordAttemptEvidence) => {
+    setWakeAttemptEvidence(evidence)
   }, [])
 
   useEffect(() => {
@@ -846,7 +869,9 @@ export function VoicePage(): React.ReactElement {
       handleVoiceState,
       handleVoiceTranscript,
       handleVoiceError,
-      handleVoiceStatus
+      handleVoiceStatus,
+      handleWakeWordRuntimeStatus,
+      handleWakeWordAttemptEvidence,
     )
 
     let cancelled = false
@@ -871,13 +896,22 @@ export function VoicePage(): React.ReactElement {
       cancelled = true
       cleanup()
     }
-  }, [handleVoiceState, handleVoiceTranscript, handleVoiceError, handleVoiceStatus])
+  }, [
+    handleVoiceState,
+    handleVoiceTranscript,
+    handleVoiceError,
+    handleVoiceStatus,
+    handleWakeWordRuntimeStatus,
+    handleWakeWordAttemptEvidence,
+  ])
 
   const handleToggle = useCallback(async () => {
     if (startingWakeMode) return
     if (!isActive) {
       setError(null)
       setTranscripts([])
+      setWakeRuntimeStatus(null)
+      setWakeAttemptEvidence(null)
       setStartingWakeMode(true)
       setVoiceState('starting')
       setVoiceStatusLabel('Starting bridge process')
@@ -897,7 +931,7 @@ export function VoicePage(): React.ReactElement {
         setVoiceStatusLabel('Ready and listening for wake word')
       } catch (e) {
         setError(e instanceof Error ? e.message : String(e))
-        setVoiceState('idle')
+        setVoiceState('error')
       } finally {
         setStartingWakeMode(false)
       }
@@ -906,6 +940,8 @@ export function VoicePage(): React.ReactElement {
       setIsActive(false)
       setVoiceState('idle')
       setVoiceStatusLabel(null)
+      setWakeRuntimeStatus(null)
+      setWakeAttemptEvidence(null)
     }
   }, [
     isActive,
@@ -958,6 +994,10 @@ export function VoicePage(): React.ReactElement {
 
   const showTranscriptPanel =
     transcripts.length > 0 || voiceState === 'listening' || voiceState === 'followup_listening'
+  const wakeDiagnosticMessages = getWakeWordDiagnosticMessages(
+    wakeRuntimeStatus,
+    wakeAttemptEvidence,
+  )
 
   return (
     <div className="flex flex-col items-center justify-start h-full pt-8 gap-6 overflow-y-auto pb-8">
@@ -974,6 +1014,49 @@ export function VoicePage(): React.ReactElement {
         busy={startingWakeMode}
         onToggle={() => void handleToggle()}
       />
+
+      {wakeRuntimeStatus && (
+        <div className="w-full max-w-md rounded-lg border border-white/10 bg-surface-raised/40 px-4 py-3 text-sm">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <span className="text-text-muted">Say:</span>{' '}
+              <strong className="text-text-primary">
+                {wakeRuntimeStatus.activePhrase ?? 'waiting for detector metadata'}
+              </strong>
+            </div>
+            <span className="text-xs text-text-muted">
+              {wakeRuntimeStatus.armed ? 'Detector armed' : 'Detector not armed'}
+            </span>
+          </div>
+          <div className="mt-2 grid grid-cols-1 gap-1 text-xs text-text-muted sm:grid-cols-2">
+            <span>Backend: {wakeRuntimeStatus.activeBackend ?? 'unknown'}</span>
+            <span>Threshold: {wakeRuntimeStatus.threshold?.toFixed(3) ?? 'unknown'}</span>
+            <span>Microphone: {wakeRuntimeStatus.microphoneLabel ?? 'system default'}</span>
+            <span>Detector generation: {wakeRuntimeStatus.detectorGeneration}</span>
+          </div>
+          {wakeRuntimeStatus.fallbackActive && (
+            <p className="mt-2 text-xs text-warning" role="status">
+              Wake-word fallback is active. The live phrase above is authoritative.
+            </p>
+          )}
+          <details className="mt-3">
+            <summary className="cursor-pointer text-xs font-medium text-text-secondary">
+              Wake-word diagnostics
+            </summary>
+            <ul className="mt-2 list-disc space-y-1 pl-5 text-xs text-text-muted">
+              {wakeDiagnosticMessages.map((message) => (
+                <li key={message}>{message}</li>
+              ))}
+            </ul>
+            {wakeAttemptEvidence && (
+              <p className="mt-2 text-xs text-text-muted">
+                Best confidence: {wakeAttemptEvidence.maxConfidence?.toFixed(3) ?? 'unknown'};{' '}
+                latest: {wakeAttemptEvidence.latestConfidence?.toFixed(3) ?? 'unknown'}.
+              </p>
+            )}
+          </details>
+        </div>
+      )}
 
       {startingWakeMode && (
         <div className="max-w-xs text-center text-xs text-text-muted" role="status" aria-live="polite">
@@ -993,9 +1076,9 @@ export function VoicePage(): React.ReactElement {
         </p>
       )}
 
-      {isActive && voiceState === 'wake_listening' && (
-        <p className="max-w-xs text-center text-xs text-text-muted">
-          Waiting for the configured wake word. If nothing happens when you say it, check the selected microphone and wake-word threshold in Settings, or use Hold to talk for immediate capture.
+      {isActive && voiceState === 'wake_listening' && wakeRuntimeStatus === null && (
+        <p className="max-w-xs text-center text-xs text-text-muted" role="status">
+          Wake listening is active, but the detector has not reported its live phrase yet.
         </p>
       )}
 
@@ -1041,6 +1124,9 @@ export function VoicePage(): React.ReactElement {
           onInterrupt={stopActiveResponse}
           onTiming={logTiming}
         />
+        <p className="max-w-xs text-center text-xs text-text-muted">
+          Hold to talk is the reliable immediate path while wake-word mode is beta or being diagnosed.
+        </p>
 
         {(voiceState === 'processing' || voiceState === 'speaking') && (
           <button

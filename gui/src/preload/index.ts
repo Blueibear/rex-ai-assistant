@@ -35,6 +35,8 @@ import type {
   ShoppingItem,
   WakeWordInfo,
   WakeWordStatus,
+  WakeWordRuntimeStatus,
+  WakeWordAttemptEvidence,
   LogEntry,
   LogsResponse,
   UsageSummary,
@@ -140,7 +142,9 @@ function attachVoiceSession(
   onStateChange: (state: string) => void,
   onTranscript: (entry: VoiceTranscriptEntry) => void,
   onError: (error: string) => void,
-  onStatus?: (status: string, label: string) => void
+  onStatus?: (status: string, label: string) => void,
+  onWakeWordRuntimeStatus?: (status: WakeWordRuntimeStatus) => void,
+  onWakeWordAttemptEvidence?: (evidence: WakeWordAttemptEvidence) => void
 ): (() => void) {
   if (voiceCleanup) {
     voiceCleanup()
@@ -159,12 +163,20 @@ function attachVoiceSession(
   function statusHandler(_e: unknown, data: { status: string; label?: string }): void {
     onStatus?.(data.status, data.label ?? data.status)
   }
+  function wakeWordRuntimeStatusHandler(_e: unknown, data: WakeWordRuntimeStatus): void {
+    onWakeWordRuntimeStatus?.(data)
+  }
+  function wakeWordAttemptEvidenceHandler(_e: unknown, data: WakeWordAttemptEvidence): void {
+    onWakeWordAttemptEvidence?.(data)
+  }
 
   function cleanup(): void {
     ipcRenderer.removeListener('rex:voiceState', stateHandler)
     ipcRenderer.removeListener('rex:voiceTranscript', transcriptHandler)
     ipcRenderer.removeListener('rex:voiceError', errorHandler)
     ipcRenderer.removeListener('rex:voiceStatus', statusHandler)
+    ipcRenderer.removeListener('rex:wakeWordRuntimeStatus', wakeWordRuntimeStatusHandler)
+    ipcRenderer.removeListener('rex:wakeWordAttemptEvidence', wakeWordAttemptEvidenceHandler)
     if (voiceCleanup === cleanup) {
       voiceCleanup = null
     }
@@ -176,6 +188,8 @@ function attachVoiceSession(
   ipcRenderer.on('rex:voiceTranscript', transcriptHandler)
   ipcRenderer.on('rex:voiceError', errorHandler)
   ipcRenderer.on('rex:voiceStatus', statusHandler)
+  ipcRenderer.on('rex:wakeWordRuntimeStatus', wakeWordRuntimeStatusHandler)
+  ipcRenderer.on('rex:wakeWordAttemptEvidence', wakeWordAttemptEvidenceHandler)
 
   return cleanup
 }
