@@ -66,17 +66,28 @@ export function runInstalledFirstRunSmoke(mainWindow: BrowserWindow): boolean {
           'previewVoice',
           'listWakeWords',
           'previewWakeWordSample',
-          'getWakeWordStatus'
+          'getSetupWakeWordStatus'
         ];
         const preauthIpc = preauthMethods.every((name) => typeof api[name] === 'function');
         if (!initialStatus.needs_setup || !setupUi || !preauthIpc) {
           throw new Error('Fresh install did not expose the first-run setup surface');
         }
 
-        const wakeStatus = await api.getWakeWordStatus();
         const wakeInventory = await api.listWakeWords();
-        if (!wakeStatus || !wakeInventory || typeof wakeInventory.ok !== 'boolean') {
-          throw new Error('Pre-auth wake-word setup IPC did not return a typed result');
+        if (!wakeInventory || wakeInventory.ok !== true || !Array.isArray(wakeInventory.wake_words)) {
+          throw new Error('Pre-auth wake-word enumeration did not return a usable inventory');
+        }
+        const selectedWakeWord = wakeInventory.wake_words.find(
+          (item) => item && typeof item.id === 'string' && item.id.trim() !== ''
+        );
+        if (!selectedWakeWord) {
+          throw new Error('Pre-auth wake-word enumeration returned no usable wake-word id');
+        }
+        const selectedWakeWordId = selectedWakeWord.id;
+        const wakeStatus = await api.getSetupWakeWordStatus(selectedWakeWordId);
+        if (!wakeStatus || typeof wakeStatus.status !== 'string' ||
+            typeof wakeStatus.requestedBackend !== 'string') {
+          throw new Error('Pre-auth wake-word readiness did not return a typed status');
         }
 
         const completed = await api.completeSetup({
@@ -88,7 +99,7 @@ export function runInstalledFirstRunSmoke(mainWindow: BrowserWindow): boolean {
           microphone_device_index: null,
           speaker_device_index: null,
           local_device_id: 'local_voice',
-          wake_word_id: 'hey_rex',
+          wake_word_id: selectedWakeWordId,
           room_name: 'Artifact Room',
           background_voice_enabled: false,
           ha_base_url: '',

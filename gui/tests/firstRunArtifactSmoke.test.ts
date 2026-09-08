@@ -24,6 +24,16 @@ describe('US-125 installed first-run smoke', () => {
     expect(artifactSmokeSource).toContain('await api.getStatus()')
   })
 
+  it('drives pre-auth wake readiness through the enumerated setup id, never generic readiness', () => {
+    expect(artifactSmokeSource).toContain('await api.listWakeWords()')
+    expect(artifactSmokeSource).toContain('api.getSetupWakeWordStatus(selectedWakeWordId)')
+    expect(artifactSmokeSource).toContain('wake_word_id: selectedWakeWordId')
+    // Generic wake readiness has no pre-auth handler and must not be part of
+    // this flow; a hard-coded unenumerated id must not be persisted either.
+    expect(artifactSmokeSource).not.toContain('api.getWakeWordStatus(')
+    expect(artifactSmokeSource).not.toContain("wake_word_id: 'hey_rex'")
+  })
+
   it('routes only the explicit first-run artifact mode through the fresh-install smoke', () => {
     expect(mainSource).toContain('ASKREX_ARTIFACT_SMOKE_FIRST_RUN')
     expect(mainSource).toContain('runInstalledFirstRunSmoke')
