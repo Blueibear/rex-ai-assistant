@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import json
+import sys
+from types import ModuleType
 from typing import Any
 
 import pytest
@@ -34,11 +36,17 @@ def test_complete_setup_rejects_repeat_first_run_mutation(
     bootstrap_calls: list[str] = []
     persist_calls: list[dict[str, str]] = []
 
-    monkeypatch.setattr("rex.auth._open_db", lambda: _ExistingUsersDb())
+    auth_module = ModuleType("rex.auth")
+    auth_module._open_db = lambda: _ExistingUsersDb()  # type: ignore[attr-defined]
 
     def fake_create_user(username: str, password: str) -> dict[str, str]:
         create_calls.append((username, password))
         return {"id": "unexpected-user"}
+
+    auth_module.create_user = fake_create_user  # type: ignore[attr-defined]
+
+    permissions_module = ModuleType("rex.permissions")
+    permissions_module.bootstrap_admin_if_first_user = bootstrap_calls.append  # type: ignore[attr-defined]
 
     def fake_persist(
         values: dict[str, str], *, config_path: object = None, update_config: Any = None
@@ -47,9 +55,12 @@ def test_complete_setup_rejects_repeat_first_run_mutation(
         persist_calls.append(dict(values))
         return {}
 
-    monkeypatch.setattr("rex.auth.create_user", fake_create_user)
-    monkeypatch.setattr("rex.permissions.bootstrap_admin_if_first_user", bootstrap_calls.append)
-    monkeypatch.setattr("rex.credential_persistence.persist_household_secrets", fake_persist)
+    credential_module = ModuleType("rex.credential_persistence")
+    credential_module.persist_household_secrets = fake_persist  # type: ignore[attr-defined]
+
+    monkeypatch.setitem(sys.modules, "rex.auth", auth_module)
+    monkeypatch.setitem(sys.modules, "rex.permissions", permissions_module)
+    monkeypatch.setitem(sys.modules, "rex.credential_persistence", credential_module)
 
     rex_setup_bridge._handle_complete(
         {
