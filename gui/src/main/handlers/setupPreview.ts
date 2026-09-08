@@ -78,9 +78,9 @@ export function registerSetupPreviewHandlers(): void {
     callJsonBridge('rex_wakeword_sample_bridge.py', { wake_word_id: wakeWordId })
   )
 
-  ipcMain.handle('rex:getWakeWordStatus', (_event, values?: Settings): WakeWordStatus => {
+  ipcMain.handle('rex:getWakeWordStatus', (): WakeWordStatus => {
     const stored = readGuiSettings()
-    const source = values ?? ((stored.voice ?? {}) as Settings)
+    const source = (stored.voice ?? {}) as Settings
     return buildWakeWordStatus(source)
   })
 }
