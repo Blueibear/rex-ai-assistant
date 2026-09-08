@@ -18,7 +18,7 @@ class _ExistingUsersCursor:
 
 
 class _ExistingUsersDb:
-    def __enter__(self) -> "_ExistingUsersDb":
+    def __enter__(self) -> _ExistingUsersDb:
         return self
 
     def __exit__(self, exc_type: object, exc: object, tb: object) -> None:

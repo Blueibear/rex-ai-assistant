@@ -613,15 +613,28 @@ function StepVerifyVoice({
   )
 }
 
-function StepDone({ voiceVerified }: { voiceVerified: boolean }): React.ReactElement {
+function StepDone({
+  voiceVerified,
+  runtimeWarning
+}: {
+  voiceVerified: boolean
+  runtimeWarning: string
+}): React.ReactElement {
   return (
     <div className="space-y-4 text-center">
       <h3 className="text-lg font-semibold text-text-primary">Setup saved</h3>
-      <p className="text-text-secondary text-sm">
-        {voiceVerified
-          ? 'Your account and configuration are saved, and this setup session completed the full screenless voice verification path.'
-          : 'Your account and configuration are saved. Voice was not verified during setup; you can test it later from Voice.'}
-      </p>
+      {runtimeWarning ? (
+        <>
+          <p className="text-amber-300 text-sm font-medium">{runtimeWarning}</p>
+          <p className="text-text-secondary text-sm">Close and reopen AskRex to continue.</p>
+        </>
+      ) : (
+        <p className="text-text-secondary text-sm">
+          {voiceVerified
+            ? 'Your account and configuration are saved, and this setup session completed the full screenless voice verification path.'
+            : 'Your account and configuration are saved. Voice was not verified during setup; you can test it later from Voice.'}
+        </p>
+      )}
     </div>
   )
 }
@@ -651,6 +664,7 @@ export function SetupWizardPage({ onComplete }: SetupWizardPageProps): React.Rea
   const [step, setStep] = useState(0)
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [setupRuntimeWarning, setSetupRuntimeWarning] = useState('')
   const [audioDevices, setAudioDevices] = useState<SetupAudioDevice[]>([])
   const [audioDevicesLoading, setAudioDevicesLoading] = useState(true)
   const [audioDevicesError, setAudioDevicesError] = useState('')
@@ -1094,12 +1108,21 @@ export function SetupWizardPage({ onComplete }: SetupWizardPageProps): React.Rea
   const handleSubmit = async (deferHomeAssistant = false): Promise<void> => {
     setSubmitting(true)
     setError('')
+    setSetupRuntimeWarning('')
     try {
       const submission = buildSetupSubmission(data, { deferHomeAssistant })
       const result = await window.rex.completeSetup(submission)
       if (!result.ok) {
         setError(result.error ?? 'Setup failed.')
         setSubmitting(false)
+        return
+      }
+      if (result.runtime_ready === false) {
+        setSetupRuntimeWarning(
+          result.warning ?? 'Setup was saved, but Rex could not finish starting.'
+        )
+        setSubmitting(false)
+        setStep(DONE_STEP)
         return
       }
       setSubmitting(false)
@@ -1201,7 +1224,12 @@ export function SetupWizardPage({ onComplete }: SetupWizardPageProps): React.Rea
           />
         )
       default:
-        return <StepDone voiceVerified={voiceVerification.status === 'verified'} />
+        return (
+          <StepDone
+            voiceVerified={voiceVerification.status === 'verified'}
+            runtimeWarning={setupRuntimeWarning}
+          />
+        )
     }
   }
 
@@ -1227,7 +1255,7 @@ export function SetupWizardPage({ onComplete }: SetupWizardPageProps): React.Rea
               Step {step + 1} of {STEPS.length}
             </span>
             <h2 className="text-xl font-semibold text-text-primary">
-              {isDone ? 'All done!' : `Set up ${STEPS[step]}`}
+              {isDone ? (setupRuntimeWarning ? 'Setup saved' : 'All done!') : `Set up ${STEPS[step]}`}
             </h2>
           </div>
 
@@ -1248,13 +1276,17 @@ export function SetupWizardPage({ onComplete }: SetupWizardPageProps): React.Rea
             )}
 
             {isDone ? (
-              <button
-                type="button"
-                onClick={onComplete}
-                className="px-6 py-2 rounded-lg bg-accent text-white text-sm font-medium hover:bg-accent/90 transition-colors"
-              >
-                Open Dashboard
-              </button>
+              setupRuntimeWarning ? (
+                <span />
+              ) : (
+                <button
+                  type="button"
+                  onClick={onComplete}
+                  className="px-6 py-2 rounded-lg bg-accent text-white text-sm font-medium hover:bg-accent/90 transition-colors"
+                >
+                  Open Dashboard
+                </button>
+              )
             ) : step === VERIFY_STEP ? (
               <span />
             ) : (

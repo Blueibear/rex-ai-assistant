@@ -95,10 +95,26 @@ export function registerSetupHandlers(onSetupCompleted?: SetupCompletedCallback)
         command: 'complete',
         ...payload
       })) as unknown as SetupCompleteResponse
-      if (result.ok && onSetupCompleted) {
-        await onSetupCompleted()
+      if (!result.ok) {
+        return result
       }
-      return result
+
+      if (!onSetupCompleted) {
+        return { ...result, setup_saved: true, runtime_ready: true }
+      }
+
+      try {
+        await onSetupCompleted()
+        return { ...result, setup_saved: true, runtime_ready: true }
+      } catch {
+        return {
+          ...result,
+          setup_saved: true,
+          runtime_ready: false,
+          warning:
+            'Setup was saved, but Rex could not finish starting. Close and reopen AskRex to continue.'
+        }
+      }
     }
   )
 }

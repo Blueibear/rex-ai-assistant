@@ -703,6 +703,9 @@ export interface SetupCompleteResponse {
   ok: boolean
   user_id?: string
   error?: string
+  setup_saved?: boolean
+  runtime_ready?: boolean
+  warning?: string
 }
 
 export interface PairingChallenge {
