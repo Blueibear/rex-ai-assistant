@@ -2,10 +2,13 @@ import { readFileSync } from 'fs'
 import { fileURLToPath } from 'url'
 import { describe, expect, it } from 'vitest'
 
-const pageSource = readFileSync(
-  fileURLToPath(new URL('../src/pages/SetupWizardPage.tsx', import.meta.url)),
-  'utf8'
-)
+function source(relativePath: string): string {
+  return readFileSync(fileURLToPath(new URL(relativePath, import.meta.url)), 'utf8')
+}
+
+const pageSource = source('../src/pages/SetupWizardPage.tsx')
+const preloadSource = source('../src/preload/index.ts')
+const ipcSource = source('../src/types/ipc.ts')
 
 describe('US-125 setup wake-word UX', () => {
   it('loads the canonical wake-word inventory', () => {
@@ -28,9 +31,17 @@ describe('US-125 setup wake-word UX', () => {
   })
 
   it('checks canonical readiness for the currently selected setup wake word', () => {
-    expect(pageSource).toContain("ipcRenderer.invoke('rex:getSetupWakeWordStatus', wakeWordId)")
-    expect(pageSource).toContain('getSetupWakeWordStatus(data.wakeWordId)')
+    expect(pageSource).toContain('window.rex.getSetupWakeWordStatus(data.wakeWordId)')
     expect(pageSource).toContain('[data.wakeWordId, wakeWordsLoading]')
+    expect(preloadSource).toContain(
+      'getSetupWakeWordStatus: (wakeWordId: string): Promise<WakeWordStatus>'
+    )
+    expect(preloadSource).toContain(
+      "ipcRenderer.invoke('rex:getSetupWakeWordStatus', wakeWordId)"
+    )
+    expect(ipcSource).toContain(
+      'getSetupWakeWordStatus: (wakeWordId: string) => Promise<WakeWordStatus>'
+    )
     expect(pageSource).toContain('Wake-word asset ready')
     expect(pageSource).toContain('wakeWordStatusError')
     expect(pageSource).toContain('Voice not yet verified')
