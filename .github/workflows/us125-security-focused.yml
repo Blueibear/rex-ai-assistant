@@ -10,7 +10,7 @@ permissions:
   contents: read
 
 jobs:
-  wake-sample-path-boundary:
+  setup-security-boundaries:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -21,3 +21,5 @@ jobs:
         run: python -m pip install pytest numpy
       - name: Reject wake-word sample path traversal
         run: python -m pytest tests/test_us310_wakeword_sample.py -q -k sample_bridge_rejects_path_traversal
+      - name: Reject repeated first-run setup mutation
+        run: python -m pytest tests/test_us125_setup_security.py -q
