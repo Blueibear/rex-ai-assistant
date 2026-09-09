@@ -15,15 +15,7 @@ from __future__ import annotations
 import json
 import sys
 
-# Default set of known openWakeWord keywords returned when the library is not
-# installed, ensuring the dropdown is never empty.
-_DEFAULT_KEYWORDS = [
-    "hey jarvis",
-    "hey mycroft",
-    "hey rhasspy",
-    "ok nabu",
-    "alexa",
-]
+from rex.wakeword_catalog import DEFAULT_OPENWAKEWORD_KEYWORDS
 
 
 def main() -> None:
@@ -33,7 +25,7 @@ def main() -> None:
         pass
 
     try:
-        from rex.wakeword.selection import list_openwakeword_keywords
+        from rex.wakeword_catalog import list_openwakeword_keywords
 
         try:
             import openwakeword as _oww
@@ -43,7 +35,7 @@ def main() -> None:
             raw = []
 
         # Supplement with defaults if the live list is empty.
-        keywords = raw if raw else _DEFAULT_KEYWORDS
+        keywords = raw if raw else DEFAULT_OPENWAKEWORD_KEYWORDS
 
         wake_words = [
             {
@@ -83,7 +75,7 @@ def main() -> None:
                 "engine": "openwakeword",
                 "has_sample": False,
             }
-            for kw in _DEFAULT_KEYWORDS
+            for kw in DEFAULT_OPENWAKEWORD_KEYWORDS
         ]
         print(
             json.dumps({"ok": True, "wake_words": wake_words, "warning": str(exc)}),

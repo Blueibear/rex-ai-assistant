@@ -11,6 +11,7 @@ on:
       - "gui/**"
       - "rex/**"
       - "scripts/build_managed_python_runtime.ps1"
+      - "scripts/test_installed_electron_first_run.ps1"
       - "scripts/test_installed_electron_artifact.ps1"
       - "scripts/background_lifecycle_harness.py"
       - "scripts/background_lifecycle_fake_child.py"
@@ -40,6 +41,7 @@ jobs:
           $scripts = @(
             'Start-RexSpeak.ps1',
             'node_installers/install_windows.ps1',
+            'scripts/test_installed_electron_first_run.ps1',
             'scripts/test_installed_electron_artifact.ps1'
           )
           foreach ($script in $scripts) {
@@ -119,8 +121,17 @@ jobs:
       - name: Reject missing or private packaged resources
         run: python scripts/verify_electron_package_contents.py gui/dist/win-unpacked/resources
 
+      - name: Exercise clean installed first run
+        shell: powershell
+        run: |
+          scripts/test_installed_electron_first_run.ps1 `
+            -Installer "gui/dist/AskRex Setup 1.0.0.exe" `
+            -DiagnosticsPath "$env:RUNNER_TEMP\askrex-first-run-smoke.json"
+
       - name: Exercise installed artifact without machine Python or Node
         shell: powershell
+        env:
+          ASKREX_ARTIFACT_SMOKE_FORCE_BACKGROUND: "1"
         run: |
           scripts/test_installed_electron_artifact.ps1 `
             -Installer "gui/dist/AskRex Setup 1.0.0.exe" `
@@ -132,7 +143,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: askrex-windows-smoke-diagnostics
-          path: ${{ runner.temp }}\askrex-artifact-smoke.json
+          path: |
+            ${{ runner.temp }}\askrex-first-run-smoke.json
+            ${{ runner.temp }}\askrex-artifact-smoke.json
           if-no-files-found: warn
 
       - name: Upload installer evidence

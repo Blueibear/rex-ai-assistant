@@ -183,6 +183,36 @@ def test_sample_bridge_missing_id(tmp_path: Path, monkeypatch: pytest.MonkeyPatc
     assert "wake_word_id" in result["error"]
 
 
+def test_sample_bridge_rejects_path_traversal(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import io
+    import sys
+
+    import rex_wakeword_sample_bridge as bridge
+
+    wake_root = tmp_path / "wake_words"
+    wake_root.mkdir()
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    (outside / "sample.wav").write_bytes(_wav_bytes())
+
+    monkeypatch.setattr(bridge, "_CONFIG_DIR_DEFAULT", wake_root)
+    monkeypatch.setattr(
+        sys,
+        "stdin",
+        io.StringIO(json.dumps({"wake_word_id": "../outside"})),
+    )
+    output = []
+    monkeypatch.setattr("builtins.print", lambda *a, **kw: output.append(a[0]))
+
+    bridge.main()
+
+    result = json.loads(output[0])
+    assert result["ok"] is False
+    assert "audio_base64" not in result
+
+
 # ---------------------------------------------------------------------------
 # rex_wakeword_list_bridge — has_sample propagated
 # ---------------------------------------------------------------------------

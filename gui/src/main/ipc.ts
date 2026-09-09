@@ -21,12 +21,14 @@ import { registerSystemHandlers } from './handlers/system'
 import { registerHistoryHandlers } from './handlers/history'
 import { registerDevicesHandlers } from './handlers/devices'
 import { registerQuickActionsHandlers } from './handlers/quickActions'
-import { registerSetupHandlers } from './handlers/setup'
 import { registerPairingHandlers } from './handlers/pairing'
 import { registerProfileHandlers } from './handlers/profile'
 import type { ElectronSessionIdentity } from './sessionIdentity'
 
-export function registerIpcHandlers(mainWindow: BrowserWindow | null, session: ElectronSessionIdentity): void {
+export function registerAuthenticatedIpcHandlers(
+  mainWindow: BrowserWindow | null,
+  session: ElectronSessionIdentity
+): void {
   registerChatHandlers(session)
   registerVoiceHandlers(session)
   registerTaskHandlers(session)
@@ -49,7 +51,6 @@ export function registerIpcHandlers(mainWindow: BrowserWindow | null, session: E
   registerHistoryHandlers(session)
   registerDevicesHandlers(session)
   registerQuickActionsHandlers(session)
-  registerSetupHandlers()
   registerPairingHandlers(session)
   registerProfileHandlers(session)
 }

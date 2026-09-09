@@ -18,6 +18,14 @@ import sys
 from pathlib import Path
 
 _CONFIG_DIR_DEFAULT = Path(__file__).resolve().parent / "config" / "wake_words"
+_MAX_WAKE_WORD_ID_LENGTH = 128
+
+
+def _is_safe_wake_word_id(value: str) -> bool:
+    """Accept only the slug-shaped IDs emitted by AskRex wake-word inventory."""
+    if not value or len(value) > _MAX_WAKE_WORD_ID_LENGTH:
+        return False
+    return all(char.isalnum() or char in {"_", "-"} for char in value)
 
 
 def main() -> None:
@@ -28,9 +36,12 @@ def main() -> None:
         print(json.dumps({"ok": False, "error": f"Failed to read input: {exc}"}), flush=True)
         return
 
-    wake_word_id = payload.get("wake_word_id", "").strip()
+    wake_word_id = str(payload.get("wake_word_id", "")).strip()
     if not wake_word_id:
         print(json.dumps({"ok": False, "error": "wake_word_id is required"}), flush=True)
+        return
+    if not _is_safe_wake_word_id(wake_word_id):
+        print(json.dumps({"ok": False, "error": "invalid wake_word_id"}), flush=True)
         return
 
     sample_path = _CONFIG_DIR_DEFAULT / wake_word_id / "sample.wav"

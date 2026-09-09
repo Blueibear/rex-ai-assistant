@@ -3884,16 +3884,18 @@ grep -n "askrex.app\|Cloudflare\|CORS\|rate limit\|revocation" docs/deployment.m
 **Description:** Turn first-run setup into a guided consumer flow that can configure and verify Rex for household voice use without developer commands or manual JSON editing.
 
 **Acceptance Criteria:**
-- [ ] The wizard guides the user through primary identity/profile, supported AI provider connection, Rex voice selection/preview, microphone selection/test, speaker selection/test, wake-word selection/calibration, local room assignment, and background-startup choice.
-- [ ] Home Assistant, additional household voice enrollment, and additional room endpoints are offered as optional extensions rather than prerequisites for basic conversation.
-- [ ] Setup explains that enabled background listening continues when the app window is closed and provides the corresponding privacy/control choice before enabling it.
-- [ ] Saving configuration is not treated as voice verification: the wizard must prove wake detection -> capture -> STT -> canonical Assistant/TurnEngine -> TTS -> audible playback before reporting voice setup verified.
-- [ ] A failed stage is shown specifically and leaves unaffected text/mobile capabilities usable where possible.
-- [ ] The supported consumer path requires no Python/Node/Git/venv/repository/terminal/manual-JSON steps.
-- [ ] Tests cover successful setup, each major stage failure, skipped optional integrations, cancellation/resume, and truthful verification state.
-- [ ] All relevant GitHub checks pass.
+- [x] The wizard guides the user through primary identity/profile, supported AI provider connection, Rex voice selection/preview, microphone selection/test, speaker selection/test, wake-word selection/calibration, local room assignment, and background-startup choice.
+- [x] Home Assistant, additional household voice enrollment, and additional room endpoints are offered as optional extensions rather than prerequisites for basic conversation.
+- [x] Setup explains that enabled background listening continues when the app window is closed and provides the corresponding privacy/control choice before enabling it.
+- [x] Saving configuration is not treated as voice verification: the wizard must prove wake detection -> capture -> STT -> canonical Assistant/TurnEngine -> TTS -> audible playback before reporting voice setup verified.
+- [x] A failed stage is shown specifically and leaves unaffected text/mobile capabilities usable where possible.
+- [x] The supported consumer path requires no Python/Node/Git/venv/repository/terminal/manual-JSON steps.
+- [x] Tests cover successful setup, each major stage failure, skipped optional integrations, cancellation/resume, and truthful verification state.
+- [x] All relevant GitHub checks pass.
 
-**Validation:** Electron typecheck/tests/build plus packaged first-run smoke and physical audio verification.
+**Validation:** Electron typecheck/tests/build plus packaged first-run smoke. The wizard's verification state requires explicit audible-playback confirmation, but physical microphone/speaker, reboot/sign-in, and screenless room acceptance remain the separate US-130 release-evidence gate and are not claimed by US-125.
+
+**Completion evidence (2026-09-08):** implementation head `2a9d1aaeea652c01ce160289b58868e56b5d4939` passed exact-head GitHub CI, Commitlint, CodeFactor, GitGuardian, and Windows Electron Artifact. The Windows artifact workflow passed both `Exercise clean installed first run` and `Exercise installed artifact without machine Python or Node`. Local Python 3.11 verification collected 9,591 tests with 9,543 passed / 48 skipped / 0 failed; skip budget was 48/82, skip inventory 129/129 current, Linux-targeted mypy reported 0 issues in 446 source files, the focused US-125/wake-word matrix passed 69/69, and Electron Vitest passed 272/272 across 54 files. Release/security, Ruff, Black, pre-commit, detect-secrets, TypeScript, ESLint, production build, and dependency-audit gates also passed.
 
 ---
 

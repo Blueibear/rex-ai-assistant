@@ -43,6 +43,8 @@ import type {
   QuickAction,
   QuickActionRunResponse,
   SetupStatusResponse,
+  SetupAudioDevicesResponse,
+  SetupAudioTestResponse,
   SetupCompletePayload,
   SetupCompleteResponse,
   IntegrationConnectionStatus,
@@ -433,6 +435,8 @@ const rexAPI = {
     ipcRenderer.invoke('rex:clearCheckedShoppingItems'),
   listWakeWords: (): Promise<{ ok: boolean; wake_words: WakeWordInfo[]; error?: string; warning?: string }> =>
     ipcRenderer.invoke('rex:listWakeWords'),
+  getSetupWakeWordStatus: (wakeWordId: string): Promise<WakeWordStatus> =>
+    ipcRenderer.invoke('rex:getSetupWakeWordStatus', wakeWordId),
   getWakeWordStatus: (settings?: VoiceSettings): Promise<WakeWordStatus> =>
     ipcRenderer.invoke('rex:getWakeWordStatus', settings),
   previewWakeWordSample: (
@@ -480,6 +484,13 @@ const rexAPI = {
   ): Promise<DeviceCommandResponse> =>
     ipcRenderer.invoke('rex:sendDeviceCommand', entityId, command, payload, confirmationToken, requestId),
   getSetupStatus: (): Promise<SetupStatusResponse> => ipcRenderer.invoke('rex:getSetupStatus'),
+  getSetupAudioDevices: (): Promise<SetupAudioDevicesResponse> =>
+    ipcRenderer.invoke('rex:getSetupAudioDevices'),
+  testSetupAudioDevice: (
+    kind: 'microphone' | 'speaker',
+    deviceIndex: number
+  ): Promise<SetupAudioTestResponse> =>
+    ipcRenderer.invoke('rex:testSetupAudioDevice', kind, deviceIndex),
   completeSetup: (payload: SetupCompletePayload): Promise<SetupCompleteResponse> =>
     ipcRenderer.invoke('rex:completeSetup', payload),
   createPairingChallenge: (scopes: string[]): Promise<PairingResponse> =>

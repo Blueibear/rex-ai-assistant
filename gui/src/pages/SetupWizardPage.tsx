@@ -1,5 +1,13 @@
-import React, { useState } from 'react'
-import { buildSetupSubmission } from './setupWizardModel'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
+import type { SetupAudioDevice, VoiceInfo, WakeWordInfo, WakeWordStatus } from '../types/ipc'
+import {
+  buildSetupSubmission,
+  createVoiceVerificationState,
+  reduceVoiceVerification,
+  type VoiceVerificationEvent,
+  type VoiceVerificationStage,
+  type VoiceVerificationState
+} from './setupWizardModel'
 
 interface SetupData {
   username: string
@@ -7,20 +15,87 @@ interface SetupData {
   llmProvider: string
   llmApiKey: string
   ttsProvider: string
+  ttsVoiceId: string
+  microphoneDeviceIndex: number | null
+  speakerDeviceIndex: number | null
+  localDeviceId: string
+  wakeWordId: string
+  roomName: string
+  backgroundVoiceEnabled: boolean
   haBaseUrl: string
   haToken: string
 }
 
+type SetupValue = string | boolean | number | null
+
 interface StepProps {
   data: SetupData
-  onChange: (field: keyof SetupData, value: string) => void
+  onChange: (field: keyof SetupData, value: SetupValue) => void
 }
+
+interface AudioStepProps {
+  data: SetupData
+  devices: SetupAudioDevice[]
+  loading: boolean
+  inventoryError: string
+  testing: boolean
+  testPassed: boolean
+  testError: string
+  onTest: () => void
+  onDeviceChange: (deviceIndex: number | null) => void
+}
+
+interface VoiceStepProps extends StepProps {
+  voices: VoiceInfo[]
+  loading: boolean
+  inventoryError: string
+  previewing: boolean
+  previewPlayed: boolean
+  previewError: string
+  onPreview: () => void
+  onProviderChange: (provider: string) => void
+  onVoiceChange: (voiceId: string) => void
+}
+
+interface WakeWordStepProps extends StepProps {
+  wakeWords: WakeWordInfo[]
+  loading: boolean
+  inventoryError: string
+  previewing: boolean
+  samplePlayed: boolean
+  previewError: string
+  status: WakeWordStatus | null
+  statusLoading: boolean
+  statusError: string
+  onPreview: () => void
+  onWakeWordChange: (wakeWordId: string) => void
+}
+
+interface VerifyVoiceStepProps {
+  verification: VoiceVerificationState
+  wakeWordName: string
+  onStart: () => void
+  onCancel: () => void
+  onPlaybackConfirmed: () => void
+  onPlaybackRejected: () => void
+  onContinueWithoutVoice: () => void
+  onContinue: () => void
+}
+
+function voiceApiProvider(ttsProvider: string): string {
+  if (ttsProvider === 'edge') return 'edge-tts'
+  if (ttsProvider === 'xtts') return 'xtts'
+  return 'pyttsx3'
+}
+
+const inputClass =
+  'w-full px-3 py-2 rounded-lg border border-border bg-surface text-text-primary text-sm focus:outline-none focus:ring-2 focus:ring-accent/50'
 
 function StepAccount({ data, onChange }: StepProps): React.ReactElement {
   return (
     <div className="space-y-4">
       <p className="text-text-secondary text-sm">
-        Create your Rex account. This account is stored locally — no cloud sign-up required.
+        Create the primary Rex profile. It is stored locally and owns this first-run setup.
       </p>
       <div>
         <label className="block text-sm font-medium text-text-primary mb-1">Username</label>
@@ -28,8 +103,8 @@ function StepAccount({ data, onChange }: StepProps): React.ReactElement {
           type="text"
           autoComplete="username"
           value={data.username}
-          onChange={(e) => onChange('username', e.target.value)}
-          className="w-full px-3 py-2 rounded-lg border border-border bg-surface text-text-primary text-sm focus:outline-none focus:ring-2 focus:ring-accent/50"
+          onChange={(event) => onChange('username', event.target.value)}
+          className={inputClass}
           placeholder="e.g. james"
         />
       </div>
@@ -39,8 +114,8 @@ function StepAccount({ data, onChange }: StepProps): React.ReactElement {
           type="password"
           autoComplete="new-password"
           value={data.password}
-          onChange={(e) => onChange('password', e.target.value)}
-          className="w-full px-3 py-2 rounded-lg border border-border bg-surface text-text-primary text-sm focus:outline-none focus:ring-2 focus:ring-accent/50"
+          onChange={(event) => onChange('password', event.target.value)}
+          className={inputClass}
           placeholder="Choose a strong password"
         />
       </div>
@@ -49,17 +124,18 @@ function StepAccount({ data, onChange }: StepProps): React.ReactElement {
 }
 
 function StepLLM({ data, onChange }: StepProps): React.ReactElement {
+  const needsKey = ['openai', 'openrouter', 'anthropic'].includes(data.llmProvider)
   return (
     <div className="space-y-4">
       <p className="text-text-secondary text-sm">
-        Choose how Rex generates responses. You can change this later in Settings.
+        Choose the supported AI provider Rex should use. You can change this later in Settings.
       </p>
       <div>
-        <label className="block text-sm font-medium text-text-primary mb-1">LLM Provider</label>
+        <label className="block text-sm font-medium text-text-primary mb-1">AI Provider</label>
         <select
           value={data.llmProvider}
-          onChange={(e) => onChange('llmProvider', e.target.value)}
-          className="w-full px-3 py-2 rounded-lg border border-border bg-surface text-text-primary text-sm focus:outline-none focus:ring-2 focus:ring-accent/50"
+          onChange={(event) => onChange('llmProvider', event.target.value)}
+          className={inputClass}
         >
           <option value="local">Local (Transformers / Ollama)</option>
           <option value="openai">OpenAI</option>
@@ -68,15 +144,15 @@ function StepLLM({ data, onChange }: StepProps): React.ReactElement {
           <option value="ollama">Ollama (custom URL)</option>
         </select>
       </div>
-      {(data.llmProvider === 'openai' || data.llmProvider === 'openrouter' || data.llmProvider === 'anthropic') && (
+      {needsKey && (
         <div>
           <label className="block text-sm font-medium text-text-primary mb-1">API Key</label>
           <input
             type="password"
             autoComplete="off"
             value={data.llmApiKey}
-            onChange={(e) => onChange('llmApiKey', e.target.value)}
-            className="w-full px-3 py-2 rounded-lg border border-border bg-surface text-text-primary text-sm focus:outline-none focus:ring-2 focus:ring-accent/50"
+            onChange={(event) => onChange('llmApiKey', event.target.value)}
+            className={inputClass}
             placeholder={data.llmProvider === 'anthropic' ? 'sk-ant-...' : 'Enter API key'}
           />
           <p className="text-text-muted text-xs mt-1">Stored in the Windows credential vault.</p>
@@ -86,26 +162,279 @@ function StepLLM({ data, onChange }: StepProps): React.ReactElement {
   )
 }
 
-function StepTTS({ data, onChange }: StepProps): React.ReactElement {
+function StepVoice({
+  data,
+  voices,
+  loading,
+  inventoryError,
+  previewing,
+  previewPlayed,
+  previewError,
+  onPreview,
+  onProviderChange,
+  onVoiceChange
+}: VoiceStepProps): React.ReactElement {
   return (
     <div className="space-y-4">
       <p className="text-text-secondary text-sm">
-        Choose a text-to-speech engine for Rex&apos;s voice. You can disable TTS if you prefer
-        silent operation.
+        Choose Rex voice and a speaking provider. Preview confirms this voice can synthesize and
+        play here, but it does not verify the complete wake-to-response path.
       </p>
       <div>
         <label className="block text-sm font-medium text-text-primary mb-1">TTS Provider</label>
         <select
           value={data.ttsProvider}
-          onChange={(e) => onChange('ttsProvider', e.target.value)}
-          className="w-full px-3 py-2 rounded-lg border border-border bg-surface text-text-primary text-sm focus:outline-none focus:ring-2 focus:ring-accent/50"
+          onChange={(event) => onProviderChange(event.target.value)}
+          className={inputClass}
         >
-          <option value="none">None (text only)</option>
-          <option value="edge">Edge TTS (free, requires internet)</option>
-          <option value="pyttsx3">pyttsx3 (offline, system voices)</option>
-          <option value="xtts">Coqui XTTS (offline, high quality)</option>
+          <option value="edge">Edge TTS</option>
+          <option value="pyttsx3">pyttsx3 (offline system voice)</option>
+          <option value="xtts">Coqui XTTS</option>
         </select>
       </div>
+      <div>
+        <label className="block text-sm font-medium text-text-primary mb-1">Select a Rex voice</label>
+        <select
+          value={data.ttsVoiceId}
+          onChange={(event) => onVoiceChange(event.target.value)}
+          className={inputClass}
+          disabled={loading || voices.length === 0}
+        >
+          <option value="">Choose a Rex voice</option>
+          {voices.map((voice) => (
+            <option key={voice.id} value={voice.id}>
+              {voice.name}
+            </option>
+          ))}
+        </select>
+      </div>
+      {inventoryError && <p className="text-red-400 text-sm">{inventoryError}</p>}
+      <button
+        type="button"
+        onClick={onPreview}
+        disabled={previewing || loading || !data.ttsVoiceId}
+        className="px-3 py-2 rounded-lg bg-surface-raised text-text-primary text-sm disabled:opacity-50"
+      >
+        {previewing ? 'Playing preview…' : 'Preview Rex voice'}
+      </button>
+      {previewPlayed && <p className="text-green-400 text-sm">Voice preview played</p>}
+      {previewError && <p className="text-red-400 text-sm">{previewError}</p>}
+      <p className="text-text-muted text-xs">Voice not yet verified by this preview.</p>
+    </div>
+  )
+}
+
+function StepMicrophone({
+  data,
+  devices,
+  loading,
+  inventoryError,
+  testing,
+  testPassed,
+  testError,
+  onTest,
+  onDeviceChange
+}: AudioStepProps): React.ReactElement {
+  return (
+    <div className="space-y-4">
+      <p className="text-text-secondary text-sm">
+        Test microphone access and choose the local input Rex should use for wake-word capture.
+      </p>
+      <div>
+        <label className="block text-sm font-medium text-text-primary mb-1">Microphone</label>
+        <select
+          value={data.microphoneDeviceIndex ?? ''}
+          onChange={(event) =>
+            onDeviceChange(event.target.value === '' ? null : Number(event.target.value))
+          }
+          className={inputClass}
+          disabled={loading}
+        >
+          <option value="">Choose a microphone</option>
+          {devices.map((device) => (
+            <option key={device.index} value={device.index}>
+              {device.name}
+            </option>
+          ))}
+        </select>
+      </div>
+      {inventoryError && <p className="text-red-400 text-sm">{inventoryError}</p>}
+      <button
+        type="button"
+        onClick={onTest}
+        disabled={testing || data.microphoneDeviceIndex === null}
+        className="px-3 py-2 rounded-lg bg-surface-raised text-text-primary text-sm disabled:opacity-50"
+      >
+        {testing ? 'Testing microphone…' : 'Test microphone'}
+      </button>
+      {testPassed && <p className="text-green-400 text-sm">Microphone test passed</p>}
+      {testError && <p className="text-red-400 text-sm">{testError}</p>}
+      <p className="text-text-muted text-xs">
+        This functional test does not save the device or mark the complete voice path verified.
+      </p>
+    </div>
+  )
+}
+
+function StepSpeaker({
+  data,
+  devices,
+  loading,
+  inventoryError,
+  testing,
+  testPassed,
+  testError,
+  onTest,
+  onDeviceChange
+}: AudioStepProps): React.ReactElement {
+  return (
+    <div className="space-y-4">
+      <p className="text-text-secondary text-sm">
+        Test speaker output and choose where this local Rex installation should answer.
+      </p>
+      <div>
+        <label className="block text-sm font-medium text-text-primary mb-1">Speaker / audio target</label>
+        <select
+          value={data.speakerDeviceIndex ?? ''}
+          onChange={(event) =>
+            onDeviceChange(event.target.value === '' ? null : Number(event.target.value))
+          }
+          className={inputClass}
+          disabled={loading}
+        >
+          <option value="">Choose a speaker</option>
+          {devices.map((device) => (
+            <option key={device.index} value={device.index}>
+              {device.name}
+            </option>
+          ))}
+        </select>
+      </div>
+      {inventoryError && <p className="text-red-400 text-sm">{inventoryError}</p>}
+      <button
+        type="button"
+        onClick={onTest}
+        disabled={testing || data.speakerDeviceIndex === null}
+        className="px-3 py-2 rounded-lg bg-surface-raised text-text-primary text-sm disabled:opacity-50"
+      >
+        {testing ? 'Testing speaker…' : 'Test speaker'}
+      </button>
+      {testPassed && <p className="text-green-400 text-sm">Speaker test passed</p>}
+      {testError && <p className="text-red-400 text-sm">{testError}</p>}
+      <p className="text-text-muted text-xs">
+        Saving a target or passing this device probe does not prove audible end-to-end playback.
+      </p>
+    </div>
+  )
+}
+
+function StepWakeWord({
+  data,
+  onChange,
+  wakeWords,
+  loading,
+  inventoryError,
+  previewing,
+  samplePlayed,
+  previewError,
+  status,
+  statusLoading,
+  statusError,
+  onPreview,
+  onWakeWordChange
+}: WakeWordStepProps): React.ReactElement {
+  return (
+    <div className="space-y-4">
+      <p className="text-text-secondary text-sm">
+        Choose the wake word Rex listens for. A sample and asset check help confirm setup, but
+        actual wake detection and calibration must still succeed before voice verification.
+      </p>
+      <div>
+        <label className="block text-sm font-medium text-text-primary mb-1">Choose a wake word</label>
+        <select
+          value={data.wakeWordId}
+          onChange={(event) => {
+            onWakeWordChange(event.target.value)
+            onChange('wakeWordId', event.target.value)
+          }}
+          className={inputClass}
+          disabled={loading || wakeWords.length === 0}
+        >
+          <option value="">Choose a wake word</option>
+          {wakeWords.map((wakeWord) => (
+            <option key={wakeWord.id} value={wakeWord.id}>
+              {wakeWord.name}
+            </option>
+          ))}
+        </select>
+      </div>
+      {inventoryError && <p className="text-red-400 text-sm">{inventoryError}</p>}
+      <button
+        type="button"
+        onClick={onPreview}
+        disabled={previewing || loading || !data.wakeWordId}
+        className="px-3 py-2 rounded-lg bg-surface-raised text-text-primary text-sm disabled:opacity-50"
+      >
+        {previewing ? 'Playing wake-word sample…' : 'Preview wake-word sample'}
+      </button>
+      {samplePlayed && <p className="text-green-400 text-sm">Wake-word sample played</p>}
+      {previewError && <p className="text-red-400 text-sm">{previewError}</p>}
+      <p className="text-text-muted text-xs">
+        Actual wake detection is still required before voice setup can be verified.
+      </p>
+      {statusLoading && <p className="text-text-muted text-xs">Checking wake-word asset…</p>}
+      {statusError && <p className="text-red-400 text-sm">{statusError}</p>}
+      {status && status.status !== 'missing_asset' && (
+        <p className="text-green-400 text-sm">Wake-word asset ready</p>
+      )}
+      {status?.status === 'missing_asset' && (
+        <p className="text-amber-300 text-sm">Wake-word asset needs attention: {status.detail}</p>
+      )}
+      <p className="text-text-muted text-xs">Voice not yet verified by wake-word setup alone.</p>
+    </div>
+  )
+}
+
+function StepRoom({ data, onChange }: StepProps): React.ReactElement {
+  return (
+    <div className="space-y-4">
+      <p className="text-text-secondary text-sm">
+        Assign this microphone and speaker to a Room so Rex can keep request origin and response
+        routing unambiguous.
+      </p>
+      <div>
+        <label className="block text-sm font-medium text-text-primary mb-1">Room</label>
+        <input
+          value={data.roomName}
+          onChange={(event) => onChange('roomName', event.target.value)}
+          className={inputClass}
+          placeholder="Office"
+        />
+      </div>
+    </div>
+  )
+}
+
+function StepBackgroundVoice({ data, onChange }: StepProps): React.ReactElement {
+  return (
+    <div className="space-y-4">
+      <h3 className="text-sm font-semibold text-text-primary">Background voice</h3>
+      <p className="text-text-secondary text-sm">
+        If enabled, Rex continues listening when the AskRex window is closed so the wake word can
+        summon it. You can pause or disable listening later from Rex controls.
+      </p>
+      <label className="flex items-start gap-3 text-sm text-text-primary">
+        <input
+          type="checkbox"
+          checked={data.backgroundVoiceEnabled}
+          onChange={(event) => onChange('backgroundVoiceEnabled', event.target.checked)}
+          className="mt-1"
+        />
+        <span>Enable background voice</span>
+      </label>
+      <p className="text-text-muted text-xs">
+        Background listening remains off unless you explicitly enable it here.
+      </p>
     </div>
   )
 }
@@ -114,18 +443,15 @@ function StepHomeAssistant({ data, onChange }: StepProps): React.ReactElement {
   return (
     <div className="space-y-4">
       <p className="text-text-secondary text-sm">
-        Connect to Home Assistant to control smart home devices. Skip this step if you don&apos;t
-        use Home Assistant.
+        Home Assistant is optional. Connect it now for smart-home control, or do this later.
       </p>
       <div>
-        <label className="block text-sm font-medium text-text-primary mb-1">
-          Home Assistant URL
-        </label>
+        <label className="block text-sm font-medium text-text-primary mb-1">Home Assistant URL</label>
         <input
           type="url"
           value={data.haBaseUrl}
-          onChange={(e) => onChange('haBaseUrl', e.target.value)}
-          className="w-full px-3 py-2 rounded-lg border border-border bg-surface text-text-primary text-sm focus:outline-none focus:ring-2 focus:ring-accent/50"
+          onChange={(event) => onChange('haBaseUrl', event.target.value)}
+          className={inputClass}
           placeholder="http://homeassistant.local:8123"
         />
       </div>
@@ -137,42 +463,198 @@ function StepHomeAssistant({ data, onChange }: StepProps): React.ReactElement {
           type="password"
           autoComplete="off"
           value={data.haToken}
-          onChange={(e) => onChange('haToken', e.target.value)}
-          className="w-full px-3 py-2 rounded-lg border border-border bg-surface text-text-primary text-sm focus:outline-none focus:ring-2 focus:ring-accent/50"
+          onChange={(event) => onChange('haToken', event.target.value)}
+          className={inputClass}
           placeholder="eyJ..."
         />
-        <p className="text-text-muted text-xs mt-1">
-          Generate in HA → Profile → Long-Lived Access Tokens.
-        </p>
       </div>
     </div>
   )
 }
 
-function StepDone(): React.ReactElement {
+const VOICE_VERIFICATION_STAGES: Array<{ id: VoiceVerificationStage; label: string }> = [
+  { id: 'wake', label: 'Wake word detection' },
+  { id: 'capture', label: 'Microphone capture' },
+  { id: 'stt', label: 'Speech recognition' },
+  { id: 'turn', label: 'Canonical Rex turn' },
+  { id: 'tts', label: 'Speech synthesis' },
+  { id: 'playback', label: 'Audible playback' }
+]
+
+function StepVerifyVoice({
+  verification,
+  wakeWordName,
+  onStart,
+  onCancel,
+  onPlaybackConfirmed,
+  onPlaybackRejected,
+  onContinueWithoutVoice,
+  onContinue
+}: VerifyVoiceStepProps): React.ReactElement {
+  const passedStages = new Set(verification.passedStages)
+  const canStart =
+    verification.status === 'idle' ||
+    verification.status === 'failed' ||
+    verification.status === 'cancelled'
+  const awaitingPlaybackConfirmation =
+    verification.status === 'running' && verification.currentStage === 'playback'
+
+  return (
+    <div className="space-y-4">
+      <h3 className="text-lg font-semibold text-text-primary">Voice setup saved</h3>
+      {verification.status === 'verified' ? (
+        <p className="text-green-400 text-sm font-medium">Voice verified</p>
+      ) : verification.status === 'failed' ? (
+        <p className="text-red-400 text-sm font-medium">
+          Voice verification failed{verification.error ? `: ${verification.error}` : '.'}
+        </p>
+      ) : verification.status === 'cancelled' ? (
+        <p className="text-amber-300 text-sm font-medium">Voice verification cancelled</p>
+      ) : verification.status === 'running' ? (
+        <p className="text-accent text-sm font-medium">Voice verification in progress</p>
+      ) : (
+        <p className="text-amber-300 text-sm font-medium">Voice not yet verified</p>
+      )}
+      <p className="text-text-secondary text-sm">
+        Verification uses the normal wake-word voice path. Say “{wakeWordName || 'your wake word'}”
+        and then ask Rex to say a short reply. Saving settings alone never marks this path verified.
+      </p>
+
+      <div className="space-y-2">
+        {VOICE_VERIFICATION_STAGES.map((stage) => {
+          const passed = passedStages.has(stage.id)
+          const current = verification.currentStage === stage.id
+          const failed = current && verification.status === 'failed'
+          const stateLabel = passed ? 'Passed' : failed ? 'Failed' : current ? 'In progress' : 'Waiting'
+          return (
+            <div
+              key={stage.id}
+              className="flex items-center justify-between rounded-lg bg-surface-raised px-3 py-2 text-sm"
+            >
+              <span className="text-text-primary">{stage.label}</span>
+              <span
+                className={
+                  passed
+                    ? 'text-green-400'
+                    : failed
+                      ? 'text-red-400'
+                      : current
+                        ? 'text-accent'
+                        : 'text-text-muted'
+                }
+              >
+                {stateLabel}
+              </span>
+            </div>
+          )
+        })}
+      </div>
+
+      {canStart && (
+        <button
+          type="button"
+          onClick={onStart}
+          className="w-full px-4 py-2 rounded-lg bg-accent text-white text-sm font-medium hover:bg-accent/90"
+        >
+          {verification.status === 'idle' ? 'Start voice verification' : 'Retry voice verification'}
+        </button>
+      )}
+
+      {awaitingPlaybackConfirmation && (
+        <div className="space-y-3 rounded-lg border border-border p-3">
+          <p className="text-sm font-medium text-text-primary">Did you hear Rex's reply?</p>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={onPlaybackConfirmed}
+              className="px-3 py-2 rounded-lg bg-accent text-white text-sm"
+            >
+              Yes, I heard Rex
+            </button>
+            <button
+              type="button"
+              onClick={onPlaybackRejected}
+              className="px-3 py-2 rounded-lg bg-surface-raised text-text-primary text-sm"
+            >
+              No, I didn't hear it
+            </button>
+          </div>
+        </div>
+      )}
+
+      {verification.status === 'running' && (
+        <button
+          type="button"
+          onClick={onCancel}
+          className="w-full px-4 py-2 rounded-lg bg-surface-raised text-text-primary text-sm"
+        >
+          Cancel verification
+        </button>
+      )}
+
+      {verification.status === 'verified' ? (
+        <button
+          type="button"
+          onClick={onContinue}
+          className="w-full px-4 py-2 rounded-lg bg-accent text-white text-sm font-medium hover:bg-accent/90"
+        >
+          Continue
+        </button>
+      ) : (
+        <button
+          type="button"
+          onClick={onContinueWithoutVoice}
+          className="w-full text-sm text-text-secondary hover:text-text-primary"
+        >
+          Continue without voice
+        </button>
+      )}
+    </div>
+  )
+}
+
+function StepDone({
+  voiceVerified,
+  runtimeWarning
+}: {
+  voiceVerified: boolean
+  runtimeWarning: string
+}): React.ReactElement {
   return (
     <div className="space-y-4 text-center">
-      <div className="w-16 h-16 mx-auto rounded-full bg-green-500/15 flex items-center justify-center">
-        <svg width="32" height="32" viewBox="0 0 32 32" fill="none" aria-hidden="true">
-          <path
-            d="M6 16l7 7L26 9"
-            stroke="#22c55e"
-            strokeWidth="3"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
-      </div>
-      <h3 className="text-lg font-semibold text-text-primary">Rex is ready!</h3>
-      <p className="text-text-secondary text-sm">
-        Your account has been created and Rex has been configured. Click Finish to open the
-        dashboard.
-      </p>
+      <h3 className="text-lg font-semibold text-text-primary">Setup saved</h3>
+      {runtimeWarning ? (
+        <>
+          <p className="text-amber-300 text-sm font-medium">{runtimeWarning}</p>
+          <p className="text-text-secondary text-sm">Close and reopen AskRex to continue.</p>
+        </>
+      ) : (
+        <p className="text-text-secondary text-sm">
+          {voiceVerified
+            ? 'Your account and configuration are saved, and this setup session completed the full screenless voice verification path.'
+            : 'Your account and configuration are saved. Voice was not verified during setup; you can test it later from Voice.'}
+        </p>
+      )}
     </div>
   )
 }
 
-const STEPS = ['Account', 'LLM', 'Voice', 'Home Assistant', 'Done']
+const STEPS = [
+  'Account',
+  'AI',
+  'Rex Voice',
+  'Microphone',
+  'Speaker',
+  'Wake word',
+  'Room',
+  'Background voice',
+  'Home Assistant',
+  'Verify voice',
+  'Done'
+]
+const HOME_ASSISTANT_STEP = 8
+const VERIFY_STEP = 9
+const DONE_STEP = 10
 
 interface SetupWizardPageProps {
   onComplete: () => void
@@ -182,19 +664,433 @@ export function SetupWizardPage({ onComplete }: SetupWizardPageProps): React.Rea
   const [step, setStep] = useState(0)
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [setupPersisted, setSetupPersisted] = useState(false)
+  const [setupRuntimeWarning, setSetupRuntimeWarning] = useState('')
+  const [audioDevices, setAudioDevices] = useState<SetupAudioDevice[]>([])
+  const [audioDevicesLoading, setAudioDevicesLoading] = useState(true)
+  const [audioDevicesError, setAudioDevicesError] = useState('')
+  const [microphoneTesting, setMicrophoneTesting] = useState(false)
+  const [microphoneTestPassed, setMicrophoneTestPassed] = useState(false)
+  const [microphoneTestError, setMicrophoneTestError] = useState('')
+  const [speakerTesting, setSpeakerTesting] = useState(false)
+  const [speakerTestPassed, setSpeakerTestPassed] = useState(false)
+  const [speakerTestError, setSpeakerTestError] = useState('')
+  const [voices, setVoices] = useState<VoiceInfo[]>([])
+  const [voicesLoading, setVoicesLoading] = useState(true)
+  const [voiceInventoryError, setVoiceInventoryError] = useState('')
+  const [voicePreviewing, setVoicePreviewing] = useState(false)
+  const [voicePreviewPlayed, setVoicePreviewPlayed] = useState(false)
+  const [voicePreviewError, setVoicePreviewError] = useState('')
+  const [wakeWords, setWakeWords] = useState<WakeWordInfo[]>([])
+  const [wakeWordsLoading, setWakeWordsLoading] = useState(true)
+  const [wakeWordInventoryError, setWakeWordInventoryError] = useState('')
+  const [wakeWordPreviewing, setWakeWordPreviewing] = useState(false)
+  const [wakeWordSamplePlayed, setWakeWordSamplePlayed] = useState(false)
+  const [wakeWordPreviewError, setWakeWordPreviewError] = useState('')
+  const [wakeWordStatus, setWakeWordStatus] = useState<WakeWordStatus | null>(null)
+  const [wakeWordStatusLoading, setWakeWordStatusLoading] = useState(true)
+  const [wakeWordStatusError, setWakeWordStatusError] = useState('')
+  const [voiceVerification, setVoiceVerification] = useState(createVoiceVerificationState())
+  const verificationVoiceActiveRef = useRef(false)
+  const turnStatusCleanupRef = useRef<(() => void) | null>(null)
   const [data, setData] = useState<SetupData>({
     username: '',
     password: '',
     llmProvider: 'local',
     llmApiKey: '',
-    ttsProvider: 'none',
+    ttsProvider: 'edge',
+    ttsVoiceId: 'en-US-AriaNeural',
+    microphoneDeviceIndex: null,
+    speakerDeviceIndex: null,
+    localDeviceId: 'local_voice',
+    wakeWordId: 'hey_rex',
+    roomName: '',
+    backgroundVoiceEnabled: false,
     haBaseUrl: '',
     haToken: ''
   })
 
-  const handleChange = (field: keyof SetupData, value: string): void => {
-    setData((prev) => ({ ...prev, [field]: value }))
+  const applyVoiceVerificationEvent = useCallback((event: VoiceVerificationEvent): void => {
+    setVoiceVerification((previous) => reduceVoiceVerification(previous, event))
+  }, [])
+
+  const cleanupTurnStatus = useCallback((): void => {
+    turnStatusCleanupRef.current?.()
+    turnStatusCleanupRef.current = null
+  }, [])
+
+  const stopVerificationSession = useCallback(async (): Promise<void> => {
+    cleanupTurnStatus()
+    if (!verificationVoiceActiveRef.current) return
+    verificationVoiceActiveRef.current = false
+    try {
+      await window.rex.stopVoice()
+    } catch {
+      // Verification cleanup is best-effort; the state machine already reports the real outcome.
+    }
+  }, [cleanupTurnStatus])
+
+  useEffect(() => {
+    return () => {
+      void stopVerificationSession()
+    }
+  }, [stopVerificationSession])
+
+  useEffect(() => {
+    let cancelled = false
+
+    const loadAudioDevices = async (): Promise<void> => {
+      try {
+        const result = await window.rex.getSetupAudioDevices()
+        if (cancelled) return
+        if (!result.ok) {
+          setAudioDevicesError(result.error ?? 'Unable to enumerate audio devices.')
+          setAudioDevices([])
+          return
+        }
+        setAudioDevices(result.devices)
+        setAudioDevicesError('')
+      } catch {
+        if (!cancelled) {
+          setAudioDevicesError('Unable to enumerate audio devices.')
+          setAudioDevices([])
+        }
+      } finally {
+        if (!cancelled) setAudioDevicesLoading(false)
+      }
+    }
+
+    void loadAudioDevices()
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  useEffect(() => {
+    let cancelled = false
+    const provider = data.ttsProvider
+    setVoicesLoading(true)
+    setVoiceInventoryError('')
+    setVoicePreviewPlayed(false)
+    setVoicePreviewError('')
+
+    window.rex.listVoices(voiceApiProvider(data.ttsProvider))
+      .then((result) => {
+        if (cancelled) return
+        if (!result.ok) {
+          setVoices([])
+          setVoiceInventoryError(result.error ?? 'Unable to load voices for this provider.')
+          return
+        }
+        const available = result.voices ?? []
+        setVoices(available)
+        setData((previous) => {
+          if (previous.ttsProvider !== provider) return previous
+          if (available.some((voice) => voice.id === previous.ttsVoiceId)) return previous
+          return { ...previous, ttsVoiceId: available[0]?.id ?? '' }
+        })
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setVoices([])
+          setVoiceInventoryError('Unable to load voices for this provider.')
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setVoicesLoading(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [data.ttsProvider])
+
+  useEffect(() => {
+    let cancelled = false
+    setWakeWordsLoading(true)
+    setWakeWordInventoryError('')
+
+    window.rex.listWakeWords()
+      .then((result) => {
+        if (cancelled) return
+        if (!result.ok) {
+          setWakeWords([])
+          setWakeWordInventoryError(result.error ?? 'Unable to load wake words.')
+          return
+        }
+        const available = result.wake_words ?? []
+        setWakeWords(available)
+        setData((previous) => {
+          if (available.some((wakeWord) => wakeWord.id === previous.wakeWordId)) return previous
+          return { ...previous, wakeWordId: available[0]?.id ?? '' }
+        })
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setWakeWords([])
+          setWakeWordInventoryError('Unable to load wake words.')
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setWakeWordsLoading(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  useEffect(() => {
+    let cancelled = false
+    if (wakeWordsLoading || !data.wakeWordId) {
+      setWakeWordStatus(null)
+      setWakeWordStatusError('')
+      setWakeWordStatusLoading(wakeWordsLoading)
+      return () => {
+        cancelled = true
+      }
+    }
+
+    setWakeWordStatusLoading(true)
+    setWakeWordStatusError('')
+
+    window.rex.getSetupWakeWordStatus(data.wakeWordId)
+      .then((status) => {
+        if (!cancelled) setWakeWordStatus(status)
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setWakeWordStatus(null)
+          setWakeWordStatusError('Unable to check wake-word asset readiness.')
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setWakeWordStatusLoading(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [data.wakeWordId, wakeWordsLoading])
+
+  const microphoneDevices = audioDevices.filter((device) => device.max_input_channels > 0)
+  const speakerDevices = audioDevices.filter((device) => device.max_output_channels > 0)
+
+  const handleChange = (field: keyof SetupData, value: SetupValue): void => {
+    setData((previous) => ({ ...previous, [field]: value }))
     setError('')
+  }
+
+  const handleMicrophoneDeviceChange = (deviceIndex: number | null): void => {
+    handleChange('microphoneDeviceIndex', deviceIndex)
+    setMicrophoneTestPassed(false)
+    setMicrophoneTestError('')
+  }
+
+  const handleSpeakerDeviceChange = (deviceIndex: number | null): void => {
+    handleChange('speakerDeviceIndex', deviceIndex)
+    setSpeakerTestPassed(false)
+    setSpeakerTestError('')
+  }
+
+  const handleMicrophoneTest = async (): Promise<void> => {
+    if (data.microphoneDeviceIndex === null) {
+      setMicrophoneTestError('Choose a microphone before testing it.')
+      return
+    }
+    setMicrophoneTesting(true)
+    setMicrophoneTestPassed(false)
+    setMicrophoneTestError('')
+    try {
+      const result = await window.rex.testSetupAudioDevice('microphone', data.microphoneDeviceIndex)
+      if (!result.ok) {
+        setMicrophoneTestError(result.error ?? 'Microphone test failed.')
+        return
+      }
+      setMicrophoneTestPassed(true)
+    } catch {
+      setMicrophoneTestError('Microphone test failed.')
+    } finally {
+      setMicrophoneTesting(false)
+    }
+  }
+
+  const handleSpeakerTest = async (): Promise<void> => {
+    if (data.speakerDeviceIndex === null) {
+      setSpeakerTestError('Choose a speaker before testing it.')
+      return
+    }
+    setSpeakerTesting(true)
+    setSpeakerTestPassed(false)
+    setSpeakerTestError('')
+    try {
+      const result = await window.rex.testSetupAudioDevice('speaker', data.speakerDeviceIndex)
+      if (!result.ok) {
+        setSpeakerTestError(result.error ?? 'Speaker test failed.')
+        return
+      }
+      setSpeakerTestPassed(true)
+    } catch {
+      setSpeakerTestError('Speaker test failed.')
+    } finally {
+      setSpeakerTesting(false)
+    }
+  }
+
+  const handleVoiceProviderChange = (provider: string): void => {
+    handleChange('ttsProvider', provider)
+    setVoicePreviewPlayed(false)
+    setVoicePreviewError('')
+  }
+
+  const handleVoiceChange = (voiceId: string): void => {
+    handleChange('ttsVoiceId', voiceId)
+    setVoicePreviewPlayed(false)
+    setVoicePreviewError('')
+  }
+
+  const handleWakeWordChange = (): void => {
+    setWakeWordSamplePlayed(false)
+    setWakeWordPreviewError('')
+  }
+
+  const playAudioBase64 = async (audioBase64: string): Promise<void> => {
+    const binary = atob(audioBase64)
+    const bytes = new Uint8Array(binary.length)
+    for (let index = 0; index < binary.length; index += 1) {
+      bytes[index] = binary.charCodeAt(index)
+    }
+    const context = new AudioContext()
+    try {
+      const buffer = await context.decodeAudioData(bytes.buffer)
+      const source = context.createBufferSource()
+      source.buffer = buffer
+      source.connect(context.destination)
+      await new Promise<void>((resolve) => {
+        source.onended = () => resolve()
+        source.start(0)
+      })
+    } finally {
+      await context.close()
+    }
+  }
+
+  const handleVoicePreview = async (): Promise<void> => {
+    if (!data.ttsVoiceId) {
+      setVoicePreviewError('Choose a Rex voice before previewing it.')
+      return
+    }
+    setVoicePreviewing(true)
+    setVoicePreviewPlayed(false)
+    setVoicePreviewError('')
+    try {
+      const result = await window.rex.previewVoice(voiceApiProvider(data.ttsProvider), data.ttsVoiceId)
+      if (!result.ok || !result.audio_base64) {
+        setVoicePreviewError(result.error ?? 'Voice preview failed.')
+        return
+      }
+      await playAudioBase64(result.audio_base64)
+      setVoicePreviewPlayed(true)
+    } catch {
+      setVoicePreviewError('Voice preview failed.')
+    } finally {
+      setVoicePreviewing(false)
+    }
+  }
+
+  const handleWakeWordPreview = async (): Promise<void> => {
+    if (!data.wakeWordId) {
+      setWakeWordPreviewError('Choose a wake word before previewing it.')
+      return
+    }
+    setWakeWordPreviewing(true)
+    setWakeWordSamplePlayed(false)
+    setWakeWordPreviewError('')
+    try {
+      const result = await window.rex.previewWakeWordSample(data.wakeWordId)
+      if (!result.ok || !result.audio_base64) {
+        setWakeWordPreviewError(result.error ?? 'No wake-word sample is available for this choice.')
+        return
+      }
+      await playAudioBase64(result.audio_base64)
+      setWakeWordSamplePlayed(true)
+    } catch {
+      setWakeWordPreviewError('Wake-word sample preview failed.')
+    } finally {
+      setWakeWordPreviewing(false)
+    }
+  }
+
+  const handleStartVoiceVerification = async (): Promise<void> => {
+    await stopVerificationSession()
+    applyVoiceVerificationEvent({ type: 'started' })
+    turnStatusCleanupRef.current = window.rex.onTurnStatus((update) => {
+      applyVoiceVerificationEvent({ type: 'turn_status', update })
+    })
+    verificationVoiceActiveRef.current = true
+
+    const microphoneLabel = microphoneDevices
+      .find((device) => device.index === data.microphoneDeviceIndex)
+      ?.name.trim()
+
+    try {
+      await window.rex.startVoice(
+        (state) => applyVoiceVerificationEvent({ type: 'voice_state', state }),
+        (entry) => applyVoiceVerificationEvent({ type: 'transcript', entry }),
+        (voiceError) => {
+          applyVoiceVerificationEvent({ type: 'voice_error', error: voiceError })
+          void stopVerificationSession()
+        },
+        (status) => {
+          applyVoiceVerificationEvent({ type: 'voice_status', status })
+          if (status === 'voice_playback_complete') {
+            void stopVerificationSession()
+          }
+        },
+        microphoneLabel ? { microphoneLabel } : undefined
+      )
+    } catch (verificationError) {
+      const message =
+        verificationError instanceof Error ? verificationError.message : 'Voice verification failed to start.'
+      applyVoiceVerificationEvent({ type: 'voice_error', error: message })
+      await stopVerificationSession()
+    }
+  }
+
+  const handleCancelVoiceVerification = (): void => {
+    applyVoiceVerificationEvent({ type: 'cancelled' })
+    void stopVerificationSession()
+  }
+
+  const handlePlaybackConfirmed = (): void => {
+    applyVoiceVerificationEvent({ type: 'playback_confirmed' })
+  }
+
+  const handlePlaybackRejected = (): void => {
+    applyVoiceVerificationEvent({ type: 'playback_rejected' })
+  }
+
+  const handleContinueWithoutVoice = (): void => {
+    if (voiceVerification.status === 'running') {
+      applyVoiceVerificationEvent({ type: 'cancelled' })
+    }
+    void stopVerificationSession()
+    setStep(DONE_STEP)
+  }
+
+  const handleVerifiedContinue = (): void => {
+    if (voiceVerification.status === 'verified') {
+      setStep(DONE_STEP)
+    }
+  }
+
+  const handleBack = (): void => {
+    if (setupPersisted) return
+    if (step === VERIFY_STEP && voiceVerification.status === 'running') {
+      applyVoiceVerificationEvent({ type: 'cancelled' })
+      void stopVerificationSession()
+    }
+    setStep((current) => Math.max(0, current - 1))
   }
 
   const validate = (): string => {
@@ -202,25 +1098,28 @@ export function SetupWizardPage({ onComplete }: SetupWizardPageProps): React.Rea
       if (!data.username.trim()) return 'Username is required.'
       if (data.password.length < 8) return 'Password must be at least 8 characters.'
     }
+    if (step === 5 && !data.wakeWordId) return 'Choose a wake word.'
+    if (step === 6 && !data.roomName.trim()) return 'Room is required.'
     return ''
   }
 
   const handleNext = (): void => {
-    const err = validate()
-    if (err) {
-      setError(err)
+    const validationError = validate()
+    if (validationError) {
+      setError(validationError)
       return
     }
-    if (step < STEPS.length - 2) {
-      setStep((s) => s + 1)
-    } else {
+    if (step === HOME_ASSISTANT_STEP) {
       void handleSubmit()
+    } else if (step !== VERIFY_STEP) {
+      setStep((current) => current + 1)
     }
   }
 
   const handleSubmit = async (deferHomeAssistant = false): Promise<void> => {
     setSubmitting(true)
     setError('')
+    setSetupRuntimeWarning('')
     try {
       const submission = buildSetupSubmission(data, { deferHomeAssistant })
       const result = await window.rex.completeSetup(submission)
@@ -229,12 +1128,25 @@ export function SetupWizardPage({ onComplete }: SetupWizardPageProps): React.Rea
         setSubmitting(false)
         return
       }
-      setStep(STEPS.length - 1) // Done step
+      setSetupPersisted(true)
+      if (result.runtime_ready === false) {
+        setSetupRuntimeWarning(
+          result.warning ?? 'Setup was saved, but Rex could not finish starting.'
+        )
+        setSubmitting(false)
+        setStep(DONE_STEP)
+        return
+      }
+      setSubmitting(false)
+      setStep(VERIFY_STEP)
     } catch {
       setError('Setup failed. Please try again.')
       setSubmitting(false)
     }
   }
+
+  const selectedWakeWordName =
+    wakeWords.find((wakeWord) => wakeWord.id === data.wakeWordId)?.name ?? data.wakeWordId
 
   const renderStep = (): React.ReactElement => {
     switch (step) {
@@ -243,57 +1155,130 @@ export function SetupWizardPage({ onComplete }: SetupWizardPageProps): React.Rea
       case 1:
         return <StepLLM data={data} onChange={handleChange} />
       case 2:
-        return <StepTTS data={data} onChange={handleChange} />
+        return (
+          <StepVoice
+            data={data}
+            onChange={handleChange}
+            voices={voices}
+            loading={voicesLoading}
+            inventoryError={voiceInventoryError}
+            previewing={voicePreviewing}
+            previewPlayed={voicePreviewPlayed}
+            previewError={voicePreviewError}
+            onPreview={() => void handleVoicePreview()}
+            onProviderChange={handleVoiceProviderChange}
+            onVoiceChange={handleVoiceChange}
+          />
+        )
       case 3:
+        return (
+          <StepMicrophone
+            data={data}
+            devices={microphoneDevices}
+            loading={audioDevicesLoading}
+            inventoryError={audioDevicesError}
+            testing={microphoneTesting}
+            testPassed={microphoneTestPassed}
+            testError={microphoneTestError}
+            onTest={() => void handleMicrophoneTest()}
+            onDeviceChange={handleMicrophoneDeviceChange}
+          />
+        )
+      case 4:
+        return (
+          <StepSpeaker
+            data={data}
+            devices={speakerDevices}
+            loading={audioDevicesLoading}
+            inventoryError={audioDevicesError}
+            testing={speakerTesting}
+            testPassed={speakerTestPassed}
+            testError={speakerTestError}
+            onTest={() => void handleSpeakerTest()}
+            onDeviceChange={handleSpeakerDeviceChange}
+          />
+        )
+      case 5:
+        return (
+          <StepWakeWord
+            data={data}
+            onChange={handleChange}
+            wakeWords={wakeWords}
+            loading={wakeWordsLoading}
+            inventoryError={wakeWordInventoryError}
+            previewing={wakeWordPreviewing}
+            samplePlayed={wakeWordSamplePlayed}
+            previewError={wakeWordPreviewError}
+            status={wakeWordStatus}
+            statusLoading={wakeWordStatusLoading}
+            statusError={wakeWordStatusError}
+            onPreview={() => void handleWakeWordPreview()}
+            onWakeWordChange={handleWakeWordChange}
+          />
+        )
+      case 6:
+        return <StepRoom data={data} onChange={handleChange} />
+      case 7:
+        return <StepBackgroundVoice data={data} onChange={handleChange} />
+      case 8:
         return <StepHomeAssistant data={data} onChange={handleChange} />
+      case 9:
+        return (
+          <StepVerifyVoice
+            verification={voiceVerification}
+            wakeWordName={selectedWakeWordName}
+            onStart={() => void handleStartVoiceVerification()}
+            onCancel={handleCancelVoiceVerification}
+            onPlaybackConfirmed={handlePlaybackConfirmed}
+            onPlaybackRejected={handlePlaybackRejected}
+            onContinueWithoutVoice={handleContinueWithoutVoice}
+            onContinue={handleVerifiedContinue}
+          />
+        )
       default:
-        return <StepDone />
+        return (
+          <StepDone
+            voiceVerified={voiceVerification.status === 'verified'}
+            runtimeWarning={setupRuntimeWarning}
+          />
+        )
     }
   }
 
-  const isDone = step === STEPS.length - 1
+  const isDone = step === DONE_STEP
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-bg p-4">
       <div className="w-full max-w-md">
-        {/* Progress bar */}
         <div className="flex items-center gap-1 mb-8">
-          {STEPS.slice(0, -1).map((label, i) => (
-            <React.Fragment key={label}>
-              <div
-                className={`flex-1 h-1 rounded-full transition-colors ${
-                  i <= step ? 'bg-accent' : 'bg-surface-raised'
-                }`}
-              />
-            </React.Fragment>
+          {STEPS.slice(0, -1).map((label, index) => (
+            <div
+              key={label}
+              className={`flex-1 h-1 rounded-full transition-colors ${
+                index <= step ? 'bg-accent' : 'bg-surface-raised'
+              }`}
+            />
           ))}
         </div>
 
         <div className="bg-surface border border-border rounded-2xl p-8 space-y-6">
-          {/* Header */}
           <div>
-            <div className="flex items-center gap-2 mb-1">
-              <span className="text-xs font-semibold uppercase tracking-wider text-text-muted">
-                Step {isDone ? STEPS.length : step + 1} of {STEPS.length}
-              </span>
-            </div>
+            <span className="text-xs font-semibold uppercase tracking-wider text-text-muted">
+              Step {step + 1} of {STEPS.length}
+            </span>
             <h2 className="text-xl font-semibold text-text-primary">
-              {isDone ? 'All done!' : `Set up ${STEPS[step]}`}
+              {isDone ? (setupRuntimeWarning ? 'Setup saved' : 'All done!') : `Set up ${STEPS[step]}`}
             </h2>
           </div>
 
-          {/* Step content */}
           {renderStep()}
-
-          {/* Error */}
           {error && <p className="text-red-400 text-sm">{error}</p>}
 
-          {/* Actions */}
           <div className="flex items-center justify-between pt-2">
-            {!isDone && step > 0 ? (
+            {!isDone && !setupPersisted && step > 0 ? (
               <button
                 type="button"
-                onClick={() => setStep((s) => s - 1)}
+                onClick={handleBack}
                 className="text-sm text-text-secondary hover:text-text-primary transition-colors"
               >
                 ← Back
@@ -303,16 +1288,22 @@ export function SetupWizardPage({ onComplete }: SetupWizardPageProps): React.Rea
             )}
 
             {isDone ? (
-              <button
-                type="button"
-                onClick={onComplete}
-                className="px-6 py-2 rounded-lg bg-accent text-white text-sm font-medium hover:bg-accent/90 transition-colors"
-              >
-                Open Dashboard
-              </button>
+              setupRuntimeWarning ? (
+                <span />
+              ) : (
+                <button
+                  type="button"
+                  onClick={onComplete}
+                  className="px-6 py-2 rounded-lg bg-accent text-white text-sm font-medium hover:bg-accent/90 transition-colors"
+                >
+                  Open Dashboard
+                </button>
+              )
+            ) : step === VERIFY_STEP ? (
+              <span />
             ) : (
               <div className="flex items-center gap-2">
-                {step === 3 && (
+                {step === HOME_ASSISTANT_STEP && (
                   <button
                     type="button"
                     onClick={() => {
@@ -330,7 +1321,7 @@ export function SetupWizardPage({ onComplete }: SetupWizardPageProps): React.Rea
                   disabled={submitting}
                   className="px-6 py-2 rounded-lg bg-accent text-white text-sm font-medium hover:bg-accent/90 transition-colors disabled:opacity-50"
                 >
-                  {submitting ? 'Setting up…' : step === STEPS.length - 2 ? 'Finish' : 'Next →'}
+                  {submitting ? 'Saving…' : step === HOME_ASSISTANT_STEP ? 'Save setup' : 'Next →'}
                 </button>
               </div>
             )}

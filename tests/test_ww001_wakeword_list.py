@@ -5,8 +5,12 @@ from __future__ import annotations
 import contextlib
 import io
 import json
+import runpy
 import sys
+from pathlib import Path
 from unittest.mock import MagicMock, patch
+
+import pytest
 
 # ---------------------------------------------------------------------------
 # rex_wakeword_list_bridge — black-box via in-process invocation
@@ -63,6 +67,30 @@ def test_bridge_falls_back_to_defaults_when_oww_unavailable() -> None:
         result = _run_bridge()
     assert result["ok"] is True
     assert len(result["wake_words"]) >= 5  # at least the 5 default keywords
+
+
+def test_bridge_fallback_does_not_require_wakeword_audio_dependencies(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The fallback inventory remains available on a lean install without NumPy/audio imports."""
+    bridge_path = Path(__file__).resolve().parents[1] / "bridge" / "rex_wakeword_list_bridge.py"
+    for module_name in list(sys.modules):
+        if module_name == "rex.wakeword" or module_name.startswith("rex.wakeword."):
+            monkeypatch.delitem(sys.modules, module_name, raising=False)
+    monkeypatch.setitem(sys.modules, "numpy", None)
+    monkeypatch.setitem(sys.modules, "openwakeword", None)
+    monkeypatch.setattr(sys, "stdin", io.StringIO("{}"))
+    captured = io.StringIO()
+
+    with contextlib.redirect_stdout(captured):
+        try:
+            runpy.run_path(str(bridge_path), run_name="__main__")
+        except SystemExit:
+            pass
+
+    result = json.loads(captured.getvalue().strip())
+    assert result["ok"] is True
+    assert len(result["wake_words"]) >= 5
 
 
 def test_bridge_uses_openwakeword_models_when_available() -> None:
