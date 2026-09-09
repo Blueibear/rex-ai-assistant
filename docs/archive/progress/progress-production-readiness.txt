@@ -2517,3 +2517,15 @@ Final local Task 6 verification on this correction tree: 86/86 focused backgroun
 - Exact implementation head `8b786aa7287eeded95f36f0956e44070003e33b6` passed full Python tests/coverage/integration/clean-tree, Ruff, Black, mypy, pre-commit, security/dependency/secret gates, GUI test/typecheck/lint/build, wheel smoke, and skipped-test inventory.
 - Windows Electron Artifact passed PowerShell parsing, focused US-119 contracts, managed runtime/installer build, package-resource validation, and installed-artifact exercise without machine Python or Node.
 - Evidence boundary: US-119 proves executable-path/service-registration reliability only; it does not claim physical microphone/speaker/wake-word/reboot acceptance, which remains US-130.
+
+2026-09-08 - US-125 final exact-head acceptance gate (PR #428)
+
+- Final implementation head before tracker closure: `2a9d1aaeea652c01ce160289b58868e56b5d4939`.
+- Exact-head GitHub CI, Commitlint, CodeFactor, GitGuardian, and Windows Electron Artifact all completed successfully.
+- The Windows artifact job specifically passed `Exercise clean installed first run` and `Exercise installed artifact without machine Python or Node`, in addition to managed-runtime/installer build, signature-truth, and packaged-resource checks.
+- Local Python 3.11 full suite: 9,543 passed / 48 skipped / 0 failed from 9,591 collected; skip budget 48/82; executable skip inventory 129/129 current.
+- Linux-targeted mypy: 0 issues in 446 source files. Focused US-125/wake-word matrix: 69/69. Electron Vitest: 54/54 files and 272/272 tests.
+- TypeScript, ESLint, production Electron build, Ruff, Black, pre-commit, detect-secrets, release security audit, dependency audits, diff hygiene, and clean-install GUI verification passed.
+- Review-driven fixes preserved canonical wake-word backend/keyword/model/embedding persistence, made the post-persistence setup boundary one-way, and moved built-in wake-word inventory to dependency-free `rex.wakeword_catalog` so lean installed setup does not initialize optional NumPy/audio/training dependencies.
+- Independent Codex review found no actionable regressions on the final local candidate.
+- US-125 acceptance boxes are now complete in `PRD-production-readiness.md`. This does not claim physical microphone/speaker/reboot/sign-in or screenless room acceptance; those remain US-130 release evidence.
