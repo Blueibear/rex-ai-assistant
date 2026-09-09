@@ -664,6 +664,7 @@ export function SetupWizardPage({ onComplete }: SetupWizardPageProps): React.Rea
   const [step, setStep] = useState(0)
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [setupPersisted, setSetupPersisted] = useState(false)
   const [setupRuntimeWarning, setSetupRuntimeWarning] = useState('')
   const [audioDevices, setAudioDevices] = useState<SetupAudioDevice[]>([])
   const [audioDevicesLoading, setAudioDevicesLoading] = useState(true)
@@ -1084,6 +1085,7 @@ export function SetupWizardPage({ onComplete }: SetupWizardPageProps): React.Rea
   }
 
   const handleBack = (): void => {
+    if (setupPersisted) return
     if (step === VERIFY_STEP && voiceVerification.status === 'running') {
       applyVoiceVerificationEvent({ type: 'cancelled' })
       void stopVerificationSession()
@@ -1126,6 +1128,7 @@ export function SetupWizardPage({ onComplete }: SetupWizardPageProps): React.Rea
         setSubmitting(false)
         return
       }
+      setSetupPersisted(true)
       if (result.runtime_ready === false) {
         setSetupRuntimeWarning(
           result.warning ?? 'Setup was saved, but Rex could not finish starting.'
@@ -1272,7 +1275,7 @@ export function SetupWizardPage({ onComplete }: SetupWizardPageProps): React.Rea
           {error && <p className="text-red-400 text-sm">{error}</p>}
 
           <div className="flex items-center justify-between pt-2">
-            {!isDone && step > 0 ? (
+            {!isDone && !setupPersisted && step > 0 ? (
               <button
                 type="button"
                 onClick={handleBack}

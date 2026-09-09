@@ -220,6 +220,68 @@ def _apply_model_config(config: dict[str, Any], choices: SetupChoices) -> None:
         config.setdefault("ollama", {})["base_url"] = choices.ollama_base_url
 
 
+def _builtin_setup_wakeword_config(phrase: str) -> dict[str, Any]:
+    return {
+        "backend": "openwakeword",
+        "wakeword": phrase,
+        "keyword": phrase,
+        "model_path": None,
+        "embedding_path": None,
+    }
+
+
+def _resolve_setup_wakeword_config(wake_word_id: str) -> dict[str, Any]:
+    from rex.wakeword_catalog import (
+        DEFAULT_OPENWAKEWORD_KEYWORDS,
+        list_openwakeword_keywords,
+        normalize_keyword,
+    )
+
+    custom_inventory_unavailable = False
+    try:
+        from rex.wakeword.trainer import list_custom_wake_words
+
+        custom_wake_words = list_custom_wake_words()
+    except Exception:
+        custom_wake_words = []
+        custom_inventory_unavailable = True
+
+    for wake_word in custom_wake_words:
+        if str(wake_word.get("id") or "") != wake_word_id:
+            continue
+        if wake_word.get("engine") != "custom_embedding":
+            continue
+        phrase = str(wake_word.get("name") or wake_word_id.replace("_", " ")).strip()
+        embedding_path = wake_word.get("model_path")
+        return {
+            "backend": "custom_embedding",
+            "wakeword": phrase,
+            "keyword": phrase,
+            "model_path": None,
+            "embedding_path": str(embedding_path) if embedding_path else None,
+        }
+
+    requested_phrase = wake_word_id.replace("_", " ").strip()
+    normalized_phrase = normalize_keyword(requested_phrase)
+    fallback_map = {normalize_keyword(item): item for item in DEFAULT_OPENWAKEWORD_KEYWORDS}
+    if normalized_phrase in fallback_map:
+        return _builtin_setup_wakeword_config(fallback_map[normalized_phrase])
+
+    try:
+        import openwakeword as openwakeword_module
+
+        live_keywords = list_openwakeword_keywords(openwakeword_module)
+    except Exception:
+        live_keywords = []
+    live_map = {normalize_keyword(item): item for item in live_keywords}
+    if normalized_phrase in live_map:
+        return _builtin_setup_wakeword_config(live_map[normalized_phrase])
+
+    if custom_inventory_unavailable:
+        raise ValueError("Selected custom wake word is no longer available")
+    raise ValueError("Selected wake word is no longer available")
+
+
 def _apply_voice_config(config: dict[str, Any], choices: SetupChoices) -> None:
     audio = config.setdefault("audio", {})
     if choices.microphone_device_index is not None:
@@ -227,7 +289,8 @@ def _apply_voice_config(config: dict[str, Any], choices: SetupChoices) -> None:
     if choices.speaker_device_index is not None:
         audio["output_device_index"] = choices.speaker_device_index
     if choices.wake_word_id:
-        config.setdefault("wakeword", {})["wakeword"] = choices.wake_word_id
+        wakeword = config.setdefault("wakeword", {})
+        wakeword.update(_resolve_setup_wakeword_config(choices.wake_word_id))
     if choices.local_device_id and choices.room_name:
         config.setdefault("device_room_map", {})[choices.local_device_id] = choices.room_name
 

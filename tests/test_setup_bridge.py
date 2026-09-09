@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -99,7 +100,7 @@ def test_household_voice_choices_persist_to_canonical_runtime_config(
             "tts_voice_id": "en-US-AriaNeural",
             "microphone_device_index": 2,
             "speaker_device_index": 4,
-            "wake_word_id": "hey_rex",
+            "wake_word_id": "hey_jarvis",
             "local_device_id": "local_voice",
             "room_name": "Office",
             "background_voice_enabled": True,
@@ -114,10 +115,87 @@ def test_household_voice_choices_persist_to_canonical_runtime_config(
     assert config["models"]["tts_voice"] == "en-US-AriaNeural"
     assert config["audio"]["input_device_index"] == 2
     assert config["audio"]["output_device_index"] == 4
-    assert config["wakeword"]["wakeword"] == "hey_rex"
+    assert config["wakeword"]["backend"] == "openwakeword"
+    assert config["wakeword"]["wakeword"] == "hey jarvis"
+    assert config["wakeword"]["keyword"] == "hey jarvis"
+    assert config["wakeword"]["model_path"] is None
+    assert config["wakeword"]["embedding_path"] is None
     assert config["device_room_map"] == {"local_voice": "Office"}
     assert config["runtime"]["active_user"] == "james"
     assert config["runtime"]["background_voice_enabled"] is True
+
+
+def test_voice_config_replaces_stale_keyword_and_paths_for_builtin_selection() -> None:
+    config: dict[str, Any] = {
+        "wakeword": {
+            "backend": "custom_embedding",
+            "wakeword": "rex",
+            "keyword": "rex",
+            "model_path": "stale.onnx",
+            "embedding_path": "stale.pt",
+        }
+    }
+    choices = rex_setup_bridge._parse_setup_choices({"wake_word_id": "hey_jarvis"})
+
+    rex_setup_bridge._apply_voice_config(config, choices)
+
+    assert config["wakeword"] == {
+        "backend": "openwakeword",
+        "wakeword": "hey jarvis",
+        "keyword": "hey jarvis",
+        "model_path": None,
+        "embedding_path": None,
+    }
+
+
+def test_builtin_wakeword_persistence_does_not_require_custom_training_dependencies(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setitem(sys.modules, "rex.wakeword.trainer", None)
+    config: dict[str, Any] = {"wakeword": {"keyword": "rex"}}
+    choices = rex_setup_bridge._parse_setup_choices({"wake_word_id": "hey_jarvis"})
+
+    rex_setup_bridge._apply_voice_config(config, choices)
+
+    assert config["wakeword"]["backend"] == "openwakeword"
+    assert config["wakeword"]["keyword"] == "hey jarvis"
+
+
+def test_unresolved_custom_wakeword_fails_explicitly_when_training_inventory_is_unavailable(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setitem(sys.modules, "rex.wakeword.trainer", None)
+
+    with pytest.raises(ValueError, match="no longer available"):
+        rex_setup_bridge._resolve_setup_wakeword_config("my_custom_wake_word")
+
+
+def test_voice_config_uses_trained_embedding_metadata_for_custom_selection(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        "rex.wakeword.trainer.list_custom_wake_words",
+        lambda: [
+            {
+                "id": "computer",
+                "name": "Computer",
+                "engine": "custom_embedding",
+                "model_path": "C:/safe/wake_words/computer/embedding.pt",
+            }
+        ],
+    )
+    config: dict[str, Any] = {"wakeword": {"keyword": "rex"}}
+    choices = rex_setup_bridge._parse_setup_choices({"wake_word_id": "computer"})
+
+    rex_setup_bridge._apply_voice_config(config, choices)
+
+    assert config["wakeword"] == {
+        "backend": "custom_embedding",
+        "wakeword": "Computer",
+        "keyword": "Computer",
+        "model_path": None,
+        "embedding_path": "C:/safe/wake_words/computer/embedding.pt",
+    }
 
 
 def test_background_voice_defaults_off_in_setup_runtime_contract(

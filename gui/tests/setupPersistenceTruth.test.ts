@@ -33,4 +33,11 @@ describe('US-125 setup persistence versus runtime readiness truth', () => {
     expect(wizardSource).toContain('setupRuntimeWarning ?')
     expect(wizardSource).toContain('Close and reopen AskRex to continue.')
   })
+
+  it('does not navigate back across the setup persistence boundary', () => {
+    expect(wizardSource).toContain('const [setupPersisted, setSetupPersisted] = useState(false)')
+    expect(wizardSource).toContain('setSetupPersisted(true)')
+    expect(wizardSource).toContain('if (setupPersisted) return')
+    expect(wizardSource).toContain('!setupPersisted && step > 0')
+  })
 })
